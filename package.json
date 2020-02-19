@@ -1,0 +1,23 @@
+{
+  "name": "genesis-contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "testrpc": "ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000",
+    "truffle": "truffle",
+    "truffle:test": "truffle test",
+    "truffle:compile": "truffle compile",
+    "truffle:migrate": "truffle migrate",
+    "test:ci": "scripts/run-test.sh",
+    "lint": "npm run lint:sol && npm run lint:js",
+    "lint:js": "eslint test/**/*.js",
+    "lint:sol:fix": "solium -d contracts/ --fix",
+    "lint:sol": "solium -d contracts/"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "openzeppelin-solidity": "2.5.0"
+  }
+}
