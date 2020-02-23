@@ -168,6 +168,14 @@ contract TendermintLightClient {
         return true;
     }
 
+    function isHeaderSynced(uint64 height) public view returns (bool) {
+        bytes32 appHash = BBCLightClient[height].appHash;
+        if (appHash == bytes32(0)) {
+            return false;
+        }
+        return true;
+    }
+
     // | chainID    | height   | appHash  | validatorset length | [{validator pubkey, voting power}] |
     // | 32 bytes   | 8 bytes  | 32 bytes | 8 bytes             | [{32 bytes, 8 bytes}]              |
     function serializeConsensusState(uint64 height) internal view returns (bytes memory) {
