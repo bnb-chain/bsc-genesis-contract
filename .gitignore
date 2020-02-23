@@ -3,3 +3,4 @@ build/
 .idea
 pids
 logs
+.idea/
