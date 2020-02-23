@@ -21,8 +21,6 @@ contract TendermintLightClient {
 
     event InitConsensusState(uint64 initHeight, bytes32 appHash, uint256 validatorQuantiy, string chainID);
     event SyncConsensusState(uint64 height, uint64 preHeight, uint64 nextHeight, bytes32 appHash, uint256 validatorQuantiy);
-    event ValidMerkleProof(uint64 height, uint256 result, bytes validKey);
-    event InvalidMerkleProof(uint64 height, uint256 result);
 
     constructor(bytes memory initConsensusStateBytes, string memory chain_id) public {
         ConsensusState memory cs;
@@ -76,7 +74,7 @@ contract TendermintLightClient {
         assembly {
         // call validateTendermintHeader precompile contract
         // ccontract address: 0x0a
-            if iszero(call(not(0), 0x0a, 0, input, length, result, 1024)) {
+            if iszero(staticcall(not(0), 0x0a, input, length, result, 1024)) {
                 revert(0, 0)
             }
         }
@@ -159,16 +157,14 @@ contract TendermintLightClient {
         assembly {
         // call validateMerkleProof precompile contract
         // ccontract address: 0x0b
-            if iszero(call(not(0), 0x0b, 0, serialized, serializedLen, result, 0x40)) {
+            if iszero(staticcall(not(0), 0x0b, serialized, serializedLen, result, 0x40)) {
                 revert(0, 0)
             }
         }
 
         if (result[0] != 0x01) {
-            emit InvalidMerkleProof(height, result[0]);
             return false;
         }
-        emit ValidMerkleProof(height, result[0], key);
         return true;
     }
 
