@@ -1,7 +1,11 @@
 pragma solidity 0.5.16;
-pragma experimental "ABIEncoderV2";
 
-contract TendermintLightClient {
+import "LightClientInterface.sol";
+import "Memory.sol";
+import "Bytes.sol";
+import "BytesToTypes.sol";
+
+contract TendermintLightClient is LightClientInterface {
 
     struct Validator {
         bytes32 pubkey;
@@ -10,28 +14,34 @@ contract TendermintLightClient {
 
     struct ConsensusState {
         bytes32 appHash;
+        bytes32 curValidatorSetHash;
         uint64 preHeight;
         Validator[] nextValidatorSet;
     }
 
     string public chainID;
-    mapping(uint64 => ConsensusState) public BBCLightClient;
+    mapping(uint64 => ConsensusState) public BBCLightClientConsensusState;
+    mapping(uint64 => address payable) private submitters;
     uint64 public initialHeight;
     uint64 public latestHeight;
 
     event InitConsensusState(uint64 initHeight, bytes32 appHash, uint256 validatorQuantiy, string chainID);
     event SyncConsensusState(uint64 height, uint64 preHeight, uint64 nextHeight, bytes32 appHash, uint256 validatorQuantiy);
 
-    constructor(bytes memory initConsensusStateBytes, string memory chain_id) public {
+    constructor() public {
+
+    }
+
+    function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id) public {
         ConsensusState memory cs;
         uint64 height;
 
         (cs, height) = decodeConsensusState(initConsensusStateBytes);
 
-        BBCLightClient[height].appHash = cs.appHash;
-        BBCLightClient[height].preHeight = 0;
+        BBCLightClientConsensusState[height].appHash = cs.appHash;
+        BBCLightClientConsensusState[height].preHeight = 0;
         for (uint64 index = 0; index < cs.nextValidatorSet.length; index++) {
-            BBCLightClient[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
+            BBCLightClientConsensusState[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
         }
         initialHeight = height;
         latestHeight = height;
@@ -53,7 +63,7 @@ contract TendermintLightClient {
                 // find nearest previous height
                 break;
             }
-            cs = BBCLightClient[preHeight];
+            cs = BBCLightClientConsensusState[preHeight];
             nextHeight = preHeight;
             preHeight = cs.preHeight;
         }
@@ -82,6 +92,11 @@ contract TendermintLightClient {
         assembly {
             length := mload(add(result, 0))
         }
+        bool validateChanged = false;
+        if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
+            validateChanged = true;//TODO get system reward
+        }
+        length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
 
         bytes memory serialized = new bytes(length+32);
         for(uint256 pos = 0 ; pos < length+32; pos+=32) {
@@ -98,24 +113,25 @@ contract TendermintLightClient {
             revert("header height doesn't equal to specified height");
         }
 
-        //TODO add new ConsensusState to sorted link list
-        BBCLightClient[height].appHash = cs.appHash;
-        BBCLightClient[height].preHeight = preHeight;
+        submitters[height] = msg.sender;
+        BBCLightClientConsensusState[height].appHash = cs.appHash;
+        BBCLightClientConsensusState[height].preHeight = preHeight;
         for (uint64 index = 0; index < cs.nextValidatorSet.length; index++) {
-            BBCLightClient[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
+            BBCLightClientConsensusState[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
         }
         if (height > latestHeight) {
             latestHeight = height;
         }
-        BBCLightClient[nextHeight].preHeight = height;
+        BBCLightClientConsensusState[nextHeight].preHeight = height;
 
         emit SyncConsensusState(height, preHeight, nextHeight, cs.appHash, cs.nextValidatorSet.length);
 
         return true;
     }
 
-    function validateMerkleProof(uint64 height, string memory storeName, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        bytes32 appHash = BBCLightClient[height].appHash;
+    function validateMerkleProof(uint64 height, string calldata storeName, bytes calldata key,
+        bytes calldata value, bytes calldata proof) external view returns (bool) {
+        bytes32 appHash = BBCLightClientConsensusState[height].appHash;
         if (appHash == bytes32(0)) {
             return false;
         }
@@ -162,25 +178,28 @@ contract TendermintLightClient {
             }
         }
 
-        if (result[0] != 0x01) {
-            return false;
-        }
+        require(result[0] == 0x01);
+
         return true;
     }
 
-    function isHeaderSynced(uint64 height) public view returns (bool) {
-        bytes32 appHash = BBCLightClient[height].appHash;
+    function isHeaderSynced(uint64 height) external view returns (bool) {
+        bytes32 appHash = BBCLightClientConsensusState[height].appHash;
         if (appHash == bytes32(0)) {
             return false;
         }
         return true;
     }
 
-    // | chainID    | height   | appHash  | validatorset length | [{validator pubkey, voting power}] |
-    // | 32 bytes   | 8 bytes  | 32 bytes | 8 bytes             | [{32 bytes, 8 bytes}]              |
+    function getSubmitter(uint64 height) external view returns (address payable) {
+        return submitters[height];
+    }
+
+    // | chainID   | height   | appHash  | curValidatorSetHash | nextValidatorSet length | [{validator pubkey, voting power}] |
+    // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | 8 bytes                 | [{32 bytes, 8 bytes}]              |
     function serializeConsensusState(uint64 height) internal view returns (bytes memory) {
-        ConsensusState memory cs = BBCLightClient[height];
-        uint256 size = 32 + 8 + 32 + 8 + 40*cs.nextValidatorSet.length;
+        ConsensusState memory cs = BBCLightClientConsensusState[height];
+        uint256 size = 32 + 8 + 32 + 32+ 8 + 40*cs.nextValidatorSet.length;
         bytes memory serialized = new bytes(size);
 
         uint256 pos = size-32;
@@ -210,9 +229,15 @@ contract TendermintLightClient {
         }
         pos=pos-8;
 
-        bytes32 appHash = cs.appHash;
+        bytes32 hash = cs.curValidatorSetHash;
         assembly {
-            mstore(add(ptr, pos), appHash)
+            mstore(add(ptr, pos), hash)
+        }
+        pos=pos-32;
+
+        hash = cs.appHash;
+        assembly {
+            mstore(add(ptr, pos), hash)
         }
         pos=pos-32;
 
@@ -229,8 +254,8 @@ contract TendermintLightClient {
         return serialized;
     }
 
-    // | chainID    | height   | appHash  | validatorset length | [{validator pubkey, voting power}] |
-    // | 32 bytes   | 8 bytes  | 32 bytes | 8 bytes             | [{32 bytes, 8 bytes}]              |
+    // | chainID   | height   | appHash  | curValidatorSetHash | nextValidatorSet length | [{validator pubkey, voting power}] |
+    // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | 8 bytes                 | [{32 bytes, 8 bytes}]              |
     function decodeConsensusState(bytes memory input) internal pure returns(ConsensusState memory, uint64) {
         //skip input size
         uint256 pos = 32;
@@ -241,11 +266,15 @@ contract TendermintLightClient {
         pos=pos+32;
         bytes32 appHash = BytesToTypes.bytesToBytes32(pos,input);
 
+        pos=pos+32;
+        bytes32 curValidatorSetHash = BytesToTypes.bytesToBytes32(pos,input);
+
         pos=pos+8;
         uint64 validatorsetLength = BytesToTypes.bytesToUint64(pos,input);
 
         ConsensusState memory cs;
         cs.appHash = appHash;
+        cs.curValidatorSetHash = curValidatorSetHash;
         cs.nextValidatorSet = new Validator[](validatorsetLength);
         for (uint64 index = 0; index < validatorsetLength; index++) {
             Validator memory validator;
