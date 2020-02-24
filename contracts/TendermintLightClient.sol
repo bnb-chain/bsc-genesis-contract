@@ -1,11 +1,14 @@
 pragma solidity 0.5.16;
-pragma experimental "ABIEncoderV2";
+
+import "BytesToTypes.sol";
+import "Memory.sol";
+import "Bytes.sol";
 
 contract TendermintLightClient {
 
     struct Validator {
         bytes32 pubkey;
-        uint64   votingPower;
+        uint64  votingPower;
     }
 
     struct ConsensusState {
@@ -98,7 +101,6 @@ contract TendermintLightClient {
             revert("header height doesn't equal to specified height");
         }
 
-        //TODO add new ConsensusState to sorted link list
         BBCLightClient[height].appHash = cs.appHash;
         BBCLightClient[height].preHeight = preHeight;
         for (uint64 index = 0; index < cs.nextValidatorSet.length; index++) {
@@ -114,7 +116,8 @@ contract TendermintLightClient {
         return true;
     }
 
-    function validateMerkleProof(uint64 height, string memory storeName, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
+    function validateMerkleProof(uint64 height, string memory storeName, bytes memory key,
+        bytes memory value, bytes memory proof) public view returns (bool) {
         bytes32 appHash = BBCLightClient[height].appHash;
         if (appHash == bytes32(0)) {
             return false;
@@ -165,6 +168,7 @@ contract TendermintLightClient {
         if (result[0] != 0x01) {
             return false;
         }
+
         return true;
     }
 
