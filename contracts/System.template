@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.15;
 
 contract System {
   address public constant SYSTEM_ADDRESS = {{systemAddr}};

@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.15;
 
 import {System} from "./System.sol";
 import "./Seriality/TypesToBytes.sol";
@@ -30,10 +30,13 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  // only for query
-  bytes public fromChainId;
-  bytes public toChainId;
+  bytes public constant fromChainId = "";
+  bytes public constant toChainId = "";
+  address payable public constant systemRewardAddr = "";
+  address public constant tokenContract = "";
+  byte public constant initValidatorSetBytes = "";
 
+  bool public alreadyInit;
   // used for generate key
   bytes public keyPrefix;
 
@@ -41,8 +44,7 @@ contract BSCValidatorSet is System {
   ILightClient lightClient;
   ICrossChainTransfer crossTransfer;
   ISystemReward systemReward;
-  address payable public systemRewardAddr;
-  address public tokenContract;
+
 
   // state of this contract
   Validator[] public currentValidatorSet;
@@ -58,6 +60,16 @@ contract BSCValidatorSet is System {
     address payable feeAddress;
     address BBCFeeAddress;
     uint256 incoming;
+  }
+
+  modifier onlyNotInit() {
+    require(!alreadyInit, "the contract already init");
+    _;
+  }
+
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
+    _;
   }
 
   modifier sequenceInOrder(uint64 _sequence) {
@@ -97,8 +109,14 @@ contract BSCValidatorSet is System {
   constructor(bytes memory _fromChainId, bytes memory _toChainId, address payable
       _systemRewardAddr, address _crossTransferAddr, address _lightClientAddr, address _tokenContract,
       bytes memory validatorSetBytes)public{
+    fromChainId = _fromChainId;
+    toChainId = _toChainId;
+    tokenContract = _tokenContract;
+    systemRewardAddr = _systemRewardAddr;
+  }
 
-    Validator[] memory validatorSet = parseValidatorSet(validatorSetBytes);
+  function init() external onlyNotInit{
+    Validator[] memory validatorSet = parseValidatorSet(initValidatorSetBytes);
     (bool passVerify, string memory errorMsg) = verifyValidatorSet(validatorSet);
     require(passVerify,errorMsg);
     for(uint i = 0;i<validatorSet.length;i++){
@@ -106,19 +124,16 @@ contract BSCValidatorSet is System {
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
 
-    fromChainId = _fromChainId;
-    toChainId = _toChainId;
-    lightClient = ILightClient(_lightClientAddr);
-    crossTransfer = ICrossChainTransfer(_crossTransferAddr);
-    systemReward = ISystemReward(_systemRewardAddr);
-    tokenContract = _tokenContract;
-    systemRewardAddr = _systemRewardAddr;
-    keyPrefix = generatePrefixKey(_fromChainId, _toChainId);
+    lightClient = ILightClient(lightClientAddr);
+    crossTransfer = ICrossChainTransfer(crossTransferAddr);
+    systemReward = ISystemReward(systemRewardAddr);
+    keyPrefix = generatePrefixKey(fromChainId, toChainId);
+    alreadyInit = true;
   }
 
   /*********************** External Functions **************************/
 
-  function deposit(address valAddr) external payable onlySystem noEmptyDeposit onlyDepositOnce{
+  function deposit(address valAddr) external payable onlySystem onlyInit noEmptyDeposit onlyDepositOnce{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
     if (index>0){
@@ -132,7 +147,8 @@ contract BSCValidatorSet is System {
       emit deprecatedDeposit(valAddr,value);
     }
   }
-  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint256 height, uint64 packageSequence) external sequenceInOrder(packageSequence) blockSynced(height){
+
+  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint256 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
     bool valid = lightClient.validateMerkleProof(height, STORE_NAME, key, validatorSetBytes, proof);

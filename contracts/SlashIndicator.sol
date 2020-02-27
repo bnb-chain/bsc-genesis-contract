@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.15;
 import { System } from "./System.sol";
 
 contract SlashIndicator is System{

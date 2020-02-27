@@ -1,6 +1,9 @@
 # bsc-genesis-contracts
 
-#### Setup 
+#### Prepare
+```bash
+docker pull  ethereum/solc:0.5.14
+``` 
 
 #### Set up for unit test
 

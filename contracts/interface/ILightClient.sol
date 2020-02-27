@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.15;
 
 interface ILightClient {
   function isBlockSynced(uint256) external returns (bool);

@@ -1,0 +1,61 @@
+{
+  "config": {
+    "chainId": {{chainId}},
+    "eip150Block": 0,
+    "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "ewasmBlock": 0,
+    "parlia": {
+      "period": 5,
+      "backOffPeriod": 2,
+      "epoch": 100,
+      "validatorContract": "0x0000000000000000000000000000000000001000",
+      "slashContract": "0x0000000000000000000000000000000000001001",
+      "systemRewardContract": "0x0000000000000000000000000000000000001002"
+    }
+  },
+  "nonce": "0x0",
+  "timestamp": "0x5ce28211",
+  "extraData": "{{extraData}}",
+  "gasLimit": "0x989680",
+  "difficulty": "0x1",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
+  "alloc": {
+    "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE": {
+      "balance": "0x0"
+    },
+    "0x0000000000000000000000000000000000001000": {
+      "balance": "0x0",
+      "code": "0x{{validatorContract}}"
+    },
+    "0x0000000000000000000000000000000000001001": {
+      "balance": "0x0",
+      "code": "0x{{slashContract}}"
+    },
+    "0x0000000000000000000000000000000000001002": {
+      "balance": "0x0",
+      "code": "0x{{systemRewardContract}}"
+    },
+    "0x0000000000000000000000000000000000001003": {
+      "balance": "0x0",
+      "code": "0x{{lightClientContract}}"
+    },
+    "0x0000000000000000000000000000000000001004": {
+    "balance": "0x0",
+    "code": "0x{{crossChainTransferContract}}"
+    }{% for v in initHolders %},
+    "{{ v.address.replace('0x', '') }}": {
+      "balance": "{{ v.balance }}"
+    }{% endfor %}
+  },
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}

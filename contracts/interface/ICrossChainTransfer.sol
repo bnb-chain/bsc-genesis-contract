@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity ^0.5.15;
 
 interface ICrossChainTransfer {
   function batchCrossChainTransfer(address[]calldata,uint256[]calldata, address[]calldata, address, uint256)
