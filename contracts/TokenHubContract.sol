@@ -35,18 +35,18 @@ contract TokenHubContract {
     bytes32 bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
     bytes32 sourceChainID         = 0x42696e616e63652d436861696e2d4e696c650000000000000000000000000000; // "Binance-Chain-Nile"
     bytes32 destinationChainID    = 0x1500000000000000000000000000000000000000000000000000000000000000; // "15"
-    uint256 minmumRelayReward     = 10000;//0.01 BNB
+    uint256 minimumRelayReward     = 10000;//0.01 BNB
 
     address lightClientContract;
-    address tendermintHeaderSyncRelayerIncentivize;
-    address crossChainTransferRelayerIncentivize;
+    address tendermintHeaderSyncRelayerIncentivizeContract;
+    address crossChainTransferRelayerIncentivizeContract;
 
     mapping(address => bytes32) contractAddrToBEP2Symbol;
-    mapping(bytes32 => address) BEP2SymbolTocontractAddr;
+    mapping(bytes32 => address) BEP2SymbolToContractAddr;
 
-    uint256 peggyChannelSequence=0;
-    uint256 inTransferChannelSequence=0;
-    uint256 outTransferChannelSequence=0;
+    uint256 bindChannelSequence=0;
+    uint256 transferInChannelSequence=0;
+    uint256 transferOutChannelSequence=0;
     uint256 timeoutChannelSequence=0;
 
     event LogRegisterERC20ToBEP2(address contractAddr, uint256 peggyAmount, address bep2T0kenOwner, bytes32 bep2TokenSymbol);
@@ -56,18 +56,16 @@ contract TokenHubContract {
 
     event LogCrossChainTransfer(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayReward, uint256 sequence);
 
-    event LogHandleCrossChainTransferPackageInSuccess(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
-    event LogHandleCrossChainTransferPackageInTimeout(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 handleTime);
-    event LogHandleCrossChainTransferPackageInInsufficientBalance(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
-    event LogHandleCrossChainTransferPackageInUnbindedToken(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInSuccess(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInFailureTimeout(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 handleTime);
+    event LogTransferInFailureInsufficientBalance(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInFailureUnbindedToken(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
-    constructor(address lightClientContractAddr, address tendermintHeaderSyncRelayerIncentivizeContract, address crossChainTransferRelayerIncentivizeContract) public {
+    constructor(address lightClientContractAddr) public {
         lightClientContract = lightClientContractAddr;
-        tendermintHeaderSyncRelayerIncentivize = tendermintHeaderSyncRelayerIncentivizeContract;
-        crossChainTransferRelayerIncentivize= crossChainTransferRelayerIncentivizeContract
     }
 
-    function calculateRwardForTendermintHeaderSyncer(uint256 reward) public pure returns (uint256) {
+    function calculateRewardForTendermintHeaderRelayer(uint256 reward) public pure returns (uint256) {
         return reward/5; //20%
     }
     // | sourceChainID | destinationChainID | channelID | sequence |
@@ -165,25 +163,27 @@ contract TokenHubContract {
     }
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifiyKey(key, 0x01, peggyChannelSequence));
+        require(verifiyKey(key, 0x01, bindChannelSequence));
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
-        peggyChannelSequence++;
+        bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
 
         BindRequestPackage memory brPackage = decodeBindRequestPackage(value);
 
-        uint256 reward = calculateRwardForTendermintHeaderSyncer(brPackage.relayReward);
-        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivize).addReward.value(reward)(tendermintHeaderSubmitter);
+        uint256 reward = calculateRewardForTendermintHeaderRelayer(brPackage.relayReward);
+        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = brPackage.relayReward-reward;
-        IRelayerIncentivize(crossChainTransferRelayerIncentivize).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
 
         uint256 bep2TokenDecimals=100000000; // 10^8
         uint256 erc20TokenDecimals=10**IERC20(brPackage.contractAddr).decimals();
         brPackage.totalSupply = brPackage.totalSupply*erc20TokenDecimals/bep2TokenDecimals;
         brPackage.peggyAmount = brPackage.peggyAmount*erc20TokenDecimals/bep2TokenDecimals;
 
-        if (BEP2SymbolTocontractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
+        //TODO add bep2 token symbol and erc20 contract symbol checking
+
+        if (BEP2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
         IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
         IERC20(brPackage.contractAddr).balanceOf(address(this))!=brPackage.peggyAmount||
         IERC20(brPackage.contractAddr).bep2TokenOwner()!=brPackage.bep2TokenOwner) {
@@ -191,25 +191,24 @@ contract TokenHubContract {
             return false;
         }
         contractAddrToBEP2Symbol[brPackage.contractAddr] = brPackage.bep2TokenSymbol;
-        BEP2SymbolTocontractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
+        BEP2SymbolToContractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
         emit LogTokenBind(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
         return true;
     }
 
-    function crossChainTransferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayReward) public payable returns(bool) {
-        require(relayReward>minmumRelayReward);
+    function crossChainTransferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayReward) public payable {
+        require(relayReward>minimumRelayReward);
         require(contractAddrToBEP2Symbol[contractAddr]!=0x00);
         if (contractAddr==address(0x0)) {
             require(msg.value==amount+relayReward);
             amount = msg.value;
-            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, bep2TokenSymbolForBNB, expireTime, relayReward, outTransferChannelSequence); //BNB 32bytes
+            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, bep2TokenSymbolForBNB, expireTime, relayReward, transferOutChannelSequence); //BNB 32bytes
         } else {
             require(msg.value==relayReward);
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount), "failed to transfer token to this contract");
-            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, contractAddrToBEP2Symbol[contractAddr], expireTime, relayReward, outTransferChannelSequence);
+            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, contractAddrToBEP2Symbol[contractAddr], expireTime, relayReward, transferOutChannelSequence);
         }
-        outTransferChannelSequence++;
-        return true;
+        transferOutChannelSequence++;
     }
 
     function decodeCrossChainTransferPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
@@ -268,42 +267,42 @@ contract TokenHubContract {
     }
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifiyKey(key, 0x02, inTransferChannelSequence));
+        require(verifiyKey(key, 0x02, transferInChannelSequence));
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
-        inTransferChannelSequence++;
+        transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
 
         CrossChainTransferPackage memory cctp = decodeCrossChainTransferPackage(value);
 
-        uint256 reward = calculateRwardForTendermintHeaderSyncer(cctp.relayReward);
-        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivize).addReward.value(reward)(tendermintHeaderSubmitter);
+        uint256 reward = calculateRewardForTendermintHeaderRelayer(cctp.relayReward);
+        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = cctp.relayReward-reward;
-        IRelayerIncentivize(crossChainTransferRelayerIncentivize).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
 
         if (block.timestamp > cctp.expireTime) {
-            emit LogHandleCrossChainTransferPackageInTimeout(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime, block.timestamp);
+            emit LogTransferInFailureTimeout(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime, block.timestamp);
             return false;
         }
 
         if (cctp.contractAddr==address(0x0)) {
             if (address(this).balance < cctp.amount) {
-                emit LogHandleCrossChainTransferPackageInInsufficientBalance(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureInsufficientBalance(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             cctp.recipient.transfer(cctp.amount);
         } else {
             if (contractAddrToBEP2Symbol[cctp.contractAddr]==0x00) {
-                emit LogHandleCrossChainTransferPackageInUnbindedToken(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureUnbindedToken(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             if (IERC20(cctp.contractAddr).balanceOf(address(this))<cctp.amount) {
-                emit LogHandleCrossChainTransferPackageInInsufficientBalance(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureInsufficientBalance(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             IERC20(cctp.contractAddr).transfer(cctp.recipient, cctp.amount);
         }
-        emit LogHandleCrossChainTransferPackageInSuccess(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+        emit LogTransferInSuccess(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
         return true;
     }
 
@@ -341,13 +340,13 @@ contract TokenHubContract {
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
         timeoutChannelSequence++;
 
-        address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
+        //address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
 
         TimeoutPackage memory timeoutPackage = decodeTimeoutPackage(value);
 
-        //IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivize).addReward.value(reward)(tendermintHeaderSubmitter);
+        //IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
         //reward = timeoutPackage.relayReward-reward;
-        //IRelayerIncentivize(crossChainTransferRelayerIncentivize).addReward.value(reward)(msg.sender);
+        //IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
 
         if (timeoutPackage.contractAddr==address(0x0)) {
             if (address(this).balance < timeoutPackage.amount) {
