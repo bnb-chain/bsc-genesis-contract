@@ -30,13 +30,13 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  string public constant fromChainId = "Binance-Chain-Tigris"; // means Binance-Chain-Tigris
-  string public constant toChainId = "714";  // means "714"
+  string public constant fromChainId = "{{fromChainId}}"; // means Binance-Chain-Tigris
+  string public constant toChainId = "{{toChainId}}";  // means "714"
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
   address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
-  bytes public constant initValidatorSetBytes = hex"acf8eccdca12a0eb6ae4fb1431e26c44e66decdbacf8eccdca12a0eb6ae4fb1431e26c44e66decdbacf8eccdca12a0eb6ae4fb1431e26c44e66decdb";
+  bytes public constant initValidatorSetBytes = hex"{{initValidatorSetBytes}}";
 
   bool public alreadyInit;
   // used for generate key

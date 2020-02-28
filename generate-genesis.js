@@ -8,7 +8,8 @@ const validators = require("./validators")
 const init_holders = require("./init_holders")
 
 // load and execute generate-system.js
-require("./generate-system")
+require("./generate-system");
+require("./generate-validatorset");
 
 program.version("0.0.1")
 program.option("-c, --chain-id <chain-id>", "chain id", "714")
@@ -24,15 +25,10 @@ program.option(
 )
 program.parse(process.argv)
 
-let validatorBytes = validatorsSerialize(validators)
 // compile contract
 function compileContract(key, contractFile, contractName) {
   return new Promise((resolve, reject) => {
-    const ls = spawn("docker", [
-      "run",
-      "-v",
-      "./:/sources",
-      "ethereum/solc:0.5.15",
+    const ls = spawn("solc", [
       "--bin-runtime",
       "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",
       "/=/",
@@ -57,7 +53,7 @@ function compileContract(key, contractFile, contractName) {
     })
   }).then(compiledData => {
     compiledData = compiledData.replace(
-      `======= ${contractFile}:${contractName} =======\nBinary of the runtime part: `,
+      `======= ${contractFile}:${contractName} =======\nBinary of the runtime part:`,
       "@@@@"
     )
 
@@ -70,36 +66,35 @@ function compileContract(key, contractFile, contractName) {
 Promise.all([
   compileContract(
     "validatorContract",
-    "contracts/BorValidatorSet.sol",
-    "BorValidatorSet"
-  ),
-  compileContract(
-    "slashContract",
-    "/sources/contracts/BSCValidatorSet.sol",
+    "contracts/BSCValidatorSet.sol",
     "BSCValidatorSet"
   ),
   compileContract(
     "systemRewardContract",
-    "/sources/contracts/SystemReward",
+    "contracts/SystemReward.sol",
     "SystemReward"
   ),
   compileContract(
+      "slashContract",
+      "contracts/SlashIndicator.sol",
+      "SlashIndicator"
+  ),
+  compileContract(
       "lightClientContract",
-      "/sources/contracts/mock/child/LightClient.sol",
+      "contracts/mock/LightClient.sol",
       "LightClient"
   ),
   compileContract(
       "crossChainTransferContract",
-      "/sources/contracts/mock/CrossChainTransfer.sol",
+      "contracts/mock/CrossChainTransfer.sol",
       "CrossChainTransfer"
   ),
 ]).then(result => {
 
-  let extraData = we3.utils.bytesToHex(generateExtradata(validators));
   const data = {
-    chainId: program.borChainId,
+    chainId: program.chainId,
     initHolders: init_holders,
-    extraData: extraData
+    extraData: web3.utils.bytesToHex(validators.extraValidatorBytes)
   }
   result.forEach(r => {
     data[r.key] = r.compiledData
@@ -109,34 +104,3 @@ Promise.all([
   fs.writeFileSync(program.output, resultString)
 
 })
-
-
-
-function generateExtradata(validators) {
-  let extraVanity =Buffer.alloc(32);
-  let validatorsBytes = extraDataSerialize(validators);
-  let extraSeal =Buffer.alloc(65);blur()
-  return Buffer.concat([extraVanity,validatorsBytes,extraSeal]);
-}
-
-function extraDataSerialize(validators) {
-  let n = validators.length;
-  let arr = [];
-  for(let i = 0;i<n;i++){
-    let validator = validators[i];
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddrList)));
-  }
-  return Buffer.concat(arr);
-}
-
-function validatorsSerialize(validators) {
-  let n = validators.length;
-  let arr = [];
-  for(let i = 0;i<n;i++){
-    let validator = validators[i];
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.feeAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.bscFeeAddr)));
-  }
-  return Buffer.concat(arr);
-}

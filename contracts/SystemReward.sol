@@ -4,8 +4,8 @@ import "./interface/ISystemReward.sol";
 
 contract SystemReward is System, ISystemReward{
   uint256 public constant MAX_REWARDS = 1e18;
-  address public constant LIGHT_CLIENT_CONTRACT = "0x0000000000000000000000000000000000001003";
-  address public constant VALIDATOR_SET_CONTRACT = "0x0000000000000000000000000000000000001000";
+  address public constant LIGHT_CLIENT_CONTRACT = 0x0000000000000000000000000000000000001003;
+  address public constant VALIDATOR_SET_CONTRACT = 0x0000000000000000000000000000000000001000;
 
   uint public numOperator;
   bool public alreadyInit;

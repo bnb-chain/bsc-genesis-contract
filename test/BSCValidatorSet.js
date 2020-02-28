@@ -11,7 +11,8 @@ contract('BSCValidatorSet', (accounts) => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     
     let keyPrefix = await validatorSetInstance.keyPrefix.call();
-    assert.equal(keyPrefix,0x42696e616e63652d436861696e2d5469677269735f3731345f33355f, "keyPrefix is not correct")
+
+    assert.equal(web3.utils.bytesToHex(keyPrefix),"0x000004020609060006010600060306050200040306080601060906000200050406090607070206090703000000000000000000000000000000000000000000000000030703010304000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008", "keyPrefix is not correct")
 
     let sequence = await validatorSetInstance.sequence.call();
     assert.equal(sequence,0, "sequence should be 0");
@@ -216,7 +217,7 @@ contract('BSCValidatorSet', (accounts) => {
     
     // block the light client 
     const lightClientInstance = await LightClient.deployed();
-    await lightClientInstance.setBlockSynced(false);
+    await lightClientInstance.setBlockNotSynced(true);
     let validArray = arrs[0];
     try{
       await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
@@ -225,8 +226,8 @@ contract('BSCValidatorSet', (accounts) => {
     }catch(error){
       // console.log(error);
     }
-    await lightClientInstance.setBlockSynced(true);
-    await lightClientInstance.setStateVerified(false);
+    await lightClientInstance.setBlockNotSynced(false);
+    await lightClientInstance.setStateNotVerified(true);
     try{
       await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
           {from: relayerAccount});
