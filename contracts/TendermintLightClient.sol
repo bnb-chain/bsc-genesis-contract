@@ -1,11 +1,11 @@
 pragma solidity 0.5.16;
 
-import "LightClientInterface.sol";
 import "Memory.sol";
 import "Bytes.sol";
 import "BytesToTypes.sol";
+import "ITendermintLightClient.sol";
 
-contract TendermintLightClient is LightClientInterface {
+contract TendermintLightClient is ITendermintLightClient {
 
     struct Validator {
         bytes32 pubkey;
