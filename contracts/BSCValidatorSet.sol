@@ -36,7 +36,7 @@ contract BSCValidatorSet is System {
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
   address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
-  bytes public constant initValidatorSetBytes = hex"acf8eccdca12a0eb6ae4fb1431e26c44e66decdbacf8eccdca12a0eb6ae4fb1431e26c44e66decdbacf8eccdca12a0eb6ae4fb1431e26c44e66decdb";
+  bytes public constant initValidatorSetBytes = hex"c90addaad734106f885807c2d90d34687124f565c90addaad734106f885807c2d90d34687124f565c90addaad734106f885807c2d90d34687124f565";
 
   bool public alreadyInit;
   // used for generate key

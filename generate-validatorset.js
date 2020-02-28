@@ -1,7 +1,6 @@
 const program = require("commander");
 const fs = require("fs");
 const nunjucks = require("nunjucks");
-const web3 = require("web3")
 
 
 program.version("0.0.1");

@@ -1,12 +1,15 @@
 const web3 = require("web3")
+
+// Configure
 const validators = [
   {
-    consensusAddr: "0xaCF8eCcdcA12a0eB6Ae4Fb1431e26c44E66dECdb",
-    feeAddr: "0xaCF8eCcdcA12a0eB6Ae4Fb1431e26c44E66dECdb",
-    bscFeeAddr: "0xaCF8eCcdcA12a0eB6Ae4Fb1431e26c44E66dECdb"
+    consensusAddr: "0xC90AddaAD734106f885807C2D90d34687124f565",
+    feeAddr: "0xC90AddaAD734106f885807C2D90d34687124f565",
+    bscFeeAddr: "0xC90AddaAD734106f885807C2D90d34687124f565"
   }
 ];
 
+// ===============  Do not edit below ====
 function generateExtradata(validators) {
   let extraVanity =Buffer.alloc(32);
   let validatorsBytes = extraDataSerialize(validators);

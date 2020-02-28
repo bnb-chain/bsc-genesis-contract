@@ -1,8 +1,10 @@
 # bsc-genesis-contracts
 
 #### Prepare
+
+Install dependency:
 ```bash
-docker pull  ethereum/solc:0.5.14
+$ npm install
 ``` 
 
 #### unit test
@@ -16,3 +18,13 @@ $  truffle compile
 $  truffle migrate
 $  truffle test
 ```
+
+#### how to generate genesis file.
+ 
+1. Edit `init_holders.js` file to alloc the initial BNB holder.
+2. Edit `validators.js` file to alloc the initial validator set.
+3. Edit `generate-validatorset.js` file to change chain-id.
+4. run ` node generate-genesis.js` will generate genesis.json
+
+
+
