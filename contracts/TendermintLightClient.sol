@@ -1,11 +1,12 @@
 pragma solidity 0.5.16;
 
-import "LightClientInterface.sol";
 import "Memory.sol";
 import "Bytes.sol";
 import "BytesToTypes.sol";
+import "ITendermintLightClient.sol";
+import "ISystemReward.sol";
 
-contract TendermintLightClient is LightClientInterface {
+contract TendermintLightClient is ITendermintLightClient {
 
     struct Validator {
         bytes32 pubkey;
@@ -19,6 +20,7 @@ contract TendermintLightClient is LightClientInterface {
         Validator[] nextValidatorSet;
     }
 
+    address systemRewardContract;
     string public chainID;
     mapping(uint64 => ConsensusState) public BBCLightClientConsensusState;
     mapping(uint64 => address payable) private submitters;
@@ -32,7 +34,7 @@ contract TendermintLightClient is LightClientInterface {
 
     }
 
-    function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id) public {
+    function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id, address systemRewardContractAddr) public {
         ConsensusState memory cs;
         uint64 height;
 
@@ -46,6 +48,7 @@ contract TendermintLightClient is LightClientInterface {
         initialHeight = height;
         latestHeight = height;
         chainID = chain_id;
+        systemRewardContract=systemRewardContractAddr;
 
         emit InitConsensusState(initialHeight, cs.appHash, cs.nextValidatorSet.length, chain_id);
     }
@@ -92,9 +95,8 @@ contract TendermintLightClient is LightClientInterface {
         assembly {
             length := mload(add(result, 0))
         }
-        bool validateChanged = false;
         if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
-            validateChanged = true;//TODO get system reward
+            ISystemReward(systemRewardContract).claimRewards(msg.sender, 100000);//TODO decide reward
         }
         length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
 
