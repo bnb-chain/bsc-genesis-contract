@@ -3,6 +3,7 @@ pragma solidity 0.5.16;
 import "Context.sol";
 import "IERC20.sol";
 import "SafeMath.sol";
+import "Ownable.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -28,7 +29,7 @@ import "SafeMath.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ABCToken is Context, IERC20 {
+contract ABCToken is Context, IERC20, Ownable {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -49,6 +50,27 @@ contract ABCToken is Context, IERC20 {
         _balances[msg.sender] = _totalSupply;
 
         emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+    /**
+     * @dev Returns the token decimals.
+     */
+    function decimals() external view returns (uint256) {
+        return _decimals;
+    }
+
+    /**
+     * @dev Returns the contract owner.
+     */
+    function symbol() external view returns (string memory) {
+        return _symbol;
+    }
+
+    /**
+     * @dev Returns the bep token owner.
+     */
+    function bep2TokenOwner() external view returns (address) {
+        return owner();
     }
 
     /**
