@@ -6,7 +6,6 @@ import "IRelayerIncentivize.sol";
 
 contract TokenHubContract {
 
-    //TODO relayer incentive mechanism
     struct BindRequestPackage {
         bytes32 bep2TokenSymbol;
         address bep2TokenOwner;
@@ -33,9 +32,9 @@ contract TokenHubContract {
     }
 
     bytes32 bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    bytes32 sourceChainID         = 0x42696e616e63652d436861696e2d4e696c650000000000000000000000000000; // "Binance-Chain-Nile"
-    bytes32 destinationChainID    = 0x1500000000000000000000000000000000000000000000000000000000000000; // "15"
-    uint256 minimumRelayReward     = 10000;//0.01 BNB
+    bytes32 sourceChainID         = 0x746573742d636861696e00000000000000000000000000000000000000000000; // "test-chain"
+    bytes32 destinationChainID    = 0x3135000000000000000000000000000000000000000000000000000000000000; // "15"
+    uint256 minimumRelayReward    = 10000;//0.01 BNB
 
     address lightClientContract;
     address incentivizeContractForHeaderSyncRelayers;
@@ -61,10 +60,11 @@ contract TokenHubContract {
     event LogTransferInFailureInsufficientBalance(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
     event LogTransferInFailureUnbindedToken(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
-    constructor() public {
+    constructor() public payable {
 
     }
 
+    //TODO add authority check
     function initTokenHub(address lightClientContractAddr,
         address incentivizeContractAddrForHeaderSyncRelayers,
         address incentivizeContractAddrForTransferRelayers) public {
@@ -73,28 +73,41 @@ contract TokenHubContract {
         incentivizeContractForTransferRelayers = incentivizeContractAddrForTransferRelayers;
     }
 
+    //TODO need further discussion
     function calculateRewardForTendermintHeaderRelayer(uint256 reward) internal pure returns (uint256) {
         return reward/5; //20%
     }
-    // | sourceChainID | destinationChainID | channelID | sequence |
-    // | 32 bytes      | 32 bytes           |  1 bytes  | 32 bytes |
+    // | length   | prefix | sourceChainID | destinationChainID | channelID | sequence |
+    // | 32 bytes | 1 byte | 32 bytes      | 32 bytes           |  1 bytes  | 8 bytes  |
     function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
-        if (key.length!=97) {
-            return false;
-        }
-
-        uint256 pos=key.length;
-
-        pos-=32;
-        uint256 sequence;
+        uint256 length;
         assembly {
-            sequence := mload(add(key, pos))
+            length := mload(add(key, 0))
         }
-        if (sequence != expectedSequence) {
+        if (length != 0x4a) { //74
             return false;
         }
 
-        pos-=8;
+        uint256 pos=0;
+
+        bytes32 chainID;
+        pos+=32+1;
+        assembly {
+            chainID := mload(add(key, pos))
+        }
+        if (chainID != sourceChainID) {
+            return false;
+        }
+
+        pos+=32;
+        assembly {
+            chainID := mload(add(key, pos))
+        }
+        if (chainID != destinationChainID) {
+            return false;
+        }
+
+        pos+=1;
         uint8 channelID;
         assembly {
             channelID := mload(add(key, pos))
@@ -103,69 +116,65 @@ contract TokenHubContract {
             return false;
         }
 
-        bytes32 chainID;
-        pos-=32;
+        pos+=8;
+        uint64 sequence;
         assembly {
-            chainID := mload(add(key, pos))
+            sequence := mload(add(key, pos))
         }
-        if (chainID != destinationChainID) {
-            return false;
-        }
-
-        pos-=32;
-        assembly {
-            chainID := mload(add(key, pos))
-        }
-        if (chainID != sourceChainID) {
+        if (sequence != expectedSequence) {
             return false;
         }
 
         return true;
     }
 
+    // | length   | bep2TokenSymbol | bep2TokenOwner | contractAddr | totalSupply | peggyAmount | relayReward |
+    // | 32 bytes | 32 bytes        | 20 bytes       | 20 bytes     |  32 bytes   | 32 bytes    | 32 bytes    |
     function decodeBindRequestPackage(bytes memory value) internal pure returns(BindRequestPackage memory) {
         BindRequestPackage memory brPackage;
 
-        uint256 pos=value.length;
+        uint256 pos=0;
 
-        pos-=32;
-        uint256 tempValue;
+        bytes32 bep2TokenSymbol;
+        pos+=32;
         assembly {
-            tempValue := mload(add(value, pos))
+            bep2TokenSymbol := mload(add(value, pos))
         }
-        brPackage.relayReward = tempValue;
+        brPackage.bep2TokenSymbol = bep2TokenSymbol;
 
-        pos-=32;
-        assembly {
-            tempValue := mload(add(value, pos))
-        }
-        brPackage.peggyAmount = tempValue;
-
-        pos-=32;
-        assembly {
-            tempValue := mload(add(value, pos))
-        }
-        brPackage.totalSupply = tempValue;
-
-        pos-=20;
         address addr;
+
+        pos+=20;
+        assembly {
+            addr := mload(add(value, pos))
+        }
+        brPackage.bep2TokenOwner = addr;
+
+        pos+=20;
         assembly {
             addr := mload(add(value, pos))
         }
         brPackage.contractAddr = addr;
 
-        pos-=20;
-        assembly {
-            addr := mload(add(value, 0))
-        }
-        brPackage.bep2TokenOwner = addr;
 
-        pos-=32;
-        bytes32 bep2TokenSymbol;
+        uint256 tempValue;
+        pos+=32;
         assembly {
-            bep2TokenSymbol := mload(add(value, 0))
+            tempValue := mload(add(value, pos))
         }
-        brPackage.bep2TokenSymbol = bep2TokenSymbol;
+        brPackage.totalSupply = tempValue;
+
+        pos+=32;
+        assembly {
+            tempValue := mload(add(value, pos))
+        }
+        brPackage.peggyAmount = tempValue;
+
+        pos+=32;
+        assembly {
+            tempValue := mload(add(value, pos))
+        }
+        brPackage.relayReward = tempValue;
 
         return brPackage;
     }
@@ -205,71 +214,79 @@ contract TokenHubContract {
     }
 
     function crossChainTransferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayReward) public payable {
+        uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
+        if (erc20TokenDecimals > 8) { // suppose erc20TokenDecimals is 10, then the amount must equal to N*100
+            uint256 extraPrecision = 10**(erc20TokenDecimals-8);
+            require(amount%extraPrecision==0);
+        }
         require(relayReward>minimumRelayReward);
         require(contractAddrToBEP2Symbol[contractAddr]!=0x00);
         if (contractAddr==address(0x0)) {
             require(msg.value==amount+relayReward);
             amount = msg.value;
-            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, bep2TokenSymbolForBNB, expireTime, relayReward, transferOutChannelSequence); //BNB 32bytes
+            uint256 calibrateAmount = amount * 100000000 / (10**erc20TokenDecimals); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, bep2TokenSymbolForBNB, expireTime, relayReward, transferOutChannelSequence); //BNB 32bytes
         } else {
             require(msg.value==relayReward);
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount), "failed to transfer token to this contract");
-            emit LogCrossChainTransfer(msg.sender, recipient, amount, contractAddr, contractAddrToBEP2Symbol[contractAddr], expireTime, relayReward, transferOutChannelSequence);
+            uint256 calibrateAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, contractAddrToBEP2Symbol[contractAddr], expireTime, relayReward, transferOutChannelSequence);
         }
         transferOutChannelSequence++;
     }
 
+    // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayReward |
+    // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 32 bytes   | 32 bytes    |
     function decodeCrossChainTransferPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
         CrossChainTransferPackage memory cctp;
 
-        uint256 pos = value.length;
-
+        uint256 pos = 0;
         uint256 tempValue;
-
-        pos-=32;
-        assembly {
-            tempValue := mload(add(value, pos))
-        }
-        cctp.relayReward = tempValue;
-
-        pos-=32;
-        assembly {
-            tempValue := mload(add(value, pos))
-        }
-        cctp.expireTime = tempValue;
-
-        pos-=32;
-        assembly {
-            tempValue := mload(add(value, pos))
-        }
-        cctp.amount = tempValue;
-
         address payable recipient;
-        pos-=20;
-        assembly {
-            recipient := mload(add(value, pos))
-        }
-        cctp.recipient = recipient;
-
         address addr;
-        pos-=20;
-        assembly {
-            addr := mload(add(value, pos))
-        }
-        cctp.sender = addr;
 
-        pos-=20;
-        assembly {
-            addr := mload(add(value, pos))
-        }
-        cctp.contractAddr = addr;
-
-        pos-=32;
+        pos+=32;
         bytes32 bep2TokenSymbol;
         assembly {
             bep2TokenSymbol := mload(add(value, pos))
         }
         cctp.bep2TokenSymbol = bep2TokenSymbol;
+
+        pos+=20;
+        assembly {
+            addr := mload(add(value, pos))
+        }
+        cctp.contractAddr = addr;
+
+        pos+=20;
+        assembly {
+            addr := mload(add(value, pos))
+        }
+        cctp.sender = addr;
+
+        pos+=20;
+        assembly {
+            recipient := mload(add(value, pos))
+        }
+        cctp.recipient = recipient;
+
+        pos+=32;
+        assembly {
+            tempValue := mload(add(value, pos))
+        }
+        cctp.amount = tempValue;
+
+        pos+=32;
+        assembly {
+            tempValue := mload(add(value, pos))
+        }
+        cctp.expireTime = tempValue;
+
+        pos+=32;
+        assembly {
+            tempValue := mload(add(value, pos))
+        }
+        cctp.relayReward = tempValue;
 
         return cctp;
     }
@@ -314,31 +331,34 @@ contract TokenHubContract {
         return true;
     }
 
+    // | length   | refundAmount | contractAddr | refundAddr |
+    // | 32 bytes | 32 bytes     | 20 bytes     | 20 bytes   |
     function decodeTimeoutPackage(bytes memory value) internal pure returns(TimeoutPackage memory) {
         TimeoutPackage memory timeoutPackage;
 
-        uint256 pos=value.length;
+        uint256 pos=0;
 
-        pos-=20;
+        pos+=32;
+        uint256 refundAmount;
+        assembly {
+            refundAmount := mload(add(value, pos))
+        }
+        timeoutPackage.refundAmount = refundAmount;
+
+        pos+=20;
         address contractAddr;
         assembly {
             contractAddr := mload(add(value, pos))
         }
         timeoutPackage.contractAddr = contractAddr;
 
-        pos-=20;
+        pos+=20;
         address payable refundAddr;
         assembly {
             refundAddr := mload(add(value, pos))
         }
         timeoutPackage.refundAddr = refundAddr;
 
-        pos-=32;
-        uint256 refundAmount;
-        assembly {
-            refundAmount := mload(add(value, pos))
-        }
-        timeoutPackage.refundAmount = refundAmount;
 
         return timeoutPackage;
     }

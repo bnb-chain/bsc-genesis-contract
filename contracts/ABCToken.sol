@@ -29,7 +29,7 @@ import "Ownable.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ABCToken is Context, IERC20, Ownable {
+contract ABCToken is Context, IERC20 {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -40,7 +40,7 @@ contract ABCToken is Context, IERC20, Ownable {
     uint8 public _decimals;
     string public _symbol;
     string public _name;
-
+    address private _bep2TokenOwner;
 
     constructor() public {
         _name = "ABC token";
@@ -48,6 +48,7 @@ contract ABCToken is Context, IERC20, Ownable {
         _decimals = 8;
         _totalSupply = 10000000000000000;
         _balances[msg.sender] = _totalSupply;
+        _bep2TokenOwner=address(0x35D9D41a13D6c2e01c9b1e242BAf2dF98e7E8c48);
 
         emit Transfer(address(0), msg.sender, _totalSupply);
     }
@@ -70,7 +71,7 @@ contract ABCToken is Context, IERC20, Ownable {
      * @dev Returns the bep token owner.
      */
     function bep2TokenOwner() external view returns (address) {
-        return owner();
+        return _bep2TokenOwner;
     }
 
     /**

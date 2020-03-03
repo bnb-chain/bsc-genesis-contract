@@ -34,6 +34,7 @@ contract TendermintLightClient is ITendermintLightClient {
 
     }
 
+    //TODO add authority check
     function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id, address systemRewardContractAddr) public {
         ConsensusState memory cs;
         uint64 height;
@@ -41,6 +42,7 @@ contract TendermintLightClient is ITendermintLightClient {
         (cs, height) = decodeConsensusState(initConsensusStateBytes);
 
         BBCLightClientConsensusState[height].appHash = cs.appHash;
+        BBCLightClientConsensusState[height].curValidatorSetHash = cs.curValidatorSetHash;
         BBCLightClientConsensusState[height].preHeight = 0;
         for (uint64 index = 0; index < cs.nextValidatorSet.length; index++) {
             BBCLightClientConsensusState[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
@@ -117,6 +119,7 @@ contract TendermintLightClient is ITendermintLightClient {
 
         submitters[height] = msg.sender;
         BBCLightClientConsensusState[height].appHash = cs.appHash;
+        BBCLightClientConsensusState[height].curValidatorSetHash = cs.curValidatorSetHash;
         BBCLightClientConsensusState[height].preHeight = preHeight;
         for (uint64 index = 0; index < cs.nextValidatorSet.length; index++) {
             BBCLightClientConsensusState[height].nextValidatorSet.push(cs.nextValidatorSet[index]);
