@@ -3,6 +3,7 @@ pragma solidity 0.5.16;
 import "Context.sol";
 import "IERC20.sol";
 import "SafeMath.sol";
+import "Ownable.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.
@@ -39,7 +40,7 @@ contract ABCToken is Context, IERC20 {
     uint8 public _decimals;
     string public _symbol;
     string public _name;
-
+    address private _bep2TokenOwner;
 
     constructor() public {
         _name = "ABC token";
@@ -47,8 +48,30 @@ contract ABCToken is Context, IERC20 {
         _decimals = 8;
         _totalSupply = 10000000000000000;
         _balances[msg.sender] = _totalSupply;
+        _bep2TokenOwner=address(0x35D9D41a13D6c2e01c9b1e242BAf2dF98e7E8c48);
 
         emit Transfer(address(0), msg.sender, _totalSupply);
+    }
+
+    /**
+     * @dev Returns the token decimals.
+     */
+    function decimals() external view returns (uint256) {
+        return _decimals;
+    }
+
+    /**
+     * @dev Returns the contract owner.
+     */
+    function symbol() external view returns (string memory) {
+        return _symbol;
+    }
+
+    /**
+     * @dev Returns the bep token owner.
+     */
+    function bep2TokenOwner() external view returns (address) {
+        return _bep2TokenOwner;
     }
 
     /**
