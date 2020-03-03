@@ -17,9 +17,9 @@ contract TokenHubContract {
     }
 
     struct TimeoutPackage {
+        uint256 refundAmount;
         address contractAddr;
         address payable refundAddr;
-        uint256 amount;
     }
 
     struct CrossChainTransferPackage {
@@ -38,8 +38,8 @@ contract TokenHubContract {
     uint256 minimumRelayReward     = 10000;//0.01 BNB
 
     address lightClientContract;
-    address tendermintHeaderSyncRelayerIncentivizeContract;
-    address crossChainTransferRelayerIncentivizeContract;
+    address incentivizeContractForHeaderSyncRelayers;
+    address incentivizeContractForTransferRelayers;
 
     mapping(address => bytes32) contractAddrToBEP2Symbol;
     mapping(bytes32 => address) BEP2SymbolToContractAddr;
@@ -61,16 +61,24 @@ contract TokenHubContract {
     event LogTransferInFailureInsufficientBalance(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
     event LogTransferInFailureUnbindedToken(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
-    constructor(address lightClientContractAddr) public {
-        lightClientContract = lightClientContractAddr;
+    constructor() public {
+
     }
 
-    function calculateRewardForTendermintHeaderRelayer(uint256 reward) public pure returns (uint256) {
+    function initTokenHub(address lightClientContractAddr,
+        address incentivizeContractAddrForHeaderSyncRelayers,
+        address incentivizeContractAddrForTransferRelayers) public {
+        lightClientContract = lightClientContractAddr;
+        incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeaderSyncRelayers;
+        incentivizeContractForTransferRelayers = incentivizeContractAddrForTransferRelayers;
+    }
+
+    function calculateRewardForTendermintHeaderRelayer(uint256 reward) internal pure returns (uint256) {
         return reward/5; //20%
     }
     // | sourceChainID | destinationChainID | channelID | sequence |
     // | 32 bytes      | 32 bytes           |  1 bytes  | 32 bytes |
-    function verifiyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
+    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
         if (key.length!=97) {
             return false;
         }
@@ -163,7 +171,7 @@ contract TokenHubContract {
     }
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifiyKey(key, 0x01, bindChannelSequence));
+        require(verifyKey(key, 0x01, bindChannelSequence));
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
         bindChannelSequence++;
 
@@ -172,9 +180,9 @@ contract TokenHubContract {
         BindRequestPackage memory brPackage = decodeBindRequestPackage(value);
 
         uint256 reward = calculateRewardForTendermintHeaderRelayer(brPackage.relayReward);
-        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
+        IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = brPackage.relayReward-reward;
-        IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         uint256 bep2TokenDecimals=100000000; // 10^8
         uint256 erc20TokenDecimals=10**IERC20(brPackage.contractAddr).decimals();
@@ -267,7 +275,7 @@ contract TokenHubContract {
     }
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifiyKey(key, 0x02, transferInChannelSequence));
+        require(verifyKey(key, 0x02, transferInChannelSequence));
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
         transferInChannelSequence++;
 
@@ -276,9 +284,9 @@ contract TokenHubContract {
         CrossChainTransferPackage memory cctp = decodeCrossChainTransferPackage(value);
 
         uint256 reward = calculateRewardForTendermintHeaderRelayer(cctp.relayReward);
-        IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
+        IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = cctp.relayReward-reward;
-        IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (block.timestamp > cctp.expireTime) {
             emit LogTransferInFailureTimeout(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime, block.timestamp);
@@ -311,13 +319,6 @@ contract TokenHubContract {
 
         uint256 pos=value.length;
 
-        pos-=32;
-        uint256 amount;
-        assembly {
-            amount := mload(add(value, pos))
-        }
-        timeoutPackage.amount = amount;
-
         pos-=20;
         address contractAddr;
         assembly {
@@ -332,11 +333,18 @@ contract TokenHubContract {
         }
         timeoutPackage.refundAddr = refundAddr;
 
+        pos-=32;
+        uint256 refundAmount;
+        assembly {
+            refundAmount := mload(add(value, pos))
+        }
+        timeoutPackage.refundAmount = refundAmount;
+
         return timeoutPackage;
     }
 
     function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifiyKey(key, 0x03, timeoutChannelSequence));
+        require(verifyKey(key, 0x03, timeoutChannelSequence));
         require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
         timeoutChannelSequence++;
 
@@ -344,20 +352,20 @@ contract TokenHubContract {
 
         TimeoutPackage memory timeoutPackage = decodeTimeoutPackage(value);
 
-        //IRelayerIncentivize(tendermintHeaderSyncRelayerIncentivizeContract).addReward.value(reward)(tendermintHeaderSubmitter);
+        //IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         //reward = timeoutPackage.relayReward-reward;
-        //IRelayerIncentivize(crossChainTransferRelayerIncentivizeContract).addReward.value(reward)(msg.sender);
+        //IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (timeoutPackage.contractAddr==address(0x0)) {
-            if (address(this).balance < timeoutPackage.amount) {
+            if (address(this).balance < timeoutPackage.refundAmount) {
                 return false;
             }
-            timeoutPackage.refundAddr.transfer(timeoutPackage.amount);
+            timeoutPackage.refundAddr.transfer(timeoutPackage.refundAmount);
         } else {
-            if (IERC20(timeoutPackage.contractAddr).balanceOf(address(this))<timeoutPackage.amount) {
+            if (IERC20(timeoutPackage.contractAddr).balanceOf(address(this))<timeoutPackage.refundAmount) {
                 return false;
             }
-            IERC20(timeoutPackage.contractAddr).transfer(address(this), timeoutPackage.amount);
+            IERC20(timeoutPackage.contractAddr).transfer(address(this), timeoutPackage.refundAmount);
         }
         return true;
     }
