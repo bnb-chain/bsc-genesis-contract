@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-contract SystemReward {
+contract MockSystemReward {
 
     event RewardTo(address indexed to, uint256 indexed amount);
     event RewardEmpty();

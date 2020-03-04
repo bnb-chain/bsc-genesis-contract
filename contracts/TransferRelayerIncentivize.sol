@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 import "IRelayerIncentivize.sol";
 
-contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
+contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
     mapping( uint256 => mapping(address => uint256) ) public relayerSubmitCount;
     mapping( uint256 => address payable[] ) public relayerAddressRecord;
 
@@ -77,8 +77,10 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
             return count;
         } else if (maximumWeight < count && count <= 2*maximumWeight) {
             return maximumWeight;
+        } else if (2*maximumWeight < count && count <= (2*maximumWeight + 3*maximumWeight/4 )) {
+            return 3*maximumWeight - count;
         } else {
-            return maximumWeight;
+            return count/4;
         }
     }
 }
