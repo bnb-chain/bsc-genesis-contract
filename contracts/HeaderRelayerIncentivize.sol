@@ -31,7 +31,7 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
         if (rewardRoundCount==roundSize){
             roundExpired[rewardDistributionSequence]=true;
             emit LogRewardPeriodExpire(rewardDistributionSequence, collectedRewardRound[rewardDistributionSequence]);
-
+            //TODO maybe we can directly call distributeReward
             rewardDistributionSequence++;
             rewardRoundCount=0;
         }
@@ -42,9 +42,8 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
         require(roundExpired[rewardSequence]);
         uint256 totalReward = collectedRewardRound[rewardSequence];
 
-        uint256 sum=0;
-        uint256[] memory relayerWeight;
         address payable[] memory relayers = relayerAddressRecord[rewardSequence];
+        uint256[] memory relayerWeight = new uint256[](relayers.length);
         for(uint256 index=0; index < relayers.length; index++) {
             address relayer = relayers[index];
             uint256 weight = calculateWeight(relayerSubmitCount[rewardSequence][relayer]);
@@ -52,13 +51,13 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
             sum+=weight;
         }
 
-        uint256 callerReward = totalReward * 5/100;
+        uint256 callerReward = totalReward * 5/100; //TODO need further discussion
         totalReward = totalReward - callerReward;
-        uint256 remainReward;
+        uint256 remainReward=totalReward;
         for(uint256 index=1; index < relayers.length; index++) {
-            uint256 reward = relayerWeight[index]*totalReward/sum;
-            relayers[0].transfer(reward);
-            remainReward=totalReward-reward;
+            uint256 reward = relayerWeight[index]*totalReward/roundSize;
+            relayers[index].transfer(reward);
+            remainReward=remainReward-reward;
         }
         relayers[0].transfer(remainReward);
         msg.sender.transfer(callerReward);
