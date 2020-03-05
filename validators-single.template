@@ -2,12 +2,11 @@ const web3 = require("web3")
 
 // Configure
 const validators = [
-  {% for v in validators %}
-   {
-     "consensusAddr": "{{ v.consensusAddr }}",
-     "feeAddr": "{{ v.feeAddr }}",
-     "bscFeeAddr": "{{ v.bscFeeAddr }}",
-   },{% endfor %}
+  {
+    consensusAddr: "{{SINGLE_ADDR}}",
+    feeAddr: "{{SINGLE_ADDR}}",
+    bscFeeAddr: "{{SINGLE_ADDR}}"
+  }
 ];
 
 // ===============  Do not edit below ====
