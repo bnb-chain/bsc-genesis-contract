@@ -3,52 +3,52 @@ pragma solidity 0.5.16;
 import "IRelayerIncentivize.sol";
 
 contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
-    mapping( uint256 => mapping(address => uint256) ) public relayerSubmitCount;
-    mapping( uint256 => address payable[] ) public relayerAddressRecord;
+    uint256 constant roundSize= 1024;
+    uint256 constant maximumWeight=400;
 
-    mapping( uint256 => uint256) public collectedRewardRound;
-    mapping( uint256 => bool) public roundExpired;
+    mapping( uint256 => mapping(address => uint256) ) public _relayersSubmitCount;
+    mapping( uint256 => address payable[] ) public _relayersAddressRecord;
 
-    uint256 public rewardDistributionSequence = 0;
-    uint256 public rewardRoundCount=0;
-    uint256 roundSize=32; // 1024
-    uint256 maximumWeight=8; // 400
+    mapping( uint256 => uint256) public _collectedRewardPerRound;
+    mapping( uint256 => bool) public _expiredRound;
+
+    uint256 public _roundSequence = 0;
+    uint256 public _countInRound=0;
 
     event LogAddReward(address relayerAddr, uint256 amount);
     event LogRewardPeriodExpire(uint256 sequence, uint256 totalPeriodReward);
 
     function addReward(address payable relayerAddr) external payable returns (bool) {
 
-        rewardRoundCount++;
-        collectedRewardRound[rewardDistributionSequence]+=msg.value;
+        _countInRound++;
+        _collectedRewardPerRound[_roundSequence]+=msg.value;
 
-        if (relayerSubmitCount[rewardDistributionSequence][relayerAddr]==0){
-            relayerAddressRecord[rewardDistributionSequence].push(relayerAddr);
+        if (_relayersSubmitCount[_roundSequence][relayerAddr]==0){
+            _relayersAddressRecord[_roundSequence].push(relayerAddr);
         }
-        relayerSubmitCount[rewardDistributionSequence][relayerAddr]++;
+        _relayersSubmitCount[_roundSequence][relayerAddr]++;
         emit LogAddReward(relayerAddr, msg.value);
 
-        if (rewardRoundCount==roundSize){
-            roundExpired[rewardDistributionSequence]=true;
-            emit LogRewardPeriodExpire(rewardDistributionSequence, collectedRewardRound[rewardDistributionSequence]);
+        if (_countInRound==roundSize){
+            _expiredRound[_roundSequence]=true;
+            emit LogRewardPeriodExpire(_roundSequence, _collectedRewardPerRound[_roundSequence]);
             //TODO maybe we can directly call distributeReward
-            rewardDistributionSequence++;
-            rewardRoundCount=0;
+            _roundSequence++;
+            _countInRound=0;
         }
         return true;
     }
 
     function distributeReward(uint256 rewardSequence) external returns (bool) {
-        require(roundExpired[rewardSequence]);
-        uint256 totalReward = collectedRewardRound[rewardSequence];
+        require(_expiredRound[rewardSequence]);
+        uint256 totalReward = _collectedRewardPerRound[rewardSequence];
 
-        address payable[] memory relayers = relayerAddressRecord[rewardSequence];
+        address payable[] memory relayers = _relayersAddressRecord[rewardSequence];
         uint256[] memory relayerWeight = new uint256[](relayers.length);
         for(uint256 index=0; index < relayers.length; index++) {
             address relayer = relayers[index];
-            uint256 weight = calculateWeight(relayerSubmitCount[rewardSequence][relayer]);
+            uint256 weight = calculateWeight(_relayersSubmitCount[rewardSequence][relayer]);
             relayerWeight[index]=weight;
-            sum+=weight;
         }
 
         uint256 callerReward = totalReward * 5/100; //TODO need further discussion
@@ -62,16 +62,16 @@ contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
         relayers[0].transfer(remainReward);
         msg.sender.transfer(callerReward);
 
-        delete collectedRewardRound[rewardSequence];
-        delete roundExpired[rewardSequence];
+        delete _collectedRewardPerRound[rewardSequence];
+        delete _expiredRound[rewardSequence];
         for (uint256 index=0; index < relayers.length; index++){
-            delete relayerSubmitCount[rewardSequence][relayers[index]];
+            delete _relayersSubmitCount[rewardSequence][relayers[index]];
         }
-        delete relayerAddressRecord[rewardSequence];
+        delete _relayersAddressRecord[rewardSequence];
         return true;
     }
 
-    function calculateWeight(uint256 count) public view returns(uint256) {
+    function calculateWeight(uint256 count) public pure returns(uint256) {
         if (count <= maximumWeight) {
             return count;
         } else if (maximumWeight < count && count <= 2*maximumWeight) {

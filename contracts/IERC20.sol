@@ -23,7 +23,7 @@ interface IERC20 {
     /**
      * @dev Returns the bep token owner.
      */
-    function bep2TokenOwner() external view returns (address);
+    function owner() external view returns (address);
 
     /**
      * @dev Returns the amount of tokens owned by `account`.

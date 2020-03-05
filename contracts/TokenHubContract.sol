@@ -6,7 +6,6 @@ import "IRelayerIncentivize.sol";
 
 contract TokenHubContract {
 
-    //TODO relayer incentive mechanism
     struct BindRequestPackage {
         bytes32 bep2TokenSymbol;
         address bep2TokenOwner;
@@ -28,35 +27,37 @@ contract TokenHubContract {
         address sender;
         address payable recipient;
         uint256 amount;
-        uint256 expireTime;
+        uint64 expireTime;
         uint256 relayReward;
     }
 
-    uint8 bindChannelID = 0x01;
-    uint8 transferInChannelID = 0x02;
-    uint8 timeoutChannelID=0x03;
+    uint8 constant bindChannelID = 0x01;
+    uint8 constant transferInChannelID = 0x02;
+    uint8 constant timeoutChannelID=0x03;
 
-    bytes32 bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    bytes32 sourceChainID         = 0x746573742d636861696e00000000000000000000000000000000000000000000; // "test-chain"
-    bytes32 destinationChainID    = 0x3135000000000000000000000000000000000000000000000000000000000000; // "15"
-    uint256 minimumRelayReward    = 10000;//0.01 BNB
+    bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+    bytes2 constant sourceChainID         = 0x0001; // 1
+    bytes2 constant destinationChainID    = 0x000f; // 15
+    uint256 constant minimumRelayReward    = 10**16;  // 0.01 BNB
 
-    address public lightClientContract;
-    address public incentivizeContractForHeaderSyncRelayers;
-    address public incentivizeContractForTransferRelayers;
+    address public _lightClientContract;
+    address public _incentivizeContractForHeaderSyncRelayers;
+    address public _incentivizeContractForTransferRelayers;
 
-    mapping(address => bytes32) public contractAddrToBEP2Symbol;
-    mapping(bytes32 => address) public BEP2SymbolToContractAddr;
+    mapping(bytes32 => BindRequestPackage) public _bindRequestRecord;
+    mapping(address => bytes32) public _contractAddrToBEP2Symbol;
+    mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
-    uint256 public bindChannelSequence=0;
-    uint256 public transferInChannelSequence=0;
-    uint256 public transferOutChannelSequence=0;
-    uint256 public timeoutChannelSequence=0;
+    uint256 public _bindChannelSequence=0;
+    uint256 public _transferInChannelSequence=0;
+    uint256 public _transferOutChannelSequence=0;
+    uint256 public _timeoutChannelSequence=0;
+    bool public _alreadyInit=false;
 
-    event LogRegisterERC20ToBEP2(address contractAddr, uint256 peggyAmount, address bep2T0kenOwner, bytes32 bep2TokenSymbol);
-
-    event LogTokenBind(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
-    event LogInvalidTokenBind(address contractAddr, bytes32 bep2TokenSymbol, address bep2TokenOwner, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindSuccess(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindRejected(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindFailure(address contractAddr, bytes32 bep2TokenSymbol, address bep2TokenOwner, uint256 totalSupply, uint256 peggyAmount);
 
     event LogCrossChainTransfer(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayReward, uint256 sequence);
 
@@ -65,27 +66,38 @@ contract TokenHubContract {
     event LogTransferInFailureInsufficientBalance(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
     event LogTransferInFailureUnbindedToken(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
-    event LogTransferOutTimeoutSuccess(address contractAddr, address refundAddr, uint256 amount);
+    event LogRefundTimeoutSuccess(address contractAddr, address refundAddr, uint256 amount);
+    event LogRefundTimeoutFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint256 auctualBalance);
 
     constructor() public payable {
 
     }
 
+    modifier onlyNotInit() {
+        require(!_alreadyInit, "the contract already init");
+        _;
+    }
+
+    modifier onlyAlreadyInit() {
+        require(_alreadyInit, "the contract not init yet");
+        _;
+    }
+
     //TODO add authority check
     function initTokenHub(address lightClientContractAddr,
-        address incentivizeContractAddrForHeaderSyncRelayers,
-        address incentivizeContractAddrForTransferRelayers) public {
-        lightClientContract = lightClientContractAddr;
-        incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeaderSyncRelayers;
-        incentivizeContractForTransferRelayers = incentivizeContractAddrForTransferRelayers;
+        address incentivizeContractAddrForHeader,
+        address incentivizeContractAddrForTransfer) public {
+        _lightClientContract = lightClientContractAddr;
+        _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
+        _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
     }
 
     //TODO need further discussion
     function calculateRewardForTendermintHeaderRelayer(uint256 reward) internal pure returns (uint256) {
         return reward/5; //20%
     }
-    // | length   | prefix | sourceChainID | destinationChainID | channelID | sequence |
-    // | 32 bytes | 1 byte | 32 bytes      | 32 bytes           |  1 bytes  | 8 bytes  |
+    // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
+    // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
     function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
         uint256 length;
         assembly {
@@ -97,8 +109,8 @@ contract TokenHubContract {
 
         uint256 pos=0;
 
-        bytes32 chainID;
-        pos+=32+1;
+        bytes2 chainID;
+        pos+=2+1;
         assembly {
             chainID := mload(add(key, pos))
         }
@@ -106,7 +118,7 @@ contract TokenHubContract {
             return false;
         }
 
-        pos+=32;
+        pos+=2;
         assembly {
             chainID := mload(add(key, pos))
         }
@@ -187,37 +199,53 @@ contract TokenHubContract {
     }
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifyKey(key, bindChannelID, bindChannelSequence));
-        require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
-        bindChannelSequence++;
+        require(verifyKey(key, bindChannelID, _bindChannelSequence));
+        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        _bindChannelSequence++;
 
-        address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
+        address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
 
         BindRequestPackage memory brPackage = decodeBindRequestPackage(value);
 
         uint256 reward = calculateRewardForTendermintHeaderRelayer(brPackage.relayReward);
-        IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
+        IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = brPackage.relayReward-reward;
         // TODO maybe the reward should be paid to msg.sender directly
-        IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
-        uint256 bep2TokenDecimals=100000000; // 10^8
-        uint256 erc20TokenDecimals=10**IERC20(brPackage.contractAddr).decimals();
-        brPackage.totalSupply = brPackage.totalSupply*erc20TokenDecimals/bep2TokenDecimals;
-        brPackage.peggyAmount = brPackage.peggyAmount*erc20TokenDecimals/bep2TokenDecimals;
-
-        //TODO add bep2 token symbol and erc20 contract symbol checking
-
-        if (BEP2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
-        IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
-        IERC20(brPackage.contractAddr).balanceOf(address(this))+brPackage.peggyAmount!=brPackage.totalSupply||
-        IERC20(brPackage.contractAddr).bep2TokenOwner()!=brPackage.bep2TokenOwner) {
-            emit LogInvalidTokenBind(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.bep2TokenOwner, brPackage.totalSupply, brPackage.peggyAmount);
+        if (_bindRequestRecord[brPackage.bep2TokenSymbol].bep2TokenSymbol == brPackage.bep2TokenSymbol) {
             return false;
         }
-        contractAddrToBEP2Symbol[brPackage.contractAddr] = brPackage.bep2TokenSymbol;
-        BEP2SymbolToContractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
-        emit LogTokenBind(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        _bindRequestRecord[brPackage.bep2TokenSymbol]=brPackage;
+        emit LogBindRequest(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        return true;
+    }
+
+    function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
+        require(contractAddr==brPackage.contractAddr);
+        require(IERC20(contractAddr).owner()==msg.sender);
+        //TODO add bep2 token symbol and erc20 contract symbol checking
+        if (_bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
+            IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
+            IERC20(brPackage.contractAddr).balanceOf(address(this))+brPackage.peggyAmount!=brPackage.totalSupply) {
+            emit LogBindFailure(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.bep2TokenOwner, brPackage.totalSupply, brPackage.peggyAmount);
+            return false;
+        }
+        _contractAddrToBEP2Symbol[brPackage.contractAddr] = brPackage.bep2TokenSymbol;
+        _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
+
+        delete _bindRequestRecord[bep2TokenSymbol];
+        emit LogBindSuccess(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        return true;
+    }
+
+    function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
+        require(contractAddr==brPackage.contractAddr);
+        require(IERC20(contractAddr).owner()==msg.sender);
+        delete _bindRequestRecord[bep2TokenSymbol];
+        emit LogBindRejected(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
         return true;
     }
 
@@ -227,20 +255,22 @@ contract TokenHubContract {
             uint256 extraPrecision = 10**(erc20TokenDecimals-8);
             require(amount%extraPrecision==0);
         }
+        require(relayReward%(10**10)==0);
         require(relayReward>minimumRelayReward);
-        require(contractAddrToBEP2Symbol[contractAddr]!=0x00);
+        require(_contractAddrToBEP2Symbol[contractAddr]!=0x00);
         if (contractAddr==address(0x0)) {
             require(msg.value==amount+relayReward);
-            amount = msg.value;
-            uint256 calibrateAmount = amount * 100000000 / (10**erc20TokenDecimals); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, bep2TokenSymbolForBNB, expireTime, relayReward, transferOutChannelSequence); //BNB 32bytes
+            uint256 calibrateAmount = amount * (10**8) / (10*10); // bep2 token decimals is 8 on BBC
+            uint256 calibrateRelayReward = relayReward / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, bep2TokenSymbolForBNB, expireTime, calibrateRelayReward, _transferOutChannelSequence); //BNB 32bytes
         } else {
             require(msg.value==relayReward);
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount), "failed to transfer token to this contract");
-            uint256 calibrateAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, contractAddrToBEP2Symbol[contractAddr], expireTime, relayReward, transferOutChannelSequence);
+            uint256 calibrateAmount = amount / (10**erc20TokenDecimals); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            uint256 calibrateRelayReward = relayReward / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            emit LogCrossChainTransfer(msg.sender, recipient, calibrateAmount, contractAddr, _contractAddrToBEP2Symbol[contractAddr], expireTime, calibrateRelayReward, _transferOutChannelSequence);
         }
-        transferOutChannelSequence++;
+        _transferOutChannelSequence++;
     }
 
     // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayReward |
@@ -284,11 +314,12 @@ contract TokenHubContract {
         }
         cctp.amount = tempValue;
 
-        pos+=32;
+        pos+=8;
+        uint64 expireTime;
         assembly {
-            tempValue := mload(add(value, pos))
+            expireTime := mload(add(value, pos))
         }
-        cctp.expireTime = tempValue;
+        cctp.expireTime = expireTime;
 
         pos+=32;
         assembly {
@@ -300,18 +331,18 @@ contract TokenHubContract {
     }
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifyKey(key, transferInChannelID, transferInChannelSequence));
-        require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
-        transferInChannelSequence++;
+        require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
+        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        _transferInChannelSequence++;
 
-        address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
+        address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
 
         CrossChainTransferPackage memory cctp = decodeCrossChainTransferPackage(value);
 
         uint256 reward = calculateRewardForTendermintHeaderRelayer(cctp.relayReward);
-        IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
+        IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         reward = cctp.relayReward-reward;
-        IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
+        IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (block.timestamp > cctp.expireTime) {
             emit LogTransferInFailureTimeout(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime, block.timestamp);
@@ -325,7 +356,7 @@ contract TokenHubContract {
             }
             cctp.recipient.transfer(cctp.amount);
         } else {
-            if (contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
+            if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
                 emit LogTransferInFailureUnbindedToken(cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
@@ -373,30 +404,34 @@ contract TokenHubContract {
     }
 
     function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
-        require(verifyKey(key, timeoutChannelID, timeoutChannelSequence));
-        require(ITendermintLightClient(lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
-        timeoutChannelSequence++;
+        require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
+        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        _timeoutChannelSequence++;
 
-        //address payable tendermintHeaderSubmitter = ITendermintLightClient(lightClientContract).getSubmitter(height);
+        //address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
 
         TimeoutPackage memory timeoutPackage = decodeTimeoutPackage(value);
 
-        //IRelayerIncentivize(incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
+        //IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
         //reward = timeoutPackage.relayReward-reward;
-        //IRelayerIncentivize(incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
+        //IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (timeoutPackage.contractAddr==address(0x0)) {
-            if (address(this).balance < timeoutPackage.refundAmount) {
+            uint256 actualBalance = address(this).balance;
+            if (actualBalance < timeoutPackage.refundAmount) {
+                emit LogRefundTimeoutFailureInsufficientBalance(timeoutPackage.contractAddr, timeoutPackage.refundAddr, timeoutPackage.refundAmount, actualBalance);
                 return false;
             }
             timeoutPackage.refundAddr.transfer(timeoutPackage.refundAmount);
         } else {
-            if (IERC20(timeoutPackage.contractAddr).balanceOf(address(this))<timeoutPackage.refundAmount) {
+            uint256 actualBalance = IERC20(timeoutPackage.contractAddr).balanceOf(address(this));
+            if (actualBalance<timeoutPackage.refundAmount) {
+                emit LogRefundTimeoutFailureInsufficientBalance(timeoutPackage.contractAddr, timeoutPackage.refundAddr, timeoutPackage.refundAmount, actualBalance);
                 return false;
             }
             IERC20(timeoutPackage.contractAddr).transfer(timeoutPackage.refundAddr, timeoutPackage.refundAmount);
         }
-        emit LogTransferOutTimeoutSuccess(timeoutPackage.contractAddr, timeoutPackage.refundAddr, timeoutPackage.refundAmount);
+        emit LogRefundTimeoutSuccess(timeoutPackage.contractAddr, timeoutPackage.refundAddr, timeoutPackage.refundAmount);
         return true;
     }
 }
