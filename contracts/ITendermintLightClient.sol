@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 interface ITendermintLightClient {
 
-    function validateMerkleProof(uint64 height, string calldata storeName, bytes calldata key, bytes calldata value, bytes calldata proof) external view returns (bool);
+    function getAppHash(uint64 height) external view returns (bytes32);
 
     function isHeaderSynced(uint64 height) external view returns (bool);
 

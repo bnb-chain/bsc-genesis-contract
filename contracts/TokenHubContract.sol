@@ -3,6 +3,7 @@ pragma solidity 0.5.16;
 import "IERC20.sol";
 import "ITendermintLightClient.sol";
 import "IRelayerIncentivize.sol";
+import "MerkleProof.sol";
 
 contract TokenHubContract {
 
@@ -48,6 +49,7 @@ contract TokenHubContract {
     mapping(address => bytes32) public _contractAddrToBEP2Symbol;
     mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
+    uint256 public _accKeyVerificationCount=0; // TODO delete this, just for test
     uint256 public _bindChannelSequence=0;
     uint256 public _transferInChannelSequence=0;
     uint256 public _transferOutChannelSequence=0;
@@ -90,6 +92,15 @@ contract TokenHubContract {
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
+    }
+
+    // TODO delete this, just for test
+    function accKeyVerification(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) external returns (bool) {
+        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "acc", key, value, proof), "invalid merkle proof");
+        _accKeyVerificationCount++;
+        return true;
     }
 
     //TODO need further discussion
@@ -200,7 +211,9 @@ contract TokenHubContract {
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
@@ -227,8 +240,8 @@ contract TokenHubContract {
         require(IERC20(contractAddr).owner()==msg.sender);
         //TODO add bep2 token symbol and erc20 contract symbol checking
         if (_bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
-            IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
-            IERC20(brPackage.contractAddr).balanceOf(address(this))+brPackage.peggyAmount!=brPackage.totalSupply) {
+        IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
+        IERC20(brPackage.contractAddr).balanceOf(address(this))+brPackage.peggyAmount!=brPackage.totalSupply) {
             emit LogBindFailure(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.bep2TokenOwner, brPackage.totalSupply, brPackage.peggyAmount);
             return false;
         }
@@ -332,7 +345,9 @@ contract TokenHubContract {
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
@@ -405,7 +420,9 @@ contract TokenHubContract {
 
     function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _timeoutChannelSequence++;
 
         //address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
