@@ -223,6 +223,10 @@ contract TendermintLightClient is ITendermintLightClient {
         return true;
     }
 
+    function getAppHash(uint64 height) external view returns (bytes32) {
+        return _BBCLightClientConsensusState[height].appHash;
+    }
+
     function getSubmitter(uint64 height) external view returns (address payable) {
         return _submitters[height];
     }

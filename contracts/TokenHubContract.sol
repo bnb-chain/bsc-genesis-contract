@@ -3,6 +3,7 @@ pragma solidity 0.5.16;
 import "IERC20.sol";
 import "ITendermintLightClient.sol";
 import "IRelayerIncentivize.sol";
+import "MerkleProof.sol";
 
 contract TokenHubContract {
 
@@ -200,7 +201,8 @@ contract TokenHubContract {
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
@@ -332,7 +334,8 @@ contract TokenHubContract {
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
@@ -405,7 +408,8 @@ contract TokenHubContract {
 
     function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
-        require(ITendermintLightClient(_lightClientContract).validateMerkleProof(height, "ibc", key, value, proof), "invalid merkle proof");
+        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _timeoutChannelSequence++;
 
         //address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
