@@ -1,7 +1,6 @@
 pragma solidity 0.5.16;
 
 import "Memory.sol";
-import "BytesToTypes.sol";
 import "ITendermintLightClient.sol";
 import "ISystemReward.sol";
 
@@ -11,6 +10,7 @@ contract TendermintLightClient is ITendermintLightClient {
         uint64  preHeight;
         bytes32 appHash;
         bytes32 curValidatorSetHash;
+        //TODO if no validator change, leave it to empty
         bytes   nextValidatorSet;
     }
 
@@ -22,7 +22,7 @@ contract TendermintLightClient is ITendermintLightClient {
     uint64 public _latestHeight;
     bool public _alreadyInit=false;
 
-    event InitConsensusState(uint64 initHeight, bytes32 appHash, uint256 validatorQuantity, string _chainID);
+    event InitConsensusState(uint64 initHeight, bytes32 appHash, string _chainID);
     event SyncConsensusState(uint64 height, uint64 preHeight, uint64 nextHeight, bytes32 appHash, bool validatorChanged);
 
     constructor() public {
@@ -53,7 +53,7 @@ contract TendermintLightClient is ITendermintLightClient {
         _chainID = chain_id;
         _systemRewardContract=systemRewardContractAddr;
 
-        emit InitConsensusState(_initialHeight, cs.appHash, cs.nextValidatorSet.length/40, chain_id);
+        emit InitConsensusState(_initialHeight, cs.appHash, chain_id);
     }
 
     function syncTendermintHeader(bytes memory header, uint64 height) public returns (bool) {
@@ -87,6 +87,7 @@ contract TendermintLightClient is ITendermintLightClient {
         Memory.copy(src, ptr, length);
 
         length = input.length+32;
+        // TODO if there are more than 22 validators on BBC, then we have to increase the result size
         bytes32[32] memory result;
         assembly {
         // call validateTendermintHeader precompile contract

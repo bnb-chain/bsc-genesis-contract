@@ -63,7 +63,7 @@ library MerkleProof {
             }
         }
 
-        if (result[0] == 0x01) {
+        if (result[0] != 0x01) {
             return false;
         }
 
