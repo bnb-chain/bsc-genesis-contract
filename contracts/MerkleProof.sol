@@ -24,46 +24,46 @@ library MerkleProof {
         uint256 length;
 
         // write key length and key to input
-        ptr=ptr+32;
+        ptr+=32;
         (src, length) = Memory.fromBytes(key);
         assembly {
             mstore(ptr, length)
         }
-        ptr=ptr+32;
+        ptr+=32;
         Memory.copy(src, ptr, length);
 
         // write value length and value to input
-        ptr=ptr+length;
+        ptr+=length;
         (src, length) = Memory.fromBytes(value);
         assembly {
             mstore(ptr, length)
         }
-        ptr=ptr+32;
+        ptr+=32;
         Memory.copy(src, ptr, length);
 
         // write appHash to input
-        ptr=ptr+length;
+        ptr+=length;
         assembly {
             mstore(ptr, appHash)
         }
 
         // write proof to input
-        ptr=ptr+32;
+        ptr+=32;
         (src,length) = Memory.fromBytes(proof);
         Memory.copy(src, ptr, length);
 
         length = input.length+32;
 
-        uint256[2] memory result;
+        uint256 result;
         assembly {
         // call validateMerkleProof precompile contract
         // Contract address: 0x65
-            if iszero(staticcall(not(0), 0x65, input, length, result, 0x40)) {
+            if iszero(staticcall(not(0), 0x65, input, length, result, 0x20)) {
                 revert(0, 0)
             }
         }
 
-        if (result[0] != 0x01) {
+        if (result != 0x01) {
             return false;
         }
 
