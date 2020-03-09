@@ -7,10 +7,9 @@ import "ISystemReward.sol";
 contract TendermintLightClient is ITendermintLightClient {
 
     struct ConsensusState {
-        uint64  preHeight;
+        uint64  preValidatorSetChangeHeight;
         bytes32 appHash;
         bytes32 curValidatorSetHash;
-        //TODO if no validator change, leave it to empty
         bytes   nextValidatorSet;
     }
 
@@ -23,7 +22,7 @@ contract TendermintLightClient is ITendermintLightClient {
     bool public _alreadyInit=false;
 
     event InitConsensusState(uint64 initHeight, bytes32 appHash, string _chainID);
-    event SyncConsensusState(uint64 height, uint64 preHeight, uint64 nextHeight, bytes32 appHash, bool validatorChanged);
+    event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
 
     constructor() public {
 
@@ -44,8 +43,8 @@ contract TendermintLightClient is ITendermintLightClient {
         ConsensusState memory cs;
         uint64 height;
 
-        (cs, height) = decodeConsensusState(initConsensusStateBytes);
-        cs.preHeight = 0;
+        (cs, height) = decodeConsensusState(initConsensusStateBytes, false);
+        cs.preValidatorSetChangeHeight = height;
         _BBCLightClientConsensusState[height] = cs;
 
         _initialHeight = height;
@@ -57,28 +56,26 @@ contract TendermintLightClient is ITendermintLightClient {
     }
 
     function syncTendermintHeader(bytes memory header, uint64 height) public returns (bool) {
-        uint64 preHeight = _latestHeight;
-        uint64 nextHeight = 0xffffffffffffffff;
-        ConsensusState memory cs = _BBCLightClientConsensusState[preHeight];
-        for(; preHeight > 0;) {
-            if (preHeight == height) {
+        uint64 preValidatorSetChangeHeight = _latestHeight;
+        ConsensusState memory cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
+        for(; preValidatorSetChangeHeight >= _initialHeight;) {
+            if (preValidatorSetChangeHeight == height) {
                 // target header is already existing.
                 return true;
             }
-            if (preHeight < height) {
+            if (preValidatorSetChangeHeight < height && cs.nextValidatorSet.length != 0) {
                 // find nearest previous height
                 break;
             }
-            cs = _BBCLightClientConsensusState[preHeight];
-            nextHeight = preHeight;
-            preHeight = cs.preHeight;
+            cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
+            preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
         }
 
         //32 + 32 + 8 + 32 + 32 + cs.nextValidatorSet.length;
         uint256 length = 136 + cs.nextValidatorSet.length;
         bytes memory input = new bytes(length+header.length);
         uint256 ptr = Memory.dataPtr(input);
-        require(serializeConsensusState(cs, preHeight, ptr, length));
+        require(serializeConsensusState(cs, preValidatorSetChangeHeight, ptr, length));
 
         // write header to input
         uint256 src;
@@ -117,20 +114,17 @@ contract TendermintLightClient is ITendermintLightClient {
         }
 
         uint64 decodedHeight;
-        (cs, decodedHeight) = decodeConsensusState(serialized);
-        if (decodedHeight != height) {
-            revert("header height doesn't equal to specified height");
-        }
+        (cs, decodedHeight) = decodeConsensusState(serialized, !validatorChanged);
+        require(decodedHeight == height, "header height doesn't equal to specified height");
 
         _submitters[height] = msg.sender;
-        cs.preHeight = preHeight;
+        cs.preValidatorSetChangeHeight = preValidatorSetChangeHeight;
         _BBCLightClientConsensusState[height] = cs;
         if (height > _latestHeight) {
             _latestHeight = height;
         }
-        _BBCLightClientConsensusState[nextHeight].preHeight = height;
 
-        emit SyncConsensusState(height, preHeight, nextHeight, cs.appHash, validatorChanged);
+        emit SyncConsensusState(height, preValidatorSetChangeHeight, cs.appHash, validatorChanged);
 
         return true;
     }
@@ -198,7 +192,7 @@ contract TendermintLightClient is ITendermintLightClient {
 
     // | length   | _chainID  | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
     // | 32 bytes | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
-    function decodeConsensusState(bytes memory input) internal pure returns(ConsensusState memory, uint64) {
+    function decodeConsensusState(bytes memory input, bool leaveOutValidatorSet) internal pure returns(ConsensusState memory, uint64) {
         //skip input size
         uint256 pos = 32;
         uint256 validatorSetLength = (input.length-104)/40;
@@ -224,15 +218,17 @@ contract TendermintLightClient is ITendermintLightClient {
         ConsensusState memory cs;
         cs.appHash = appHash;
         cs.curValidatorSetHash = curValidatorSetHash;
-        cs.nextValidatorSet = new bytes(40*validatorSetLength);
 
-        uint256 dest;
-        (dest,) = Memory.fromBytes(cs.nextValidatorSet);
+        if (!leaveOutValidatorSet) {
+            uint256 dest;
+            cs.nextValidatorSet = new bytes(40*validatorSetLength);
+            (dest,) = Memory.fromBytes(cs.nextValidatorSet);
 
-        uint256 src;
-        uint256 length;
-        (src, length) = Memory.fromBytes(input);
-        Memory.copy(src+104, dest, length);
+            uint256 src;
+            uint256 length;
+            (src, length) = Memory.fromBytes(input);
+            Memory.copy(src+104, dest, length);
+        }
 
         return (cs, height);
     }
