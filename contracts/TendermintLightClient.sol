@@ -19,7 +19,7 @@ contract TendermintLightClient is ITendermintLightClient {
     string public _chainID;
     uint64 public _initialHeight;
     uint64 public _latestHeight;
-    bool public _alreadyInit=false;
+    bool public _alreadyInit;
 
     event InitConsensusState(uint64 initHeight, bytes32 appHash, string _chainID);
     event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
@@ -47,7 +47,7 @@ contract TendermintLightClient is ITendermintLightClient {
         ConsensusState memory cs;
         uint64 height;
         (cs, height) = decodeConsensusState(pointer, length, false);
-        cs.preValidatorSetChangeHeight = height;
+        cs.preValidatorSetChangeHeight = 0;
         _BBCLightClientConsensusState[height] = cs;
 
         _initialHeight = height;
@@ -59,19 +59,22 @@ contract TendermintLightClient is ITendermintLightClient {
     }
 
     function syncTendermintHeader(bytes calldata header, uint64 height) external returns (bool) {
+        require(_submitters[height] == address(0x0), "can't sync duplicated header");
+        require(height > _initialHeight, "can't sync header before _initialHeight");
+
         uint64 preValidatorSetChangeHeight = _latestHeight;
         ConsensusState memory cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
         for(; preValidatorSetChangeHeight >= _initialHeight;) {
-            if (preValidatorSetChangeHeight == height) {
-                // target header is already existing.
-                return true;
-            }
-            if (preValidatorSetChangeHeight < height && cs.nextValidatorSet.length != 0) {
+            if (preValidatorSetChangeHeight < height) {
                 // find nearest previous height
                 break;
             }
-            cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
             preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
+            cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
+        }
+        if (cs.nextValidatorSet.length == 0) {
+            cs.nextValidatorSet = _BBCLightClientConsensusState[preValidatorSetChangeHeight].nextValidatorSet;
+            require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
         }
 
         //32 + 32 + 8 + 32 + 32 + cs.nextValidatorSet.length;
@@ -112,9 +115,9 @@ contract TendermintLightClient is ITendermintLightClient {
             ptr := add(result, 32)
         }
 
-        uint64 decodedHeight;
-        (cs, decodedHeight) = decodeConsensusState(ptr, length, !validatorChanged);
-        require(decodedHeight == height, "header height doesn't equal to specified height");
+        uint64 actualHeaderHeight;
+        (cs, actualHeaderHeight) = decodeConsensusState(ptr, length, !validatorChanged);
+        require(actualHeaderHeight == height, "header height doesn't equal to the specified height");
 
         _submitters[height] = msg.sender;
         cs.preValidatorSetChangeHeight = preValidatorSetChangeHeight;
@@ -129,11 +132,7 @@ contract TendermintLightClient is ITendermintLightClient {
     }
 
     function isHeaderSynced(uint64 height) external view returns (bool) {
-        bytes32 appHash = _BBCLightClientConsensusState[height].appHash;
-        if (appHash == bytes32(0)) {
-            return false;
-        }
-        return true;
+        return _submitters[height] != address(0x0);
     }
 
     function getAppHash(uint64 height) external view returns (bytes32) {
