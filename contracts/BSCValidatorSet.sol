@@ -7,6 +7,7 @@ import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ICrossChainTransfer.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/ISlashIndicator.sol";
 
 
 contract BSCValidatorSet is System {
@@ -36,7 +37,8 @@ contract BSCValidatorSet is System {
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
   address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
-  bytes public constant initValidatorSetBytes = hex"c90addaad734106f885807c2d90d34687124f565c90addaad734106f885807c2d90d34687124f565c90addaad734106f885807c2d90d34687124f565";
+  address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
+  bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d791";
 
   bool public alreadyInit;
   // used for generate key
@@ -47,6 +49,7 @@ contract BSCValidatorSet is System {
   ILightClient lightClient;
   ICrossChainTransfer crossTransfer;
   ISystemReward systemReward;
+  ISlashIndicator slash;
 
 
   // state of this contract
@@ -72,6 +75,11 @@ contract BSCValidatorSet is System {
 
   modifier onlyInit() {
     require(alreadyInit, "the contract not init yet");
+    _;
+  }
+
+  modifier onlySlash() {
+    require(msg.sender == address(slash) , "the message sender must be slash contract");
     _;
   }
 
@@ -107,6 +115,8 @@ contract BSCValidatorSet is System {
   event directTransfer(address payable indexed validator, uint256 indexed amount);
   event deprecatedDeposit(address indexed validator, uint256 indexed amount);
   event validatorDeposit(address indexed validator, uint256 indexed amount);
+  event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
+  event validatorFelony(address indexed validator, uint256 indexed amount);
   event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr, address tokenContract);
 
 
@@ -122,15 +132,17 @@ contract BSCValidatorSet is System {
     lightClient = ILightClient(initLightClientAddr);
     crossTransfer = ICrossChainTransfer(initCrossTransferAddr);
     systemReward = ISystemReward(initSystemRewardAddr);
+    slash = ISlashIndicator(initSlashContract);
     keyPrefix = generatePrefixKey(fromChainId, toChainId);
     alreadyInit = true;
   }
 
-  function updateContractAddr(address _systemRewardAddr, address _crossTransferAddr, address _lightClientAddr, address _tokenContract) external onlyInit onlySystem{
+  function updateContractAddr(address _systemRewardAddr, address _crossTransferAddr, address _lightClientAddr, address _slashContract, address _tokenContract) external onlyInit onlySystem{
     tokenContract = _tokenContract;
     lightClient = ILightClient(_lightClientAddr);
     crossTransfer = ICrossChainTransfer(_crossTransferAddr);
     systemReward = ISystemReward(_systemRewardAddr);
+    slash = ISlashIndicator(_slashContract);
     emit contractAddrUpdate(_systemRewardAddr,_crossTransferAddr,_lightClientAddr,_tokenContract);
   }
 
@@ -192,6 +204,7 @@ contract BSCValidatorSet is System {
 
     // do claim reward, will reward to account rather than smart contract.
     systemReward.claimRewards(msg.sender, RELAYER_REWARD);
+    slash.clean();
     emit validatorSetUpdated();
   }
 
@@ -202,6 +215,74 @@ contract BSCValidatorSet is System {
       consensusAddrs[i] = currentValidatorSet[i].consensusAddress;
     }
     return consensusAddrs;
+  }
+
+  function getIncoming(address validator)external view returns(uint256) {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index<=0){
+      return 0;
+    }
+    return currentValidatorSet[index-1].incoming;
+  }
+
+  /*********************** For slash **************************/
+
+  function misdemeanor(address validator)external onlySlash onlyInit{
+    uint256 index = currentValidatorSetMap[validator];
+    if(index <= 0){
+      return;
+    }
+    // the actually index
+    index = index - 1;
+    uint256 income = currentValidatorSet[index].incoming;
+    currentValidatorSet[index].incoming = 0;
+    uint256 rest = currentValidatorSet.length - 1;
+    emit validatorMisdemeanor(validator,income);
+    if(rest==0){
+      // should not happen, but still protect
+      return;
+    }
+    uint256 averageDistribute = income/rest;
+    if(averageDistribute!=0){
+      for(uint i=0;i<index;i++){
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+      for(uint i=index+1;i<currentValidatorSet.length;i++){
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+  }
+
+  function felony(address validator)external onlySlash onlyInit{
+    uint256 index = currentValidatorSetMap[validator];
+    if(index <= 0){
+      return;
+    }
+    // the actually index
+    index = index - 1;
+    uint256 income = currentValidatorSet[index].incoming;
+    uint256 rest = currentValidatorSet.length - 1;
+    emit validatorFelony(validator,income);
+    if(rest==0){
+      // will not remove the validator if it is the only one validator.
+      currentValidatorSet[index].incoming = 0;
+      return;
+    }
+    delete currentValidatorSetMap[validator];
+    // It is ok that the validatorSet is not in order.
+    if (index != currentValidatorSet.length-1){
+      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length-1];
+      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
+    }
+    currentValidatorSet.length--;
+    uint256 averageDistribute = income/rest;
+    if(averageDistribute!=0){
+      for(uint i=0;i<currentValidatorSet.length;i++){
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
   /*********************** Internal Functions **************************/

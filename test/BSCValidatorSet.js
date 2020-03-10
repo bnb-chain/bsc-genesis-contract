@@ -29,7 +29,7 @@ contract('BSCValidatorSet', (accounts) => {
 
   it('deposit success and fail', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
-    let validator =  accounts[9];
+    let validator =  accounts[0];
     let systemAccount = accounts[0];
     let tx = await validatorSetInstance.deposit(validator, {from: systemAccount, value: 1e8 });
 
@@ -83,7 +83,7 @@ contract('BSCValidatorSet', (accounts) => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
 
-    let validator =  accounts[9];
+    let validator =  accounts[0];
     let systemAccount = accounts[0];
     let tmpAccount = web3.eth.accounts.create();
 
@@ -146,7 +146,7 @@ contract('BSCValidatorSet', (accounts) => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
 
-    let validatorA =  accounts[9];
+    let validatorA =  accounts[0];
     let validatorB = web3.eth.accounts.create().address;
     let validatorC = web3.eth.accounts.create().address;
     let validatorD = web3.eth.accounts.create().address;
@@ -185,7 +185,7 @@ contract('BSCValidatorSet', (accounts) => {
     const systemRewardInstance = await SystemReward.deployed();
     
 
-    let validatorA =  accounts[9];
+    let validatorA =  accounts[0];
     let validatorB = web3.eth.accounts.create().address;
     let validatorC = web3.eth.accounts.create().address;
     let validatorD = web3.eth.accounts.create().address;

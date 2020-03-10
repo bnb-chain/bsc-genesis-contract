@@ -1,15 +1,34 @@
 pragma solidity ^0.5.15;
 import { System } from "./System.sol";
+import "./interface/ISlashIndicator.sol";
+import "./interface/IBSCValidatorSet.sol";
 
-contract SlashIndicator is System{
-  uint256 public constant TOLERATE_DISTANCE = 1000;
-  uint256 public constant SPRINT = 100;
+
+contract SlashIndicator is ISlashIndicator,System {
+  uint256 public constant MISDEMEANOR_THRESHOLD = 50; // around 1.45 hours
+  uint256 public constant FELONY_THRESHOLD = 150;     // around 4.3 hours
+  address public constant  VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
+  IBSCValidatorSet validatorSet;
+
+  bool public alreadyInit;
+
+  modifier onlyNotInit() {
+    require(!alreadyInit, "the contract already init");
+    _;
+  }
+
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
+    _;
+  }
 
   // State of the contract
+  address[] validators;
   mapping(address => Indicator) indicators;
   uint256 public previousHeight;
 
-  event ValidatorSlashed(address indexed validator);
+  event validatorSlashed(address indexed validator);
+  event contractAddrUpdate(address validatorContract);
 
   struct Indicator {
     uint256 height;
@@ -23,20 +42,46 @@ contract SlashIndicator is System{
     previousHeight = block.number;
   }
 
-  function slash(address validator) external onlySystem onlyOnce{
+  modifier onlyValidatorContract() {
+    require(msg.sender == address(validatorSet), "the message sender must be validatorSet contract");
+    _;
+  }
+
+  function init() external onlyNotInit{
+    validatorSet = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
+    alreadyInit = true;
+  }
+
+  function updateContractAddr(address _validatorContract) external onlyInit onlySystem{
+    validatorSet = IBSCValidatorSet(_validatorContract);
+    emit contractAddrUpdate(_validatorContract);
+  }
+
+  function slash(address validator) external onlyInit onlySystem onlyOnce{
     Indicator memory indicator = indicators[validator];
     if (indicator.exist){
-      if (block.number-indicator.height < TOLERATE_DISTANCE){
-        indicator.count++;
-        if (indicator.count % SPRINT == 0){
-          emit ValidatorSlashed(validator);
-        }
-      }
+      indicator.count++;
     }else{
       indicator.exist = true;
+      indicator.count = 1;
+      validators.push(validator);
     }
     indicator.height = block.number;
     indicators[validator] = indicator;
+    if(indicator.count % FELONY_THRESHOLD == 0){
+      validatorSet.felony(validator);
+    }else if (indicator.count % MISDEMEANOR_THRESHOLD == 0){
+      validatorSet.misdemeanor(validator);
+    }
+    emit validatorSlashed(validator);
+  }
+
+  function clean() external onlyInit onlyValidatorContract{
+    uint n = validators.length;
+    for(uint i=0;i<validators.length;i++){
+      delete indicators[validators[i]];
+    }
+    validators.length = validators.length - n;
   }
 
   function getSlashIndicator(address validator) external view returns (uint256,uint256){

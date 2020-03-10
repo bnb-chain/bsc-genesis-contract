@@ -36,13 +36,18 @@ module.exports = function(deployer,network, accounts) {
     // deploy mock
     return deployer.deploy(CrossChainTransfer);
   }).then(function() {
+    // deploy mock
+    return deployer.deploy(SlashIndicator);
+  }).then(function(slashInstance) {
     deployer.link(TypesToBytes, BSCValidatorSet);
     deployer.link(BytesToTypes, BSCValidatorSet);
     deployer.link(SizeOf, BSCValidatorSet);
     deployer.link(BytesLib, BSCValidatorSet);
     return deployer.deploy(BSCValidatorSet).then(function (instance) {
       instance.init();
-      instance.updateContractAddr(SystemReward.address, CrossChainTransfer.address, LightClient.address, web3.eth.accounts.create().address)
+      slashInstance.init();
+      slashInstance.updateContractAddr(BSCValidatorSet.address);
+      instance.updateContractAddr(SystemReward.address, CrossChainTransfer.address, LightClient.address, SlashIndicator.address, web3.eth.accounts.create().address)
       });
   });
 };

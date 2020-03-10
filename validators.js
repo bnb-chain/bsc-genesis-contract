@@ -3,9 +3,9 @@ const web3 = require("web3")
 // Configure
 const validators = [
   {
-    consensusAddr: "0xC90AddaAD734106f885807C2D90d34687124f565",
-    feeAddr: "0xC90AddaAD734106f885807C2D90d34687124f565",
-    bscFeeAddr: "0xC90AddaAD734106f885807C2D90d34687124f565"
+    consensusAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
+    feeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
+    bscFeeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791"
   }
 ];
 
