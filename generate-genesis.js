@@ -32,9 +32,9 @@ function compileContract(key, contractFile, contractName) {
       "--bin-runtime",
       "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",
       "/=/",
-      // "--optimize",
-      // "--optimize-runs",
-      // "200",
+      "--optimize",
+      "--optimize-runs",
+      "200",
       contractFile
     ])
 
