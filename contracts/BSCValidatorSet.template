@@ -1,4 +1,4 @@
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.16;
 
 import {System} from "./System.sol";
 import "./Seriality/TypesToBytes.sol";
@@ -228,10 +228,12 @@ contract BSCValidatorSet is System {
   /*********************** For slash **************************/
 
   function misdemeanor(address validator)external onlySlash onlyInit{
-    uint256 index = currentValidatorSetMap[validator]-1;
-    if(index < 0){
+    uint256 index = currentValidatorSetMap[validator];
+    if(index <= 0){
       return;
     }
+    // the actually index
+    index = index - 1;
     uint256 income = currentValidatorSet[index].incoming;
     currentValidatorSet[index].incoming = 0;
     uint256 rest = currentValidatorSet.length - 1;
@@ -243,20 +245,22 @@ contract BSCValidatorSet is System {
     uint256 averageDistribute = income/rest;
     if(averageDistribute!=0){
       for(uint i=0;i<index;i++){
-        currentValidatorSet[index].incoming = currentValidatorSet[index].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
       for(uint i=index+1;i<currentValidatorSet.length;i++){
-        currentValidatorSet[index].incoming = currentValidatorSet[index].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
   function felony(address validator)external onlySlash onlyInit{
-    uint256 index = currentValidatorSetMap[validator]-1;
-    if(index < 0){
+    uint256 index = currentValidatorSetMap[validator];
+    if(index <= 0){
       return;
     }
+    // the actually index
+    index = index - 1;
     uint256 income = currentValidatorSet[index].incoming;
     uint256 rest = currentValidatorSet.length - 1;
     emit validatorFelony(validator,income);
@@ -269,13 +273,13 @@ contract BSCValidatorSet is System {
     // It is ok that the validatorSet is not in order.
     if (index != currentValidatorSet.length-1){
       currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length-1];
-      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index;
+      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
     }
     currentValidatorSet.length--;
     uint256 averageDistribute = income/rest;
     if(averageDistribute!=0){
-      for(uint i=0;i<rest;i++){
-        currentValidatorSet[index].incoming = currentValidatorSet[index].incoming + averageDistribute;
+      for(uint i=0;i<currentValidatorSet.length;i++){
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.

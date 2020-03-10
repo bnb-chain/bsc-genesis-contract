@@ -1,4 +1,4 @@
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.16;
 
 interface IBSCValidatorSet {
   function misdemeanor(address validator) external;
