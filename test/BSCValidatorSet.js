@@ -12,7 +12,7 @@ contract('BSCValidatorSet', (accounts) => {
     
     let keyPrefix = await validatorSetInstance.keyPrefix.call();
 
-    assert.equal(web3.utils.bytesToHex(keyPrefix),"0x000004020609060006010600060306050200040306080601060906000200050406090607070206090703000000000000000000000000000000000000000000000000030703010304000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008", "keyPrefix is not correct")
+    assert.equal(web3.utils.bytesToHex(keyPrefix),"0x000000000001000000020008", "keyPrefix is not correct")
 
     let sequence = await validatorSetInstance.sequence.call();
     assert.equal(sequence,0, "sequence should be 0");

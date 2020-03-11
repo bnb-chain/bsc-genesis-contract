@@ -17,11 +17,11 @@ program.option(
 )
 program.option("--fromChainId <fromChainId>",
     "fromChainId",
-    "0001");
+    "0x0001");
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "0002");
+    "0x0002");
 
 program.parse(process.argv);
 

@@ -29,8 +29,8 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  bytes2 public constant fromChainId = hex"{{fromChainId}}";
-  bytes2 public constant toChainId = hex"{{toChainId}}";
+  uint16 public constant fromChainId = {{fromChainId}};
+  uint16 public constant toChainId = {{toChainId}};
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
@@ -392,7 +392,8 @@ contract BSCValidatorSet is System {
 
 
   function generatePrefixKey() private pure returns(bytes memory prefix){
-    prefix = new bytes(65);
+
+    prefix = new bytes(5);
     uint256 pos=prefix.length;
 
     assembly {
@@ -403,8 +404,13 @@ contract BSCValidatorSet is System {
       mstore(add(prefix, pos), toChainId)
     }
     pos -=2;
+
     assembly {
       mstore(add(prefix, pos), fromChainId)
+    }
+    pos -=2;
+    assembly {
+      mstore(add(prefix, pos), 0x5)
     }
     return prefix;
   }

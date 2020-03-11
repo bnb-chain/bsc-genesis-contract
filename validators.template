@@ -37,6 +37,7 @@ function validatorsSerialize(validators) {
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.feeAddr)));
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.bscFeeAddr)));
+    arr.push(Buffer.from(web3.utils.hexToBytes(validator.votingPower)));
   }
   return web3.utils.bytesToHex(Buffer.concat(arr));
 }

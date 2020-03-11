@@ -29,14 +29,14 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  bytes2 public constant fromChainId = hex"0001";
-  bytes2 public constant toChainId = hex"0002";
+  uint16 public constant fromChainId = 0x0001;
+  uint16 public constant toChainId = 0x0002;
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
   address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
   address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
-  bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d791";
+  bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
   bool public alreadyInit;
   // used for generate key
@@ -392,7 +392,8 @@ contract BSCValidatorSet is System {
 
 
   function generatePrefixKey() private pure returns(bytes memory prefix){
-    prefix = new bytes(65);
+
+    prefix = new bytes(5);
     uint256 pos=prefix.length;
 
     assembly {
@@ -403,8 +404,13 @@ contract BSCValidatorSet is System {
       mstore(add(prefix, pos), toChainId)
     }
     pos -=2;
+
     assembly {
       mstore(add(prefix, pos), fromChainId)
+    }
+    pos -=2;
+    assembly {
+      mstore(add(prefix, pos), 0x5)
     }
     return prefix;
   }
