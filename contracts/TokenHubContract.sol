@@ -13,6 +13,7 @@ contract TokenHubContract {
         address contractAddr;
         uint256 totalSupply;
         uint256 peggyAmount;
+        uint64  expireTime;
         uint256 relayReward;
     }
 
@@ -28,7 +29,7 @@ contract TokenHubContract {
         address sender;
         address payable recipient;
         uint256 amount;
-        uint64 expireTime;
+        uint64  expireTime;
         uint256 relayReward;
     }
 
@@ -58,7 +59,8 @@ contract TokenHubContract {
     event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
     event LogBindSuccess(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
     event LogBindRejected(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
-    event LogBindFailure(address contractAddr, bytes32 bep2TokenSymbol, address bep2TokenOwner, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindTimeout(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindInvalidParameter(address contractAddr, bytes32 bep2TokenSymbol, address bep2TokenOwner, uint256 totalSupply, uint256 peggyAmount);
 
     event LogCrossChainTransfer(address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayReward, uint256 sequence);
 
@@ -196,6 +198,13 @@ contract TokenHubContract {
         }
         brPackage.peggyAmount = tempValue;
 
+        ptr+=8;
+        uint64 expireTime;
+        assembly {
+            expireTime := mload(ptr)
+        }
+        brPackage.expireTime = expireTime;
+
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
@@ -222,9 +231,6 @@ contract TokenHubContract {
         // TODO maybe the reward should be paid to msg.sender directly
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
-        if (_bindRequestRecord[brPackage.bep2TokenSymbol].bep2TokenSymbol == brPackage.bep2TokenSymbol) {
-            return false;
-        }
         _bindRequestRecord[brPackage.bep2TokenSymbol]=brPackage;
         emit LogBindRequest(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
         return true;
@@ -232,15 +238,20 @@ contract TokenHubContract {
 
     function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
+        uint256 lockedAmount = brPackage.totalSupply-brPackage.peggyAmount;
         require(contractAddr==brPackage.contractAddr);
+        require(brPackage.expireTime>=block.timestamp); // ensure the bind requenst is not expired
         require(IERC20(contractAddr).owner()==msg.sender);
+        require(IERC20(contractAddr).allowance(msg.sender, address(this))==lockedAmount);
         //TODO add bep2 token symbol and erc20 contract symbol checking
-        if (_bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
-        IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply||
-        IERC20(brPackage.contractAddr).balanceOf(address(this))+brPackage.peggyAmount!=brPackage.totalSupply) {
-            emit LogBindFailure(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.bep2TokenOwner, brPackage.totalSupply, brPackage.peggyAmount);
+        if (
+            _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
+            _contractAddrToBEP2Symbol[brPackage.contractAddr]!=bytes32(0x00)||
+            IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply) {
+            emit LogBindInvalidParameter(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.bep2TokenOwner, brPackage.totalSupply, brPackage.peggyAmount);
             return false;
         }
+        IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
         _contractAddrToBEP2Symbol[brPackage.contractAddr] = brPackage.bep2TokenSymbol;
         _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
 
@@ -253,8 +264,18 @@ contract TokenHubContract {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
         require(contractAddr==brPackage.contractAddr);
         require(IERC20(contractAddr).owner()==msg.sender);
+        require(brPackage.expireTime>=block.timestamp); // ensure the bind requenst is not expired
         delete _bindRequestRecord[bep2TokenSymbol];
         emit LogBindRejected(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        return true;
+    }
+
+    function expireBind(bytes32 bep2TokenSymbol) public returns (bool) {
+        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
+        require(brPackage.expireTime!=0); // ensure the brPackage is existing
+        require(brPackage.expireTime<block.timestamp);
+        delete _bindRequestRecord[bep2TokenSymbol];
+        emit LogBindTimeout(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
         return true;
     }
 
