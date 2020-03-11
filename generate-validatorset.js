@@ -17,11 +17,11 @@ program.option(
 )
 program.option("--fromChainId <fromChainId>",
     "fromChainId",
-    "Binance-Chain-Tigris");
+    "0001");
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "714");
+    "0002");
 
 program.parse(process.argv);
 

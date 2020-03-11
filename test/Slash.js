@@ -224,13 +224,14 @@ contract('SlashIndicator', (accounts) => {
   });
 });
 
-function serialize(consensusAddrList,feeAddrList, bscFeeAddrList ) {
+function serialize(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let n = consensusAddrList.length;
   let arr = [];
   for(let i = 0;i<n;i++){
     arr.push(Buffer.from(web3.utils.hexToBytes(consensusAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(feeAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(bscFeeAddrList[i].toString())));
+    arr.push(Buffer.from(web3.utils.hexToBytes("0x0000000000000064")));
   }
   return Buffer.concat(arr);
 }

@@ -311,6 +311,7 @@ function serialize(consensusAddrList,feeAddrList, bscFeeAddrList ) {
     arr.push(Buffer.from(web3.utils.hexToBytes(consensusAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(feeAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(bscFeeAddrList[i].toString())));
+    arr.push(Buffer.from(web3.utils.hexToBytes("0x0000000000000064")));
   }
   return Buffer.concat(arr);
 }

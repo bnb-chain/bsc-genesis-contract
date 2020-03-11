@@ -5,7 +5,8 @@ const validators = [
   {
     consensusAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
     feeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
-    bscFeeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791"
+    bscFeeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
+    votingPower: "0x0000000000000064"
   }
 ];
 
@@ -35,6 +36,7 @@ function validatorsSerialize(validators) {
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.feeAddr)));
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.bscFeeAddr)));
+    arr.push(buffer.from(web3.utils.hexToBytes()))
   }
   return web3.utils.bytesToHex(Buffer.concat(arr));
 }

@@ -18,6 +18,7 @@ async function processValidatorConf() {
       consensusAddr: vs[0],
       feeAddr: vs[1],
       bscFeeAddr: vs[2],
+      votingPower: vs[3],
     })
   }
   return validators

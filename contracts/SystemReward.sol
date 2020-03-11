@@ -1,5 +1,5 @@
 pragma solidity ^0.5.16;
-import { System } from "./System.sol";
+import "./System.sol";
 import "./interface/ISystemReward.sol";
 
 contract SystemReward is System, ISystemReward{

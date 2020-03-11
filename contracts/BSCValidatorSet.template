@@ -1,6 +1,6 @@
 pragma solidity ^0.5.16;
 
-import {System} from "./System.sol";
+import "./System.sol";
 import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
@@ -14,10 +14,8 @@ contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
   uint8 public constant CHANNEL_ID =  8;
 
-  // use '_' as connector
-  bytes constant CONNECTOR = "_";
-  // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress}
-  uint constant  VALIDATOR_BYTES_LENGTH = 60;
+  // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
+  uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
@@ -31,8 +29,8 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  string public constant fromChainId = "{{fromChainId}}"; // means Binance-Chain-Tigris
-  string public constant toChainId = "{{toChainId}}";  // means "714"
+  bytes2 public constant fromChainId = hex"{{fromChainId}}";
+  bytes2 public constant toChainId = hex"{{toChainId}}";
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
   address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
@@ -65,6 +63,7 @@ contract BSCValidatorSet is System {
     address consensusAddress;
     address payable feeAddress;
     address BBCFeeAddress;
+    uint64  votingPower;
     uint256 incoming;
   }
 
@@ -133,7 +132,7 @@ contract BSCValidatorSet is System {
     crossTransfer = ICrossChainTransfer(initCrossTransferAddr);
     systemReward = ISystemReward(initSystemRewardAddr);
     slash = ISlashIndicator(initSlashContract);
-    keyPrefix = generatePrefixKey(fromChainId, toChainId);
+    keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
 
@@ -297,6 +296,7 @@ contract BSCValidatorSet is System {
       validatorSet[i].consensusAddress = BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+20,validatorSetBytes);
       validatorSet[i].feeAddress = address(uint160(BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+40,validatorSetBytes)));
       validatorSet[i].BBCFeeAddress = BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
+      validatorSet[i].votingPower = BytesToTypes.bytesToUint64(i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
     }
     return validatorSet;
   }
@@ -391,7 +391,7 @@ contract BSCValidatorSet is System {
 
 
 
-  function generatePrefixKey(string memory _fromChainId, string memory _toChainId) private pure returns(bytes memory prefix){
+  function generatePrefixKey() private pure returns(bytes memory prefix){
     prefix = new bytes(65);
     uint256 pos=prefix.length;
 
@@ -399,14 +399,12 @@ contract BSCValidatorSet is System {
       mstore(add(prefix, pos), CHANNEL_ID)
     }
     pos -=1;
-    bytes memory toChainIDBytes = bytes(_toChainId);
     assembly {
-      mstore(add(prefix, pos), mload(add(toChainIDBytes, 32)))
+      mstore(add(prefix, pos), toChainId)
     }
-    pos -=32;
-    bytes memory fromChainIDBytes = bytes(_fromChainId);
+    pos -=2;
     assembly {
-      mstore(add(prefix, pos), mload(add(fromChainIDBytes, 32)))
+      mstore(add(prefix, pos), fromChainId)
     }
     return prefix;
   }
