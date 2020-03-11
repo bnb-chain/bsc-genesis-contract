@@ -8,7 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ICrossChainTransfer.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
-
+import "./MerkleProof.sol";
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
@@ -88,7 +88,7 @@ contract BSCValidatorSet is System {
   }
 
   modifier blockSynced(uint256 _height) {
-    require(lightClient.isBlockSynced(_height), "light client not sync the block yet");
+    require(lightClient.isHeaderSynced(uint64(_height)), "light client not sync the block yet");
     _;
   }
 
@@ -165,7 +165,8 @@ contract BSCValidatorSet is System {
   function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint256 height, uint256 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
-    bool valid = lightClient.validateMerkleProof(height, STORE_NAME, key, validatorSetBytes, proof);
+    bytes32 appHash = lightClient.getAppHash(uint64(height));
+    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
     require(valid, "the package is invalid against its proof");
 
     // do deserialize and verify.

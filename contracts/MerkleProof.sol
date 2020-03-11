@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import "Memory.sol";
+import "./Seriality/Memory.sol";
 
 library MerkleProof {
     function validateMerkleProof(bytes32 appHash, string memory storeName, bytes memory key,
@@ -54,7 +54,7 @@ library MerkleProof {
 
         length = input.length+32;
 
-        uint256 result;
+        uint256[1] memory result;
         assembly {
         // call validateMerkleProof precompile contract
         // Contract address: 0x65
@@ -63,7 +63,7 @@ library MerkleProof {
             }
         }
 
-        if (result != 0x01) {
+        if (result[0] != 0x01) {
             return false;
         }
 

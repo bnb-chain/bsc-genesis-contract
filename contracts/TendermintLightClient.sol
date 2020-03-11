@@ -1,10 +1,10 @@
 pragma solidity 0.5.16;
 
-import "Memory.sol";
-import "ITendermintLightClient.sol";
-import "ISystemReward.sol";
+import "./Seriality/Memory.sol";
+import "./interface/ILightClient.sol";
+import "./interface/ISystemReward.sol";
 
-contract TendermintLightClient is ITendermintLightClient {
+contract TendermintLightClient is ILightClient {
 
     struct ConsensusState {
         uint64  preValidatorSetChangeHeight;
@@ -38,8 +38,7 @@ contract TendermintLightClient is ITendermintLightClient {
         _;
     }
 
-    //TODO add authority check
-    function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id, address systemRewardContractAddr) public {
+    function initConsensusState(bytes memory initConsensusStateBytes, string memory chain_id, address systemRewardContractAddr) onlyNotInit public {
         uint256 pointer;
         uint256 length;
         (pointer, length) = Memory.fromBytes(initConsensusStateBytes);
@@ -54,11 +53,12 @@ contract TendermintLightClient is ITendermintLightClient {
         _latestHeight = height;
         _chainID = chain_id;
         _systemRewardContract=systemRewardContractAddr;
+        _alreadyInit = true;
 
         emit InitConsensusState(_initialHeight, cs.appHash, chain_id);
     }
 
-    function syncTendermintHeader(bytes calldata header, uint64 height) external returns (bool) {
+    function syncTendermintHeader(bytes calldata header, uint64 height) onlyAlreadyInit external returns (bool) {
         require(_submitters[height] == address(0x0), "can't sync duplicated header");
         require(height > _initialHeight, "can't sync header before _initialHeight");
 
@@ -73,6 +73,7 @@ contract TendermintLightClient is ITendermintLightClient {
             cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
         }
         if (cs.nextValidatorSet.length == 0) {
+            preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
             cs.nextValidatorSet = _BBCLightClientConsensusState[preValidatorSetChangeHeight].nextValidatorSet;
             require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
         }
