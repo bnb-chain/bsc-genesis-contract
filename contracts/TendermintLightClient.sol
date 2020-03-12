@@ -73,6 +73,7 @@ contract TendermintLightClient is ITendermintLightClient {
             cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
         }
         if (cs.nextValidatorSet.length == 0) {
+            preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
             cs.nextValidatorSet = _BBCLightClientConsensusState[preValidatorSetChangeHeight].nextValidatorSet;
             require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
         }

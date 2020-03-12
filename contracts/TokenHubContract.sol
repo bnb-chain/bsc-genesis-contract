@@ -1,4 +1,5 @@
 pragma solidity 0.5.16;
+pragma experimental ABIEncoderV2; //TODO delete later
 
 import "IERC20.sol";
 import "ITendermintLightClient.sol";
@@ -38,8 +39,8 @@ contract TokenHubContract {
     uint8 constant timeoutChannelID=0x03;
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    bytes2 constant sourceChainID         = 0x0001; // 1
-    bytes2 constant destinationChainID    = 0x000f; // 15
+    uint16 constant sourceChainID         = 3;
+    uint16 constant destinationChainID    = 15;
     uint256 constant minimumRelayReward    = 10**16;  // 0.01 BNB
 
     address public _lightClientContract;
@@ -101,22 +102,27 @@ contract TokenHubContract {
     }
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
-    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal pure returns(bool) {
-        uint256 length;
-        assembly {
-            length := mload(key)
-        }
-        if (length != 0x4a) { //74
+    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) public view returns(bool) { // TODO change to internal pure
+        if (key.length != 14) {
             return false;
         }
 
         uint256 ptr;
         assembly {
-            ptr := add(key, 32)
+            ptr := key
         }
 
-        bytes2 chainID;
-        ptr+=2+1;
+        uint8 prefix;
+        ptr+=1;
+        assembly {
+            prefix := mload(ptr)
+        }
+        if (prefix != 0) {
+            return false;
+        }
+
+        uint16 chainID;
+        ptr+=2;
         assembly {
             chainID := mload(ptr)
         }
@@ -153,14 +159,14 @@ contract TokenHubContract {
         return true;
     }
 
-    // | length   | bep2TokenSymbol | bep2TokenOwner | contractAddr | totalSupply | peggyAmount | relayReward |
-    // | 32 bytes | 32 bytes        | 20 bytes       | 20 bytes     |  32 bytes   | 32 bytes    | 32 bytes    |
-    function decodeBindRequestPackage(bytes memory value) internal pure returns(BindRequestPackage memory) {
+    // | length   | bep2TokenSymbol | bep2TokenOwner | contractAddr | totalSupply | peggyAmount | expireTime | relayReward |
+    // | 32 bytes | 32 bytes        | 20 bytes       | 20 bytes     |  32 bytes   | 32 bytes    | 8 bytes    | 32 bytes    |
+    function decodeBindRequestPackage(bytes memory value) public view returns(BindRequestPackage memory) { // TODO change to internal pure
         BindRequestPackage memory brPackage;
 
         uint256 ptr;
         assembly {
-            ptr := add(value, 32)
+            ptr := value
         }
 
         bytes32 bep2TokenSymbol;
@@ -183,7 +189,6 @@ contract TokenHubContract {
             addr := mload(ptr)
         }
         brPackage.contractAddr = addr;
-
 
         uint256 tempValue;
         ptr+=32;
@@ -216,6 +221,7 @@ contract TokenHubContract {
 
     function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
+        require(value.length==176, "unexpected bind package size");
         require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
@@ -304,13 +310,13 @@ contract TokenHubContract {
     }
 
     // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayReward |
-    // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 32 bytes   | 32 bytes    |
-    function decodeCrossChainTransferPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
+    // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 8 bytes    | 32 bytes    |
+    function decodeCrossChainTransferPackage(bytes memory value) public view returns (CrossChainTransferPackage memory) { // TODO change to internal pure
         CrossChainTransferPackage memory cctp;
 
         uint256 ptr;
         assembly {
-            ptr := add(value, 32)
+            ptr := value
         }
 
         uint256 tempValue;
@@ -366,6 +372,7 @@ contract TokenHubContract {
 
     function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
+        require(value.length==164, "unexpected transfer package size");
         require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
@@ -409,12 +416,12 @@ contract TokenHubContract {
 
     // | length   | refundAmount | contractAddr | refundAddr |
     // | 32 bytes | 32 bytes     | 20 bytes     | 20 bytes   |
-    function decodeTimeoutPackage(bytes memory value) internal pure returns(TimeoutPackage memory) {
+    function decodeTimeoutPackage(bytes memory value) public view returns(TimeoutPackage memory) { // TODO change to internal pure
         TimeoutPackage memory timeoutPackage;
 
         uint256 ptr;
         assembly {
-            ptr := add(value, 32)
+            ptr := value
         }
 
         ptr+=32;
@@ -444,6 +451,7 @@ contract TokenHubContract {
 
     function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
         require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
+        require(value.length==72, "unexpected timeout package size");
         require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
