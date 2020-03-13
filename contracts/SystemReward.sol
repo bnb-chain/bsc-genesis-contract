@@ -56,19 +56,19 @@ contract SystemReward is System, ISystemReward{
     }
   }
 
-  function addOperator(address operator) external onlySystem doInit onlyOperatorNotExist(operator){
+  function addOperator(address operator) external doInit onlySystem onlyOperatorNotExist(operator){
     operators[operator] = true;
     numOperator ++;
     emit NewOperator(operator);
   }
 
-  function removeOperator(address operator) external onlySystem doInit onlyOperatorExist(operator){
+  function removeOperator(address operator) external doInit onlySystem onlyOperatorExist(operator){
     delete operators[operator];
     numOperator --;
     emit DeleteOperator(operator);
   }
 
-  function claimRewards(address payable to, uint256 amount) external onlyOperator doInit rewardNotExceedLimit(amount){
+  function claimRewards(address payable to, uint256 amount) external doInit onlyOperator rewardNotExceedLimit(amount){
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if(actualAmount>0){
       to.transfer(actualAmount);
