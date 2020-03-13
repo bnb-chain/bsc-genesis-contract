@@ -56,7 +56,7 @@ contract TokenHubContract {
 
     uint256 public _transferOutChannelSequence=0;
     uint256 public _bindResponseChannelSequence=0;
-    uint256 public _transferInResponseChannelSequence=0;
+    uint256 public _transferInFailureChannelSequence=0;
 
     bool public _alreadyInit=false;
 
@@ -392,24 +392,24 @@ contract TokenHubContract {
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (block.timestamp > cctp.expireTime) {
-            emit LogTransferInFailureTimeout(_transferInChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime);
+            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime);
             return false;
         }
 
         if (cctp.contractAddr==address(0x0) && cctp.bep2TokenSymbol==bep2TokenSymbolForBNB) {
             if (address(this).balance < cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, address(this).balance);
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, address(this).balance);
                 return false;
             }
             cctp.recipient.transfer(cctp.amount);
         } else {
             if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
-                emit LogTransferInFailureUnbindedToken(_transferInChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureUnbindedToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             uint256 tokenHubBalance = IERC20(cctp.contractAddr).balanceOf(address(this));
             if (tokenHubBalance<cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, tokenHubBalance);
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, tokenHubBalance);
                 return false;
             }
             IERC20(cctp.contractAddr).transfer(cctp.recipient, cctp.amount);
