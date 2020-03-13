@@ -99,6 +99,14 @@ contract TokenHubContract {
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
     }
 
+    function bep2TokenSymbolConvert(string memory symbol) public view returns(bytes32) {
+        bytes32 result;
+        assembly {
+            result := mload(add(symbol, 32))
+        }
+        return result;
+    }
+
     //TODO need further discussion
     function calculateRewardForTendermintHeaderRelayer(uint256 reward) internal pure returns (uint256) {
         return reward/5; //20%
@@ -251,8 +259,7 @@ contract TokenHubContract {
             _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
             _contractAddrToBEP2Symbol[brPackage.contractAddr]!=bytes32(0x00)||
             IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply) {
-            emit LogBindInvalidParameter(_bindResponseChannelSequence, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
-            _bindResponseChannelSequence++;
+            emit LogBindInvalidParameter(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
             return false;
         }
         IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
@@ -374,7 +381,6 @@ contract TokenHubContract {
         require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
-        _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
 
