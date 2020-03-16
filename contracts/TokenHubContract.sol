@@ -1,5 +1,4 @@
 pragma solidity 0.5.16;
-pragma experimental ABIEncoderV2; //TODO delete later
 
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
@@ -38,9 +37,10 @@ contract TokenHubContract {
     uint8 constant timeoutChannelID=0x03;
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    uint16 constant sourceChainID         = 3;
-    uint16 constant destinationChainID    = 15;
-    uint256 constant minimumRelayReward    = 10**16;  // 0.01 BNB
+    
+    uint16 _sourceChainID;
+    uint16 _destChainID;
+    uint256 _minimumRelayFee;
 
     address public _lightClientContract;
     address public _incentivizeContractForHeaderSyncRelayers;
@@ -90,12 +90,19 @@ contract TokenHubContract {
         _;
     }
 
-    function initTokenHub(address lightClientContractAddr,
+    function initTokenHub(
+        address lightClientContractAddr,
         address incentivizeContractAddrForHeader,
-        address incentivizeContractAddrForTransfer) onlyNotInit public {
+        address incentivizeContractAddrForTransfer,
+        uint16 sourceChainID,
+        uint16 destChainID,
+        uint256 minimumRelayFee) onlyNotInit public {
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
+        _sourceChainID=sourceChainID;
+        _destChainID=destChainID;
+        _minimumRelayFee=minimumRelayFee;
         _alreadyInit = true;
     }
 
@@ -113,7 +120,7 @@ contract TokenHubContract {
     }
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
-    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) public view returns(bool) { // TODO change to internal pure
+    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal pure returns(bool) {
         if (key.length != 14) {
             return false;
         }
@@ -137,7 +144,7 @@ contract TokenHubContract {
         assembly {
             chainID := mload(ptr)
         }
-        if (chainID != sourceChainID) {
+        if (chainID != _sourceChainID) {
             return false;
         }
 
@@ -145,7 +152,7 @@ contract TokenHubContract {
         assembly {
             chainID := mload(ptr)
         }
-        if (chainID != destinationChainID) {
+        if (chainID != _destChainID) {
             return false;
         }
 
@@ -172,7 +179,7 @@ contract TokenHubContract {
 
     // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | expireTime | relayReward |
     // | 32 bytes | 32 bytes        | 20 bytes     |  32 bytes   | 32 bytes    | 8 bytes    | 32 bytes    |
-    function decodeBindRequestPackage(bytes memory value) public view returns(BindRequestPackage memory) { // TODO change to internal pure
+    function decodeBindRequestPackage(bytes memory value) internal pure returns(BindRequestPackage memory) {
         BindRequestPackage memory brPackage;
 
         uint256 ptr;
@@ -322,7 +329,7 @@ contract TokenHubContract {
             require(amount%extraPrecision==0);
         }
         require(relayReward%(10**10)==0);
-        require(relayReward>minimumRelayReward);
+        require(relayReward>_minimumRelayFee);
         require(_contractAddrToBEP2Symbol[contractAddr]!=0x00);
         if (contractAddr==address(0x0)) {
             require(msg.value==amount+relayReward);
@@ -340,7 +347,7 @@ contract TokenHubContract {
 
     // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayReward |
     // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 8 bytes    | 32 bytes    |
-    function decodeCrossChainTransferPackage(bytes memory value) public view returns (CrossChainTransferPackage memory) { // TODO change to internal pure
+    function decodeCrossChainTransferPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
         CrossChainTransferPackage memory cctp;
 
         uint256 ptr;
@@ -444,7 +451,7 @@ contract TokenHubContract {
 
     // | length   | refundAmount | contractAddr | refundAddr |
     // | 32 bytes | 32 bytes     | 20 bytes     | 20 bytes   |
-    function decodeTimeoutPackage(bytes memory value) public view returns(TimeoutPackage memory) { // TODO change to internal pure
+    function decodeTimeoutPackage(bytes memory value) internal pure returns(TimeoutPackage memory) {
         TimeoutPackage memory timeoutPackage;
 
         uint256 ptr;
