@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2; //TODO delete later
 
 import "./interface/IERC20.sol";
-import "./interface/ITendermintLightClient.sol";
+import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./Seriality/MerkleProof.sol";
 
@@ -90,13 +90,13 @@ contract TokenHubContract {
         _;
     }
 
-    //TODO add authority check
     function initTokenHub(address lightClientContractAddr,
         address incentivizeContractAddrForHeader,
-        address incentivizeContractAddrForTransfer) public {
+        address incentivizeContractAddrForTransfer) onlyNotInit public {
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
+        _alreadyInit = true;
     }
 
     function bep2TokenSymbolConvert(string memory symbol) public view returns(bytes32) {
@@ -224,15 +224,15 @@ contract TokenHubContract {
         return brPackage;
     }
 
-    function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
+    function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
         require(value.length==156, "unexpected bind package size");
-        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
-        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(ILightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _bindChannelSequence++;
 
-        address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
+        address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
         BindRequestPackage memory brPackage = decodeBindRequestPackage(value);
 
@@ -270,7 +270,7 @@ contract TokenHubContract {
         return symbolMatch;
     }
 
-    function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+    function approveBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
         uint256 lockedAmount = brPackage.totalSupply-brPackage.peggyAmount;
         require(contractAddr==brPackage.contractAddr);
@@ -296,7 +296,7 @@ contract TokenHubContract {
         return true;
     }
 
-    function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+    function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
         require(contractAddr==brPackage.contractAddr);
         require(IERC20(contractAddr).owner()==msg.sender);
@@ -306,7 +306,7 @@ contract TokenHubContract {
         return true;
     }
 
-    function expireBind(bytes32 bep2TokenSymbol) public returns (bool) {
+    function expireBind(bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
         require(brPackage.expireTime!=0); // ensure the brPackage is existing
         require(brPackage.expireTime<block.timestamp);
@@ -315,7 +315,7 @@ contract TokenHubContract {
         return true;
     }
 
-    function crossChainTransferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayReward) public payable {
+    function crossChainTransferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayReward) onlyAlreadyInit public payable {
         uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
         if (erc20TokenDecimals > 8) { // suppose erc20TokenDecimals is 10, then the amount must equal to N*100
             uint256 extraPrecision = 10**(erc20TokenDecimals-8);
@@ -399,14 +399,14 @@ contract TokenHubContract {
         return cctp;
     }
 
-    function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
+    function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
         require(value.length==164, "unexpected transfer package size");
-        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
-        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(ILightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
 
-        address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
+        address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
         CrossChainTransferPackage memory cctp = decodeCrossChainTransferPackage(value);
 
@@ -477,15 +477,15 @@ contract TokenHubContract {
         return timeoutPackage;
     }
 
-    function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) public returns (bool) {
+    function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
         require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
         require(value.length==72, "unexpected timeout package size");
-        require(ITendermintLightClient(_lightClientContract).isHeaderSynced(height));
-        bytes32 appHash = ITendermintLightClient(_lightClientContract).getAppHash(height);
+        require(ILightClient(_lightClientContract).isHeaderSynced(height));
+        bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, "ibc", key, value, proof), "invalid merkle proof");
         _timeoutChannelSequence++;
 
-        //address payable tendermintHeaderSubmitter = ITendermintLightClient(_lightClientContract).getSubmitter(height);
+        //address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
         TimeoutPackage memory timeoutPackage = decodeTimeoutPackage(value);
 

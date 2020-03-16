@@ -6,12 +6,16 @@ contract LightClient is ILightClient{
   bool blockNotSynced;
   bool stateNotVerified;
 
-  function isBlockSynced(uint256) external returns (bool){
+  function isBlockSynced(uint64 height) external returns (bool){
     return !blockNotSynced;
   }
 
-  function validateMerkleProof(uint256, string calldata, bytes calldata, bytes calldata, bytes calldata) external view returns (bool){
-    return !stateNotVerified;
+  function getAppHash(uint64 height) external view returns (bytes32) {
+    return bytes32(0x0);
+  }
+
+  function getSubmitter(uint64 height) external view returns (address payable) {
+    return address(0x0);
   }
 
   function setBlockNotSynced(bool notSynced) external{
