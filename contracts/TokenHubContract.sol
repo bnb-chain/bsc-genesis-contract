@@ -1,10 +1,10 @@
 pragma solidity 0.5.16;
 pragma experimental ABIEncoderV2; //TODO delete later
 
-import "IERC20.sol";
-import "ITendermintLightClient.sol";
-import "IRelayerIncentivize.sol";
-import "MerkleProof.sol";
+import "./interface/IERC20.sol";
+import "./interface/ITendermintLightClient.sol";
+import "./interface/IRelayerIncentivize.sol";
+import "./Seriality/MerkleProof.sol";
 
 contract TokenHubContract {
 
@@ -71,7 +71,7 @@ contract TokenHubContract {
     event LogTransferInSuccess(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr);
     event LogTransferInFailureTimeout(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
     event LogTransferInFailureInsufficientBalance(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
-    event LogTransferInFailureUnbindedToken(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInFailureUnboundedToken(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
     event LogRefundTimeoutSuccess(address contractAddr, address refundAddr, uint256 amount);
     event LogRefundTimeoutFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint256 auctualBalance);
@@ -428,7 +428,7 @@ contract TokenHubContract {
             cctp.recipient.transfer(cctp.amount);
         } else {
             if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
-                emit LogTransferInFailureUnbindedToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureUnboundedToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             uint256 tokenHubBalance = IERC20(cctp.contractAddr).balanceOf(address(this));

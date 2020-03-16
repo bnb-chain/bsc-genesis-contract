@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import "IRelayerIncentivize.sol";
+import "./interface/IRelayerIncentivize.sol";
 
 contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
     uint256 constant roundSize= 1024;
