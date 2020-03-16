@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 const SlashIndicator = artifacts.require("SlashIndicator");
 const SystemReward = artifacts.require("SystemReward");
 const TypesToBytes = artifacts.require("Seriality/TypesToBytes");
@@ -52,4 +51,5 @@ module.exports = function(deployer,network, accounts) {
       });
   });
 };
+
 

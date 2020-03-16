@@ -247,6 +247,29 @@ contract TokenHubContract {
         return true;
     }
 
+    function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public view returns(bool) {
+        bytes memory erc20SymbolBytes = bytes(erc20Symbol);
+        //Upper case string
+        for (uint i = 0; i < erc20SymbolBytes.length; i++) {
+            if (0x61 <= uint8(erc20SymbolBytes[i]) && uint8(erc20SymbolBytes[i]) <= 0x7A) {
+                erc20SymbolBytes[i] = byte(uint8(erc20SymbolBytes[i]) - 0x20);
+            }
+        }
+
+        bytes memory bep2TokenSymbolBytes = new bytes(32);
+        assembly {
+            mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
+        }
+        bool symbolMatch = true;
+        for(uint256 index=0; index < erc20SymbolBytes.length; index++) {
+            if (erc20SymbolBytes[index] != bep2TokenSymbolBytes[index]) {
+                symbolMatch = false;
+                break;
+            }
+        }
+        return symbolMatch;
+    }
+
     function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
         BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
         uint256 lockedAmount = brPackage.totalSupply-brPackage.peggyAmount;
@@ -254,8 +277,9 @@ contract TokenHubContract {
         require(brPackage.expireTime>=block.timestamp); // ensure the bind requenst is not expired
         require(IERC20(contractAddr).owner()==msg.sender);
         require(IERC20(contractAddr).allowance(msg.sender, address(this))==lockedAmount);
-        //TODO add bep2 token symbol and erc20 contract symbol checking
-        if (
+
+        string memory erc20Symbol = IERC20(contractAddr).symbol();
+        if (!checkSymbol(erc20Symbol, bep2TokenSymbol) ||
             _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
             _contractAddrToBEP2Symbol[brPackage.contractAddr]!=bytes32(0x00)||
             IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply) {
