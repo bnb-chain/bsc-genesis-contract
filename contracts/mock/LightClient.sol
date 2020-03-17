@@ -6,7 +6,7 @@ contract LightClient is ILightClient{
   bool blockNotSynced;
   bool stateNotVerified;
 
-  function isBlockSynced(uint64 height) external returns (bool){
+  function isHeaderSynced(uint64 height) external view returns (bool){
     return !blockNotSynced;
   }
 

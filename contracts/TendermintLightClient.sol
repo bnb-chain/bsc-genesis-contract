@@ -132,7 +132,7 @@ contract TendermintLightClient is ILightClient {
         return true;
     }
 
-    function isBlockSynced(uint64 height) external view returns (bool) {
+    function isHeaderSynced(uint64 height) external view returns (bool) {
         return _submitters[height] != address(0x0);
     }
 

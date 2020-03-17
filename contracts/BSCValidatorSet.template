@@ -88,7 +88,7 @@ contract BSCValidatorSet is System {
   }
 
   modifier blockSynced(uint256 _height) {
-    require(lightClient.isBlockSynced(_height), "light client not sync the block yet");
+    require(lightClient.isHeaderSynced(_height), "light client not sync the block yet");
     _;
   }
 

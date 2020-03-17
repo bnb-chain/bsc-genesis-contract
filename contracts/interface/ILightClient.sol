@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
 interface ILightClient {
-  function isBlockSynced(uint64 height) external view returns (bool);
+  function isHeaderSynced(uint64 height) external view returns (bool);
 
   function getAppHash(uint64 height) external view returns (bytes32);
 

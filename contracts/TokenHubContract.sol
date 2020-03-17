@@ -3,7 +3,7 @@ pragma solidity 0.5.16;
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
-import "./Seriality/MerkleProof.sol";
+import "./MerkleProof.sol";
 
 contract TokenHubContract {
 
@@ -120,7 +120,7 @@ contract TokenHubContract {
     }
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
-    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal pure returns(bool) {
+    function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
         if (key.length != 14) {
             return false;
         }
@@ -231,7 +231,7 @@ contract TokenHubContract {
         return brPackage;
     }
 
-    function handleBindRequest(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
+    function handleBindRequest(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
         require(value.length==156, "unexpected bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
@@ -406,7 +406,7 @@ contract TokenHubContract {
         return cctp;
     }
 
-    function handleCrossChainTransferIn(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
+    function handleCrossChainTransferIn(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
         require(value.length==164, "unexpected transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
@@ -484,7 +484,7 @@ contract TokenHubContract {
         return timeoutPackage;
     }
 
-    function handleCrossChainTransferOutTimeout(uint64 height, bytes memory key, bytes memory value, bytes memory proof) onlyAlreadyInit public returns (bool) {
+    function handleCrossChainTransferOutTimeout(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, timeoutChannelID, _timeoutChannelSequence));
         require(value.length==72, "unexpected timeout package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
