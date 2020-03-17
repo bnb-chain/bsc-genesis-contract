@@ -2,7 +2,7 @@ pragma solidity ^0.5.16;
 
 import "../interface/ILightClient.sol";
 
-contract LightClient is ILightClient{
+contract MockLightClient is ILightClient{
   bool blockNotSynced;
   bool stateNotVerified;
 

@@ -5,10 +5,10 @@ import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interface/ILightClient.sol";
-import "./interface/ICrossChainTransfer.sol";
+import "./interface/ITokenHub.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
-import "./MerkleProof.sol";
+import "./mock/MockMerkleProof.sol";
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
@@ -32,9 +32,8 @@ contract BSCValidatorSet is System {
   uint16 public constant fromChainId = 0x0001;
   uint16 public constant toChainId = 0x0002;
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
-  address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
+  address public constant  initTokenHubAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
-  address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
   address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
   bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
@@ -43,9 +42,8 @@ contract BSCValidatorSet is System {
   bytes public keyPrefix;
 
   // other contract
-  address public  tokenContract;
   ILightClient lightClient;
-  ICrossChainTransfer crossTransfer;
+  ITokenHub tokenHub;
   ISystemReward systemReward;
   ISlashIndicator slash;
 
@@ -116,7 +114,7 @@ contract BSCValidatorSet is System {
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
   event validatorFelony(address indexed validator, uint256 indexed amount);
-  event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr, address tokenContract);
+  event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr);
 
 
   function init() external onlyNotInit{
@@ -127,22 +125,20 @@ contract BSCValidatorSet is System {
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    tokenContract = initTokenContract;
     lightClient = ILightClient(initLightClientAddr);
-    crossTransfer = ICrossChainTransfer(initCrossTransferAddr);
+    tokenHub = ITokenHub(initTokenHubAddr);
     systemReward = ISystemReward(initSystemRewardAddr);
     slash = ISlashIndicator(initSlashContract);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
 
-  function updateContractAddr(address _systemRewardAddr, address _crossTransferAddr, address _lightClientAddr, address _slashContract, address _tokenContract) external onlyInit onlySystem{
-    tokenContract = _tokenContract;
+  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract) external onlyInit onlySystem{
     lightClient = ILightClient(_lightClientAddr);
-    crossTransfer = ICrossChainTransfer(_crossTransferAddr);
+    tokenHub = ITokenHub(_tokenHub);
     systemReward = ISystemReward(_systemRewardAddr);
     slash = ISlashIndicator(_slashContract);
-    emit contractAddrUpdate(_systemRewardAddr,_crossTransferAddr,_lightClientAddr,_tokenContract);
+    emit contractAddrUpdate(_systemRewardAddr,_tokenHub,_lightClientAddr);
   }
 
   /*********************** External Functions **************************/
@@ -166,7 +162,7 @@ contract BSCValidatorSet is System {
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
     bytes32 appHash = lightClient.getAppHash(uint64(height));
-    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
+    bool valid = MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
     require(valid, "the package is invalid against its proof");
 
     // do deserialize and verify.
@@ -180,7 +176,9 @@ contract BSCValidatorSet is System {
 
     // do cross chain transfer
     if(crossTotal > 0){
-      crossTransfer.batchCrossChainTransfer.value(crossTotal)(crossAddrs, crossAmounts, crossRefundAddrs, tokenContract, block.timestamp + EXPIRE_TIME_SECOND_GAP);
+      uint256 minimumFee = 1e12;
+      uint256 relayFee = crossAddrs.length*minimumFee;
+      tokenHub.batchTransferOut.value(crossTotal)(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee);
       emit batchTransfer(crossTotal);
     }
 

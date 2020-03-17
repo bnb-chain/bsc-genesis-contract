@@ -2,15 +2,16 @@ pragma solidity 0.5.16;
 
 import "./interface/IRelayerIncentivize.sol";
 
-contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
-    uint256 constant roundSize= 1024;
-    uint256 constant maximumWeight=400;
+contract TransferRelayerIncentivize is IRelayerIncentivize {
+
+    uint256 constant roundSize= 20;    // TODO change to 1024 in testnet and mainnet
+    uint256 constant maximumWeight=10;  // TODO change to 400 in testnet and mainnet
 
     mapping( uint256 => mapping(address => uint256) ) public _relayersSubmitCount;
-    mapping( uint256 => address payable[] ) public _relayersAddressRecord;
+    mapping( uint256 => address payable[] ) public _relayerAddressRecord;
 
-    mapping( uint256 => uint256) public _collectedRewardPerRound;
-    mapping( uint256 => bool) public _expiredRound;
+    mapping( uint256 => uint256) public _collectedRewardRound;
+    mapping( uint256 => bool) public _matureRound;
 
     uint256 public _roundSequence = 0;
     uint256 public _countInRound=0;
@@ -21,17 +22,17 @@ contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
     function addReward(address payable relayerAddr) external payable returns (bool) {
 
         _countInRound++;
-        _collectedRewardPerRound[_roundSequence]+=msg.value;
+        _collectedRewardRound[_roundSequence]+=msg.value;
 
         if (_relayersSubmitCount[_roundSequence][relayerAddr]==0){
-            _relayersAddressRecord[_roundSequence].push(relayerAddr);
+            _relayerAddressRecord[_roundSequence].push(relayerAddr);
         }
         _relayersSubmitCount[_roundSequence][relayerAddr]++;
         emit LogAddReward(relayerAddr, msg.value);
 
         if (_countInRound==roundSize){
-            _expiredRound[_roundSequence]=true;
-            emit LogRewardPeriodExpire(_roundSequence, _collectedRewardPerRound[_roundSequence]);
+            _matureRound[_roundSequence]=true;
+            emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
             //TODO maybe we can directly call distributeReward
             _roundSequence++;
             _countInRound=0;
@@ -40,10 +41,10 @@ contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
     }
 
     function distributeReward(uint256 rewardSequence) external returns (bool) {
-        require(_expiredRound[rewardSequence]);
-        uint256 totalReward = _collectedRewardPerRound[rewardSequence];
+        require(_matureRound[rewardSequence], "the target round is premature");
+        uint256 totalReward = _collectedRewardRound[rewardSequence];
 
-        address payable[] memory relayers = _relayersAddressRecord[rewardSequence];
+        address payable[] memory relayers = _relayerAddressRecord[rewardSequence];
         uint256[] memory relayerWeight = new uint256[](relayers.length);
         for(uint256 index=0; index < relayers.length; index++) {
             address relayer = relayers[index];
@@ -62,12 +63,12 @@ contract TransferRelayerIncentivizeContract is IRelayerIncentivize {
         relayers[0].transfer(remainReward);
         msg.sender.transfer(callerReward);
 
-        delete _collectedRewardPerRound[rewardSequence];
-        delete _expiredRound[rewardSequence];
+        delete _collectedRewardRound[rewardSequence];
+        delete _matureRound[rewardSequence];
         for (uint256 index=0; index < relayers.length; index++){
             delete _relayersSubmitCount[rewardSequence][relayers[index]];
         }
-        delete _relayersAddressRecord[rewardSequence];
+        delete _relayerAddressRecord[rewardSequence];
         return true;
     }
 

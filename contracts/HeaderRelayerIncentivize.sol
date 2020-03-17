@@ -2,16 +2,16 @@ pragma solidity 0.5.16;
 
 import "./interface/IRelayerIncentivize.sol";
 
-contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
+contract HeaderRelayerIncentivize is IRelayerIncentivize {
 
-    uint256 constant roundSize= 1024;
-    uint256 constant maximumWeight=400;
+    uint256 constant roundSize= 20;    // TODO change to 1024 in testnet and mainnet
+    uint256 constant maximumWeight=10;  // TODO change to 400 in testnet and mainnet
 
     mapping( uint256 => mapping(address => uint256) ) public _relayersSubmitCount;
     mapping( uint256 => address payable[] ) public _relayerAddressRecord;
 
     mapping( uint256 => uint256) public _collectedRewardRound;
-    mapping( uint256 => bool) public _expiredRound;
+    mapping( uint256 => bool) public _matureRound;
 
     uint256 public _roundSequence = 0;
     uint256 public _countInRound=0;
@@ -31,7 +31,7 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
         emit LogAddReward(relayerAddr, msg.value);
 
         if (_countInRound==roundSize){
-            _expiredRound[_roundSequence]=true;
+            _matureRound[_roundSequence]=true;
             emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
             //TODO maybe we can directly call distributeReward
             _roundSequence++;
@@ -41,7 +41,7 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
     }
 
     function distributeReward(uint256 rewardSequence) external returns (bool) {
-        require(_expiredRound[rewardSequence]);
+        require(_matureRound[rewardSequence], "the target round is premature");
         uint256 totalReward = _collectedRewardRound[rewardSequence];
 
         address payable[] memory relayers = _relayerAddressRecord[rewardSequence];
@@ -64,7 +64,7 @@ contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
         msg.sender.transfer(callerReward);
 
         delete _collectedRewardRound[rewardSequence];
-        delete _expiredRound[rewardSequence];
+        delete _matureRound[rewardSequence];
         for (uint256 index=0; index < relayers.length; index++){
             delete _relayersSubmitCount[rewardSequence][relayers[index]];
         }

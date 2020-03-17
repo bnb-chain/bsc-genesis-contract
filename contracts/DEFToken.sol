@@ -29,7 +29,7 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract ABCToken is Context, IERC20, Ownable {
+contract DEFToken is Context, IERC20, Ownable {
     using SafeMath for uint256;
 
     mapping (address => uint256) private _balances;
@@ -42,8 +42,8 @@ contract ABCToken is Context, IERC20, Ownable {
     string public _name;
 
     constructor() public {
-        _name = "ABC token";
-        _symbol = "abc";
+        _name = "DEF token";
+        _symbol = "def";
         _decimals = 18;
         _totalSupply = 100000000000000000000000000;
         _balances[msg.sender] = _totalSupply;

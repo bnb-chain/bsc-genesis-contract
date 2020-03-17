@@ -1,6 +1,6 @@
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 const SystemReward = artifacts.require("SystemReward");
-const LightClient = artifacts.require("LightClient");
+const LightClient = artifacts.require("MockLightClient");
 const crypto = require('crypto');
 const Web3 = require('web3');
 const truffleAssert = require('truffle-assertions');
