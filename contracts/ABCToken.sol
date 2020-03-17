@@ -1,9 +1,9 @@
 pragma solidity 0.5.16;
 
-import "./lib/Context.sol";
 import "./interface/IERC20.sol";
-import "./lib/SafeMath.sol";
-import "./lib/Ownable.sol";
+import "openzeppelin-solidity/contracts/GSN/Context.sol";
+import "openzeppelin-solidity/contracts/math//SafeMath.sol";
+import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 /**
  * @dev Implementation of the {IERC20} interface.
