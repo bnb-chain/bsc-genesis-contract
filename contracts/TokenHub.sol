@@ -5,7 +5,7 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./MerkleProof.sol";
 
-contract TokenHubContract {
+contract TokenHub {
 
     struct BindRequestPackage {
         bytes32 bep2TokenSymbol;
@@ -76,7 +76,7 @@ contract TokenHubContract {
     event LogRefundTimeoutSuccess(address contractAddr, address refundAddr, uint256 amount);
     event LogRefundTimeoutFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint256 auctualBalance);
 
-    constructor() public payable {
+    constructor() public {
 
     }
 
@@ -96,7 +96,7 @@ contract TokenHubContract {
         address incentivizeContractAddrForTransfer,
         uint16 sourceChainID,
         uint16 destChainID,
-        uint256 minimumRelayFee) onlyNotInit public {
+        uint256 minimumRelayFee) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;

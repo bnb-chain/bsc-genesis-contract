@@ -8,7 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ICrossChainTransfer.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
-import "./MerkleProof.sol";
+import "./mock/MerkleProof.sol";
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;

@@ -2,7 +2,7 @@ pragma solidity 0.5.16;
 
 import "./interface/IRelayerIncentivize.sol";
 
-contract HeaderRelayerIncentivizeContract is IRelayerIncentivize {
+contract HeaderRelayerIncentivize is IRelayerIncentivize {
 
     uint256 constant roundSize= 1024;
     uint256 constant maximumWeight=400;

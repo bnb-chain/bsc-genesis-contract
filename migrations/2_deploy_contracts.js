@@ -9,22 +9,29 @@ const LightClient = artifacts.require("mock/LightClient");
 const CrossChainTransfer = artifacts.require("mock/CrossChainTransfer");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 
-//const TendermintLightClient = artifacts.require("TendermintLightClient");
-//const TokenHubContract = artifacts.require("TokenHubContract");
-//const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
-//const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
+const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
+const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
+const TendermintLightClient = artifacts.require("TendermintLightClient");
+const TokenHub = artifacts.require("TokenHub");
 
 const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:9545'));
 
 
-module.exports = function(deployer,network, accounts) {
+module.exports = function(deployer, network, accounts) {
+  deployer.deploy(HeaderRelayerIncentivize);
+  deployer.deploy(TransferRelayerIncentivize);
+  deployer.deploy(TendermintLightClient);
+  deployer.deploy(TokenHub);
+
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];
   deployer.deploy(SystemReward).then(function (instance) {
     instance.addOperator(accounts[0], {from: accounts[0]});
     instance.addOperator(accounts[1], {from: accounts[0]});
     instance.addOperator(accounts[2], {from: accounts[0]});
+    instance.addOperator(TendermintLightClient.address, {from: accounts[0]});
+    instance.addOperator(TokenHub.address, {from: accounts[0]});
   })
 
   // deploy lib
@@ -54,5 +61,13 @@ module.exports = function(deployer,network, accounts) {
       slashInstance.updateContractAddr(BSCValidatorSet.address);
       instance.updateContractAddr(SystemReward.address, CrossChainTransfer.address, LightClient.address, SlashIndicator.address, web3.eth.accounts.create().address)
       });
+  }).then(function() {
+    return deployer.deploy(HeaderRelayerIncentivize);
+  }).then(function() {
+    return deployer.deploy(TransferRelayerIncentivize);
+  }).then(function() {
+    return deployer.deploy(TendermintLightClient);
+  }).then(function() {
+    return deployer.deploy(TokenHub);
   });
 };
