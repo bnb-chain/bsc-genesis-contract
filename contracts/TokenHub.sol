@@ -34,6 +34,12 @@ contract TokenHub is ITokenHub {
         uint256 relayFee;
     }
 
+    struct BatchTransferOutPackage {
+        address[] recipientAddrs;
+        address[] refundAddrs;
+        uint256[] amounts;
+    }
+
     uint8 constant bindChannelID = 0x01;
     uint8 constant transferInChannelID = 0x02;
     uint8 constant refundChannelID=0x03;
@@ -54,6 +60,7 @@ contract TokenHub is ITokenHub {
     mapping(bytes32 => BindRequestPackage) public _bindRequestRecord;
     mapping(address => bytes32) public _contractAddrToBEP2Symbol;
     mapping(bytes32 => address) public _bep2SymbolToContractAddr;
+    mapping(uint256 => BatchTransferOutPackage) private _batchTransferOutRecord;
 
     uint256 public _bindChannelSequence=0;
     uint256 public _transferInChannelSequence=0;
@@ -73,7 +80,7 @@ contract TokenHub is ITokenHub {
     event LogBindInvalidParameter(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
 
     event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
-    event LogBatchTransferOut(uint256 sequence, address[] refundAddr, address[] recipient, uint256[] amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
+    event LogBatchTransferOut(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
     event LogTransferInSuccess(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr);
     event LogTransferInFailureTimeout(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
@@ -511,56 +518,67 @@ contract TokenHub is ITokenHub {
         require(relayFee%(10**10)==0, "relayFee is must be N*10^10");
         require(relayFee>_minimumRelayFee, "relayFee is too little");
         uint256 convertedRelayFee = relayFee / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+        bytes32 bep2TokenSymbol;
+        uint256 convertedAmount;
         if (contractAddr==address(0x0)) {
             require(msg.value==amount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-            uint256 convertedAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-
-            emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbolForBNB, expireTime, convertedRelayFee); //BNB 32bytes
+            convertedAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+            bep2TokenSymbol=bep2TokenSymbolForBNB;
         } else {
             uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
             if (erc20TokenDecimals > 8) {
                 uint256 extraPrecision = 10**(erc20TokenDecimals-8);
                 require(amount%extraPrecision==0, "invalid transfer amount: precision loss in amount conversion");
             }
-            bytes32 bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
+            bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
             require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
             require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount));
-            uint256 convertedAmount = amount * (10**8)/ (10**erc20TokenDecimals); // bep2 token decimals is 8 on BBC
-            emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
+            convertedAmount = amount * (10**8)/ (10**erc20TokenDecimals); // bep2 token decimals is 8 on BBC
         }
+        emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
         return true;
     }
 
     function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) onlyAlreadyInit external payable returns (bool) {
-        /*
         require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
         require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
-        require(relayFee%amounts.length == 0, "invalid relayFee");
-        require(relayFee/amounts.length%(10**10)==0, "per relayFee must be N*10^10");
-        uint256 convertedRelayFee = relayFee/amounts.length / (10**10);
+        require(relayFee/amounts.length>_minimumRelayFee, "relayFee is too little");
+        require(relayFee%(10**10)==0, "relayFee must be N*10^10");
         uint256 totalAmount = 0;
         for (uint i = 0; i < amounts.length; i++) {
             totalAmount += amounts[i];
         }
+        uint256[] memory convertedAmounts = new uint256[](amounts.length);
+        bytes32 bep2TokenSymbol;
         if (contractAddr==address(0x0)) {
+            for (uint8 i = 0; i < amounts.length; i++) {
+                require(amounts[i]%10**10==0, "invalid transfer amount");
+                convertedAmounts[i] = amounts[i]/10**10;
+            }
             require(msg.value==totalAmount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-            emit LogBatchTransferOut(_batchTransferOutChannelSequence++, refundAddrs, recipientAddrs, amounts, contractAddr, bep2TokenSymbolForBNB, expireTime, convertedRelayFee);
+            bep2TokenSymbol=bep2TokenSymbolForBNB;
         } else {
             uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
-            if (erc20TokenDecimals > 8) {
-                uint256 extraPrecision = 10**(erc20TokenDecimals-8);
-                for (uint i = 0; i < amounts.length; i++) {
-                    require(amounts[i]%extraPrecision==0, "invalid transfer amount: precision loss in amount conversion");
-                }
+            for (uint i = 0; i < amounts.length; i++) {
+                require((amounts[i]*(10**8)%(10**erc20TokenDecimals))==0, "invalid transfer amount");
+                convertedAmounts[i] = amounts[i]*(10**8)/(10**erc20TokenDecimals);
             }
-            bytes32 bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
+            bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
             require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
             require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
-            emit LogBatchTransferOut(_batchTransferOutChannelSequence++, refundAddrs, recipientAddrs, amounts, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
         }
-        */
+        BatchTransferOutPackage memory batchPackage;
+        batchPackage.recipientAddrs = recipientAddrs;
+        batchPackage.refundAddrs = refundAddrs;
+        batchPackage.amounts = convertedAmounts;
+        _batchTransferOutRecord[_batchTransferOutChannelSequence]=batchPackage;
+        emit LogBatchTransferOut(_batchTransferOutChannelSequence++, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
         return true;
+    }
+    function getBatchTransferOutPackage(uint256 sequence) external view returns (address[] memory, address[] memory, uint256[] memory) {
+        BatchTransferOutPackage memory batchPackage = _batchTransferOutRecord[sequence];
+        return (batchPackage.recipientAddrs, batchPackage.refundAddrs, batchPackage.amounts);
     }
 }
