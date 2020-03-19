@@ -1,6 +1,6 @@
 pragma solidity 0.5.16;
 
-import "./interface/IERC20.sol";
+import "../interface/IERC20.sol";
 import "openzeppelin-solidity/contracts/GSN/Context.sol";
 import "openzeppelin-solidity/contracts/math//SafeMath.sol";
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";

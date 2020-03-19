@@ -1,5 +1,6 @@
 const BN = require('bn.js');
 const sleep = require("await-sleep");
+const InputDataDecoder = require('ethereum-input-data-decoder');
 
 const SystemReward = artifacts.require("SystemReward");
 const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
@@ -377,6 +378,46 @@ contract('TokenHub', (accounts) => {
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
     });
+    it('Relayer BNB transfer from BBC to BSC', async () => {
+        const tokenHub = await TokenHub.deployed();
+
+        const relayer = accounts[1];
+
+        const key = Buffer.from(web3.utils.hexToBytes(
+            "0x00" +   // prefix
+            "0003" +        // source chainID
+            "000f" +        // destination chainID
+            "02" +          // channel ID
+            "0000000000000002")); // sequence
+        let timestamp = Math.floor(Date.now() / 1000); // counted by second
+        let initialExpireStr = (timestamp + 5).toString(16); // expire at 5 second later
+        const initialExpireStrLength = initialExpireStr.length;
+        let expireTimeStr = initialExpireStr;
+        for (var i = 0; i < 16 - initialExpireStrLength; i++) {
+            expireTimeStr = '0' + expireTimeStr;
+        }
+        const value = Buffer.from(web3.utils.hexToBytes(
+            "0x424E420000000000000000000000000000000000000000000000000000000000" + // native token BNB
+            "0000000000000000000000000000000000000000" +                                // zero contract address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // sender address
+            accounts[2].toString().replace("0x", "") +                                  // recipient amount
+            "0000000000000000000000000000000000000000000000000DE0B6B3A7640000" +        // amount 1e18
+            expireTimeStr +                                                             // expire time
+            "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
+
+        const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        const initBalance = await web3.eth.getBalance(accounts[2]);
+        const tx = await tokenHub.handleTransferInPackage(33132, key, value, proof, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogTransferInSuccess", (ev) => {
+            return ev.recipient === accounts[2];
+        });
+        const newBalance = await web3.eth.getBalance(accounts[2]);
+
+        const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
+        assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
+        assert.equal(web3.utils.toBN(newBalance).sub(web3.utils.toBN(initBalance)).eq(web3.utils.toBN(1e18)), true, "wrong balance");
+    });
     it('Transfer from BSC to BBC', async () => {
         const tokenHub = await TokenHub.deployed();
         const abcToken = await ABCToken.deployed();
@@ -467,5 +508,54 @@ contract('TokenHub', (accounts) => {
 
         balance = await abcToken.balanceOf.call(refundAddr);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
+    });
+    it('Batch transfer out', async () => {
+        const tokenHub = await TokenHub.deployed();
+        const abcToken = await ABCToken.deployed();
+
+        const sender = accounts[0];
+
+        const recipientAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
+        let amounts = [web3.utils.toBN(1e11), web3.utils.toBN(2e11)];
+        const refundAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
+
+        let timestamp = Math.floor(Date.now() / 1000);
+        let expireTime = (timestamp + 5);
+        const relayFee = web3.utils.toBN(1e16);
+
+        await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});
+        let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
+        truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
+            return ev.sequence.toNumber() === 0 &&
+                ev.contractAddr === abcToken.address &&
+                ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
+                ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
+        });
+        let txData = await web3.eth.getTransaction(tx.tx);
+
+        const decoder = new InputDataDecoder('./test/abi/tokenHub.json');
+        let batchTransferOut = decoder.decodeData(txData.input);
+        assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");
+        assert.equal(batchTransferOut.inputs[0][1], recipientAddrs[1].toString().replace("0x", ""), "wrong recipient address");
+        assert.equal(batchTransferOut.inputs[2][0], refundAddrs[0].toString().replace("0x", ""), "wrong refund address");
+        assert.equal(batchTransferOut.inputs[2][1], refundAddrs[1].toString().replace("0x", ""), "wrong refund address");
+
+        amounts = [web3.utils.toBN(3e11), web3.utils.toBN(4e11)];
+
+        await abcToken.approve(tokenHub.address, web3.utils.toBN(7e11), {from: sender});
+        tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
+        truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
+            return ev.sequence.toNumber() === 1 &&
+                ev.contractAddr === abcToken.address &&
+                ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
+                ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
+        });
+        txData = await web3.eth.getTransaction(tx.tx)
+        result = decoder.decodeData(txData.input);
+        batchTransferOut = decoder.decodeData(txData.input);
+        assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");
+        assert.equal(batchTransferOut.inputs[0][1], recipientAddrs[1].toString().replace("0x", ""), "wrong recipient address");
+        assert.equal(batchTransferOut.inputs[2][0], refundAddrs[0].toString().replace("0x", ""), "wrong refund address");
+        assert.equal(batchTransferOut.inputs[2][1], refundAddrs[1].toString().replace("0x", ""), "wrong refund address");
     });
 });

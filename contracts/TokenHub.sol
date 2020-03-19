@@ -34,12 +34,6 @@ contract TokenHub is ITokenHub {
         uint256 relayFee;
     }
 
-    struct BatchTransferOutPackage {
-        address[] recipientAddrs;
-        address[] refundAddrs;
-        uint256[] amounts;
-    }
-
     uint8 constant bindChannelID = 0x01;
     uint8 constant transferInChannelID = 0x02;
     uint8 constant refundChannelID=0x03;
@@ -47,7 +41,7 @@ contract TokenHub is ITokenHub {
     string constant STORE_NAME = "ibc";
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    
+
     uint16 _sourceChainID;
     uint16 _destChainID;
     uint256 _minimumRelayFee; //TODO change minimumRelayFee frequently
@@ -60,7 +54,6 @@ contract TokenHub is ITokenHub {
     mapping(bytes32 => BindRequestPackage) public _bindRequestRecord;
     mapping(address => bytes32) public _contractAddrToBEP2Symbol;
     mapping(bytes32 => address) public _bep2SymbolToContractAddr;
-    mapping(uint256 => BatchTransferOutPackage) private _batchTransferOutRecord;
 
     uint256 public _bindChannelSequence=0;
     uint256 public _transferInChannelSequence=0;
@@ -80,12 +73,12 @@ contract TokenHub is ITokenHub {
     event LogBindInvalidParameter(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
 
     event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
-    event LogBatchTransferOut(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
+    event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
     event LogTransferInSuccess(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr);
     event LogTransferInFailureTimeout(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
     event LogTransferInFailureInsufficientBalance(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
-    event LogTransferInFailureUnboundedToken(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInFailureUnboundToken(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
     event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount);
     event LogRefundFailure(address contractAddr, address refundAddr, uint256 amount, uint256 auctualBalance);
@@ -433,7 +426,7 @@ contract TokenHub is ITokenHub {
             cctp.recipient.transfer(cctp.amount);
         } else {
             if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
-                emit LogTransferInFailureUnboundedToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             uint256 tokenHubBalance = IERC20(cctp.contractAddr).balanceOf(address(this));
@@ -569,16 +562,7 @@ contract TokenHub is ITokenHub {
             require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
         }
-        BatchTransferOutPackage memory batchPackage;
-        batchPackage.recipientAddrs = recipientAddrs;
-        batchPackage.refundAddrs = refundAddrs;
-        batchPackage.amounts = convertedAmounts;
-        _batchTransferOutRecord[_batchTransferOutChannelSequence]=batchPackage;
-        emit LogBatchTransferOut(_batchTransferOutChannelSequence++, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
+        emit LogBatchTransferOut(_batchTransferOutChannelSequence++, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
         return true;
-    }
-    function getBatchTransferOutPackage(uint256 sequence) external view returns (address[] memory, address[] memory, uint256[] memory) {
-        BatchTransferOutPackage memory batchPackage = _batchTransferOutRecord[sequence];
-        return (batchPackage.recipientAddrs, batchPackage.refundAddrs, batchPackage.amounts);
     }
 }
