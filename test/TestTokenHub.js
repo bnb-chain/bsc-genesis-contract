@@ -16,16 +16,34 @@ const Web3 = require('web3');
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
-const sourceChainID = 0x3;
-const destChainID = 0xf;
+const crossChainKeyPrefix = "0x00";
+const sourceChainID = "0003";
+const destChainID = "000f";
+
+const bindChannelID = "01";
+const transferChannelID = "02";
+const refundChannelID = "03";
+
+const minimumRelayFee = 1e12;
+const refundRelayReward = 1e12;
 
 contract('TokenHub', (accounts) => {
     it('Init TokenHub', async () => {
         const tokenHub = await TokenHub.deployed();
-        await tokenHub.initTokenHub(SystemReward.address, MockLightClient.address, HeaderRelayerIncentivize.address, TransferRelayerIncentivize.address, sourceChainID, destChainID, 1000000000000, {
-            from: accounts[0],
-            value: 10e18
-        });
+        await tokenHub.initTokenHub(
+            SystemReward.address, 
+            MockLightClient.address, 
+            HeaderRelayerIncentivize.address, 
+            TransferRelayerIncentivize.address,
+            parseInt("0x"+sourceChainID, 16),
+            parseInt("0x"+destChainID, 16),
+            minimumRelayFee,
+            refundRelayReward,
+            {
+                from: accounts[0],
+                value: 10e18
+            }
+        );
 
         let balance_wei = await web3.eth.getBalance(tokenHub.address);
         assert.equal(balance_wei, 10e18, "wrong balance");
@@ -50,10 +68,10 @@ contract('TokenHub', (accounts) => {
         assert.equal(_bindChannelSequence.toNumber(), 0, "wrong bind channel sequence");
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +
-            "0003" +
-            "000f" +
-            "01" +
+            crossChainKeyPrefix + 
+            sourceChainID +
+            destChainID +
+            bindChannelID +
             "0000000000000000"));
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
@@ -164,10 +182,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +
-            "0003" +
-            "000f" +
-            "01" +
+            crossChainKeyPrefix + 
+            sourceChainID +
+            destChainID +
+            bindChannelID +
             "0000000000000002"));
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
@@ -214,10 +232,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +
-            "0003" +
-            "000f" +
-            "01" +
+            crossChainKeyPrefix + 
+            sourceChainID +
+            destChainID +
+            bindChannelID +
             "0000000000000003"));
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
@@ -258,10 +276,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +
-            "0003" +
-            "000f" +
-            "01" +
+            crossChainKeyPrefix + 
+            sourceChainID +
+            destChainID +
+            bindChannelID +
             "0000000000000004"));
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
@@ -302,10 +320,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +   // prefix
-            "0003" +        // source chainID
-            "000f" +        // destination chainID
-            "02" +          // channel ID
+            crossChainKeyPrefix +    // prefix
+            sourceChainID +        // source chainID
+            destChainID +        // destination chainID
+            transferChannelID +          // channel ID
             "0000000000000000")); // sequence
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let initialExpireStr = (timestamp + 5).toString(16); // expire at 5 second later
@@ -344,10 +362,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +   // prefix
-            "0003" +        // source chainID
-            "000f" +        // destination chainID
-            "02" +          // channel ID
+            crossChainKeyPrefix +    // prefix
+            sourceChainID +        // source chainID
+            destChainID +        // destination chainID
+            transferChannelID +          // channel ID
             "0000000000000001")); // sequence
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let initialExpireStr = (timestamp + 5).toString(16); // expire at 5 second later
@@ -384,10 +402,10 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +   // prefix
-            "0003" +        // source chainID
-            "000f" +        // destination chainID
-            "02" +          // channel ID
+            crossChainKeyPrefix +    // prefix
+            sourceChainID +        // source chainID
+            destChainID +        // destination chainID
+            transferChannelID +          // channel ID
             "0000000000000002")); // sequence
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let initialExpireStr = (timestamp + 5).toString(16); // expire at 5 second later
@@ -486,10 +504,10 @@ contract('TokenHub', (accounts) => {
         const refundAddr = accounts[2];
 
         const key = Buffer.from(web3.utils.hexToBytes(
-            "0x00" +
-            "0003" +
-            "000f" +
-            "03" +
+            crossChainKeyPrefix + 
+            sourceChainID +
+            destChainID +
+            refundChannelID +
             "0000000000000000"));
 
         const value = Buffer.from(web3.utils.hexToBytes(
@@ -526,7 +544,7 @@ contract('TokenHub', (accounts) => {
         await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});
         let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
-            return ev.sequence.toNumber() === 0 &&
+            return ev.sequence.toNumber() === 1 &&
                 ev.contractAddr === abcToken.address &&
                 ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
@@ -545,12 +563,12 @@ contract('TokenHub', (accounts) => {
         await abcToken.approve(tokenHub.address, web3.utils.toBN(7e11), {from: sender});
         tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
-            return ev.sequence.toNumber() === 1 &&
+            return ev.sequence.toNumber() === 2 &&
                 ev.contractAddr === abcToken.address &&
                 ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
         });
-        txData = await web3.eth.getTransaction(tx.tx)
+        txData = await web3.eth.getTransaction(tx.tx);
         result = decoder.decodeData(txData.input);
         batchTransferOut = decoder.decodeData(txData.input);
         assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");

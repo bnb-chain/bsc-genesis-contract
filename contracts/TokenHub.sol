@@ -45,6 +45,7 @@ contract TokenHub is ITokenHub {
     uint16 _sourceChainID;
     uint16 _destChainID;
     uint256 _minimumRelayFee; //TODO change minimumRelayFee frequently
+    uint256 _refundRelayReward;
 
     address public _systemRewardContract;
     address public _lightClientContract;
@@ -60,7 +61,6 @@ contract TokenHub is ITokenHub {
     uint256 public _refundChannelSequence=0;
 
     uint256 public _transferOutChannelSequence=0;
-    uint256 public _batchTransferOutChannelSequence=0;
     uint256 public _bindResponseChannelSequence=0;
     uint256 public _transferInFailureChannelSequence=0;
 
@@ -104,7 +104,8 @@ contract TokenHub is ITokenHub {
         address incentivizeContractAddrForTransfer,
         uint16 sourceChainID,
         uint16 destChainID,
-        uint256 minimumRelayFee) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
+        uint256 minimumRelayFee,
+        uint256 refundReward) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
         _systemRewardContract = systemRewardContract;
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
@@ -112,6 +113,7 @@ contract TokenHub is ITokenHub {
         _sourceChainID=sourceChainID;
         _destChainID=destChainID;
         _minimumRelayFee=minimumRelayFee;
+        _refundRelayReward=refundReward;
         _alreadyInit = true;
     }
 
@@ -484,8 +486,12 @@ contract TokenHub is ITokenHub {
         _refundChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-        ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, 100000); //TODO system reward, need further discussion
-        ISystemReward(_systemRewardContract).claimRewards(msg.sender, 100000);                //TODO system reward, need further discussion
+        //TODO system reward, need further discussion,
+        //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
+        uint256 reward = calculateRewardForTendermintHeaderRelayer(_refundRelayReward);
+        ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, reward);
+        reward = _refundRelayReward-reward;
+        ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);
 
         RefundPackage memory refundPackage = decodeRefundPackage(value);
         if (refundPackage.contractAddr==address(0x0)) {
@@ -562,7 +568,7 @@ contract TokenHub is ITokenHub {
             require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
             require(IERC20(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
         }
-        emit LogBatchTransferOut(_batchTransferOutChannelSequence++, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
+        emit LogBatchTransferOut(_transferOutChannelSequence++, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
         return true;
     }
 }
