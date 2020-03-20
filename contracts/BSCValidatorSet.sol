@@ -5,10 +5,14 @@ import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interface/ILightClient.sol";
-import "./interface/ITokenHub.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./mock/MockMerkleProof.sol";
+
+interface ITokenHub {
+  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee)
+  external payable returns (bool);
+}
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
@@ -50,9 +54,9 @@ contract BSCValidatorSet is System {
 
   // state of this contract
   Validator[] public currentValidatorSet;
-  uint256 public sequence;
+  uint64 public sequence;
   uint256 public totalInComing;
-  uint256 public previousDepositHeight;
+  uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
   mapping(address =>uint256) currentValidatorSetMap;
@@ -80,13 +84,13 @@ contract BSCValidatorSet is System {
     _;
   }
 
-  modifier sequenceInOrder(uint256 _sequence) {
+  modifier sequenceInOrder(uint64 _sequence) {
     require(_sequence == sequence+1, "sequence not in order");
     _;
   }
 
-  modifier blockSynced(uint256 _height) {
-    require(lightClient.isHeaderSynced(uint64(_height)), "light client not sync the block yet");
+  modifier blockSynced(uint64 _height) {
+    require(lightClient.isHeaderSynced(_height), "light client not sync the block yet");
     _;
   }
 
@@ -103,7 +107,7 @@ contract BSCValidatorSet is System {
   modifier onlyDepositOnce() {
     require(block.number > previousDepositHeight, "can not deposit twice in one block");
     _;
-    previousDepositHeight = block.number;
+    previousDepositHeight = uint64(block.number);
   }
 
   event validatorSetUpdated();
@@ -158,10 +162,10 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint256 height, uint256 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
+  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
-    bytes32 appHash = lightClient.getAppHash(uint64(height));
+    bytes32 appHash = lightClient.getAppHash(height);
     bool valid = MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
     require(valid, "the package is invalid against its proof");
 
@@ -381,9 +385,9 @@ contract BSCValidatorSet is System {
   }
 
 
-  function generateKey(uint256 packageSequence) internal view returns (bytes memory){
+  function generateKey(uint64 packageSequence) internal view returns (bytes memory){
     // A copy of keyPrefix
-    bytes memory sequenceBytes = new bytes(32);
+    bytes memory sequenceBytes = new bytes(8);
     TypesToBytes.uintToBytes(32, packageSequence, sequenceBytes);
     return BytesLib.concat(keyPrefix, sequenceBytes);
   }

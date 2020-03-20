@@ -51,7 +51,6 @@ contract('TokenHub', (accounts) => {
         assert.equal(_lightClientContract, MockLightClient.address, "wrong tendermint light client contract address");
 
         const systemReward = await SystemReward.deployed();
-        await systemReward.addOperator(tokenHub.address, {from: accounts[0]});
         const isOperator = await systemReward.isOperator.call(tokenHub.address);
         assert.equal(isOperator, true, "failed to grant system reward authority to tokenhub contract");
     });
@@ -513,8 +512,9 @@ contract('TokenHub', (accounts) => {
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x000000000000000000000000000000000000000000000000000000174876E800" + // refund amount
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
-            refundAddr.toString().replace("0x", "")));                                 // refund address
-
+            refundAddr.toString().replace("0x", "")  +           // refund address
+            "0000")                                                                     // failureCode, timeout
+        );
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
         const amount = web3.utils.toBN(1e11);
@@ -522,7 +522,10 @@ contract('TokenHub', (accounts) => {
         let balance = await abcToken.balanceOf.call(refundAddr);
         assert.equal(balance.eq(web3.utils.toBN(155e17).sub(amount)), true, "wrong balance");
 
-        await tokenHub.handleRefundPackage(33132, key, value, proof, {from: relayer});
+        const tx = await tokenHub.handleRefundPackage(33132, key, value, proof, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogRefundSuccess", (ev) => {
+            return ev.reason.toNumber() === 0x0;
+        });
 
         balance = await abcToken.balanceOf.call(refundAddr);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");

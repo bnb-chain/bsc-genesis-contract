@@ -22,12 +22,13 @@ contract TokenHub is ITokenHub {
         uint256 refundAmount;
         address contractAddr;
         address payable refundAddr;
+        uint16  reason;
     }
 
     struct CrossChainTransferPackage {
         bytes32 bep2TokenSymbol;
         address contractAddr;
-        address sender;
+        address refundAddr;
         address payable recipient;
         uint256 amount;
         uint64  expireTime;
@@ -42,10 +43,10 @@ contract TokenHub is ITokenHub {
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
 
-    uint16 _sourceChainID;
-    uint16 _destChainID;
-    uint256 _minimumRelayFee; //TODO change minimumRelayFee frequently
-    uint256 _refundRelayReward;
+    uint16 public _sourceChainID;
+    uint16 public _destChainID;
+    uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
+    uint256 public _refundRelayReward;
 
     address public _systemRewardContract;
     address public _lightClientContract;
@@ -75,13 +76,13 @@ contract TokenHub is ITokenHub {
     event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
     event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
-    event LogTransferInSuccess(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr);
-    event LogTransferInFailureTimeout(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
-    event LogTransferInFailureInsufficientBalance(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
-    event LogTransferInFailureUnboundToken(uint256 sequence, address sender, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogTransferInSuccess(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr);
+    event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
+    event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
+    event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
-    event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount);
-    event LogRefundFailure(address contractAddr, address refundAddr, uint256 amount, uint256 auctualBalance);
+    event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
+    event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 auctualBalance);
 
     constructor() public {
 
@@ -339,7 +340,7 @@ contract TokenHub is ITokenHub {
 
     // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayFee |
     // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 8 bytes    | 32 bytes    |
-    function decodeCrossChainTransferPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
+    function decodeTransferInPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
         CrossChainTransferPackage memory cctp;
 
         uint256 ptr;
@@ -368,7 +369,7 @@ contract TokenHub is ITokenHub {
         assembly {
             addr := mload(ptr)
         }
-        cctp.sender = addr;
+        cctp.refundAddr = addr;
 
         ptr+=20;
         assembly {
@@ -408,7 +409,7 @@ contract TokenHub is ITokenHub {
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
-        CrossChainTransferPackage memory cctp = decodeCrossChainTransferPackage(value);
+        CrossChainTransferPackage memory cctp = decodeTransferInPackage(value);
 
         uint256 reward = calculateRewardForTendermintHeaderRelayer(cctp.relayFee);
         IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
@@ -416,34 +417,34 @@ contract TokenHub is ITokenHub {
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
         if (block.timestamp > cctp.expireTime) {
-            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime);
+            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime);
             return false;
         }
 
         if (cctp.contractAddr==address(0x0) && cctp.bep2TokenSymbol==bep2TokenSymbolForBNB) {
             if (address(this).balance < cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, address(this).balance);
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, address(this).balance);
                 return false;
             }
             cctp.recipient.transfer(cctp.amount);
         } else {
             if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
-                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
                 return false;
             }
             uint256 tokenHubBalance = IERC20(cctp.contractAddr).balanceOf(address(this));
             if (tokenHubBalance<cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, tokenHubBalance);
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, tokenHubBalance);
                 return false;
             }
             IERC20(cctp.contractAddr).transfer(cctp.recipient, cctp.amount);
         }
-        emit LogTransferInSuccess(_transferInChannelSequence, cctp.sender, cctp.recipient, cctp.amount, cctp.contractAddr);
+        emit LogTransferInSuccess(_transferInChannelSequence, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr);
         return true;
     }
 
-    // | length   | refundAmount | contractAddr | refundAddr |
-    // | 32 bytes | 32 bytes     | 20 bytes     | 20 bytes   |
+    // | length   | refundAmount | contractAddr | refundAddr | failureReason |
+    // | 32 bytes | 32 bytes     | 20 bytes     | 20 bytes   | 2 bytes       |
     function decodeRefundPackage(bytes memory value) internal pure returns(RefundPackage memory) {
         RefundPackage memory refundPackage;
 
@@ -473,13 +474,20 @@ contract TokenHub is ITokenHub {
         }
         refundPackage.refundAddr = refundAddr;
 
+        ptr+=2;
+        uint16 reason;
+        assembly {
+            reason := mload(ptr)
+        }
+        refundPackage.reason = reason;
+
 
         return refundPackage;
     }
 
     function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, refundChannelID, _refundChannelSequence));
-        require(value.length==72, "unexpected refund package size");
+        require(value.length==74, "unexpected refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
@@ -497,25 +505,26 @@ contract TokenHub is ITokenHub {
         if (refundPackage.contractAddr==address(0x0)) {
             uint256 actualBalance = address(this).balance;
             if (actualBalance < refundPackage.refundAmount) {
-                emit LogRefundFailure(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, actualBalance);
+                emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
                 return false;
             }
             refundPackage.refundAddr.transfer(refundPackage.refundAmount);
         } else {
             uint256 actualBalance = IERC20(refundPackage.contractAddr).balanceOf(address(this));
             if (actualBalance<refundPackage.refundAmount) {
-                emit LogRefundFailure(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, actualBalance);
+                emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
                 return false;
             }
             IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount);
         }
-        emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount);
+        emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
         return true;
     }
 
     function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) onlyAlreadyInit external payable returns (bool) {
         require(relayFee%(10**10)==0, "relayFee is must be N*10^10");
-        require(relayFee>_minimumRelayFee, "relayFee is too little");
+        require(relayFee>=_minimumRelayFee, "relayFee is too little");
+        require(expireTime > block.timestamp, "expireTime must be future time");
         uint256 convertedRelayFee = relayFee / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
         bytes32 bep2TokenSymbol;
         uint256 convertedAmount;
@@ -542,8 +551,9 @@ contract TokenHub is ITokenHub {
     function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) onlyAlreadyInit external payable returns (bool) {
         require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
         require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
-        require(relayFee/amounts.length>_minimumRelayFee, "relayFee is too little");
+        require(relayFee/amounts.length>=_minimumRelayFee, "relayFee is too little");
         require(relayFee%(10**10)==0, "relayFee must be N*10^10");
+        require(expireTime > block.timestamp, "expireTime must be future time");
         uint256 totalAmount = 0;
         for (uint i = 0; i < amounts.length; i++) {
             totalAmount += amounts[i];
