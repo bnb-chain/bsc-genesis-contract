@@ -40,15 +40,15 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
         return true;
     }
 
-    function distributeReward(uint256 rewardSequence) external returns (bool) {
-        require(_matureRound[rewardSequence], "the target round is premature");
-        uint256 totalReward = _collectedRewardRound[rewardSequence];
+    function withdrawReward(uint256 sequence) external returns (bool) {
+        require(_matureRound[sequence], "the target round is premature");
+        uint256 totalReward = _collectedRewardRound[sequence];
 
-        address payable[] memory relayers = _relayerAddressRecord[rewardSequence];
+        address payable[] memory relayers = _relayerAddressRecord[sequence];
         uint256[] memory relayerWeight = new uint256[](relayers.length);
         for(uint256 index=0; index < relayers.length; index++) {
             address relayer = relayers[index];
-            uint256 weight = calculateWeight(_relayersSubmitCount[rewardSequence][relayer]);
+            uint256 weight = calculateWeight(_relayersSubmitCount[sequence][relayer]);
             relayerWeight[index]=weight;
         }
 
@@ -63,12 +63,12 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
         relayers[0].transfer(remainReward);
         msg.sender.transfer(callerReward);
 
-        delete _collectedRewardRound[rewardSequence];
-        delete _matureRound[rewardSequence];
+        delete _collectedRewardRound[sequence];
+        delete _matureRound[sequence];
         for (uint256 index=0; index < relayers.length; index++){
-            delete _relayersSubmitCount[rewardSequence][relayers[index]];
+            delete _relayersSubmitCount[sequence][relayers[index]];
         }
-        delete _relayerAddressRecord[rewardSequence];
+        delete _relayerAddressRecord[sequence];
         return true;
     }
 

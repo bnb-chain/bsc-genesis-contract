@@ -9,7 +9,7 @@ import "./interface/ITokenHub.sol";
 
 contract TokenHub is ITokenHub {
 
-    struct BindRequestPackage {
+    struct BindPackage {
         bytes32 bep2TokenSymbol;
         address contractAddr;
         uint256 totalSupply;
@@ -25,7 +25,7 @@ contract TokenHub is ITokenHub {
         uint16  reason;
     }
 
-    struct CrossChainTransferPackage {
+    struct TransferInPackage {
         bytes32 bep2TokenSymbol;
         address contractAddr;
         address refundAddr;
@@ -53,7 +53,7 @@ contract TokenHub is ITokenHub {
     address public _incentivizeContractForHeaderSyncRelayers;
     address public _incentivizeContractForTransferRelayers;
 
-    mapping(bytes32 => BindRequestPackage) public _bindRequestRecord;
+    mapping(bytes32 => BindPackage) public _bindPackageRecord;
     mapping(address => bytes32) public _contractAddrToBEP2Symbol;
     mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
@@ -191,8 +191,8 @@ contract TokenHub is ITokenHub {
 
     // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | expireTime | relayFee |
     // | 32 bytes | 32 bytes        | 20 bytes     |  32 bytes   | 32 bytes    | 8 bytes    | 32 bytes    |
-    function decodeBindRequestPackage(bytes memory value) internal pure returns(BindRequestPackage memory) {
-        BindRequestPackage memory brPackage;
+    function decodeBindPackage(bytes memory value) internal pure returns(BindPackage memory) {
+        BindPackage memory bindPackage;
 
         uint256 ptr;
         assembly {
@@ -204,7 +204,7 @@ contract TokenHub is ITokenHub {
         assembly {
             bep2TokenSymbol := mload(ptr)
         }
-        brPackage.bep2TokenSymbol = bep2TokenSymbol;
+        bindPackage.bep2TokenSymbol = bep2TokenSymbol;
 
         address addr;
 
@@ -212,35 +212,35 @@ contract TokenHub is ITokenHub {
         assembly {
             addr := mload(ptr)
         }
-        brPackage.contractAddr = addr;
+        bindPackage.contractAddr = addr;
 
         uint256 tempValue;
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
         }
-        brPackage.totalSupply = tempValue;
+        bindPackage.totalSupply = tempValue;
 
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
         }
-        brPackage.peggyAmount = tempValue;
+        bindPackage.peggyAmount = tempValue;
 
         ptr+=8;
         uint64 expireTime;
         assembly {
             expireTime := mload(ptr)
         }
-        brPackage.expireTime = expireTime;
+        bindPackage.expireTime = expireTime;
 
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
         }
-        brPackage.relayFee = tempValue;
+        bindPackage.relayFee = tempValue;
 
-        return brPackage;
+        return bindPackage;
     }
 
     function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
@@ -253,16 +253,16 @@ contract TokenHub is ITokenHub {
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
-        BindRequestPackage memory brPackage = decodeBindRequestPackage(value);
+        BindPackage memory bindPackage = decodeBindPackage(value);
 
-        uint256 reward = calculateRewardForTendermintHeaderRelayer(brPackage.relayFee);
+        uint256 reward = calculateRewardForTendermintHeaderRelayer(bindPackage.relayFee);
         IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
-        reward = brPackage.relayFee-reward;
+        reward = bindPackage.relayFee-reward;
         // TODO maybe the reward should be paid to msg.sender directly
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
-        _bindRequestRecord[brPackage.bep2TokenSymbol]=brPackage;
-        emit LogBindRequest(brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
+        emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
         return true;
     }
 
@@ -290,58 +290,58 @@ contract TokenHub is ITokenHub {
     }
 
     function approveBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
-        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
-        uint256 lockedAmount = brPackage.totalSupply-brPackage.peggyAmount;
-        require(contractAddr==brPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
+        BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
+        uint256 lockedAmount = bindPackage.totalSupply-bindPackage.peggyAmount;
+        require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
         require(IERC20(contractAddr).owner()==msg.sender, "only erc20 owner can approve this bind request");
         require(IERC20(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
 
-        if (brPackage.expireTime<block.timestamp) {
-            emit LogBindTimeout(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount, brPackage.expireTime);
-            delete _bindRequestRecord[bep2TokenSymbol];
+        if (bindPackage.expireTime<block.timestamp) {
+            emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, bindPackage.expireTime);
+            delete _bindPackageRecord[bep2TokenSymbol];
             return false;
         }
 
         string memory erc20Symbol = IERC20(contractAddr).symbol();
         if (!checkSymbol(erc20Symbol, bep2TokenSymbol) ||
-            _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol]!=address(0x00)||
-            _contractAddrToBEP2Symbol[brPackage.contractAddr]!=bytes32(0x00)||
-            IERC20(brPackage.contractAddr).totalSupply()!=brPackage.totalSupply) {
-            delete _bindRequestRecord[bep2TokenSymbol];
-            emit LogBindInvalidParameter(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+            _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol]!=address(0x00)||
+            _contractAddrToBEP2Symbol[bindPackage.contractAddr]!=bytes32(0x00)||
+            IERC20(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply) {
+            delete _bindPackageRecord[bep2TokenSymbol];
+            emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
             return false;
         }
         IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
-        _contractAddrToBEP2Symbol[brPackage.contractAddr] = brPackage.bep2TokenSymbol;
-        _bep2SymbolToContractAddr[brPackage.bep2TokenSymbol] = brPackage.contractAddr;
+        _contractAddrToBEP2Symbol[bindPackage.contractAddr] = bindPackage.bep2TokenSymbol;
+        _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol] = bindPackage.contractAddr;
 
-        delete _bindRequestRecord[bep2TokenSymbol];
+        delete _bindPackageRecord[bep2TokenSymbol];
         uint256 decimals = IERC20(contractAddr).decimals();
-        emit LogBindSuccess(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount, decimals);
+        emit LogBindSuccess(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, decimals);
         return true;
     }
 
     function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
-        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
-        require(contractAddr==brPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
+        BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
+        require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
         require(IERC20(contractAddr).owner()==msg.sender, "only erc20 owner can reject");
-        delete _bindRequestRecord[bep2TokenSymbol];
-        emit LogBindRejected(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount);
+        delete _bindPackageRecord[bep2TokenSymbol];
+        emit LogBindRejected(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
         return true;
     }
 
     function expireBind(bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
-        BindRequestPackage memory brPackage = _bindRequestRecord[bep2TokenSymbol];
-        require(brPackage.expireTime<block.timestamp, "bind request is not expired");
-        delete _bindRequestRecord[bep2TokenSymbol];
-        emit LogBindTimeout(_bindResponseChannelSequence++, brPackage.contractAddr, brPackage.bep2TokenSymbol, brPackage.totalSupply, brPackage.peggyAmount, brPackage.expireTime);
+        BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
+        require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
+        delete _bindPackageRecord[bep2TokenSymbol];
+        emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, bindPackage.expireTime);
         return true;
     }
 
     // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayFee |
     // | 32 bytes | 32 bytes        | 20 bytes     | 20 bytes | 20 bytes  | 32 bytes | 8 bytes    | 32 bytes    |
-    function decodeTransferInPackage(bytes memory value) internal pure returns (CrossChainTransferPackage memory) {
-        CrossChainTransferPackage memory cctp;
+    function decodeTransferInPackage(bytes memory value) internal pure returns (TransferInPackage memory) {
+        TransferInPackage memory transferInPackage;
 
         uint256 ptr;
         assembly {
@@ -357,46 +357,46 @@ contract TokenHub is ITokenHub {
         assembly {
             bep2TokenSymbol := mload(ptr)
         }
-        cctp.bep2TokenSymbol = bep2TokenSymbol;
+        transferInPackage.bep2TokenSymbol = bep2TokenSymbol;
 
         ptr+=20;
         assembly {
             addr := mload(ptr)
         }
-        cctp.contractAddr = addr;
+        transferInPackage.contractAddr = addr;
 
         ptr+=20;
         assembly {
             addr := mload(ptr)
         }
-        cctp.refundAddr = addr;
+        transferInPackage.refundAddr = addr;
 
         ptr+=20;
         assembly {
             recipient := mload(ptr)
         }
-        cctp.recipient = recipient;
+        transferInPackage.recipient = recipient;
 
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
         }
-        cctp.amount = tempValue;
+        transferInPackage.amount = tempValue;
 
         ptr+=8;
         uint64 expireTime;
         assembly {
             expireTime := mload(ptr)
         }
-        cctp.expireTime = expireTime;
+        transferInPackage.expireTime = expireTime;
 
         ptr+=32;
         assembly {
             tempValue := mload(ptr)
         }
-        cctp.relayFee = tempValue;
+        transferInPackage.relayFee = tempValue;
 
-        return cctp;
+        return transferInPackage;
     }
 
     function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) onlyAlreadyInit external returns (bool) {
@@ -405,41 +405,40 @@ contract TokenHub is ITokenHub {
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
-        _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
 
-        CrossChainTransferPackage memory cctp = decodeTransferInPackage(value);
+        TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
 
-        uint256 reward = calculateRewardForTendermintHeaderRelayer(cctp.relayFee);
+        uint256 reward = calculateRewardForTendermintHeaderRelayer(transferInPackage.relayFee);
         IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward.value(reward)(tendermintHeaderSubmitter);
-        reward = cctp.relayFee-reward;
+        reward = transferInPackage.relayFee-reward;
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward.value(reward)(msg.sender);
 
-        if (block.timestamp > cctp.expireTime) {
-            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, cctp.expireTime);
+        if (block.timestamp > transferInPackage.expireTime) {
+            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
             return false;
         }
 
-        if (cctp.contractAddr==address(0x0) && cctp.bep2TokenSymbol==bep2TokenSymbolForBNB) {
-            if (address(this).balance < cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, address(this).balance);
+        if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
+            if (address(this).balance < transferInPackage.amount) {
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
                 return false;
             }
-            cctp.recipient.transfer(cctp.amount);
+            transferInPackage.recipient.transfer(transferInPackage.amount);
         } else {
-            if (_contractAddrToBEP2Symbol[cctp.contractAddr]!= cctp.bep2TokenSymbol) {
-                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol);
+            if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
+                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
                 return false;
             }
-            uint256 tokenHubBalance = IERC20(cctp.contractAddr).balanceOf(address(this));
-            if (tokenHubBalance<cctp.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr, cctp.bep2TokenSymbol, tokenHubBalance);
+            uint256 tokenHubBalance = IERC20(transferInPackage.contractAddr).balanceOf(address(this));
+            if (tokenHubBalance<transferInPackage.amount) {
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, tokenHubBalance);
                 return false;
             }
-            IERC20(cctp.contractAddr).transfer(cctp.recipient, cctp.amount);
+            IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount);
         }
-        emit LogTransferInSuccess(_transferInChannelSequence, cctp.refundAddr, cctp.recipient, cctp.amount, cctp.contractAddr);
+        emit LogTransferInSuccess(_transferInChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
         return true;
     }
 

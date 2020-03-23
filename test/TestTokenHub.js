@@ -96,7 +96,7 @@ contract('TokenHub', (accounts) => {
         _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 1, "wrong bind channel sequence");
 
-        let bindRequenst = await tokenHub._bindRequestRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        let bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x4142432d39433700000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
         assert.equal(bindRequenst.totalSupply.eq(new BN('52b7d2dcc80cd2e4000000', 16)), true, "wrong total supply");
         assert.equal(bindRequenst.peggyAmount.eq(new BN('51e410c0f93fe543000000', 16)), true, "wrong peggy amount");
@@ -128,7 +128,7 @@ contract('TokenHub', (accounts) => {
         await sleep(10 * 1000);
         // approve expired bind request
         await tokenHub.approveBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner});
-        bindRequenst = await tokenHub._bindRequestRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Reject bind', async () => {
@@ -170,7 +170,7 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.rejectBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner});
 
-        const bindRequenst = await tokenHub._bindRequestRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        const bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Expire bind', async () => {
@@ -220,7 +220,7 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.expireBind("0x4142432d39433700000000000000000000000000000000000000000000000000", {from: accounts[2]});
 
-        bindRequenst = await tokenHub._bindRequestRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Mismatched token symbol', async () => {
@@ -264,7 +264,7 @@ contract('TokenHub', (accounts) => {
             return ev.bep2TokenSymbol === "0x4445462d39433700000000000000000000000000000000000000000000000000";
         });
 
-        bindRequenst = await tokenHub._bindRequestRecord.call("0x4445462d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub._bindPackageRecord.call("0x4445462d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Success bind', async () => {

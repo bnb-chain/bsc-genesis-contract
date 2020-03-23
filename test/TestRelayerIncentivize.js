@@ -41,7 +41,7 @@ contract('RelayerIncentivize', (accounts) => {
         assert.equal(isMature, true, "round");
 
         const gasPrice = await web3.eth.getGasPrice();
-        const tx = await headerRelayerIncentivize.distributeReward(0, {from: accounts[5]});
+        const tx = await headerRelayerIncentivize.withdrawReward(0, {from: accounts[5]});
 
         const newAccount1Balance = await web3.eth.getBalance(accounts[1]);
         const newAccount2Balance = await web3.eth.getBalance(accounts[2]);
@@ -88,7 +88,7 @@ contract('RelayerIncentivize', (accounts) => {
 
         const gasPrice = await web3.eth.getGasPrice();
 
-        const tx = await transferRelayerIncentivize.distributeReward(0, {from: accounts[5]});
+        const tx = await transferRelayerIncentivize.withdrawReward(0, {from: accounts[5]});
 
         const newAccount5Balance = await web3.eth.getBalance(accounts[5]);
         const newAccount6Balance = await web3.eth.getBalance(accounts[6]);

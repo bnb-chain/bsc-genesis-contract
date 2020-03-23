@@ -4,6 +4,6 @@ interface IRelayerIncentivize {
 
     function addReward(address payable relayerAddr) external payable returns (bool);
 
-    function distributeReward(uint256 rewardSequence) external returns (bool);
+    function withdrawReward(uint256 sequence) external returns (bool);
 
 }
