@@ -192,9 +192,9 @@ contract BSCValidatorSet is System {
 
     // do dusk transfer
     if(address(this).balance>0){
+      emit systemTransfer(address(this).balance);
       address payable systemPayable = address(uint160(address(systemReward)));
       systemPayable.transfer(address(this).balance);
-      emit systemTransfer(address(this).balance);
     }
 
     // do update state
