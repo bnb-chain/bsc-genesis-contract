@@ -23,6 +23,10 @@ program.option("--toChainId <toChainId>",
     "toChainId",
     "0x0002");
 
+program.option("--mock <mock>",
+    "if use mock",
+    false);
+
 program.parse(process.argv);
 
 const validators = require("./validators")
@@ -30,7 +34,8 @@ const validators = require("./validators")
 const data = {
   fromChainId: program.fromChainId,
   toChainId: program.toChainId,
-  initValidatorSetBytes: validators.validatorSetBytes.slice(2)
+  initValidatorSetBytes: validators.validatorSetBytes.slice(2),
+  mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);

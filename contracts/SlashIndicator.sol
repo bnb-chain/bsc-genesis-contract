@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.6.4;
 import "./System.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IBSCValidatorSet.sol";
@@ -29,6 +29,7 @@ contract SlashIndicator is ISlashIndicator,System {
 
   event validatorSlashed(address indexed validator);
   event contractAddrUpdate(address validatorContract);
+  event indicatorCleaned();
 
   struct Indicator {
     uint256 height;
@@ -76,12 +77,13 @@ contract SlashIndicator is ISlashIndicator,System {
     emit validatorSlashed(validator);
   }
 
-  function clean() external onlyInit onlyValidatorContract{
+  function clean() external override(ISlashIndicator) onlyInit onlyValidatorContract{
     uint n = validators.length;
-    for(uint i=0;i<validators.length;i++){
-      delete indicators[validators[i]];
+    for(uint i=0;i<n;i++){
+      delete indicators[validators[n-i-1]];
+      validators.pop();
     }
-    validators.length = validators.length - n;
+    emit indicatorCleaned();
   }
 
   function getSlashIndicator(address validator) external view returns (uint256,uint256){

@@ -1,31 +1,27 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.6.4;
 
 import "./System.sol";
 import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
-import "solidity-bytes-utils/contracts/BytesLib.sol";
+import "./Seriality/BytesLib.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
+import "./interface/ITokenHub.sol";
 import "./mock/MockMerkleProof.sol";
 
-interface ITokenHub {
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee)
-  external payable returns (bool);
-}
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
   uint8 public constant CHANNEL_ID =  8;
-
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
-  uint256 constant public EXTRA_FEE = 1e16;
-  // will reward relayer at most 0.1 BNB.
-  uint256 constant public RELAYER_REWARD = 1e17;
+  uint256 constant public EXTRA_FEE = 1e12;
+  // will reward relayer at most 0.01 BNB.
+  uint256 constant public RELAYER_REWARD = 1e16;
 
   // the precision of cross chain value transfer.
   uint256 constant PRECISION = 1e8;
@@ -118,7 +114,7 @@ contract BSCValidatorSet is System {
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
   event validatorFelony(address indexed validator, uint256 indexed amount);
-  event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr);
+  event contractAddrUpdate(address systemRewardAddr, address tokenHubAddr, address lightClientAddr, address slashAddr);
 
 
   function init() external onlyNotInit{
@@ -142,7 +138,7 @@ contract BSCValidatorSet is System {
     tokenHub = ITokenHub(_tokenHub);
     systemReward = ISystemReward(_systemRewardAddr);
     slash = ISlashIndicator(_slashContract);
-    emit contractAddrUpdate(_systemRewardAddr,_tokenHub,_lightClientAddr);
+    emit contractAddrUpdate(_systemRewardAddr,_tokenHub,_lightClientAddr,_slashContract);
   }
 
   /*********************** External Functions **************************/
@@ -180,9 +176,8 @@ contract BSCValidatorSet is System {
 
     // do cross chain transfer
     if(crossTotal > 0){
-      uint256 minimumFee = 1e12;
-      uint256 relayFee = crossAddrs.length*minimumFee;
-      tokenHub.batchTransferOut.value(crossTotal)(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee);
+      uint256 relayFee = crossAddrs.length*EXTRA_FEE;
+      tokenHub.batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee);
       emit batchTransfer(crossTotal);
     }
 
@@ -277,7 +272,7 @@ contract BSCValidatorSet is System {
       currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length-1];
       currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
     }
-    currentValidatorSet.length--;
+    currentValidatorSet.pop();
     uint256 averageDistribute = income/rest;
     if(averageDistribute!=0){
       for(uint i=0;i<currentValidatorSet.length;i++){
@@ -365,7 +360,9 @@ contract BSCValidatorSet is System {
       for(uint i = m;i<n;i++){
         delete currentValidatorSetMap[currentValidatorSet[i].consensusAddress];
       }
-      currentValidatorSet.length -= n-m;
+      for(uint i = m;i<n;i++){
+        currentValidatorSet.pop();
+      }
     }
     for(uint i = 0;i<k;i++){
       if (!isSameValidator(validatorSet[i], currentValidatorSet[i])){
@@ -420,6 +417,6 @@ contract BSCValidatorSet is System {
 
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool){
-    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress;
+    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
   }
 }
