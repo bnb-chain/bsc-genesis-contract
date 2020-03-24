@@ -5,10 +5,14 @@ import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "solidity-bytes-utils/contracts/BytesLib.sol";
 import "./interface/ILightClient.sol";
-import "./interface/ICrossChainTransfer.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
+import "./mock/MockMerkleProof.sol";
 
+interface ITokenHub {
+  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee)
+  external payable returns (bool);
+}
 
 contract BSCValidatorSet is System {
   // keep consistent with the channel id in BBC;
@@ -32,9 +36,8 @@ contract BSCValidatorSet is System {
   uint16 public constant fromChainId = 0x0001;
   uint16 public constant toChainId = 0x0002;
   address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
-  address public constant  initCrossTransferAddr = 0x0000000000000000000000000000000000001004;
+  address public constant  initTokenHubAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
-  address public constant initTokenContract = 0x0000000000000000000000000000000000001005;
   address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
   bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
@@ -43,18 +46,17 @@ contract BSCValidatorSet is System {
   bytes public keyPrefix;
 
   // other contract
-  address public  tokenContract;
   ILightClient lightClient;
-  ICrossChainTransfer crossTransfer;
+  ITokenHub tokenHub;
   ISystemReward systemReward;
   ISlashIndicator slash;
 
 
   // state of this contract
   Validator[] public currentValidatorSet;
-  uint256 public sequence;
+  uint64 public sequence;
   uint256 public totalInComing;
-  uint256 public previousDepositHeight;
+  uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
   mapping(address =>uint256) currentValidatorSetMap;
@@ -82,13 +84,13 @@ contract BSCValidatorSet is System {
     _;
   }
 
-  modifier sequenceInOrder(uint256 _sequence) {
+  modifier sequenceInOrder(uint64 _sequence) {
     require(_sequence == sequence+1, "sequence not in order");
     _;
   }
 
-  modifier blockSynced(uint256 _height) {
-    require(lightClient.isBlockSynced(_height), "light client not sync the block yet");
+  modifier blockSynced(uint64 _height) {
+    require(lightClient.isHeaderSynced(_height), "light client not sync the block yet");
     _;
   }
 
@@ -105,7 +107,7 @@ contract BSCValidatorSet is System {
   modifier onlyDepositOnce() {
     require(block.number > previousDepositHeight, "can not deposit twice in one block");
     _;
-    previousDepositHeight = block.number;
+    previousDepositHeight = uint64(block.number);
   }
 
   event validatorSetUpdated();
@@ -116,7 +118,7 @@ contract BSCValidatorSet is System {
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
   event validatorFelony(address indexed validator, uint256 indexed amount);
-  event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr, address tokenContract);
+  event contractAddrUpdate(address systemRewardAddr, address crossTransferAddr, address lightClientAddr);
 
 
   function init() external onlyNotInit{
@@ -127,22 +129,20 @@ contract BSCValidatorSet is System {
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    tokenContract = initTokenContract;
     lightClient = ILightClient(initLightClientAddr);
-    crossTransfer = ICrossChainTransfer(initCrossTransferAddr);
+    tokenHub = ITokenHub(initTokenHubAddr);
     systemReward = ISystemReward(initSystemRewardAddr);
     slash = ISlashIndicator(initSlashContract);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
 
-  function updateContractAddr(address _systemRewardAddr, address _crossTransferAddr, address _lightClientAddr, address _slashContract, address _tokenContract) external onlyInit onlySystem{
-    tokenContract = _tokenContract;
+  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract) external onlyInit onlySystem{
     lightClient = ILightClient(_lightClientAddr);
-    crossTransfer = ICrossChainTransfer(_crossTransferAddr);
+    tokenHub = ITokenHub(_tokenHub);
     systemReward = ISystemReward(_systemRewardAddr);
     slash = ISlashIndicator(_slashContract);
-    emit contractAddrUpdate(_systemRewardAddr,_crossTransferAddr,_lightClientAddr,_tokenContract);
+    emit contractAddrUpdate(_systemRewardAddr,_tokenHub,_lightClientAddr);
   }
 
   /*********************** External Functions **************************/
@@ -162,10 +162,11 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint256 height, uint256 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
+  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
-    bool valid = lightClient.validateMerkleProof(height, STORE_NAME, key, validatorSetBytes, proof);
+    bytes32 appHash = lightClient.getAppHash(height);
+    bool valid = MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
     require(valid, "the package is invalid against its proof");
 
     // do deserialize and verify.
@@ -179,7 +180,9 @@ contract BSCValidatorSet is System {
 
     // do cross chain transfer
     if(crossTotal > 0){
-      crossTransfer.batchCrossChainTransfer.value(crossTotal)(crossAddrs, crossAmounts, crossRefundAddrs, tokenContract, block.timestamp + EXPIRE_TIME_SECOND_GAP);
+      uint256 minimumFee = 1e12;
+      uint256 relayFee = crossAddrs.length*minimumFee;
+      tokenHub.batchTransferOut.value(crossTotal)(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee);
       emit batchTransfer(crossTotal);
     }
 
@@ -382,9 +385,9 @@ contract BSCValidatorSet is System {
   }
 
 
-  function generateKey(uint256 packageSequence) internal view returns (bytes memory){
+  function generateKey(uint64 packageSequence) internal view returns (bytes memory){
     // A copy of keyPrefix
-    bytes memory sequenceBytes = new bytes(32);
+    bytes memory sequenceBytes = new bytes(8);
     TypesToBytes.uintToBytes(32, packageSequence, sequenceBytes);
     return BytesLib.concat(keyPrefix, sequenceBytes);
   }
