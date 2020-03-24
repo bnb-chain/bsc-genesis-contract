@@ -10,6 +10,7 @@ const MockLightClient = artifacts.require("mock/MockLightClient");
 const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("ABCToken");
 const DEFToken = artifacts.require("DEFToken");
+const MaliciousToken = artifacts.require("test/MaliciousToken");
 
 const crypto = require('crypto');
 const Web3 = require('web3');
@@ -140,7 +141,12 @@ contract('TokenHub', (accounts) => {
         const owner = accounts[0];
         const relayer = accounts[1];
 
-        const key = Buffer.from(web3.utils.hexToBytes("0x000003000f010000000000000001"));
+        const key = Buffer.from(web3.utils.hexToBytes(
+            crossChainKeyPrefix +
+            sourceChainID +
+            destChainID +
+            bindChannelID +
+            "0000000000000001"));
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let initialExpireTimeStr = (timestamp + 5).toString(16); // expire at 5 second later
@@ -335,7 +341,7 @@ contract('TokenHub', (accounts) => {
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
-            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // sender address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
             expireTimeStr +                                                             // expire time
@@ -377,7 +383,7 @@ contract('TokenHub', (accounts) => {
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
-            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // sender address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
             expireTimeStr +                                                             // expire time
@@ -417,7 +423,7 @@ contract('TokenHub', (accounts) => {
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x424E420000000000000000000000000000000000000000000000000000000000" + // native token BNB
             "0000000000000000000000000000000000000000" +                                // zero contract address
-            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // sender address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "0000000000000000000000000000000000000000000000000DE0B6B3A7640000" +        // amount 1e18
             expireTimeStr +                                                             // expire time
@@ -579,5 +585,112 @@ contract('TokenHub', (accounts) => {
         assert.equal(batchTransferOut.inputs[0][1], recipientAddrs[1].toString().replace("0x", ""), "wrong recipient address");
         assert.equal(batchTransferOut.inputs[2][0], refundAddrs[0].toString().replace("0x", ""), "wrong refund address");
         assert.equal(batchTransferOut.inputs[2][1], refundAddrs[1].toString().replace("0x", ""), "wrong refund address");
+    });
+    it('Bind malicious erc20 token', async () => {
+        const maliciousToken = await MaliciousToken.deployed();
+        const tokenHub = await TokenHub.deployed();
+
+        const owner = accounts[0];
+        const relayer = accounts[1];
+
+        let key = Buffer.from(web3.utils.hexToBytes(
+            crossChainKeyPrefix +
+            sourceChainID +
+            destChainID +
+            bindChannelID +
+            "0000000000000005"));
+
+        let timestamp = Math.floor(Date.now() / 1000); // counted by second
+        let initialExpireTimeStr = (timestamp + 5).toString(16); // expire at 5 second later
+        let initialExpireTimeStrLength = initialExpireTimeStr.length;
+        let expireTimeStr = initialExpireTimeStr;
+        for (var i = 0; i < 16 - initialExpireTimeStrLength; i++) {
+            expireTimeStr = '0' + expireTimeStr;
+        }
+        let value = Buffer.from(web3.utils.hexToBytes(
+            "0x4d414c4943494f55532d41303900000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOUS-A09
+            maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
+            "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
+            "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            expireTimeStr +                                                             // expire time
+            "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
+        let proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        await tokenHub.handleBindPackage(merkleHeight, key, value, proof, {from: relayer});
+
+        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
+        assert.equal(_bindChannelSequence.toNumber(), 6, "wrong bind channel sequence");
+
+        await maliciousToken.approve(tokenHub.address, new BN('1000000000000000000000000', 10), {from: owner});
+
+        let tx = await tokenHub.approveBind(maliciousToken.address, "0x4d414c4943494f55532d41303900000000000000000000000000000000000000", {from: owner});
+
+        truffleAssert.eventEmitted(tx, "LogBindSuccess", (ev) => {
+            return ev.bep2TokenSymbol === "0x4d414c4943494f55532d41303900000000000000000000000000000000000000";
+        });
+
+
+        key = Buffer.from(web3.utils.hexToBytes(
+            crossChainKeyPrefix +    // prefix
+            sourceChainID +        // source chainID
+            destChainID +        // destination chainID
+            transferChannelID +          // channel ID
+            "0000000000000003")); // sequence
+        timestamp = Math.floor(Date.now() / 1000); // counted by second
+        initialExpireTimeStr = (timestamp + 5).toString(16); // expire at 5 second later
+        initialExpireTimeStrLength = initialExpireTimeStr.length;
+        expireTimeStr = initialExpireTimeStr;
+        for (var i = 0; i < 16 - initialExpireTimeStrLength; i++) {
+            expireTimeStr = '0' + expireTimeStr;
+        }
+        value = Buffer.from(web3.utils.hexToBytes(
+            "0x4d414c4943494f55532d41303900000000000000000000000000000000000000" + // bep2TokenSymbol
+            maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
+            accounts[2].toString().replace("0x", "") +                                  // recipient amount
+            "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
+            expireTimeStr +                                                             // expire time
+            "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
+        proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        let balance = await maliciousToken.balanceOf.call(accounts[2]);
+        assert.equal(balance.toNumber(), 0, "wrong balance");
+
+        let _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
+        assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
+
+        tx = await tokenHub.handleTransferInPackage(merkleHeight, key, value, proof, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
+            return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
+        });
+        _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
+        assert.equal(_transferInChannelSequence.toNumber(), 4, "wrong transfer in channel sequence");
+
+
+        key = Buffer.from(web3.utils.hexToBytes(
+            crossChainKeyPrefix +    // prefix
+            sourceChainID +        // source chainID
+            destChainID +        // destination chainID
+            refundChannelID +          // channel ID
+            "0000000000000001")); // sequence
+
+        value = Buffer.from(web3.utils.hexToBytes(
+            "0x000000000000000000000000000000000000000000000000000000174876E800" +      // refund amount
+            maliciousToken.address.toString().replace("0x", "") +     // erc20 contract address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48"  +                                    // refund address
+            "0000")                                                                          // failureCode, timeout
+        );
+        proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        let _refundChannelSequence = await tokenHub._refundChannelSequence.call();
+        assert.equal(_refundChannelSequence.toNumber(), 1, "wrong refund channel sequence");
+
+        tx = await tokenHub.handleRefundPackage(merkleHeight, key, value, proof, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
+            return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
+        });
+
+        _refundChannelSequence = await tokenHub._refundChannelSequence.call();
+        assert.equal(_refundChannelSequence.toNumber(), 2, "wrong refund channel sequence");
     });
 });
