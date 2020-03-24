@@ -83,6 +83,7 @@ contract TokenHub is ITokenHub {
 
     event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
     event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 auctualBalance);
+    event LogRefundFailureUnboundToken(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
 
     event LogUnexpectedRevertInERC20(address contractAddr, string reason);
     event LogUnexpectedFailureAssertionInERC20(address contractAddr, bytes lowLevelData);
@@ -437,23 +438,22 @@ contract TokenHub is ITokenHub {
                 emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
                 return false;
             }
-
-            try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 tokenHubBalance) {
-                if (tokenHubBalance<transferInPackage.amount) {
-                    emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, tokenHubBalance);
-                    return false;
+            try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
+                if (success) {
+                    emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+                    return true;
+                } else {
+                    try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+                        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
+                        return false;
+                    } catch Error(string memory reason) {
+                        emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
+                        return false;
+                    } catch (bytes memory lowLevelData) {
+                        emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
+                        return false;
+                    }
                 }
-            } catch Error(string memory reason) {
-                emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
-                return false;
-            } catch (bytes memory lowLevelData) {
-                emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
-                return false;
-            }
-
-            try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns(bool) {
-                emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
-                return true;
             } catch Error(string memory reason) {
                 emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
                 return false;
@@ -533,22 +533,26 @@ contract TokenHub is ITokenHub {
             emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
             return true;
         } else {
-            try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns(uint256 actualBalance) {
-                if (actualBalance<refundPackage.refundAmount) {
-                    emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
-                    return false;
-                }
-            } catch Error(string memory reason) {
-                emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
-                return false;
-            } catch (bytes memory lowLevelData) {
-                emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
+            if (_contractAddrToBEP2Symbol[refundPackage.contractAddr]==bytes32(0x00)) {
+                emit LogRefundFailureUnboundToken(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
                 return false;
             }
-
-            try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns(bool) {
-                emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-                return true;
+            try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
+                if (success) {
+                    emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
+                    return true;
+                } else {
+                    try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+                        emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
+                        return false;
+                    } catch Error(string memory reason) {
+                        emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
+                        return false;
+                    } catch (bytes memory lowLevelData) {
+                        emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
+                        return false;
+                    }
+                }
             } catch Error(string memory reason) {
                 emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
                 return false;
