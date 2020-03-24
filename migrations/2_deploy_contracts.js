@@ -13,20 +13,20 @@ const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
 const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 const TokenHub = artifacts.require("TokenHub");
-// const ABCToken = artifacts.require("test/ABCToken");
-// const DEFToken = artifacts.require("test/DEFToken");
+const ABCToken = artifacts.require("test/ABCToken");
+const DEFToken = artifacts.require("test/DEFToken");
 
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 
 module.exports = function(deployer, network, accounts) {
-  // deployer.deploy(HeaderRelayerIncentivize);
-  // deployer.deploy(TransferRelayerIncentivize);
-  // deployer.deploy(TendermintLightClient);
-  // deployer.deploy(TokenHub);
-  // deployer.deploy(ABCToken);
-  // deployer.deploy(DEFToken);
+  deployer.deploy(HeaderRelayerIncentivize);
+  deployer.deploy(TransferRelayerIncentivize);
+  deployer.deploy(TendermintLightClient);
+  deployer.deploy(TokenHub);
+  deployer.deploy(ABCToken);
+  deployer.deploy(DEFToken);
 
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];
@@ -34,8 +34,8 @@ module.exports = function(deployer, network, accounts) {
     instance.addOperator(accounts[0], {from: accounts[0]});
     instance.addOperator(accounts[1], {from: accounts[0]});
     instance.addOperator(accounts[2], {from: accounts[0]});
-    // instance.addOperator(TendermintLightClient.address, {from: accounts[0]});
-    // instance.addOperator(TokenHub.address, {from: accounts[0]});
+    instance.addOperator(TendermintLightClient.address, {from: accounts[0]});
+    instance.addOperator(TokenHub.address, {from: accounts[0]});
   });
 
   // deploy lib
