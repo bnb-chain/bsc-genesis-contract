@@ -3,9 +3,11 @@ pragma solidity 0.6.4;
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
-import "./mock/MockMerkleProof.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
+{% if mock %}import "./mock/MockMerkleProof.sol";
+{% else %}import "./MerkleProof.sol";
+{% endif %}
 
 contract TokenHub is ITokenHub {
 
@@ -248,7 +250,7 @@ contract TokenHub is ITokenHub {
 
     function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
-        require(value.length==156, "wrong bind package size");
+        require(value.length==156, "unexpected bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
@@ -404,7 +406,7 @@ contract TokenHub is ITokenHub {
 
     function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
-        require(value.length==164, "wrong transfer package size");
+        require(value.length==164, "unexpected transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
@@ -508,7 +510,7 @@ contract TokenHub is ITokenHub {
 
     function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, refundChannelID, _refundChannelSequence));
-        require(value.length==74, "wrong refund package size");
+        require(value.length==74, "unexpected refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");

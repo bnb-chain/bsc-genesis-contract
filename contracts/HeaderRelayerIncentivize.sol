@@ -4,8 +4,8 @@ import "./interface/IRelayerIncentivize.sol";
 
 contract HeaderRelayerIncentivize is IRelayerIncentivize {
 
-    uint256 constant roundSize= 20;    // TODO change to 1024 in testnet and mainnet
-    uint256 constant maximumWeight=10;  // TODO change to 400 in testnet and mainnet
+    uint256 constant roundSize= 20;
+    uint256 constant maximumWeight=10;
 
     mapping( uint256 => mapping(address => uint256) ) public _relayersSubmitCount;
     mapping( uint256 => address payable[] ) public _relayerAddressRecord;
@@ -33,14 +33,14 @@ contract HeaderRelayerIncentivize is IRelayerIncentivize {
         if (_countInRound==roundSize){
             _matureRound[_roundSequence]=true;
             emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
-            //TODO maybe we can directly call distributeReward
+            require(claimReward(_roundSequence), "failed to claim reward");
             _roundSequence++;
             _countInRound=0;
         }
         return true;
     }
 
-    function withdrawReward(uint256 sequence) override external returns (bool) {
+    function claimReward(uint256 sequence) internal returns (bool) {
         require(_matureRound[sequence], "the target round is premature");
         uint256 totalReward = _collectedRewardRound[sequence];
 
