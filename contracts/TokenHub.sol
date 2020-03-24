@@ -3,9 +3,10 @@ pragma solidity 0.6.4;
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
-import "./mock/MockMerkleProof.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
+import "./mock/MockMerkleProof.sol";
+
 
 contract TokenHub is ITokenHub {
 
@@ -252,7 +253,8 @@ contract TokenHub is ITokenHub {
         require(value.length==156, "wrong bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -408,7 +410,8 @@ contract TokenHub is ITokenHub {
         require(value.length==164, "wrong transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -511,7 +514,8 @@ contract TokenHub is ITokenHub {
         require(value.length==74, "wrong refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+
         _refundChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);

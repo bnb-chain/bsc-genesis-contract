@@ -44,9 +44,9 @@ contract TokenHub is ITokenHub {
     string constant STORE_NAME = "ibc";
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+    uint16 public _sourceChainID = {{sourceChainId}};
+    uint16 public _destChainID = {{destChainId}};
 
-    uint16 public _sourceChainID;
-    uint16 public _destChainID;
     uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
     uint256 public _refundRelayReward;
 
@@ -85,6 +85,7 @@ contract TokenHub is ITokenHub {
 
     event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
     event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 auctualBalance);
+    event LogRefundFailureUnboundToken(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
 
     event LogUnexpectedRevertInERC20(address contractAddr, string reason);
     event LogUnexpectedFailureAssertionInERC20(address contractAddr, bytes lowLevelData);
@@ -250,10 +251,12 @@ contract TokenHub is ITokenHub {
 
     function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
-        require(value.length==156, "unexpected bind package size");
+        require(value.length==156, "wrong bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% if mock %}require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% else %}require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% endif %}
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -406,10 +409,12 @@ contract TokenHub is ITokenHub {
 
     function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
-        require(value.length==164, "unexpected transfer package size");
+        require(value.length==164, "wrong transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% if mock %}require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% else %}require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% endif %}
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -439,23 +444,22 @@ contract TokenHub is ITokenHub {
                 emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
                 return false;
             }
-
-            try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 tokenHubBalance) {
-                if (tokenHubBalance<transferInPackage.amount) {
-                    emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, tokenHubBalance);
-                    return false;
+            try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
+                if (success) {
+                    emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+                    return true;
+                } else {
+                    try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+                        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
+                        return false;
+                    } catch Error(string memory reason) {
+                        emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
+                        return false;
+                    } catch (bytes memory lowLevelData) {
+                        emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
+                        return false;
+                    }
                 }
-            } catch Error(string memory reason) {
-                emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
-                return false;
-            } catch (bytes memory lowLevelData) {
-                emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
-                return false;
-            }
-
-            try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns(bool) {
-                emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
-                return true;
             } catch Error(string memory reason) {
                 emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
                 return false;
@@ -510,10 +514,12 @@ contract TokenHub is ITokenHub {
 
     function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, refundChannelID, _refundChannelSequence));
-        require(value.length==74, "unexpected refund package size");
+        require(value.length==74, "wrong refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% if mock %}require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% else %}require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        {% endif %}
         _refundChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -535,22 +541,26 @@ contract TokenHub is ITokenHub {
             emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
             return true;
         } else {
-            try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns(uint256 actualBalance) {
-                if (actualBalance<refundPackage.refundAmount) {
-                    emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
-                    return false;
-                }
-            } catch Error(string memory reason) {
-                emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
-                return false;
-            } catch (bytes memory lowLevelData) {
-                emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
+            if (_contractAddrToBEP2Symbol[refundPackage.contractAddr]==bytes32(0x00)) {
+                emit LogRefundFailureUnboundToken(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
                 return false;
             }
-
-            try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns(bool) {
-                emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-                return true;
+            try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
+                if (success) {
+                    emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
+                    return true;
+                } else {
+                    try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+                        emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
+                        return false;
+                    } catch Error(string memory reason) {
+                        emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
+                        return false;
+                    } catch (bytes memory lowLevelData) {
+                        emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
+                        return false;
+                    }
+                }
             } catch Error(string memory reason) {
                 emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
                 return false;
