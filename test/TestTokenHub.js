@@ -18,8 +18,8 @@ const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 const crossChainKeyPrefix = "0x00";
-const sourceChainID = "0003";
-const destChainID = "000f";
+const sourceChainID = "0001";
+const destChainID = "0002";
 
 const bindChannelID = "01";
 const transferChannelID = "02";

@@ -44,8 +44,8 @@ contract TokenHub is ITokenHub {
     string constant STORE_NAME = "ibc";
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    uint16 public _sourceChainID = {{sourceChainId}};
-    uint16 public _destChainID = {{destChainId}};
+    uint16 public _sourceChainID = {{fromChainId}};
+    uint16 public _destChainID = {{toChainId}};
 
     uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
     uint256 public _refundRelayReward;
