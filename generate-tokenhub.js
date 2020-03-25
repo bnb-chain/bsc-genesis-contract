@@ -15,13 +15,13 @@ program.option(
     "TokenHub.sol",
     "./contracts/TokenHub.sol"
 )
-program.option("--sourceChainId <sourceChainId>",
-    "sourceChainId",
-    "0x0003");
+program.option("--fromChainId <fromChainId>",
+    "fromChainId",
+    "0x0001");
 
-program.option("--destChainId <destChainId>",
-    "destChainId",
-    "0x000f");
+program.option("--toChainId <toChainId>",
+    "toChainId",
+    "0x0002");
 
 program.option("--mock <mock>",
     "if use mock",
@@ -30,8 +30,8 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-  sourceChainId: program.sourceChainId,
-  destChainId: program.destChainId,
+  fromChainId: program.fromChainId,
+  toChainId: program.toChainId,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

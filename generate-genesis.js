@@ -10,6 +10,9 @@ const init_holders = require("./init_holders")
 // load and execute generate-system.js
 require("./generate-system");
 require("./generate-validatorset");
+require("./generate-tokenhub");
+require("./generate-headerrelayercontract");
+require("./generate-tranferrelayercontract");
 
 program.version("0.0.1")
 program.option("-c, --chain-id <chain-id>", "chain id", "714")
@@ -79,15 +82,25 @@ Promise.all([
       "SlashIndicator"
   ),
   compileContract(
-      "lightClientContract",
+      "tendermintLightClient",
       "contracts/TendermintLightClient.sol",
       "TendermintLightClient"
   ),
   compileContract(
-      "crossChainTransferContract",
+      "tokenHub",
       "contracts/TokenHub.sol",
       "TokenHub"
   ),
+  compileContract(
+      "headerRelayerIncentivize",
+      "contracts/HeaderRelayerIncentivize.sol",
+      "HeaderRelayerIncentivize"
+  ),
+  compileContract(
+      "transferRelayerIncentivize",
+      "contracts/TransferRelayerIncentivize.sol",
+      "TransferRelayerIncentivize"
+  )
 ]).then(result => {
 
   const data = {
