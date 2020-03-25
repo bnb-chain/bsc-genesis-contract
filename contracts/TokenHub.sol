@@ -43,8 +43,8 @@ contract TokenHub is ITokenHub {
     string constant STORE_NAME = "ibc";
 
     bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    uint16 public _sourceChainID = 0x0001;
-    uint16 public _destChainID = 0x0002;
+    uint16 public _sourceChainID = 0x0003;
+    uint16 public _destChainID = 0x000f;
 
     uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
     uint256 public _refundRelayReward;
@@ -70,20 +70,20 @@ contract TokenHub is ITokenHub {
 
     event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
     event LogBindSuccess(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 decimals);
-    event LogBindRejected(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
-    event LogBindTimeout(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 expireTime);
-    event LogBindInvalidParameter(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
+    event LogBindRejected(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogBindTimeout(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
+    event LogBindInvalidParameter(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
 
     event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
     event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
     event LogTransferInSuccess(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr);
     event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
-    event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 auctualBalance);
+    event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 actualBalance);
     event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol);
 
     event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
-    event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 auctualBalance);
+    event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 actualBalance);
     event LogRefundFailureUnboundToken(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
 
     event LogUnexpectedRevertInERC20(address contractAddr, string reason);
@@ -108,16 +108,12 @@ contract TokenHub is ITokenHub {
         address lightClientContractAddr,
         address incentivizeContractAddrForHeader,
         address incentivizeContractAddrForTransfer,
-        uint16 sourceChainID,
-        uint16 destChainID,
         uint256 minimumRelayFee,
         uint256 refundReward) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
         _systemRewardContract = systemRewardContract;
         _lightClientContract = lightClientContractAddr;
         _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
         _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
-        _sourceChainID=sourceChainID;
-        _destChainID=destChainID;
         _minimumRelayFee=minimumRelayFee;
         _refundRelayReward=refundReward;
         _alreadyInit = true;
@@ -303,7 +299,7 @@ contract TokenHub is ITokenHub {
         require(IERC20(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
 
         if (bindPackage.expireTime<block.timestamp) {
-            emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, bindPackage.expireTime);
+            emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
             delete _bindPackageRecord[bep2TokenSymbol];
             return false;
         }
@@ -314,7 +310,7 @@ contract TokenHub is ITokenHub {
             _contractAddrToBEP2Symbol[bindPackage.contractAddr]!=bytes32(0x00)||
             IERC20(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply) {
             delete _bindPackageRecord[bep2TokenSymbol];
-            emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
+            emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
             return false;
         }
         IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
@@ -332,7 +328,7 @@ contract TokenHub is ITokenHub {
         require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
         require(IERC20(contractAddr).getOwner()==msg.sender, "only erc20 owner can reject");
         delete _bindPackageRecord[bep2TokenSymbol];
-        emit LogBindRejected(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
+        emit LogBindRejected(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
         return true;
     }
 
@@ -340,7 +336,7 @@ contract TokenHub is ITokenHub {
         BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
         require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
         delete _bindPackageRecord[bep2TokenSymbol];
-        emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, bindPackage.expireTime);
+        emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
         return true;
     }
 
