@@ -11,7 +11,6 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
     mapping( uint256 => address payable[] ) public _relayerAddressRecord;
 
     mapping( uint256 => uint256) public _collectedRewardRound;
-    mapping( uint256 => bool) public _matureRound;
 
     uint256 public _roundSequence = 0;
     uint256 public _countInRound=0;
@@ -31,9 +30,8 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
         emit LogAddReward(relayerAddr, msg.value);
 
         if (_countInRound==roundSize){
-            _matureRound[_roundSequence]=true;
             emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
-            require(claimReward(_roundSequence), "failed to claim reward");
+            claimReward(_roundSequence);
             _roundSequence++;
             _countInRound=0;
         }
@@ -41,7 +39,6 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
     }
 
     function claimReward(uint256 sequence) internal returns (bool) {
-        require(_matureRound[sequence], "the target round is premature");
         uint256 totalReward = _collectedRewardRound[sequence];
 
         address payable[] memory relayers = _relayerAddressRecord[sequence];
@@ -64,7 +61,6 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
         msg.sender.transfer(callerReward);
 
         delete _collectedRewardRound[sequence];
-        delete _matureRound[sequence];
         for (uint256 index=0; index < relayers.length; index++){
             delete _relayersSubmitCount[sequence][relayers[index]];
         }
