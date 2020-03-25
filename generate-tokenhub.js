@@ -30,7 +30,7 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-  sourceChainId: program.fromChainId,
+  sourceChainId: program.sourceChainId,
   destChainId: program.destChainId,
   mock: program.mock,
 };
