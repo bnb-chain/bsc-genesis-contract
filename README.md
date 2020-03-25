@@ -14,6 +14,7 @@ $  ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resem
 $  addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791  // the first account of ganache
 $  node generate-system.js --system-addr  $addr
 $  node generate-validatorset.js --mock true
+$  node generate-tokenhub.js --mock true
 $  truffle compile
 $  truffle migrate
 $  truffle test
