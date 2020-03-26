@@ -8,7 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
-import "./MerkleProof.sol";
+import "./mock/MockMerkleProof.sol";
 
 
 contract BSCValidatorSet is System {
@@ -23,6 +23,9 @@ contract BSCValidatorSet is System {
   // will reward relayer at most 0.01 BNB.
   uint256 constant public RELAYER_REWARD = 1e16;
 
+  uint8 public constant JAIL_MESSAGE_TYPE = 1;
+  uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
+
   // the precision of cross chain value transfer.
   uint256 constant PRECISION = 1e8;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
@@ -35,7 +38,7 @@ contract BSCValidatorSet is System {
   address public constant  initTokenHubAddr = 0x0000000000000000000000000000000000001004;
   address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
   address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
-  bytes public constant initValidatorSetBytes = hex"9fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+  bytes public constant initValidatorSetBytes = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
   bool public alreadyInit;
   // used for generate key
@@ -62,6 +65,7 @@ contract BSCValidatorSet is System {
     address payable feeAddress;
     address BBCFeeAddress;
     uint64  votingPower;
+    bool jailed;
     uint256 incoming;
   }
 
@@ -107,6 +111,7 @@ contract BSCValidatorSet is System {
   }
 
   event validatorSetUpdated();
+  event validatorJailed(address indexed validator);
   event batchTransfer(uint256 indexed amount);
   event systemTransfer(uint256 indexed amount);
   event directTransfer(address payable indexed validator, uint256 indexed amount);
@@ -158,13 +163,35 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function updateValidatorSet(bytes calldata validatorSetBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
+  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
     bytes32 appHash = lightClient.getAppHash(height);
-    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, validatorSetBytes, proof);
+    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
     require(valid, "the package is invalid against its proof");
+    uint8 msgType = getMsgType(msgBytes);
+    if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){
+      updateValidatorSet(msgBytes);
+    }else if(msgType == JAIL_MESSAGE_TYPE){
+      jailValidator(msgBytes);
+    }
+  }
 
+  function jailValidator(bytes memory validatorBytes) internal{
+    // do deserialize and verify.
+    Validator[] memory validatorSet = parseValidatorSet(validatorBytes);
+    require(validatorSet.length == 1, "length of jail validators must be one");
+    Validator memory v = validatorSet[0];
+    uint256 index = currentValidatorSetMap[v.consensusAddress];
+    if (index<=0){
+      return;
+    }
+    currentValidatorSet[index-1].jailed = true;
+    emit validatorJailed(v.consensusAddress);
+    return;
+  }
+
+  function updateValidatorSet(bytes memory validatorSetBytes) internal{
     // do deserialize and verify.
     Validator[] memory validatorSet = parseValidatorSet(validatorSetBytes);
     (bool passVerify, string memory errorMsg) = verifyValidatorSet(validatorSet);
@@ -207,9 +234,19 @@ contract BSCValidatorSet is System {
 
   function getValidators()external view returns(address[] memory) {
     uint n = currentValidatorSet.length;
-    address[] memory consensusAddrs = new address[](n);
+    uint valid = 0;
     for(uint i = 0;i<n;i++){
-      consensusAddrs[i] = currentValidatorSet[i].consensusAddress;
+      if(!currentValidatorSet[i].jailed){
+        valid ++;
+      }
+    }
+    address[] memory consensusAddrs = new address[](valid);
+    delete valid;
+    for(uint i = 0;i<n;i++){
+      if(!currentValidatorSet[i].jailed){
+        consensusAddrs[valid] = currentValidatorSet[i].consensusAddress;
+        valid ++;
+      }
     }
     return consensusAddrs;
   }
@@ -285,16 +322,16 @@ contract BSCValidatorSet is System {
   /*********************** Internal Functions **************************/
 
   function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory){
-    uint length = validatorSetBytes.length;
+    uint length = validatorSetBytes.length-1;
     require(length > 0, "the validatorSetBytes should not be empty");
-    require(length % VALIDATOR_BYTES_LENGTH == 0, "the length of validatorSetBytes should be times of 60");
+    require(length % VALIDATOR_BYTES_LENGTH == 0, "the length of validatorSetBytes should be times of 68");
     uint n = length/VALIDATOR_BYTES_LENGTH;
     Validator[] memory validatorSet = new Validator[](n);
     for(uint i = 0;i<n;i++){
-      validatorSet[i].consensusAddress = BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+20,validatorSetBytes);
-      validatorSet[i].feeAddress = address(uint160(BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+40,validatorSetBytes)));
-      validatorSet[i].BBCFeeAddress = BytesToTypes.bytesToAddress(i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
-      validatorSet[i].votingPower = BytesToTypes.bytesToUint64(i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
+      validatorSet[i].consensusAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+20,validatorSetBytes);
+      validatorSet[i].feeAddress = address(uint160(BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+40,validatorSetBytes)));
+      validatorSet[i].BBCFeeAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
+      validatorSet[i].votingPower = BytesToTypes.bytesToUint64(1+i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
     }
     return validatorSet;
   }
@@ -415,6 +452,13 @@ contract BSCValidatorSet is System {
     return prefix;
   }
 
+  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+    uint8 msgType = 0xff;
+    assembly {
+      msgType := mload(add(msgBytes, 1))
+    }
+    return msgType;
+  }
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool){
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;

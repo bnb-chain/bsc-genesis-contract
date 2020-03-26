@@ -123,7 +123,7 @@ contract TokenHub is ITokenHub {
         _alreadyInit = true;
     }
 
-    function bep2TokenSymbolConvert(string memory symbol) public view returns(bytes32) {
+    function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
         bytes32 result;
         assembly {
             result := mload(add(symbol, 32))
@@ -250,7 +250,7 @@ contract TokenHub is ITokenHub {
 
     function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, bindChannelID, _bindChannelSequence));
-        require(value.length==156, "unexpected bind package size");
+        require(value.length==156, "wrong bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
@@ -271,7 +271,7 @@ contract TokenHub is ITokenHub {
         return true;
     }
 
-    function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public view returns(bool) {
+    function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public pure returns(bool) {
         bytes memory erc20SymbolBytes = bytes(erc20Symbol);
         //Upper case string
         for (uint i = 0; i < erc20SymbolBytes.length; i++) {
@@ -406,7 +406,7 @@ contract TokenHub is ITokenHub {
 
     function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
-        require(value.length==164, "unexpected transfer package size");
+        require(value.length==164, "wrong transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
@@ -510,7 +510,7 @@ contract TokenHub is ITokenHub {
 
     function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
         require(verifyKey(key, refundChannelID, _refundChannelSequence));
-        require(value.length==74, "unexpected refund package size");
+        require(value.length==74, "wrong refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
         require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");

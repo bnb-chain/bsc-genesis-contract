@@ -93,7 +93,7 @@ contract('SlashIndicator', (accounts) => {
     amount = await validatorSetInstance.getIncoming.call(validator);
     assert.equal(amount.toNumber(),0);
 
-    await validatorSetInstance.updateValidatorSet(serialize([validator,secondValidator,thirdValidator],
+    await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 1, {from: systemAccount});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
@@ -151,7 +151,7 @@ contract('SlashIndicator', (accounts) => {
     let validator = accounts[0];
     let secondValidator = accounts[1];
     let thirdValidator = accounts[2];
-    await validatorSetInstance.updateValidatorSet(serialize([validator,secondValidator,thirdValidator],
+    await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 2, {from: systemAccount});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
@@ -175,7 +175,7 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres[1],secondValidator);
 
 
-    await validatorSetInstance.updateValidatorSet(serialize([validator,secondValidator,thirdValidator],
+    await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 3, {from: systemAccount});
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 2e18 });
@@ -198,7 +198,7 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres[0],validator);
     assert.equal(consensusAddres[1],thirdValidator);
 
-    await validatorSetInstance.updateValidatorSet(serialize([validator,secondValidator,thirdValidator],
+    await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 4, {from: systemAccount});
 
     await validatorSetInstance.deposit(thirdValidator, {from: systemAccount, value: 2e18 });
@@ -227,6 +227,7 @@ contract('SlashIndicator', (accounts) => {
 function serialize(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let n = consensusAddrList.length;
   let arr = [];
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")));
   for(let i = 0;i<n;i++){
     arr.push(Buffer.from(web3.utils.hexToBytes(consensusAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(feeAddrList[i].toString())));

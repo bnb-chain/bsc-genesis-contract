@@ -115,7 +115,7 @@ contract('BSCValidatorSet', (accounts) => {
 
 
     // do update
-    let tx = await validatorSetInstance.updateValidatorSet(serialize([newValidator.address],
+    let tx = await validatorSetInstance.update(serialize([newValidator.address],
         [newValidator.address],[newValidator.address]), crypto.randomBytes(32),100, 1,
         {from: relayerAccount});
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
@@ -167,7 +167,7 @@ contract('BSCValidatorSet', (accounts) => {
                 [validatorE,validatorC,validatorB,validatorA]];
     for(let j=0;j<arrs.length;j++){
       let arr = arrs[j];
-      await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,j+1,
+      await validatorSetInstance.update(serialize(arr, arr,arr), crypto.randomBytes(32),100,j+1,
           {from: relayerAccount});
       let consensusAddres = await validatorSetInstance.getValidators.call();
       assert.equal(consensusAddres.length, arr.length);
@@ -202,12 +202,12 @@ contract('BSCValidatorSet', (accounts) => {
       [],
       [validatorC,validatorC,validatorB]];
 
-    await validatorSetInstance.updateValidatorSet(serialize(arrs[0], arrs[0], arrs[0]), crypto.randomBytes(32),100,1,
+    await validatorSetInstance.update(serialize(arrs[0], arrs[0], arrs[0]), crypto.randomBytes(32),100,1,
         {from: relayerAccount});
     for(let j=1;j<arrs.length;j++){
       let arr = arrs[j];
       try{
-        await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
+        await validatorSetInstance.update(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
             {from: relayerAccount});
         assert.fail();
       }catch(error){
@@ -220,7 +220,7 @@ contract('BSCValidatorSet', (accounts) => {
     await lightClientInstance.setBlockNotSynced(true);
     let validArray = arrs[0];
     try{
-      await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
+      await validatorSetInstance.update(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
           {from: relayerAccount});
       assert.fail();
     }catch(error){
@@ -229,7 +229,7 @@ contract('BSCValidatorSet', (accounts) => {
     await lightClientInstance.setBlockNotSynced(false);
     await lightClientInstance.setStateNotVerified(true);
     try{
-      await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
+      await validatorSetInstance.update(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
           {from: relayerAccount});
       assert.fail();
     }catch(error){
@@ -259,7 +259,7 @@ contract('BSCValidatorSet', (accounts) => {
 
     await validatorSetInstance.getValidators.call();
     let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
-    await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,1,
+    await validatorSetInstance.update(serialize(arr, arr,arr), crypto.randomBytes(32),100,1,
           {from: relayerAccount});
     
     // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
@@ -274,7 +274,7 @@ contract('BSCValidatorSet', (accounts) => {
     await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
 
 
-    let tx = await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
+    let tx = await validatorSetInstance.update(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
         {from: relayerAccount});
 
     let validatorABalance = await web3.eth.getBalance(validatorA);
@@ -307,6 +307,7 @@ contract('BSCValidatorSet', (accounts) => {
 function serialize(consensusAddrList,feeAddrList, bscFeeAddrList ) {
   let n = consensusAddrList.length;
   let arr = [];
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")));
   for(let i = 0;i<n;i++){
     arr.push(Buffer.from(web3.utils.hexToBytes(consensusAddrList[i].toString())));
     arr.push(Buffer.from(web3.utils.hexToBytes(feeAddrList[i].toString())));

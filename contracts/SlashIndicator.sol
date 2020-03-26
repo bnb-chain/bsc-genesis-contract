@@ -79,7 +79,7 @@ contract SlashIndicator is ISlashIndicator,System {
 
   function clean() external override(ISlashIndicator) onlyInit onlyValidatorContract{
     uint n = validators.length;
-    for(uint i=0;i<n;i++){
+    for(uint i = 0;i<n;i++){
       delete indicators[validators[n-i-1]];
       validators.pop();
     }
