@@ -30,7 +30,6 @@ function compileContract(key, contractFile, contractName) {
   return new Promise((resolve, reject) => {
     const ls = spawn("solc", [
       "--bin-runtime",
-      "solidity-bytes-utils/=node_modules/solidity-bytes-utils/",
       "/=/",
       "--optimize",
       "--optimize-runs",
@@ -81,13 +80,13 @@ Promise.all([
   ),
   compileContract(
       "lightClientContract",
-      "contracts/mock/LightClient.sol",
-      "LightClient"
+      "contracts/TendermintLightClient.sol",
+      "TendermintLightClient"
   ),
   compileContract(
       "crossChainTransferContract",
-      "contracts/mock/CrossChainTransfer.sol",
-      "CrossChainTransfer"
+      "contracts/TokenHub.sol",
+      "TokenHub"
   ),
 ]).then(result => {
 
