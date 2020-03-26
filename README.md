@@ -15,6 +15,8 @@ $  addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791  // the first account of gana
 $  node generate-system.js --system-addr  $addr
 $  node generate-validatorset.js --mock true
 $  node generate-tokenhub.js --mock true
+$  node generate-headerrelayercontract.js --roundSize 20 --maximumWeight 10
+$  node generate-tranferrelayercontract.js --roundSize 20 --maximumWeight 10
 $  truffle compile
 $  truffle migrate
 $  truffle test

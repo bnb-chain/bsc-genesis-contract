@@ -4,8 +4,8 @@ import "./interface/IRelayerIncentivize.sol";
 
 contract TransferRelayerIncentivize is IRelayerIncentivize {
 
-    uint256 constant roundSize=20;
-    uint256 constant maximumWeight=10;
+    uint256 constant roundSize=1000;
+    uint256 constant maximumWeight=400;
 
     mapping( uint256 => mapping(address => uint256) ) public _relayersSubmitCount;
     mapping( uint256 => address payable[] ) public _relayerAddressRecord;

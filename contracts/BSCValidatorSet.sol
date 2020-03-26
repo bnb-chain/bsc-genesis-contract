@@ -8,7 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
-import "./mock/MockMerkleProof.sol";
+import "./MerkleProof.sol";
 
 
 contract BSCValidatorSet is System {
@@ -169,7 +169,6 @@ contract BSCValidatorSet is System {
     bytes memory key = generateKey(packageSequence);
     bytes32 appHash = lightClient.getAppHash(height);
     bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
-
     require(valid, "the package is invalid against its proof");
     uint8 msgType = getMsgType(msgBytes);
     if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){

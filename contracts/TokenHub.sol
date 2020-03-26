@@ -5,7 +5,7 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
-import "./mock/MockMerkleProof.sol";
+import "./MerkleProof.sol";
 
 
 contract TokenHub is ITokenHub {
@@ -249,8 +249,7 @@ contract TokenHub is ITokenHub {
         require(value.length==156, "wrong bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
-
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -406,8 +405,7 @@ contract TokenHub is ITokenHub {
         require(value.length==164, "wrong transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
-
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -420,13 +418,13 @@ contract TokenHub is ITokenHub {
         IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
 
         if (block.timestamp > transferInPackage.expireTime) {
-            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
+            emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**8, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
             return false;
         }
 
         if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
             if (address(this).balance < transferInPackage.amount) {
-                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
+                emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**8, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
                 return false;
             }
             transferInPackage.recipient.transfer(transferInPackage.amount);
@@ -434,7 +432,7 @@ contract TokenHub is ITokenHub {
             return true;
         } else {
             if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
-                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
+                emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**8, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
                 return false;
             }
             try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
@@ -443,7 +441,7 @@ contract TokenHub is ITokenHub {
                     return true;
                 } else {
                     try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
-                        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
+                        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**8, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
                         return false;
                     } catch Error(string memory reason) {
                         emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
@@ -510,8 +508,7 @@ contract TokenHub is ITokenHub {
         require(value.length==74, "wrong refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
-
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _refundChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
