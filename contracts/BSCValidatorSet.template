@@ -88,6 +88,7 @@ contract BSCValidatorSet is System {
   modifier sequenceInOrder(uint64 _sequence) {
     require(_sequence == sequence+1, "sequence not in order");
     _;
+    sequence ++;
   }
 
   modifier blockSynced(uint64 _height) {
@@ -187,7 +188,19 @@ contract BSCValidatorSet is System {
     if (index<=0){
       return;
     }
+    bool otherValid = false;
+    for(uint i=0;i<currentValidatorSet.length;i++){
+      if(!currentValidatorSet[i].jailed && currentValidatorSet[i].consensusAddress != v.consensusAddress){
+        otherValid = true;
+        break;
+      }
+    }
+    // will not jail if it is the last valid validator
+    if(!otherValid){
+      return;
+    }
     currentValidatorSet[index-1].jailed = true;
+    systemReward.claimRewards(msg.sender, RELAYER_REWARD);
     emit validatorJailed(v.consensusAddress);
     return;
   }
@@ -389,7 +402,6 @@ contract BSCValidatorSet is System {
   }
 
   function doUpdateState(Validator[] memory validatorSet) private{
-    sequence ++;
     totalInComing = 0;
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;
