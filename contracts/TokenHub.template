@@ -253,7 +253,7 @@ contract TokenHub is ITokenHub {
         require(value.length==156, "unexpected bind package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _bindChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -409,7 +409,7 @@ contract TokenHub is ITokenHub {
         require(value.length==164, "unexpected transfer package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _transferInChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -513,7 +513,7 @@ contract TokenHub is ITokenHub {
         require(value.length==74, "unexpected refund package size");
         require(ILightClient(_lightClientContract).isHeaderSynced(height));
         bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-        require(MockMerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+        require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
         _refundChannelSequence++;
 
         address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
