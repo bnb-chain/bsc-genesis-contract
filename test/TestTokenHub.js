@@ -448,7 +448,7 @@ contract('TokenHub', (accounts) => {
         const sender = accounts[2];
 
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
-        let expireTime = timestamp + 10; // expire at 5 second later
+        let expireTime = timestamp + 150; // expire at two minutes later
         const recipient = "0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60";
         const amount = web3.utils.toBN(1e11);
         const relayFee = web3.utils.toBN(1e16);
@@ -546,7 +546,7 @@ contract('TokenHub', (accounts) => {
         const refundAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
 
         let timestamp = Math.floor(Date.now() / 1000);
-        let expireTime = (timestamp + 5);
+        let expireTime = (timestamp + 150);
         const relayFee = web3.utils.toBN(1e16);
 
         await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});

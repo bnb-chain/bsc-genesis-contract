@@ -75,21 +75,21 @@ contract MaliciousToken is Context, IERC20, Ownable {
   /**
    * @dev See {IERC20-totalSupply}.
    */
-  function totalSupply() external override public view returns (uint256) {
+  function totalSupply() external override view returns (uint256) {
     return _totalSupply;
   }
 
   /**
    * @dev See {IERC20-balanceOf}.
    */
-  function balanceOf(address account) external override public view returns (uint256) {
+  function balanceOf(address account) external override view returns (uint256) {
     return _balances[account];
   }
 
   /**
    * @dev This is a malicious method. It is intended to stuck the transferIn channel
    */
-  function transfer(address recipient, uint256 amount) external override public returns (bool) {
+  function transfer(address recipient, uint256 amount) external override returns (bool) {
     revert("malicious method");
     return true;
   }
@@ -97,7 +97,7 @@ contract MaliciousToken is Context, IERC20, Ownable {
   /**
    * @dev See {IERC20-allowance}.
    */
-  function allowance(address owner, address spender) external override public view returns (uint256) {
+  function allowance(address owner, address spender) external override view returns (uint256) {
     return _allowances[owner][spender];
   }
 
@@ -108,7 +108,7 @@ contract MaliciousToken is Context, IERC20, Ownable {
    *
    * - `spender` cannot be the zero address.
    */
-  function approve(address spender, uint256 amount) external override public returns (bool) {
+  function approve(address spender, uint256 amount) external override returns (bool) {
     _approve(_msgSender(), spender, amount);
     return true;
   }
@@ -125,7 +125,7 @@ contract MaliciousToken is Context, IERC20, Ownable {
    * - the caller must have allowance for `sender`'s tokens of at least
    * `amount`.
    */
-  function transferFrom(address sender, address recipient, uint256 amount) external override public returns (bool) {
+  function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
     _transfer(sender, recipient, amount);
     _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
     return true;
