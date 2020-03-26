@@ -4,17 +4,17 @@ import "../interface/ITokenHub.sol";
 
 contract MockTokenHub is ITokenHub {
 
-  function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof)
+  function handleBindPackage(uint64 height, bytes calldata value, bytes calldata proof)
   external override(ITokenHub) returns (bool) {
     return true;
   }
 
-  function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof)
+  function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof)
   external override(ITokenHub) returns (bool) {
     return true;
   }
 
-  function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof)
+  function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof)
   external override(ITokenHub) returns (bool) {
     return true;
   }

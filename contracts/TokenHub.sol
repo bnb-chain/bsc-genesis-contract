@@ -43,8 +43,7 @@ contract TokenHub is ITokenHub {
   string constant STORE_NAME = "ibc";
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  uint16 public _sourceChainID = 0x0003;
-  uint16 public _destChainID = 0x000f;
+  bytes32 constant crossChainKeyPrefix = 0x000000000000000000000000000000000000000000000000000000000003000f; // last 5 bytes
 
   uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
   uint256 public _refundRelayReward;
@@ -133,61 +132,36 @@ contract TokenHub is ITokenHub {
   }
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-  function verifyKey(bytes memory key, uint8 expectedChannelID, uint256 expectedSequence) internal view returns(bool) {
-    if (key.length != 14) {
-      return false;
-    }
+  function generateKey(uint8 channelID, uint256 sequence) internal view returns(bytes memory) {
+    bytes memory key = new bytes(14);
 
     uint256 ptr;
     assembly {
-      ptr := key
+      ptr := add(key, 14)
     }
 
-    uint8 prefix;
-    ptr+=1;
+
     assembly {
-      prefix := mload(ptr)
+      mstore(ptr, sequence)
     }
-    if (prefix != 0) {
-      return false;
-    }
+    ptr -= 8;
 
-    uint16 chainID;
-    ptr+=2;
+
     assembly {
-      chainID := mload(ptr)
+      mstore(ptr, channelID)
     }
-    if (chainID != _sourceChainID) {
-      return false;
-    }
+    ptr -= 1;
 
-    ptr+=2;
     assembly {
-      chainID := mload(ptr)
+      mstore(ptr, crossChainKeyPrefix)
     }
-    if (chainID != _destChainID) {
-      return false;
-    }
+    ptr -= 5;
 
-    ptr+=1;
-    uint8 channelID;
     assembly {
-      channelID := mload(ptr)
-    }
-    if (channelID != expectedChannelID) {
-      return false;
+      mstore(ptr, 14)
     }
 
-    ptr+=8;
-    uint64 sequence;
-    assembly {
-      sequence := mload(ptr)
-    }
-    if (sequence != expectedSequence) {
-      return false;
-    }
-
-    return true;
+    return key;
   }
 
   // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | expireTime | relayFee |
@@ -244,12 +218,11 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
-    require(verifyKey(key, bindChannelID, _bindChannelSequence));
+  function handleBindPackage(uint64 height,  bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
     require(value.length==156, "wrong bind package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -400,12 +373,11 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
-    require(verifyKey(key, transferInChannelID, _transferInChannelSequence));
+  function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
     require(value.length==164, "wrong transfer package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), value, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -516,12 +488,11 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, bytes calldata key, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
-    require(verifyKey(key, refundChannelID, _refundChannelSequence));
+  function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
     require(value.length==74, "wrong refund package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), value, proof), "invalid merkle proof");
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
