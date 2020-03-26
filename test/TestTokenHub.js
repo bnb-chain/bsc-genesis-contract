@@ -392,7 +392,7 @@ contract('TokenHub', (accounts) => {
         await sleep(10 * 1000);
         const tx = await tokenHub.handleTransferInPackage(merkleHeight, key, value, proof, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogTransferInFailureTimeout", (ev) => {
-            return ev.bep2TokenSymbol === "0x4142432d39433700000000000000000000000000000000000000000000000000";
+            return ev.bep2TokenSymbol === "0x4142432d39433700000000000000000000000000000000000000000000000000" && ev.bep2TokenAmount.toNumber() === 1550000000;
         });
         const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
         assert.equal(_transferInChannelSequence.toNumber(), 2, "wrong transfer in channel sequence");
