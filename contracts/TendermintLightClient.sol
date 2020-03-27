@@ -50,7 +50,7 @@ contract TendermintLightClient is ILightClient {
 
     emit InitConsensusState(_initialHeight, cs.appHash);
   }
-
+  
   function syncTendermintHeader(bytes calldata header, uint64 height) external returns (bool) {
     require(_submitters[height] == address(0x0), "can't sync duplicated header");
     require(height > _initialHeight, "can't sync header before _initialHeight");

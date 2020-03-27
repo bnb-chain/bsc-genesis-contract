@@ -7,8 +7,8 @@ const web3 = require("web3")
 const validators = require("./validators")
 const init_holders = require("./init_holders")
 
-// load and execute generate-system.js
 require("./generate-system");
+require("./generate-slash");
 require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");

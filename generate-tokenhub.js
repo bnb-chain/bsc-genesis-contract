@@ -17,11 +17,11 @@ program.option(
 )
 program.option("--fromChainId <fromChainId>",
     "fromChainId",
-    "0003");
+    "0001");
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "000f");
+    "0002");
 
 program.option("--refundRelayReward <refundRelayReward>",
     "refundRelayReward",

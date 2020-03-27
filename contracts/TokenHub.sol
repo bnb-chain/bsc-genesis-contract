@@ -43,7 +43,7 @@ contract TokenHub is ITokenHub {
   string constant STORE_NAME = "ibc";
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  bytes32 constant crossChainKeyPrefix = 0x000000000000000000000000000000000000000000000000000000000003000f; // last 5 bytes
+  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000000010002; // last 5 bytes
 
 
   uint256 constant public _minimumRelayFee=10000000000000000;

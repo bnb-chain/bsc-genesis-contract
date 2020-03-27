@@ -264,7 +264,7 @@ contract BSCValidatorSet is System {
 
   /*********************** For slash **************************/
 
-  function misdemeanor(address validator)external onlySlash onlyInit{
+  function misdemeanor(address validator)external onlySlash{
     uint256 index = currentValidatorSetMap[validator];
     if(index <= 0){
       return;
@@ -291,7 +291,7 @@ contract BSCValidatorSet is System {
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
-  function felony(address validator)external onlySlash onlyInit{
+  function felony(address validator)external onlySlash{
     uint256 index = currentValidatorSetMap[validator];
     if(index <= 0){
       return;

@@ -63,7 +63,6 @@ module.exports = function(deployer, network, accounts) {
     deployer.link(BytesLib, BSCValidatorSet);
     return deployer.deploy(BSCValidatorSet).then(function (instance) {
       instance.init();
-      slashInstance.init();
       slashInstance.updateContractAddr(BSCValidatorSet.address);
       instance.updateContractAddr(SystemReward.address, MockTokenHub.address, MockLightClient.address, SlashIndicator.address)
       });
