@@ -3,24 +3,24 @@
 #### Prepare
 
 Install dependency:
-```bash
-$ npm install
+```shell script
+npm install
 ``` 
 
 #### unit test
 
-```bash
-$  ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000  -e 10000
-$  addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791  // the first account of ganache
-$  node generate-system.js --system-addr  $addr
-$  node generate-validatorset.js --mock true
-$  node generate-tokenhub.js --mock true
-$  node generate-tendermintlightclient.js --mock true
-$  node generate-headerrelayercontract.js --roundSize 20 --maximumWeight 10
-$  node generate-tranferrelayercontract.js --roundSize 20 --maximumWeight 10
-$  truffle compile
-$  truffle migrate
-$  truffle test
+```shell script
+ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000  -e 10000
+addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791  // the first account of ganache
+node generate-system.js --system-addr  $addr
+node generate-validatorset.js --mock true
+node generate-tokenhub.js --mock true
+node generate-tendermintlightclient.js --mock true
+node generate-headerrelayercontract.js --roundSize 20 --maximumWeight 10
+node generate-tranferrelayercontract.js --roundSize 20 --maximumWeight 10
+truffle compile
+truffle migrate
+truffle test
 ```
 
 #### how to generate genesis file.

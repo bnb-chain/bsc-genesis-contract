@@ -103,14 +103,13 @@ contract TokenHub is ITokenHub {
     address incentivizeContractAddrForHeader,
     address incentivizeContractAddrForTransfer,
     uint256 minimumRelayFee,
-    uint256 refundReward) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
+    uint256 refundReward) public payable {
     _systemRewardContract = systemRewardContract;
     _lightClientContract = lightClientContractAddr;
     _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
     _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
     _minimumRelayFee=minimumRelayFee;
     _refundRelayReward=refundReward;
-    _alreadyInit = true;
   }
 {% else %}
 {% endif %}
