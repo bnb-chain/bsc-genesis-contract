@@ -120,8 +120,6 @@ contract BSCValidatorSet is System {
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
   event validatorFelony(address indexed validator, uint256 indexed amount);
-  event contractAddrUpdate(address systemRewardAddr, address tokenHubAddr, address lightClientAddr, address slashAddr);
-
 
   function init() external onlyNotInit{
     Validator[] memory validatorSet = parseValidatorSet(initValidatorSetBytes);
@@ -137,14 +135,6 @@ contract BSCValidatorSet is System {
     slash = ISlashIndicator(initSlashContract);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
-  }
-
-  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract) external onlyInit onlySystem{
-    lightClient = ILightClient(_lightClientAddr);
-    tokenHub = ITokenHub(_tokenHub);
-    systemReward = ISystemReward(_systemRewardAddr);
-    slash = ISlashIndicator(_slashContract);
-    emit contractAddrUpdate(_systemRewardAddr,_tokenHub,_lightClientAddr,_slashContract);
   }
 
   /*********************** External Functions **************************/
