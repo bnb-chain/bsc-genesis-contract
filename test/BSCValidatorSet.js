@@ -120,10 +120,10 @@ contract('BSCValidatorSet', (accounts) => {
         {from: relayerAccount});
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
     truffleAssert.eventEmitted(tx, "batchTransfer",(ev) => {
-      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(5e8)).toString();
+      return ev.amount.toString() === web3.utils.toBN(5e18).toString();
     });
     truffleAssert.eventEmitted(tx, "systemTransfer",(ev) => {
-      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(5e8)).toString();
+      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(1e9)).toString();
     });
 
     let used_wei = web3.utils.toBN(20000000000).muln(tx.receipt.gasUsed);
