@@ -5,7 +5,7 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
-import "./mock/MerkleProof.sol";
+import "./MerkleProof.sol";
 
 
 contract TokenHub is ITokenHub {
@@ -45,13 +45,14 @@ contract TokenHub is ITokenHub {
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   bytes32 constant crossChainKeyPrefix = 0x000000000000000000000000000000000000000000000000000000000003000f; // last 5 bytes
 
-  uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
-  uint256 public _refundRelayReward;
 
-  address public _systemRewardContract;
-  address public _lightClientContract;
-  address public _incentivizeContractForHeaderSyncRelayers;
-  address public _incentivizeContractForTransferRelayers;
+  uint256 constant public _minimumRelayFee=10000000000000000;
+  uint256 constant public _refundRelayReward=10000000000000000;
+  address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
+  address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
+  address constant public _incentivizeContractForHeaderSyncRelayers=0x0000000000000000000000000000000000001005;
+  address constant public _incentivizeContractForTransferRelayers=0x0000000000000000000000000000000000001006;
+
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
   mapping(address => bytes32) public _contractAddrToBEP2Symbol;
@@ -64,8 +65,6 @@ contract TokenHub is ITokenHub {
   uint256 public _transferOutChannelSequence=0;
   uint256 public _bindResponseChannelSequence=0;
   uint256 public _transferInFailureChannelSequence=0;
-
-  bool public _alreadyInit=false;
 
   event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
   event LogBindSuccess(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 decimals);
@@ -88,35 +87,8 @@ contract TokenHub is ITokenHub {
   event LogUnexpectedRevertInERC20(address contractAddr, string reason);
   event LogUnexpectedFailureAssertionInERC20(address contractAddr, bytes lowLevelData);
 
-  constructor() public {
+  constructor() public {}
 
-  }
-
-  modifier onlyNotInit() {
-    require(!_alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyAlreadyInit() {
-    require(_alreadyInit, "the contract not init yet");
-    _;
-  }
-
-  function initTokenHub(
-    address systemRewardContract,
-    address lightClientContractAddr,
-    address incentivizeContractAddrForHeader,
-    address incentivizeContractAddrForTransfer,
-    uint256 minimumRelayFee,
-    uint256 refundReward) onlyNotInit public payable { //TODO remove payable in testnet and mainnet
-    _systemRewardContract = systemRewardContract;
-    _lightClientContract = lightClientContractAddr;
-    _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
-    _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
-    _minimumRelayFee=minimumRelayFee;
-    _refundRelayReward=refundReward;
-    _alreadyInit = true;
-  }
 
   function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
     bytes32 result;
@@ -218,7 +190,7 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height,  bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
+  function handleBindPackage(uint64 height,  bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==156, "wrong bind package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -263,7 +235,7 @@ contract TokenHub is ITokenHub {
     return symbolMatch;
   }
 
-  function approveBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
+  function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     uint256 lockedAmount = bindPackage.totalSupply-bindPackage.peggyAmount;
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
@@ -295,7 +267,7 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
+  function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IERC20(contractAddr).getOwner()==msg.sender, "only erc20 owner can reject");
@@ -304,7 +276,7 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function expireBind(bytes32 bep2TokenSymbol) onlyAlreadyInit public returns (bool) {
+  function expireBind(bytes32 bep2TokenSymbol) public returns (bool) {
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
     delete _bindPackageRecord[bep2TokenSymbol];
@@ -373,7 +345,7 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
+  function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==164, "wrong transfer package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -488,7 +460,7 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof) override onlyAlreadyInit external returns (bool) {
+  function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==74, "wrong refund package size");
     require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -544,7 +516,7 @@ contract TokenHub is ITokenHub {
     }
   }
 
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override onlyAlreadyInit external payable returns (bool) {
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
     require(relayFee%(10**10)==0, "relayFee is must be N*10^10");
     require(relayFee>=_minimumRelayFee, "relayFee is too little");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
@@ -571,7 +543,7 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override onlyAlreadyInit external payable returns (bool) {
+  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(relayFee/amounts.length>=_minimumRelayFee, "relayFee is too little");

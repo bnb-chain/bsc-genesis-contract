@@ -11,6 +11,7 @@ const init_holders = require("./init_holders")
 require("./generate-system");
 require("./generate-validatorset");
 require("./generate-tokenhub");
+require("./generate-tendermintlightclient");
 require("./generate-headerrelayercontract");
 require("./generate-tranferrelayercontract");
 
@@ -103,7 +104,12 @@ Promise.all([
   )
 ]).then(result => {
 
+program.option("--initLockedBNBOnTokenHub <initLockedBNBOnTokenHub>",
+    "initLockedBNBOnTokenHub",
+    "100000000000000000000000000");
+
   const data = {
+    initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
     chainId: program.chainId,
     initHolders: init_holders,
     extraData: web3.utils.bytesToHex(validators.extraValidatorBytes)

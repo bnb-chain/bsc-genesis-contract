@@ -23,6 +23,14 @@ program.option("--toChainId <toChainId>",
     "toChainId",
     "000f");
 
+program.option("--refundRelayReward <refundRelayReward>",
+    "refundRelayReward",
+    "10000000000000000");
+
+program.option("--minimumRelayFee <minimumRelayFee>",
+    "minimumRelayFee",
+    "10000000000000000");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -30,6 +38,8 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
+  refundRelayReward: program.refundRelayReward,
+  minimumRelayFee: program.minimumRelayFee,
   fromChainId: program.fromChainId,
   toChainId: program.toChainId,
   mock: program.mock,
