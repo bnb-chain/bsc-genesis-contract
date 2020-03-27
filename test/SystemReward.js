@@ -84,7 +84,7 @@ contract('SystemReward', (accounts) => {
     let res = await systemRewardInstance.isOperator.call(newAccount.address);
     let numOperator =  await systemRewardInstance.numOperator.call();
     assert.ok(!res, "newAccount should not be operator");
-    assert.equal(numOperator, 7, "numOperator should be 5");
+    assert.equal(numOperator, 8, "numOperator should be 6");
 
 
     await systemRewardInstance.addOperator(newAccount.address, {from: accounts[0]})
@@ -92,13 +92,13 @@ contract('SystemReward', (accounts) => {
     res = await systemRewardInstance.isOperator.call(newAccount.address);
     numOperator =  await systemRewardInstance.numOperator.call();
     assert.ok(res, "newAccount should be operator");
-    assert.equal(numOperator, 8, "numOperator should be 6");
+    assert.equal(numOperator, 9, "numOperator should be 7");
 
     await systemRewardInstance.removeOperator(newAccount.address, {from: accounts[0]})
     res = await systemRewardInstance.isOperator.call(newAccount.address);
     numOperator =  await systemRewardInstance.numOperator.call();
     assert.ok(!res, "newAccount should not be operator");
-    assert.equal(numOperator, 7, "numOperator should be 5");
+    assert.equal(numOperator, 8, "numOperator should be 6");
   });
 
   it('Add and remove operators failed', async () => {

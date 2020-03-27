@@ -1,4 +1,4 @@
-pragma solidity 0.5.16;
+pragma solidity 0.6.4;
 
 /**
  * @dev Interface of the ERC20 standard as defined in the EIP. Does not include
@@ -23,7 +23,7 @@ interface IERC20 {
     /**
      * @dev Returns the bep token owner.
      */
-    function owner() external view returns (address);
+    function getOwner() external view returns (address);
 
     /**
      * @dev Returns the amount of tokens owned by `account`.
@@ -46,7 +46,7 @@ interface IERC20 {
      *
      * This value changes when {approve} or {transferFrom} are called.
      */
-    function allowance(address owner, address spender) external view returns (uint256);
+    function allowance(address _owner, address spender) external view returns (uint256);
 
     /**
      * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.

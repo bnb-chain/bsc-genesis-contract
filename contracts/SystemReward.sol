@@ -1,4 +1,4 @@
-pragma solidity ^0.5.16;
+pragma solidity 0.6.4;
 import "./System.sol";
 import "./interface/ISystemReward.sol";
 
@@ -6,6 +6,7 @@ contract SystemReward is System, ISystemReward{
   uint256 public constant MAX_REWARDS = 1e18;
   address public constant LIGHT_CLIENT_CONTRACT = 0x0000000000000000000000000000000000001003;
   address public constant VALIDATOR_SET_CONTRACT = 0x0000000000000000000000000000000000001000;
+  address public constant TOKEN_HUB_CONTRACT = 0x0000000000000000000000000000000000001004;
 
   uint public numOperator;
   bool public alreadyInit;
@@ -16,7 +17,8 @@ contract SystemReward is System, ISystemReward{
     if(!alreadyInit){
       operators[LIGHT_CLIENT_CONTRACT] = true;
       operators[VALIDATOR_SET_CONTRACT] = true;
-      numOperator = 2;
+      operators[TOKEN_HUB_CONTRACT] = true;
+      numOperator = 3;
       alreadyInit = true;
     }
     _;
@@ -50,7 +52,7 @@ contract SystemReward is System, ISystemReward{
   event ReceiveDeposit(address indexed from, uint256 indexed amount);
 
 
-  function () external payable{
+  receive() external payable{
     if (msg.value>0){
       emit ReceiveDeposit(msg.sender, msg.value);
     }
@@ -68,7 +70,7 @@ contract SystemReward is System, ISystemReward{
     emit DeleteOperator(operator);
   }
 
-  function claimRewards(address payable to, uint256 amount) external doInit onlyOperator rewardNotExceedLimit(amount){
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator rewardNotExceedLimit(amount){
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if(actualAmount>0){
       to.transfer(actualAmount);

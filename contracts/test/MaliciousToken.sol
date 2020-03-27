@@ -29,7 +29,7 @@ import "openzeppelin-solidity/contracts/access/Ownable.sol";
  * functions have been added to mitigate the well-known issues around setting
  * allowances. See {IERC20-approve}.
  */
-contract DEFToken is Context, IERC20, Ownable {
+contract MaliciousToken is Context, IERC20, Ownable {
   using SafeMath for uint256;
 
   mapping (address => uint256) private _balances;
@@ -42,8 +42,8 @@ contract DEFToken is Context, IERC20, Ownable {
   string public _name;
 
   constructor() public {
-    _name = "DEF token";
-    _symbol = "def";
+    _name = "Malicious token";
+    _symbol = "malicious";
     _decimals = 18;
     _totalSupply = 100000000000000000000000000;
     _balances[msg.sender] = _totalSupply;
@@ -87,15 +87,10 @@ contract DEFToken is Context, IERC20, Ownable {
   }
 
   /**
-   * @dev See {IERC20-transfer}.
-   *
-   * Requirements:
-   *
-   * - `recipient` cannot be the zero address.
-   * - the caller must have a balance of at least `amount`.
+   * @dev This is a malicious method. It is intended to stuck the transferIn channel
    */
   function transfer(address recipient, uint256 amount) external override returns (bool) {
-    _transfer(_msgSender(), recipient, amount);
+    revert("malicious method");
     return true;
   }
 

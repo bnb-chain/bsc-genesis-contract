@@ -20,7 +20,7 @@
   "dependencies": {
     "commander": "^3.0.1",
     "nunjucks": "^3.2.0",
-    "openzeppelin-solidity": "2.5.0",
+    "openzeppelin-solidity": "v3.0.0-rc.0",
     "solidity-bytes-utils": "0.0.8",
     "solium": "^1.2.5",
     "truffle-assertions": "0.9.2",

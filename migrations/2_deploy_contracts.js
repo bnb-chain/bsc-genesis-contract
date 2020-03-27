@@ -15,9 +15,10 @@ const TendermintLightClient = artifacts.require("TendermintLightClient");
 const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("test/ABCToken");
 const DEFToken = artifacts.require("test/DEFToken");
+const MaliciousToken = artifacts.require("test/MaliciousToken");
 
 const Web3 = require('web3');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:9545'));
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 
 module.exports = function(deployer, network, accounts) {
@@ -27,6 +28,7 @@ module.exports = function(deployer, network, accounts) {
   deployer.deploy(TokenHub);
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
+  deployer.deploy(MaliciousToken);
 
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];

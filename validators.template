@@ -32,6 +32,7 @@ function extraDataSerialize(validators) {
 function validatorsSerialize(validators) {
   let n = validators.length;
   let arr = [];
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")))
   for(let i = 0;i<n;i++){
     let validator = validators[i];
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));

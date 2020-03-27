@@ -115,15 +115,15 @@ contract('BSCValidatorSet', (accounts) => {
 
 
     // do update
-    let tx = await validatorSetInstance.updateValidatorSet(serialize([newValidator.address],
+    let tx = await validatorSetInstance.update(validatorUpdateSerialize([newValidator.address],
         [newValidator.address],[newValidator.address]), crypto.randomBytes(32),100, 1,
         {from: relayerAccount});
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
     truffleAssert.eventEmitted(tx, "batchTransfer",(ev) => {
-      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(5e8)).toString();
+      return ev.amount.toString() === web3.utils.toBN(5e18).toString();
     });
     truffleAssert.eventEmitted(tx, "systemTransfer",(ev) => {
-      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(5e8)).toString();
+      return ev.amount.toString() === web3.utils.toBN(5e18).add(web3.utils.toBN(1e9)).toString();
     });
 
     let used_wei = web3.utils.toBN(20000000000).muln(tx.receipt.gasUsed);
@@ -133,7 +133,7 @@ contract('BSCValidatorSet', (accounts) => {
     totalInComing = await validatorSetInstance.totalInComing.call();
     let afterRelayerBalance = await web3.eth.getBalance(relayerAccount);
 
-    assert.equal(web3.utils.toBN(afterRelayerBalance).sub(web3.utils.toBN(relayerBalance)).toString(), web3.utils.toBN(1e17).sub(used_wei).toString(), "totalInComing is not correct");
+    assert.equal(web3.utils.toBN(afterRelayerBalance).sub(web3.utils.toBN(relayerBalance)).toString(), web3.utils.toBN(1e16).sub(used_wei).toString(), "totalInComing is not correct");
     assert.equal(totalInComing.toNumber(), 0, "totalInComing is not correct");
     assert.equal(totalBalance, 0, "totalbalance is not correct");
 
@@ -167,7 +167,7 @@ contract('BSCValidatorSet', (accounts) => {
                 [validatorE,validatorC,validatorB,validatorA]];
     for(let j=0;j<arrs.length;j++){
       let arr = arrs[j];
-      await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,j+1,
+      await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,j+1,
           {from: relayerAccount});
       let consensusAddres = await validatorSetInstance.getValidators.call();
       assert.equal(consensusAddres.length, arr.length);
@@ -202,12 +202,12 @@ contract('BSCValidatorSet', (accounts) => {
       [],
       [validatorC,validatorC,validatorB]];
 
-    await validatorSetInstance.updateValidatorSet(serialize(arrs[0], arrs[0], arrs[0]), crypto.randomBytes(32),100,1,
+    await validatorSetInstance.update(validatorUpdateSerialize(arrs[0], arrs[0], arrs[0]), crypto.randomBytes(32),100,1,
         {from: relayerAccount});
     for(let j=1;j<arrs.length;j++){
       let arr = arrs[j];
       try{
-        await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
+        await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,2,
             {from: relayerAccount});
         assert.fail();
       }catch(error){
@@ -220,7 +220,7 @@ contract('BSCValidatorSet', (accounts) => {
     await lightClientInstance.setBlockNotSynced(true);
     let validArray = arrs[0];
     try{
-      await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
+      await validatorSetInstance.update(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
           {from: relayerAccount});
       assert.fail();
     }catch(error){
@@ -229,7 +229,7 @@ contract('BSCValidatorSet', (accounts) => {
     await lightClientInstance.setBlockNotSynced(false);
     await lightClientInstance.setStateNotVerified(true);
     try{
-      await validatorSetInstance.updateValidatorSet(serialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
+      await validatorSetInstance.update(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
           {from: relayerAccount});
       assert.fail();
     }catch(error){
@@ -259,7 +259,7 @@ contract('BSCValidatorSet', (accounts) => {
 
     await validatorSetInstance.getValidators.call();
     let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
-    await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,1,
+    await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,1,
           {from: relayerAccount});
     
     // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
@@ -274,7 +274,7 @@ contract('BSCValidatorSet', (accounts) => {
     await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
 
 
-    let tx = await validatorSetInstance.updateValidatorSet(serialize(arr, arr,arr), crypto.randomBytes(32),100,2,
+    let tx = await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,2,
         {from: relayerAccount});
 
     let validatorABalance = await web3.eth.getBalance(validatorA);
@@ -304,7 +304,85 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
-function serialize(consensusAddrList,feeAddrList, bscFeeAddrList ) {
+contract('BSCValidatorSet', (accounts) => {
+  it('validator jail', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+    let systemAccount = accounts[0];
+    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
+
+
+    let newValidator1 = web3.eth.accounts.create();
+    let newValidator2 = web3.eth.accounts.create();
+    let newValidator3 = web3.eth.accounts.create();
+    let relayerAccount = accounts[8];
+
+    // do update
+    await validatorSetInstance.update(validatorUpdateSerialize([newValidator1.address, newValidator2.address, newValidator3.address],
+        [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]), crypto.randomBytes(32), 100, 1,
+        {from: relayerAccount});
+
+    let consensusAddres = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddres.length, 3);
+    assert.equal(consensusAddres[0], newValidator1.address);
+    assert.equal(consensusAddres[1], newValidator2.address);
+    assert.equal(consensusAddres[2], newValidator3.address);
+
+    try {
+      await validatorSetInstance.update(jailSerialize([newValidator1.address, newValidator2.address, newValidator3.address],
+          [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]), crypto.randomBytes(32), 100, 2,
+          {from: relayerAccount});
+    } catch (error) {
+      assert.ok(error.toString().includes("length of jail validators must be one"));
+    }
+
+    await validatorSetInstance.update(jailSerialize([newValidator1.address],
+        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 2,
+        {from: relayerAccount});
+    consensusAddres = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddres.length, 2);
+    assert.equal(consensusAddres[0], newValidator2.address);
+    assert.equal(consensusAddres[1], newValidator3.address);
+
+    // ok to re jail
+    await validatorSetInstance.update(jailSerialize([newValidator1.address],
+        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 3,
+        {from: relayerAccount});
+
+    await validatorSetInstance.update(jailSerialize([newValidator2.address],
+        [newValidator2.address], [newValidator2.address]), crypto.randomBytes(32), 100, 4,
+        {from: relayerAccount});
+    consensusAddres = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddres.length, 1);
+    assert.equal(consensusAddres[0], newValidator3.address);
+
+    // can not jail if it is the last one validator
+    await validatorSetInstance.update(jailSerialize([newValidator3.address],
+        [newValidator3.address], [newValidator3.address]), crypto.randomBytes(32), 100, 5,
+        {from: relayerAccount});
+    consensusAddres = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddres.length, 1);
+    assert.equal(consensusAddres[0], newValidator3.address);
+
+  });
+});
+
+function jailSerialize(consensusAddrList,feeAddrList, bscFeeAddrList) {
+  let arr = [];
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x01")));
+  arr.push(serialize(consensusAddrList,feeAddrList, bscFeeAddrList))
+  return Buffer.concat(arr);
+}
+
+function validatorUpdateSerialize(consensusAddrList,feeAddrList, bscFeeAddrList) {
+  let arr = [];
+  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")));
+  arr.push(serialize(consensusAddrList,feeAddrList, bscFeeAddrList))
+  return Buffer.concat(arr);
+}
+
+
+function serialize(consensusAddrList, feeAddrList, bscFeeAddrList) {
   let n = consensusAddrList.length;
   let arr = [];
   for(let i = 0;i<n;i++){

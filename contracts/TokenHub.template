@@ -5,8 +5,9 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
-import "./mock/MerkleProof.sol";
-
+{% if mock %}import "./mock/MerkleProof.sol";
+{% else %}import "./MerkleProof.sol";
+{% endif %}
 
 contract TokenHub is ITokenHub {
 
@@ -43,7 +44,7 @@ contract TokenHub is ITokenHub {
   string constant STORE_NAME = "ibc";
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  bytes32 constant crossChainKeyPrefix = 0x000000000000000000000000000000000000000000000000000000000003000f; // last 5 bytes
+  bytes32 constant crossChainKeyPrefix = 0x00000000000000000000000000000000000000000000000000000000{{fromChainId}}{{toChainId}}; // last 5 bytes
 
   uint256 public _minimumRelayFee; //TODO change minimumRelayFee frequently
   uint256 public _refundRelayReward;

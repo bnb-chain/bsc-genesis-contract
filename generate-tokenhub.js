@@ -6,22 +6,22 @@ const nunjucks = require("nunjucks");
 program.version("0.0.1");
 program.option(
     "-t, --template <template>",
-    "validatorSet template file",
-    "./contracts/BSCValidatorSet.template"
+    "TokenHub template file",
+    "./contracts/TokenHub.template"
 );
 
 program.option(
     "-o, --output <output-file>",
-    "BSCValidatorSet.sol",
-    "./contracts/BSCValidatorSet.sol"
+    "TokenHub.sol",
+    "./contracts/TokenHub.sol"
 )
 program.option("--fromChainId <fromChainId>",
     "fromChainId",
-    "0x0001");
+    "0003");
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "0x0002");
+    "000f");
 
 program.option("--mock <mock>",
     "if use mock",
@@ -29,15 +29,12 @@ program.option("--mock <mock>",
 
 program.parse(process.argv);
 
-const validators = require("./validators")
-
 const data = {
   fromChainId: program.fromChainId,
   toChainId: program.toChainId,
-  initValidatorSetBytes: validators.validatorSetBytes.slice(2),
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
-console.log("BSCValidatorSet file updated.");
+console.log("TokenHub file updated.");
