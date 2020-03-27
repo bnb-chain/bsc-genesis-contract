@@ -28,7 +28,7 @@ contract BSCValidatorSet is System {
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
 
   // the precision of cross chain value transfer.
-  uint256 constant PRECISION = 1e8;
+  uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
   // the store name of the package
   string constant STORE_NAME = "ibc";
