@@ -12,7 +12,7 @@
     "istanbulBlock": 0,
     "muirGlacierBlock": 0,
     "parlia": {
-      "period": 5,
+      "period": 2,
       "epoch": 100,
       "validatorContract": "0x0000000000000000000000000000000000001000",
       "slashContract": "0x0000000000000000000000000000000000001001",
