@@ -8,7 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
-import "./mock/MerkleProof.sol";
+import "./MerkleProof.sol";
 
 
 contract BSCValidatorSet is System {
