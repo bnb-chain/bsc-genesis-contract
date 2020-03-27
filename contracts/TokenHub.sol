@@ -5,7 +5,7 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
-import "./MerkleProof.sol";
+import "./mock/MerkleProof.sol";
 
 
 contract TokenHub is ITokenHub {
@@ -118,7 +118,7 @@ contract TokenHub is ITokenHub {
     _alreadyInit = true;
   }
 
-  function bep2TokenSymbolConvert(string memory symbol) public view returns(bytes32) {
+  function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
     bytes32 result;
     assembly {
       result := mload(add(symbol, 32))
@@ -132,7 +132,7 @@ contract TokenHub is ITokenHub {
   }
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-  function generateKey(uint8 channelID, uint256 sequence) internal view returns(bytes memory) {
+  function generateKey(uint8 channelID, uint256 sequence) internal pure returns(bytes memory) {
     bytes memory key = new bytes(14);
 
     uint256 ptr;
@@ -240,7 +240,7 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public view returns(bool) {
+  function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public pure returns(bool) {
     bytes memory erc20SymbolBytes = bytes(erc20Symbol);
     //Upper case string
     for (uint i = 0; i < erc20SymbolBytes.length; i++) {
