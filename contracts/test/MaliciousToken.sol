@@ -89,9 +89,8 @@ contract MaliciousToken is Context, IERC20, Ownable {
   /**
    * @dev This is a malicious method. It is intended to stuck the transferIn channel
    */
-  function transfer(address recipient, uint256 amount) external override returns (bool) {
+  function transfer(address, uint256) external override returns (bool) {
     revert("malicious method");
-    return true;
   }
 
   /**
