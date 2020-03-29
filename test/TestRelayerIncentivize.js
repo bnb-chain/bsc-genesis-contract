@@ -35,6 +35,7 @@ contract('RelayerIncentivize', (accounts) => {
         const newAccount4Balance = await web3.eth.getBalance(accounts[4]);
         const newAccount5Balance = await web3.eth.getBalance(accounts[5]);
 
+        //TODO improve the balance change verification
         console.log("Reward for account 1: "+web3.utils.toBN(newAccount1Balance).sub(web3.utils.toBN(initialAccount1Balance)));
         console.log("Reward for account 2: "+web3.utils.toBN(newAccount2Balance).sub(web3.utils.toBN(initialAccount2Balance)));
         console.log("Reward for account 3: "+web3.utils.toBN(newAccount3Balance).sub(web3.utils.toBN(initialAccount3Balance)));
@@ -71,6 +72,7 @@ contract('RelayerIncentivize', (accounts) => {
         const newAccount8Balance = await web3.eth.getBalance(accounts[8]);
         const newAccount9Balance = await web3.eth.getBalance(accounts[9]);
 
+        //TODO improve the balance change verification
         console.log("Reward for account 6: "+web3.utils.toBN(newAccount6Balance).sub(web3.utils.toBN(initialAccount6Balance)));
         console.log("Reward for account 7: "+web3.utils.toBN(newAccount7Balance).sub(web3.utils.toBN(initialAccount7Balance)));
         console.log("Reward for account 8: "+web3.utils.toBN(newAccount8Balance).sub(web3.utils.toBN(initialAccount8Balance)));

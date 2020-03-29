@@ -1,8 +1,8 @@
 pragma solidity 0.6.4;
 
-import "./interface/IRelayerIncentivize.sol";
+import "./interface/IHeaderRelayerIncentivize.sol";
 
-contract HeaderRelayerIncentivize is IRelayerIncentivize {
+contract HeaderRelayerIncentivize is IHeaderRelayerIncentivize {
 
   uint256 constant roundSize={{roundSize}};
   uint256 constant maximumWeight={{maximumWeight}};
@@ -15,29 +15,29 @@ contract HeaderRelayerIncentivize is IRelayerIncentivize {
   uint256 public _roundSequence = 0;
   uint256 public _countInRound=0;
 
-  event LogAddReward(address relayerAddr, uint256 amount);
+  event LogAddReward(address headerRelayerAddr, uint256 amount);
   event LogRewardPeriodExpire(uint256 sequence, uint256 totalPeriodReward);
 
-  function addReward(address payable relayerAddr) external override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable caller) external override payable returns (bool) {
     _countInRound++;
     _collectedRewardRound[_roundSequence] += msg.value;
 
-    if (_relayersSubmitCount[_roundSequence][relayerAddr]==0){
-      _relayerAddressRecord[_roundSequence].push(relayerAddr);
+    if (_relayersSubmitCount[_roundSequence][headerRelayerAddr]==0){
+      _relayerAddressRecord[_roundSequence].push(headerRelayerAddr);
     }
-    _relayersSubmitCount[_roundSequence][relayerAddr]++;
-    emit LogAddReward(relayerAddr, msg.value);
+    _relayersSubmitCount[_roundSequence][headerRelayerAddr]++;
+    emit LogAddReward(headerRelayerAddr, msg.value);
 
     if (_countInRound==roundSize){
       emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
-      claimReward(_roundSequence);
+      claimReward(_roundSequence, caller);
       _roundSequence++;
       _countInRound = 0;
     }
     return true;
   }
 
-  function claimReward(uint256 sequence) internal returns (bool) {
+  function claimReward(uint256 sequence, address payable caller) internal returns (bool) {
     uint256 totalReward = _collectedRewardRound[sequence];
 
     address payable[] memory relayers = _relayerAddressRecord[sequence];
@@ -57,7 +57,7 @@ contract HeaderRelayerIncentivize is IRelayerIncentivize {
       remainReward = remainReward-reward;
     }
     relayers[0].transfer(remainReward);
-    msg.sender.transfer(callerReward);
+    caller.transfer(callerReward);
 
     delete _collectedRewardRound[sequence];
     for (uint256 index = 0; index < relayers.length; index++){

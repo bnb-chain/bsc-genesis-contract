@@ -1,8 +1,8 @@
 pragma solidity 0.6.4;
 
-import "./interface/IRelayerIncentivize.sol";
+import "./interface/ITransferRelayerIncentivize.sol";
 
-contract TransferRelayerIncentivize is IRelayerIncentivize {
+contract TransferRelayerIncentivize is ITransferRelayerIncentivize {
 
   uint256 constant roundSize = {{roundSize}};
   uint256 constant maximumWeight = {{maximumWeight}};
@@ -31,14 +31,14 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
 
     if (_countInRound==roundSize){
       emit LogRewardPeriodExpire(_roundSequence, _collectedRewardRound[_roundSequence]);
-      claimReward(_roundSequence);
+      claimReward(_roundSequence, relayerAddr);
       _roundSequence++;
       _countInRound = 0;
     }
     return true;
   }
 
-  function claimReward(uint256 sequence) internal returns (bool) {
+  function claimReward(uint256 sequence, address payable relayerAddr) internal returns (bool) {
     uint256 totalReward = _collectedRewardRound[sequence];
 
     address payable[] memory relayers = _relayerAddressRecord[sequence];
@@ -58,7 +58,7 @@ contract TransferRelayerIncentivize is IRelayerIncentivize {
       remainReward = remainReward-reward;
     }
     relayers[0].transfer(remainReward);
-    msg.sender.transfer(callerReward);
+    relayerAddr.transfer(callerReward);
 
     delete _collectedRewardRound[sequence];
     for (uint256 index = 0; index < relayers.length; index++){

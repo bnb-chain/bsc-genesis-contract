@@ -2,7 +2,8 @@ pragma solidity 0.6.4;
 
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
-import "./interface/IRelayerIncentivize.sol";
+import "./interface/IHeaderRelayerIncentivize.sol";
+import "./interface/ITransferRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./MerkleProof.sol";
@@ -202,10 +203,10 @@ contract TokenHub is ITokenHub {
     BindPackage memory bindPackage = decodeBindPackage(value);
 
     uint256 reward = calculateRewardForTendermintHeaderRelayer(bindPackage.relayFee);
-    IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter);
+    IHeaderRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter, msg.sender);
     reward = bindPackage.relayFee-reward;
     // TODO maybe the reward should be paid to msg.sender directly
-    IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    ITransferRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
     emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
@@ -357,9 +358,9 @@ contract TokenHub is ITokenHub {
     TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
 
     uint256 reward = calculateRewardForTendermintHeaderRelayer(transferInPackage.relayFee);
-    IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter);
+    IHeaderRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter, msg.sender);
     reward = transferInPackage.relayFee-reward;
-    IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    ITransferRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
       if (block.timestamp > transferInPackage.expireTime) {
