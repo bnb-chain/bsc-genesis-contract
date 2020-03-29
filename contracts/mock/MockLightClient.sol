@@ -14,6 +14,8 @@ contract MockLightClient is ILightClient{
     return bytes32(0x0);
   }
 
+  function init() public {}
+
   function getSubmitter(uint64) external override(ILightClient) view returns (address payable) {
     return address(0x0);
   }
