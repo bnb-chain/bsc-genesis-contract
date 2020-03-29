@@ -165,6 +165,8 @@ contract BSCValidatorSet is System {
       updateValidatorSet(msgBytes);
     }else if(msgType == JAIL_MESSAGE_TYPE){
       jailValidator(msgBytes);
+    }else{
+      require(false, "unknown message type");
     }
   }
 
