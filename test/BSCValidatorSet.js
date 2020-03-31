@@ -133,7 +133,7 @@ contract('BSCValidatorSet', (accounts) => {
     totalInComing = await validatorSetInstance.totalInComing.call();
     let afterRelayerBalance = await web3.eth.getBalance(relayerAccount);
 
-    assert.equal(web3.utils.toBN(afterRelayerBalance).sub(web3.utils.toBN(relayerBalance)).toString(), web3.utils.toBN(1e16).sub(used_wei).toString(), "totalInComing is not correct");
+    assert.equal(web3.utils.toBN(afterRelayerBalance).sub(web3.utils.toBN(relayerBalance)).toString(), web3.utils.toBN(5e16).sub(used_wei).toString(), "totalInComing is not correct");
     assert.equal(totalInComing.toNumber(), 0, "totalInComing is not correct");
     assert.equal(totalBalance, 0, "totalbalance is not correct");
 

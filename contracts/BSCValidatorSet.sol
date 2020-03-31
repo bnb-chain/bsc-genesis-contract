@@ -20,8 +20,8 @@ contract BSCValidatorSet is System {
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
   uint256 constant public EXTRA_FEE = 1e12;
-  // will reward relayer at most 0.01 BNB.
-  uint256 constant public RELAYER_REWARD = 1e16;
+  // will reward relayer at most 0.05 BNB.
+  uint256 constant public RELAYER_REWARD = 5e16;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
@@ -166,7 +166,7 @@ contract BSCValidatorSet is System {
     }else if(msgType == JAIL_MESSAGE_TYPE){
       jailValidator(msgBytes);
     }else{
-      require(false, "unknown message type");
+       require(false, "unknown message type");
     }
   }
 
