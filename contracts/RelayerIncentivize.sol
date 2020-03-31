@@ -4,8 +4,8 @@ import "./interface/IRelayerIncentivize.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize {
 
-  uint256 constant roundSize=1000;
-  uint256 constant maximumWeight=400;
+  uint256 public constant roundSize=1000;
+  uint256 public constant maximumWeight=400;
 
   mapping( uint256 => mapping(address => uint256) ) public _headerRelayersSubmitCount;
   mapping( uint256 => address payable[] ) public _headerRelayerAddressRecord;
@@ -18,10 +18,18 @@ contract RelayerIncentivize is IRelayerIncentivize {
 
   uint256 public _roundSequence = 0;
   uint256 public _countInRound=0;
-
+  
+  address constant public _tokenHubContract = 0x0000000000000000000000000000000000001004;
+  
   event LogRewardPeriodExpire(uint256 sequence, uint256 roundHeaderRelayerReward, uint256 roundTransferRelayerReward);
 
-  function addReward(address payable headerRelayerAddr, address payable caller) external override payable returns (bool) {
+  modifier onlyTokenHub() {
+    require(_tokenHubContract == msg.sender, "the message sender must be token hub contract");
+    _;
+  }
+  
+  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
+  
     _countInRound++;
 
     uint256 reward = calculateRewardForHeaderRelayer(msg.value);
@@ -58,19 +66,21 @@ contract RelayerIncentivize is IRelayerIncentivize {
   function claimHeaderRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
     uint256 totalReward = _collectedRewardForHeaderRelayerPerRound[sequence];
 
+    uint256 totalWeight=0;
     address payable[] memory relayers = _headerRelayerAddressRecord[sequence];
     uint256[] memory relayerWeight = new uint256[](relayers.length);
     for(uint256 index = 0; index < relayers.length; index++) {
       address relayer = relayers[index];
       uint256 weight = calculateHeaderRelayerWeight(_headerRelayersSubmitCount[sequence][relayer]);
       relayerWeight[index] = weight;
+      totalWeight = totalWeight + weight;
     }
 
     uint256 callerReward = totalReward * 5/100; //TODO need further discussion
     totalReward = totalReward - callerReward;
     uint256 remainReward = totalReward;
     for(uint256 index = 1; index < relayers.length; index++) {
-      uint256 reward = relayerWeight[index]*totalReward/roundSize;
+      uint256 reward = relayerWeight[index]*totalReward/totalWeight;
       relayers[index].transfer(reward);
       remainReward = remainReward-reward;
     }
@@ -88,19 +98,21 @@ contract RelayerIncentivize is IRelayerIncentivize {
   function claimTransferRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
     uint256 totalReward = _collectedRewardForTransferRelayerPerRound[sequence];
 
+    uint256 totalWeight=0;
     address payable[] memory relayers = _transferRelayerAddressRecord[sequence];
     uint256[] memory relayerWeight = new uint256[](relayers.length);
     for(uint256 index = 0; index < relayers.length; index++) {
       address relayer = relayers[index];
       uint256 weight = calculateTransferRelayerWeight(_transferRelayersSubmitCount[sequence][relayer]);
       relayerWeight[index] = weight;
+      totalWeight = totalWeight + weight;
     }
 
     uint256 callerReward = totalReward * 5/100; //TODO need further discussion
     totalReward = totalReward - callerReward;
     uint256 remainReward = totalReward;
     for(uint256 index = 1; index < relayers.length; index++) {
-      uint256 reward = relayerWeight[index]*totalReward/roundSize;
+      uint256 reward = relayerWeight[index]*totalReward/totalWeight;
       relayers[index].transfer(reward);
       remainReward = remainReward-reward;
     }

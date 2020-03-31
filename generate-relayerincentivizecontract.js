@@ -23,11 +23,16 @@ program.option("--maximumWeight <maximumWeight>",
     "maximumWeight",
     "400");
 
+program.option("--mock <mock>",
+    "if use mock",
+    false);
+
 program.parse(process.argv);
 
 const data = {
   roundSize: program.roundSize,
   maximumWeight: program.maximumWeight,
+  mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
