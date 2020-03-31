@@ -45,6 +45,7 @@ contract TokenHub is ITokenHub {
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000000010002; // last 5 bytes
 
+  uint256 constant public _maxGasForCallingERC20=50000;
 
   uint256 constant public _minimumRelayFee=10000000000000000;
   uint256 constant public _refundRelayReward=10000000000000000;
@@ -372,12 +373,12 @@ contract TokenHub is ITokenHub {
         emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
         return false;
       }
-      try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
+      try IERC20(transferInPackage.contractAddr).transfer{gas: _maxGasForCallingERC20}(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
         if (success) {
           //emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
           return true;
         } else {
-          try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+          try IERC20(transferInPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
             uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
             emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
             return false;
@@ -400,7 +401,7 @@ contract TokenHub is ITokenHub {
   }
 
   function convertToBEP2Amount(address contractAddr, uint256 amount) internal returns (uint256) {
-    try IERC20(contractAddr).decimals() returns (uint256 decimals) {
+    try IERC20(contractAddr).decimals{gas: _maxGasForCallingERC20}() returns (uint256 decimals) {
       return amount * (10**8) / (10**decimals);
     } catch Error(string memory reason) {
       emit LogUnexpectedRevertInERC20(contractAddr, reason);
@@ -483,12 +484,12 @@ contract TokenHub is ITokenHub {
         emit LogRefundFailureUnboundToken(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
         return false;
       }
-      try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
+      try IERC20(refundPackage.contractAddr).transfer{gas: _maxGasForCallingERC20}(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
         if (success) {
           emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
           return true;
         } else {
-          try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+          try IERC20(refundPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
             emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
             return false;
           } catch Error(string memory reason) {

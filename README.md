@@ -28,7 +28,7 @@ truffle test
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
 2. Edit `validators.js` file to alloc the initial validator set.
 3. Edit `generate-validatorset.js` file to change `fromChainId` and `toChainId`,
-4. Edit `generate-tokenhub.js` file to change `fromChainId`, `toChainId`, `refundRelayReward` and `minimumRelayFee`.
+4. Edit `generate-tokenhub.js` file to change `fromChainId`, `toChainId`, `refundRelayReward`, `minimumRelayFee` and `maxGasForCallingERC20`.
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
 
