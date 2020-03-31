@@ -82,7 +82,6 @@ contract TokenHub is ITokenHub {
   event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
   event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
-  event LogTransferInSuccess(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr);
   event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
   event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 actualBalance);
   event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
@@ -380,7 +379,6 @@ contract TokenHub is ITokenHub {
         return false;
       }
       transferInPackage.recipient.transfer(transferInPackage.amount);
-      //emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
       if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
@@ -395,7 +393,6 @@ contract TokenHub is ITokenHub {
       }
       try IERC20(transferInPackage.contractAddr).transfer{gas: _maxGasForCallingERC20}(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
         if (success) {
-          //emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
           return true;
         } else {
           try IERC20(transferInPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
