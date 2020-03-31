@@ -9,8 +9,7 @@ const MockLightClient = artifacts.require("mock/MockLightClient");
 const MockTokenHub = artifacts.require("mock/MockTokenHub");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 
-const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
-const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
+const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("test/ABCToken");
@@ -22,8 +21,7 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 
 module.exports = function(deployer, network, accounts) {
-  deployer.deploy(HeaderRelayerIncentivize);
-  deployer.deploy(TransferRelayerIncentivize);
+  deployer.deploy(RelayerIncentivize);
   deployer.deploy(TendermintLightClient);
   deployer.deploy(TokenHub);
   deployer.deploy(ABCToken);

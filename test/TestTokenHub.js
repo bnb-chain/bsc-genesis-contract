@@ -3,8 +3,7 @@ const sleep = require("await-sleep");
 const InputDataDecoder = require('ethereum-input-data-decoder');
 
 const SystemReward = artifacts.require("SystemReward");
-const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
-const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
+const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 //const TendermintLightClient = artifacts.require("TendermintLightClient");
 const MockLightClient = artifacts.require("mock/MockLightClient");
 const TokenHub = artifacts.require("TokenHub");
@@ -33,9 +32,8 @@ contract('TokenHub', (accounts) => {
         const tokenHub = await TokenHub.deployed();
         await tokenHub.initTokenHub(
             SystemReward.address, 
-            MockLightClient.address, 
-            HeaderRelayerIncentivize.address, 
-            TransferRelayerIncentivize.address,
+            MockLightClient.address,
+            RelayerIncentivize.address,
             minimumRelayFee,
             refundRelayReward,
             {

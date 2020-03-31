@@ -12,8 +12,7 @@ require("./generate-slash");
 require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
-require("./generate-headerrelayercontract");
-require("./generate-tranferrelayercontract");
+require("./generate-relayerincentivizecontract");
 
 program.version("0.0.1")
 program.option("-c, --chain-id <chain-id>", "chain id", "714")
@@ -93,14 +92,9 @@ Promise.all([
       "TokenHub"
   ),
   compileContract(
-      "headerRelayerIncentivize",
-      "contracts/HeaderRelayerIncentivize.sol",
-      "HeaderRelayerIncentivize"
-  ),
-  compileContract(
-      "transferRelayerIncentivize",
-      "contracts/TransferRelayerIncentivize.sol",
-      "TransferRelayerIncentivize"
+      "relayerIncentivize",
+      "contracts/RelayerIncentivize.sol",
+      "RelayerIncentivize"
   )
 ]).then(result => {
 

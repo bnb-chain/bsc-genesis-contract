@@ -2,8 +2,7 @@ pragma solidity 0.6.4;
 
 import "./interface/IERC20.sol";
 import "./interface/ILightClient.sol";
-import "./interface/IHeaderRelayerIncentivize.sol";
-import "./interface/ITransferRelayerIncentivize.sol";
+import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./MerkleProof.sol";
@@ -51,8 +50,7 @@ contract TokenHub is ITokenHub {
   uint256 constant public _refundRelayReward=10000000000000000;
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
   address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
-  address constant public _incentivizeContractForHeaderSyncRelayers=0x0000000000000000000000000000000000001005;
-  address constant public _incentivizeContractForTransferRelayers=0x0000000000000000000000000000000000001006;
+  address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
 
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
@@ -193,20 +191,14 @@ contract TokenHub is ITokenHub {
 
   function handleBindPackage(uint64 height,  bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==156, "wrong bind package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-
     BindPackage memory bindPackage = decodeBindPackage(value);
-
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(bindPackage.relayFee);
-    IHeaderRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter, msg.sender);
-    reward = bindPackage.relayFee-reward;
-    // TODO maybe the reward should be paid to msg.sender directly
-    ITransferRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
     emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
@@ -348,19 +340,14 @@ contract TokenHub is ITokenHub {
 
   function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==164, "wrong transfer package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), value, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-
     TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
-
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(transferInPackage.relayFee);
-    IHeaderRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter, msg.sender);
-    reward = transferInPackage.relayFee-reward;
-    ITransferRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
       if (block.timestamp > transferInPackage.expireTime) {
@@ -372,33 +359,26 @@ contract TokenHub is ITokenHub {
         return false;
       }
       transferInPackage.recipient.transfer(transferInPackage.amount);
-      emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+      //emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
-      uint256 bep2Amount;
-      try IERC20(transferInPackage.contractAddr).decimals() returns (uint256 decimals) {
-        bep2Amount = transferInPackage.amount * (10**8) / (10**decimals);
-      } catch Error(string memory reason) {
-        emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
-        return false;
-      } catch (bytes memory lowLevelData) {
-        emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
-        return false;
-      }
       if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
+        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         return false;
       }
       if (block.timestamp > transferInPackage.expireTime) {
+        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
         return false;
       }
       try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
         if (success) {
-          emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+          //emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
           return true;
         } else {
           try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+            uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
             emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
             return false;
           } catch Error(string memory reason) {
@@ -416,6 +396,18 @@ contract TokenHub is ITokenHub {
         emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
         return false;
       }
+    }
+  }
+
+  function convertToBEP2Amount(address contractAddr, uint256 amount) internal returns (uint256) {
+    try IERC20(contractAddr).decimals() returns (uint256 decimals) {
+      return amount * (10**8) / (10**decimals);
+    } catch Error(string memory reason) {
+      emit LogUnexpectedRevertInERC20(contractAddr, reason);
+      return 0;
+    } catch (bytes memory lowLevelData) {
+      emit LogUnexpectedFailureAssertionInERC20(contractAddr, lowLevelData);
+      return 0;
     }
   }
 
@@ -463,7 +455,7 @@ contract TokenHub is ITokenHub {
 
   function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==74, "wrong refund package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), value, proof), "invalid merkle proof");
     _refundChannelSequence++;
@@ -471,7 +463,7 @@ contract TokenHub is ITokenHub {
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
     //TODO system reward, need further discussion,
     //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(_refundRelayReward);
+    uint256 reward = _refundRelayReward / 20;
     ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, reward);
     reward = _refundRelayReward-reward;
     ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);
