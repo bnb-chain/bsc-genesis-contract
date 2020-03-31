@@ -18,7 +18,6 @@ node generate-tokenhub.js --mock true
 node generate-slash.js --mock true
 node generate-tendermintlightclient.js --mock true
 node generate-relayerincentivizecontract.js --roundSize 20 --maximumWeight 10
-node generate-tranferrelayercontract.js --roundSize 20 --maximumWeight 10
 truffle compile
 truffle migrate
 truffle test

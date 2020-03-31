@@ -25,7 +25,7 @@ contract('RelayerIncentivize', (accounts) => {
         for(let i=0; i<7; i++){
             await relayerIncentivize.addReward(accounts[4], accounts[0], {from: accounts[0], value: web3.utils.toBN(1e16)});
         }
-        let _roundSequence = await headerRelayerIncentivize._roundSequence.call();
+        let _roundSequence = await relayerIncentivize._roundSequence.call();
         assert.equal(_roundSequence.toNumber(), 1, "wrong round sequence");
 
         const newAccount1Balance = await web3.eth.getBalance(accounts[1]);

@@ -26,6 +26,7 @@ contract TendermintLightClient is ILightClient {
 {% endif %}
   string constant public _chainID="{{chainID}}";
   bytes constant public _initConsensusStateBytes = hex"{{initConsensusStateBytes}}";
+  uint256 constant public _rewardForValidatorSetChange = {{rewardForValidatorSetChange}};
 
   event InitConsensusState(uint64 initHeight, bytes32 appHash);
   event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
@@ -109,7 +110,7 @@ contract TendermintLightClient is ILightClient {
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      ISystemReward(_systemRewardContract).claimRewards(msg.sender, 100000);//TODO further discussion about reward amount
+      ISystemReward(_systemRewardContract).claimRewards(msg.sender, _rewardForValidatorSetChange);//TODO further discussion about reward amount
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
 

@@ -463,7 +463,7 @@ contract TokenHub is ITokenHub {
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
     //TODO system reward, need further discussion,
     //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
-    uint256 reward = _refundRelayReward / 20;
+    uint256 reward = _refundRelayReward / 5;
     ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, reward);
     reward = _refundRelayReward-reward;
     ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);

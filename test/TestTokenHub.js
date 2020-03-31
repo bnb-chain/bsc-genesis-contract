@@ -374,9 +374,6 @@ contract('TokenHub', (accounts) => {
 
         const initBalance = await web3.eth.getBalance(accounts[2]);
         const tx = await tokenHub.handleTransferInPackage(merkleHeight, value, proof, {from: relayer});
-        truffleAssert.eventEmitted(tx, "LogTransferInSuccess", (ev) => {
-            return ev.recipient === accounts[2];
-        });
         const newBalance = await web3.eth.getBalance(accounts[2]);
 
         const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
