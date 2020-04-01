@@ -31,6 +31,10 @@ program.option("--minimumRelayFee <minimumRelayFee>",
     "minimumRelayFee",
     "10000000000000000");
 
+program.option("--maxGasForCallingERC20 <maxGasForCallingERC20>",
+    "maxGasForCallingERC20",
+    "50000");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -42,6 +46,7 @@ const data = {
   minimumRelayFee: program.minimumRelayFee,
   fromChainId: program.fromChainId,
   toChainId: program.toChainId,
+  maxGasForCallingERC20: program.maxGasForCallingERC20,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

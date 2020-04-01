@@ -6,14 +6,14 @@ const nunjucks = require("nunjucks");
 program.version("0.0.1");
 program.option(
     "-t, --template <template>",
-    "HeaderRelayerIncentivize template file",
-    "./contracts/HeaderRelayerIncentivize.template"
+    "RelayerIncentivize template file",
+    "./contracts/RelayerIncentivize.template"
 );
 
 program.option(
     "-o, --output <output-file>",
     "HeaderRelayerIncentivize.sol",
-    "./contracts/HeaderRelayerIncentivize.sol"
+    "./contracts/RelayerIncentivize.sol"
 )
 program.option("--roundSize <roundSize>",
     "roundSize",
@@ -23,13 +23,18 @@ program.option("--maximumWeight <maximumWeight>",
     "maximumWeight",
     "400");
 
+program.option("--mock <mock>",
+    "if use mock",
+    false);
+
 program.parse(process.argv);
 
 const data = {
   roundSize: program.roundSize,
   maximumWeight: program.maximumWeight,
+  mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
-console.log("HeaderRelayerIncentivize file updated.");
+console.log("RelayerIncentivize file updated.");

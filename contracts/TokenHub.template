@@ -46,20 +46,19 @@ contract TokenHub is ITokenHub {
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   bytes32 constant crossChainKeyPrefix = 0x00000000000000000000000000000000000000000000000000000000{{fromChainId}}{{toChainId}}; // last 5 bytes
 
+  uint256 constant public _maxGasForCallingERC20={{maxGasForCallingERC20}};
 {% if mock %}
   uint256 public _minimumRelayFee;
   uint256 public _refundRelayReward;
   address public _systemRewardContract;
   address public _lightClientContract;
-  address public _incentivizeContractForHeaderSyncRelayers;
-  address public _incentivizeContractForTransferRelayers;
+  address public _incentivizeContractForRelayers;
 {% else %}
   uint256 constant public _minimumRelayFee={{minimumRelayFee}};
   uint256 constant public _refundRelayReward={{refundRelayReward}};
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
   address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
-  address constant public _incentivizeContractForHeaderSyncRelayers=0x0000000000000000000000000000000000001005;
-  address constant public _incentivizeContractForTransferRelayers=0x0000000000000000000000000000000000001006;
+  address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
 {% endif %}
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
@@ -83,7 +82,7 @@ contract TokenHub is ITokenHub {
   event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
   event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
 
-  event LogTransferInSuccess(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr);
+  event LogTransferInSuccess(uint256 sequence, address recipient, uint256 amount, address contractAddr);
   event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
   event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 actualBalance);
   event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
@@ -100,14 +99,12 @@ contract TokenHub is ITokenHub {
   function initTokenHub(
     address systemRewardContract,
     address lightClientContractAddr,
-    address incentivizeContractAddrForHeader,
-    address incentivizeContractAddrForTransfer,
+    address incentivizeContractAddr,
     uint256 minimumRelayFee,
     uint256 refundReward) public payable {
     _systemRewardContract = systemRewardContract;
     _lightClientContract = lightClientContractAddr;
-    _incentivizeContractForHeaderSyncRelayers = incentivizeContractAddrForHeader;
-    _incentivizeContractForTransferRelayers = incentivizeContractAddrForTransfer;
+    _incentivizeContractForRelayers = incentivizeContractAddr;
     _minimumRelayFee=minimumRelayFee;
     _refundRelayReward=refundReward;
   }
@@ -121,10 +118,6 @@ contract TokenHub is ITokenHub {
     return result;
   }
 
-  //TODO need further discussion
-  function calculateRewardForTendermintHeaderRelayer(uint256 reward) internal pure returns (uint256) {
-    return reward/5; //20%
-  }
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
   function generateKey(uint8 channelID, uint256 sequence) internal pure returns(bytes memory) {
@@ -215,20 +208,14 @@ contract TokenHub is ITokenHub {
 
   function handleBindPackage(uint64 height,  bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==156, "wrong bind package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-
     BindPackage memory bindPackage = decodeBindPackage(value);
-
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(bindPackage.relayFee);
-    IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter);
-    reward = bindPackage.relayFee-reward;
-    // TODO maybe the reward should be paid to msg.sender directly
-    IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
     emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
@@ -370,19 +357,14 @@ contract TokenHub is ITokenHub {
 
   function handleTransferInPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==164, "wrong transfer package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), value, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-
     TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
-
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(transferInPackage.relayFee);
-    IRelayerIncentivize(_incentivizeContractForHeaderSyncRelayers).addReward{value: reward}(tendermintHeaderSubmitter);
-    reward = transferInPackage.relayFee-reward;
-    IRelayerIncentivize(_incentivizeContractForTransferRelayers).addReward{value: reward}(msg.sender);
+    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
       if (block.timestamp > transferInPackage.expireTime) {
@@ -394,33 +376,26 @@ contract TokenHub is ITokenHub {
         return false;
       }
       transferInPackage.recipient.transfer(transferInPackage.amount);
-      emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+      emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
-      uint256 bep2Amount;
-      try IERC20(transferInPackage.contractAddr).decimals() returns (uint256 decimals) {
-        bep2Amount = transferInPackage.amount * (10**8) / (10**decimals);
-      } catch Error(string memory reason) {
-        emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
-        return false;
-      } catch (bytes memory lowLevelData) {
-        emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
-        return false;
-      }
       if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
+        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         return false;
       }
       if (block.timestamp > transferInPackage.expireTime) {
+        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
         return false;
       }
-      try IERC20(transferInPackage.contractAddr).transfer(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
+      try IERC20(transferInPackage.contractAddr).transfer{gas: _maxGasForCallingERC20}(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
         if (success) {
-          emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
+          emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
           return true;
         } else {
-          try IERC20(transferInPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+          try IERC20(transferInPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
+            uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
             emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
             return false;
           } catch Error(string memory reason) {
@@ -438,6 +413,18 @@ contract TokenHub is ITokenHub {
         emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
         return false;
       }
+    }
+  }
+
+  function convertToBEP2Amount(address contractAddr, uint256 amount) internal returns (uint256) {
+    try IERC20(contractAddr).decimals{gas: _maxGasForCallingERC20}() returns (uint256 decimals) {
+      return amount * (10**8) / (10**decimals);
+    } catch Error(string memory reason) {
+      emit LogUnexpectedRevertInERC20(contractAddr, reason);
+      return 0;
+    } catch (bytes memory lowLevelData) {
+      emit LogUnexpectedFailureAssertionInERC20(contractAddr, lowLevelData);
+      return 0;
     }
   }
 
@@ -485,7 +472,7 @@ contract TokenHub is ITokenHub {
 
   function handleRefundPackage(uint64 height, bytes calldata value, bytes calldata proof) override external returns (bool) {
     require(value.length==74, "wrong refund package size");
-    require(ILightClient(_lightClientContract).isHeaderSynced(height));
+    //require(ILightClient(_lightClientContract).isHeaderSynced(height));
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), value, proof), "invalid merkle proof");
     _refundChannelSequence++;
@@ -493,7 +480,7 @@ contract TokenHub is ITokenHub {
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
     //TODO system reward, need further discussion,
     //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
-    uint256 reward = calculateRewardForTendermintHeaderRelayer(_refundRelayReward);
+    uint256 reward = _refundRelayReward / 5;
     ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, reward);
     reward = _refundRelayReward-reward;
     ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);
@@ -513,12 +500,12 @@ contract TokenHub is ITokenHub {
         emit LogRefundFailureUnboundToken(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
         return false;
       }
-      try IERC20(refundPackage.contractAddr).transfer(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
+      try IERC20(refundPackage.contractAddr).transfer{gas: _maxGasForCallingERC20}(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
         if (success) {
           emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
           return true;
         } else {
-          try IERC20(refundPackage.contractAddr).balanceOf(address(this)) returns (uint256 actualBalance) {
+          try IERC20(refundPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
             emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
             return false;
           } catch Error(string memory reason) {
