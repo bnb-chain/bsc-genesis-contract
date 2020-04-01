@@ -21,7 +21,7 @@ contract RelayerIncentivize is IRelayerIncentivize {
   
   address constant public _tokenHubContract = 0x0000000000000000000000000000000000001004;
   
-  event LogRewardPeriodExpire(uint256 sequence, uint256 roundHeaderRelayerReward, uint256 roundTransferRelayerReward);
+  event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
   modifier onlyTokenHub() {
     require(_tokenHubContract == msg.sender, "the message sender must be token hub contract");
@@ -47,10 +47,10 @@ contract RelayerIncentivize is IRelayerIncentivize {
     _transferRelayersSubmitCount[_roundSequence][caller]++;
 
     if (_countInRound==roundSize){
-      emit LogRewardPeriodExpire(_roundSequence, _collectedRewardForHeaderRelayerPerRound[_roundSequence], _collectedRewardForTransferRelayerPerRound[_roundSequence]);
+      emit LogDistributeCollectedReward(_roundSequence, _collectedRewardForHeaderRelayerPerRound[_roundSequence], _collectedRewardForTransferRelayerPerRound[_roundSequence]);
 
-      claimHeaderRelayerReward(_roundSequence, caller);
-      claimTransferRelayerReward(_roundSequence, caller);
+      distributeHeaderRelayerReward(_roundSequence, caller);
+      distributeTransferRelayerReward(_roundSequence, caller);
 
       _roundSequence++;
       _countInRound = 0;
@@ -63,7 +63,7 @@ contract RelayerIncentivize is IRelayerIncentivize {
     return reward/5; //20%
   }
 
-  function claimHeaderRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
+  function distributeHeaderRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
     uint256 totalReward = _collectedRewardForHeaderRelayerPerRound[sequence];
 
     uint256 totalWeight=0;
@@ -95,7 +95,7 @@ contract RelayerIncentivize is IRelayerIncentivize {
     return true;
   }
 
-  function claimTransferRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
+  function distributeTransferRelayerReward(uint256 sequence, address payable caller) internal returns (bool) {
     uint256 totalReward = _collectedRewardForTransferRelayerPerRound[sequence];
 
     uint256 totalWeight=0;
