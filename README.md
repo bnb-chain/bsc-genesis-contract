@@ -9,15 +9,25 @@ npm install
 
 #### unit test
 
+Generate contracts for testing:
 ```shell script
-ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000  -e 10000
-addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791  // the first account of ganache
+# the first account of ganache
+addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791 
 node generate-system.js --system-addr  $addr
 node generate-validatorset.js --mock true
 node generate-tokenhub.js --mock true
 node generate-slash.js --mock true
 node generate-tendermintlightclient.js --mock true
 node generate-relayerincentivizecontract.js --roundSize 30 --maximumWeight 3 --mock true
+```
+
+Start ganache:
+```shell script
+ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000  -e 10000
+```
+
+Run truffle test:
+```shell script
 truffle compile
 truffle migrate
 truffle test
