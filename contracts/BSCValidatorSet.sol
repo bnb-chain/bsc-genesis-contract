@@ -54,6 +54,7 @@ contract BSCValidatorSet is System {
   // state of this contract
   Validator[] public currentValidatorSet;
   uint64 public sequence;
+  uint64 public felonySequence;
   uint256 public totalInComing;
   uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
@@ -119,7 +120,7 @@ contract BSCValidatorSet is System {
   event deprecatedDeposit(address indexed validator, uint256 indexed amount);
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
-  event validatorFelony(address indexed validator, uint256 indexed amount);
+  event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 indexed amount);
 
   function init() external onlyNotInit{
     Validator[] memory validatorSet = parseValidatorSet(initValidatorSetBytes);
@@ -302,12 +303,13 @@ contract BSCValidatorSet is System {
     index = index - 1;
     uint256 income = currentValidatorSet[index].incoming;
     uint256 rest = currentValidatorSet.length - 1;
-    emit validatorFelony(validator,income);
     if(rest==0){
       // will not remove the validator if it is the only one validator.
       currentValidatorSet[index].incoming = 0;
       return;
     }
+    felonySequence ++;
+    emit validatorFelony(felonySequence,validator,income);
     delete currentValidatorSetMap[validator];
     // It is ok that the validatorSet is not in order.
     if (index != currentValidatorSet.length-1){

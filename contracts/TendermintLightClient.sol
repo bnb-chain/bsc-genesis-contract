@@ -144,7 +144,7 @@ contract TendermintLightClient is ILightClient {
   // | length   | _chainID   | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
   // | 32 bytes | 32 bytes   | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
   /* solium-disable-next-line */
-  function encodeConsensusState(ConsensusState memory cs, uint64 height, uint256 outputPtr, uint256 size) internal view returns (bool) {
+  function encodeConsensusState(ConsensusState memory cs, uint64 height, uint256 outputPtr, uint256 size) internal pure returns (bool) {
     uint256 validatorQuantity = cs.nextValidatorSet.length/40;
 
     outputPtr = outputPtr + size - 40 * validatorQuantity;
