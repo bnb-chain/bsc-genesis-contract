@@ -15,7 +15,7 @@ contract TokenHub is ITokenHub {
     address contractAddr;
     uint256 totalSupply;
     uint256 peggyAmount;
-    uint8   decimals;
+    uint8   erc20Decimals;
     uint64  expireTime;
     uint256 relayFee;
   }
@@ -37,11 +37,12 @@ contract TokenHub is ITokenHub {
     uint256 relayFee;
   }
 
-  uint8 constant bindChannelID = 0x01;
-  uint8 constant transferInChannelID = 0x02;
-  uint8 constant refundChannelID=0x03;
+  uint8 constant public bindChannelID = 0x01;
+  uint8 constant public transferInChannelID = 0x02;
+  uint8 constant public refundChannelID=0x03;
   // the store name of the package
-  string constant STORE_NAME = "ibc";
+  string constant public STORE_NAME = "ibc";
+  uint256 constant public maxBep2TotalSupply = 9000000000000000000;
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000000010002; // last 5 bytes
@@ -184,7 +185,7 @@ contract TokenHub is ITokenHub {
     assembly {
       decimals := mload(ptr)
     }
-    bindPackage.decimals = decimals;
+    bindPackage.erc20Decimals = decimals;
 
     ptr+=8;
     uint64 expireTime;
@@ -260,14 +261,14 @@ contract TokenHub is ITokenHub {
       _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol]!=address(0x00)||
       _contractAddrToBEP2Symbol[bindPackage.contractAddr]!=bytes32(0x00)||
       IERC20(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply||
-      decimals!=bindPackage.decimals) {
+      decimals!=bindPackage.erc20Decimals) {
       delete _bindPackageRecord[bep2TokenSymbol];
       emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
       return false;
     }
     IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
     _contractAddrToBEP2Symbol[bindPackage.contractAddr] = bindPackage.bep2TokenSymbol;
-    _erc20ContractDecimals[bindPackage.contractAddr] = bindPackage.decimals;
+    _erc20ContractDecimals[bindPackage.contractAddr] = bindPackage.erc20Decimals;
     _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol] = bindPackage.contractAddr;
 
     delete _bindPackageRecord[bep2TokenSymbol];
@@ -536,6 +537,7 @@ contract TokenHub is ITokenHub {
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount));
       convertedAmount = amount * (10**8)/ (10**erc20TokenDecimals); // bep2 token decimals is 8 on BBC
+      require(convertedAmount<=maxBep2TotalSupply, "amount is too large, int64 overflow");
     }
     emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
     return true;
@@ -564,7 +566,9 @@ contract TokenHub is ITokenHub {
       uint256 erc20TokenDecimals=_erc20ContractDecimals[contractAddr];
       for (uint i = 0; i < amounts.length; i++) {
         require((amounts[i]*(10**8)%(10**erc20TokenDecimals))==0, "invalid transfer amount");
-        convertedAmounts[i] = amounts[i]*(10**8)/(10**erc20TokenDecimals);
+        uint256 convertedAmount = amounts[i]*(10**8)/(10**erc20TokenDecimals);
+        require(convertedAmount<=maxBep2TotalSupply, "amount is too large, int64 overflow");
+        convertedAmounts[i] = convertedAmount;
       }
       bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
