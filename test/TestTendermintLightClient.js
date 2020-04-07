@@ -1,6 +1,5 @@
 const SystemReward = artifacts.require("SystemReward");
-const HeaderRelayerIncentivize = artifacts.require("HeaderRelayerIncentivize");
-const TransferRelayerIncentivize = artifacts.require("TransferRelayerIncentivize");
+const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 
 const crypto = require('crypto');

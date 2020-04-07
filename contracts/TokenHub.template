@@ -16,6 +16,7 @@ contract TokenHub is ITokenHub {
     address contractAddr;
     uint256 totalSupply;
     uint256 peggyAmount;
+    uint8   decimals;
     uint64  expireTime;
     uint256 relayFee;
   }
@@ -63,6 +64,7 @@ contract TokenHub is ITokenHub {
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
   mapping(address => bytes32) public _contractAddrToBEP2Symbol;
+  mapping(address => uint256) public _erc20ContractDecimals;
   mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
   uint256 public _bindChannelSequence=0;
@@ -86,6 +88,7 @@ contract TokenHub is ITokenHub {
   event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
   event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 actualBalance);
   event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
+  event LogTransferInFailureUnknownReason(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
 
   event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
   event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 actualBalance);
@@ -196,6 +199,13 @@ contract TokenHub is ITokenHub {
     }
     bindPackage.peggyAmount = tempValue;
 
+    ptr+=1;
+    uint8 decimals;
+    assembly {
+      decimals := mload(ptr)
+    }
+    bindPackage.decimals = decimals;
+
     ptr+=8;
     uint64 expireTime;
     assembly {
@@ -214,7 +224,7 @@ contract TokenHub is ITokenHub {
 
   function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
     require(sequence==_bindChannelSequence, "wrong bind sequence");
-    require(value.length==156, "wrong bind package size");
+    require(value.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
     _bindChannelSequence++;
@@ -264,21 +274,23 @@ contract TokenHub is ITokenHub {
       return false;
     }
 
+    uint256 decimals = IERC20(contractAddr).decimals();
     string memory erc20Symbol = IERC20(contractAddr).symbol();
     if (!checkSymbol(erc20Symbol, bep2TokenSymbol) ||
       _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol]!=address(0x00)||
       _contractAddrToBEP2Symbol[bindPackage.contractAddr]!=bytes32(0x00)||
-      IERC20(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply) {
+      IERC20(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply||
+      decimals!=bindPackage.decimals) {
       delete _bindPackageRecord[bep2TokenSymbol];
       emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
       return false;
     }
     IERC20(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
     _contractAddrToBEP2Symbol[bindPackage.contractAddr] = bindPackage.bep2TokenSymbol;
+    _erc20ContractDecimals[bindPackage.contractAddr] = bindPackage.decimals;
     _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol] = bindPackage.contractAddr;
 
     delete _bindPackageRecord[bep2TokenSymbol];
-    uint256 decimals = IERC20(contractAddr).decimals();
     emit LogBindSuccess(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, decimals);
     return true;
   }
@@ -385,13 +397,12 @@ contract TokenHub is ITokenHub {
       emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
+      uint256 bep2Amount = transferInPackage.amount * (10**8) / (10**_erc20ContractDecimals[transferInPackage.contractAddr]);
       if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
-        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         return false;
       }
       if (block.timestamp > transferInPackage.expireTime) {
-        uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
         emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
         return false;
       }
@@ -401,36 +412,27 @@ contract TokenHub is ITokenHub {
           return true;
         } else {
           try IERC20(transferInPackage.contractAddr).balanceOf{gas: _maxGasForCallingERC20}(address(this)) returns (uint256 actualBalance) {
-            uint256 bep2Amount = convertToBEP2Amount(transferInPackage.contractAddr, transferInPackage.amount);
             emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
             return false;
           } catch Error(string memory reason) {
+            emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
             emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
             return false;
           } catch (bytes memory lowLevelData) {
+            emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
             emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
             return false;
           }
         }
       } catch Error(string memory reason) {
+        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         emit LogUnexpectedRevertInERC20(transferInPackage.contractAddr, reason);
         return false;
       } catch (bytes memory lowLevelData) {
+        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         emit LogUnexpectedFailureAssertionInERC20(transferInPackage.contractAddr, lowLevelData);
         return false;
       }
-    }
-  }
-
-  function convertToBEP2Amount(address contractAddr, uint256 amount) internal returns (uint256) {
-    try IERC20(contractAddr).decimals{gas: _maxGasForCallingERC20}() returns (uint256 decimals) {
-      return amount * (10**8) / (10**decimals);
-    } catch Error(string memory reason) {
-      emit LogUnexpectedRevertInERC20(contractAddr, reason);
-      return 0;
-    } catch (bytes memory lowLevelData) {
-      emit LogUnexpectedFailureAssertionInERC20(contractAddr, lowLevelData);
-      return 0;
     }
   }
 
@@ -544,7 +546,7 @@ contract TokenHub is ITokenHub {
       convertedAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=bep2TokenSymbolForBNB;
     } else {
-      uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
+      uint256 erc20TokenDecimals=_erc20ContractDecimals[contractAddr];
       if (erc20TokenDecimals > 8) {
         uint256 extraPrecision = 10**(erc20TokenDecimals-8);
         require(amount%extraPrecision==0, "invalid transfer amount: precision loss in amount conversion");
@@ -579,7 +581,7 @@ contract TokenHub is ITokenHub {
       require(msg.value==totalAmount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
       bep2TokenSymbol=bep2TokenSymbolForBNB;
     } else {
-      uint256 erc20TokenDecimals=IERC20(contractAddr).decimals();
+      uint256 erc20TokenDecimals=_erc20ContractDecimals[contractAddr];
       for (uint i = 0; i < amounts.length; i++) {
         require((amounts[i]*(10**8)%(10**erc20TokenDecimals))==0, "invalid transfer amount");
         convertedAmounts[i] = amounts[i]*(10**8)/(10**erc20TokenDecimals);

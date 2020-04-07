@@ -76,6 +76,7 @@ contract('TokenHub', (accounts) => {
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
 
@@ -141,6 +142,7 @@ contract('TokenHub', (accounts) => {
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
@@ -181,6 +183,7 @@ contract('TokenHub', (accounts) => {
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
@@ -224,6 +227,7 @@ contract('TokenHub', (accounts) => {
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
@@ -261,6 +265,7 @@ contract('TokenHub', (accounts) => {
             abcToken.address.toString().replace("0x", "") +      // erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
 
@@ -536,6 +541,7 @@ contract('TokenHub', (accounts) => {
             maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
+            "12" +                                                                      // 18 decimals
             expireTimeStr +                                                             // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         let proof = Buffer.from(web3.utils.hexToBytes("0x00"));
