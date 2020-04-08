@@ -8,6 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
 import "./MerkleProof.sol";
 
 
@@ -38,6 +39,7 @@ contract BSCValidatorSet is System {
   address public constant  INIT_TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
   address public constant INIT_LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
   address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
+  address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
   bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
   bool public alreadyInit;
@@ -49,6 +51,7 @@ contract BSCValidatorSet is System {
   ITokenHub tokenHub;
   ISystemReward systemReward;
   ISlashIndicator slash;
+  IRelayerHub relayerHub;
 
 
   // state of this contract
@@ -68,6 +71,11 @@ contract BSCValidatorSet is System {
     uint64  votingPower;
     bool jailed;
     uint256 incoming;
+  }
+
+  modifier onlyRelayer() {
+    require(relayerHub.isRelayer(msg.sender), "the msg sender is not a relayer");
+    _;
   }
 
   modifier onlyNotInit() {
@@ -134,6 +142,7 @@ contract BSCValidatorSet is System {
     tokenHub = ITokenHub(INIT_TOKEN_HUB_ADDR);
     systemReward = ISystemReward(INIT_SYSTEM_REWARD_ADDR);
     slash = ISlashIndicator(INIT_SLASH_CONTRACT_ADDR);
+    relayerHub = IRelayerHub(INIT_RELAYERHUB_CONTRACT_ADDR);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }

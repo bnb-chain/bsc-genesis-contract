@@ -8,6 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
 {% if mock %}import "./mock/MerkleProof.sol";
 {% else %}import "./MerkleProof.sol";
 {% endif %}
@@ -39,6 +40,7 @@ contract BSCValidatorSet is System {
   address public constant  INIT_TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
   address public constant INIT_LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
   address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
+  address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
   bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
   bool public alreadyInit;
@@ -50,6 +52,7 @@ contract BSCValidatorSet is System {
   ITokenHub tokenHub;
   ISystemReward systemReward;
   ISlashIndicator slash;
+  IRelayerHub relayerHub;
 
 
   // state of this contract
@@ -69,6 +72,11 @@ contract BSCValidatorSet is System {
     uint64  votingPower;
     bool jailed;
     uint256 incoming;
+  }
+
+  modifier onlyRelayer() {
+    require(relayerHub.isRelayer(msg.sender), "the msg sender is not a relayer");
+    _;
   }
 
   modifier onlyNotInit() {
@@ -135,15 +143,17 @@ contract BSCValidatorSet is System {
     tokenHub = ITokenHub(INIT_TOKEN_HUB_ADDR);
     systemReward = ISystemReward(INIT_SYSTEM_REWARD_ADDR);
     slash = ISlashIndicator(INIT_SLASH_CONTRACT_ADDR);
+    relayerHub = IRelayerHub(INIT_RELAYERHUB_CONTRACT_ADDR);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
 {% if mock %}
-  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract) external onlyInit onlySystem{
+  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract, address _relayerHub) external onlyInit onlySystem{
     lightClient = ILightClient(_lightClientAddr);
     tokenHub = ITokenHub(_tokenHub);
     systemReward = ISystemReward(_systemRewardAddr);
     slash = ISlashIndicator(_slashContract);
+    relayerHub = IRelayerHub(_relayerHub);
   }{% endif %}
   /*********************** External Functions **************************/
 

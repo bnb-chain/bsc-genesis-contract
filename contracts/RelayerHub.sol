@@ -1,6 +1,9 @@
 pragma solidity 0.6.4;
 
-contract RelayerHub {
+import "./interface/IRelayerHub.sol";
+
+
+contract RelayerHub is IRelayerHub {
 
   uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
   uint256 public constant INIT_DUES =  1e17;
@@ -68,7 +71,7 @@ contract RelayerHub {
     emit relayerUnRegister(msg.sender);
   }
 
-  function isRelayer(address sender) external exist view returns (bool){
+  function isRelayer(address sender) external override exist view returns (bool){
     return relayers[sender].exist;
   }
 
