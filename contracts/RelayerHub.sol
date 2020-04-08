@@ -14,11 +14,11 @@ contract RelayerHub is IRelayerHub {
   bool public alreadyInit;
 
   mapping(address =>relayer) relayers;
+  mapping(address =>bool) relayersExistMap;
 
   struct relayer{
     uint256 deposit;
     uint256  dues;
-    bool exist;
   }
 
   modifier onlyNotInit() {
@@ -37,19 +37,17 @@ contract RelayerHub is IRelayerHub {
   }
 
   modifier noExist() {
-    require(!relayers[msg.sender].exist, "relayer already exist");
+    require(!relayersExistMap[msg.sender], "relayer already exist");
     _;
   }
 
   modifier exist() {
-    require(relayers[msg.sender].exist, "relayer do not exist");
+    require(relayersExistMap[msg.sender], "relayer do not exist");
     _;
   }
 
   event relayerRegister(address _relayer);
   event relayerUnRegister(address _relayer);
-
-
 
   function init() external onlyNotInit{
     requiredDeposit = INIT_REQUIRED_DEPOSIT;
@@ -59,7 +57,8 @@ contract RelayerHub is IRelayerHub {
 
   function register() payable external noExist onlyInit notContract{
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
-    relayers[msg.sender] = relayer(requiredDeposit, dues, true);
+    relayers[msg.sender] = relayer(requiredDeposit, dues);
+    relayersExistMap[msg.sender] = true;
     emit relayerRegister(msg.sender);
   }
 
@@ -67,12 +66,13 @@ contract RelayerHub is IRelayerHub {
     relayer memory r = relayers[msg.sender];
     msg.sender.transfer(r.deposit-r.dues);
     INIT_SYSTEM_REWARD_ADDR.transfer(r.dues);
+    delete relayersExistMap[msg.sender];
     delete relayers[msg.sender];
     emit relayerUnRegister(msg.sender);
   }
 
   function isRelayer(address sender) external override view returns (bool){
-    return relayers[sender].exist;
+    return relayersExistMap[sender];
   }
 
   function isContract(address addr) internal view returns (bool) {
