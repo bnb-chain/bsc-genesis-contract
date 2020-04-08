@@ -4,6 +4,7 @@ contract RelayerHub {
 
   uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
   uint256 public constant INIT_DUES =  1e17;
+  address payable public constant INIT_SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
 
   uint256 public requiredDeposit;
   uint256 public dues;
@@ -53,14 +54,18 @@ contract RelayerHub {
     alreadyInit = true;
   }
 
-  function register() payable external noExist onlyInit{
+  function register() payable external noExist onlyInit notContract{
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
     relayers[msg.sender] = relayer(requiredDeposit, dues, true);
+    emit relayerRegister(msg.sender);
   }
 
   function  unregister() external exist onlyInit{
     relayer memory r = relayers[msg.sender];
     msg.sender.transfer(r.deposit-r.dues);
+    INIT_SYSTEM_REWARD_ADDR.transfer(r.dues);
+    delete relayers[msg.sender];
+    emit relayerUnRegister(msg.sender);
   }
 
   function isRelayer(address sender) external exist view returns (bool){
