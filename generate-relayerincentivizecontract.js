@@ -12,7 +12,7 @@ program.option(
 
 program.option(
     "-o, --output <output-file>",
-    "HeaderRelayerIncentivize.sol",
+    "RelayerIncentivize.sol",
     "./contracts/RelayerIncentivize.sol"
 )
 program.option("--roundSize <roundSize>",
