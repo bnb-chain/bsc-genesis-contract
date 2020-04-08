@@ -54,7 +54,7 @@ module.exports = function(deployer, network, accounts) {
     return deployer.deploy(RelayerHub);
   }).then(function(relayerInstance) {
     relayerInstance.init();
-    relayerInstance.register({from: accounts[8]});
+    relayerInstance.register({from: accounts[8],value: 1e20});
     // deploy mock
     return deployer.deploy(MockTokenHub);
   }).then(function() {

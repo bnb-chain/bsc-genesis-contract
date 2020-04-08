@@ -71,7 +71,7 @@ contract RelayerHub is IRelayerHub {
     emit relayerUnRegister(msg.sender);
   }
 
-  function isRelayer(address sender) external override exist view returns (bool){
+  function isRelayer(address sender) external override view returns (bool){
     return relayers[sender].exist;
   }
 

@@ -227,15 +227,14 @@ contract('BSCValidatorSet', (accounts) => {
       // console.log(error);
     }
     await lightClientInstance.setBlockNotSynced(false);
-    await lightClientInstance.setStateNotVerified(true);
     try{
       await validatorSetInstance.update(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,2,
-          {from: relayerAccount});
+          {from: accounts[4]});
       assert.fail();
     }catch(error){
-      // console.log(error);
+      assert.ok(error.toString().includes("the msg sender is not a relayer"));
     }
-
+    
   });
 });
 
