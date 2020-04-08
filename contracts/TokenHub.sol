@@ -5,6 +5,8 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
+
 import "./MerkleProof.sol";
 
 
@@ -51,6 +53,7 @@ contract TokenHub is ITokenHub {
 
   uint256 constant public _minimumRelayFee=10000000000000000;
   uint256 constant public _refundRelayReward=10000000000000000;
+  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
   address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
   address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;

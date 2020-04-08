@@ -3,6 +3,7 @@ pragma solidity 0.6.4;
 import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/IRelayerHub.sol";
 
 contract TendermintLightClient is ILightClient {
 
@@ -20,6 +21,7 @@ contract TendermintLightClient is ILightClient {
   bool public _alreadyInit;
 
 
+  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
 
   string constant public _chainID="Binance-Chain-Nile";
@@ -31,6 +33,12 @@ contract TendermintLightClient is ILightClient {
 
   /* solium-disable-next-line */
   constructor() public {}
+
+
+  modifier onlyRelayer() {
+    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
+    _;
+  }
 
   function init() public {
     require(!_alreadyInit, "already initialized");
@@ -52,7 +60,7 @@ contract TendermintLightClient is ILightClient {
     emit InitConsensusState(_initialHeight, cs.appHash);
   }
   
-  function syncTendermintHeader(bytes calldata header, uint64 height) external returns (bool) {
+  function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
     require(_submitters[height] == address(0x0), "can't sync duplicated header");
     require(height > _initialHeight, "can't sync header before _initialHeight");
 

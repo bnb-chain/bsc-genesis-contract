@@ -10,6 +10,7 @@ const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("ABCToken");
 const DEFToken = artifacts.require("DEFToken");
 const MaliciousToken = artifacts.require("test/MaliciousToken");
+const MockRelayerHub = artifacts.require("mock/MockRelayerHub");
 
 const crypto = require('crypto');
 const Web3 = require('web3');
@@ -34,6 +35,7 @@ contract('TokenHub', (accounts) => {
             SystemReward.address, 
             MockLightClient.address,
             RelayerIncentivize.address,
+            MockRelayerHub.address,
             minimumRelayFee,
             refundRelayReward,
             {

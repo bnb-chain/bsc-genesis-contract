@@ -7,6 +7,7 @@ const BytesLib = artifacts.require("solidity-bytes-utils/contracts/BytesLib");
 
 const MockLightClient = artifacts.require("mock/MockLightClient");
 const MockTokenHub = artifacts.require("mock/MockTokenHub");
+const MockRelayerHub = artifacts.require("mock/MockRelayerHub");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 const RelayerHub = artifacts.require("RelayerHub");
 
@@ -28,6 +29,7 @@ module.exports = function(deployer, network, accounts) {
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
   deployer.deploy(MaliciousToken);
+  deployer.deploy(MockRelayerHub);
 
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];
