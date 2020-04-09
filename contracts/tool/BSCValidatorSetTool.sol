@@ -1,9 +1,8 @@
 pragma solidity 0.6.4;
 
-import "./System.sol";
-import "./Seriality/TypesToBytes.sol";
-import "./Seriality/BytesToTypes.sol";
-import "./Seriality/BytesLib.sol";
+import "../Seriality/TypesToBytes.sol";
+import "../Seriality/BytesToTypes.sol";
+import "../Seriality/BytesLib.sol";
 
 
 contract BSCValidatorSetTool{
@@ -11,28 +10,28 @@ contract BSCValidatorSetTool{
   uint8 public constant CHANNEL_ID =  8;
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
+  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 5 bytes
 
   uint16 public constant FROM_CHAIN_ID = 0x0001;
   uint16 public constant TO_CHAIN_ID = 0x0002;
 
   Validator[] public currentValidatorSet;
+  bytes public expectedKey;
 
   struct Validator{
     address consensusAddress;
     address payable feeAddress;
     address BBCFeeAddress;
     uint64  votingPower;
-    bool jailed;
-    uint256 incoming;
   }
 
 
-  function verify(bytes key, bytes calldata msgBytes, uint64 packageSequence) external{
-    // verify key value against light client;
-    bytes memory key = generateKey(packageSequence);
 
-    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
-    require(valid, "the package is invalid against its proof");
+  function verify(bytes calldata key, bytes calldata msgBytes, uint64 packageSequence) external{
+    // verify key value against light client;
+    bytes memory expect = generateKey(packageSequence);
+    expectedKey = key;
+    require(BytesLib.equal(expect,key), string(expectedKey));
     parseValidatorSet(msgBytes);
   }
 
@@ -42,6 +41,7 @@ contract BSCValidatorSetTool{
     uint length = validatorSetBytes.length-1;
     require(length > 0, "the validatorSetBytes should not be empty");
     require(length % VALIDATOR_BYTES_LENGTH == 0, "the length of validatorSetBytes should be times of 68");
+    uint m = currentValidatorSet.length;
     for(uint i = 0;i<m;i++){
       currentValidatorSet.pop();
     }
@@ -56,36 +56,36 @@ contract BSCValidatorSetTool{
     }
   }
 
-  function generateKey(uint64 packageSequence) internal view returns (bytes memory){
-    // A copy of keyPrefix
-    bytes memory sequenceBytes = new bytes(8);
-    bytes keyPrefix = generatePrefixKey();
-    TypesToBytes.uintToBytes(32, packageSequence, sequenceBytes);
-    return BytesLib.concat(keyPrefix, sequenceBytes);
+
+  // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
+  // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
+  function generateKey(uint256 _sequence) internal pure returns(bytes memory) {
+    bytes memory key = new bytes(14);
+
+    uint256 ptr;
+    assembly {
+      ptr := add(key, 14)
+    }
+    assembly {
+      mstore(ptr, _sequence)
+    }
+    ptr -= 8;
+
+    assembly {
+      mstore(ptr, crossChainKeyPrefix)
+    }
+    ptr -= 6;
+    assembly {
+      mstore(ptr, 14)
+    }
+    return key;
   }
 
-
-  function generatePrefixKey() private pure returns(bytes memory prefix){
-
-    prefix = new bytes(5);
-    uint256 pos=prefix.length;
-
+  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+    uint8 msgType = 0xff;
     assembly {
-      mstore(add(prefix, pos), CHANNEL_ID)
+      msgType := mload(add(msgBytes, 1))
     }
-    pos -=1;
-    assembly {
-      mstore(add(prefix, pos), TO_CHAIN_ID)
-    }
-    pos -=2;
-
-    assembly {
-      mstore(add(prefix, pos), FROM_CHAIN_ID)
-    }
-    pos -=2;
-    assembly {
-      mstore(add(prefix, pos), 0x5)
-    }
-    return prefix;
+    return msgType;
   }
 }

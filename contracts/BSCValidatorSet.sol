@@ -33,18 +33,15 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  uint16 public constant FROM_CHAIN_ID = 0x0001;
-  uint16 public constant TO_CHAIN_ID = 0x0002;
   address payable public constant INIT_SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
   address public constant  INIT_TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
   address public constant INIT_LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
   address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
   address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
   bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 5 bytes
 
   bool public alreadyInit;
-  // used for generate key
-  bytes public keyPrefix;
 
   // other contract
   ILightClient lightClient;
@@ -94,7 +91,7 @@ contract BSCValidatorSet is System {
   }
 
   modifier sequenceInOrder(uint64 _sequence) {
-    require(_sequence == sequence+1, "sequence not in order");
+    require(_sequence == sequence, "sequence not in order");
     _;
     sequence ++;
   }
@@ -144,7 +141,6 @@ contract BSCValidatorSet is System {
     systemReward = ISystemReward(INIT_SYSTEM_REWARD_ADDR);
     slash = ISlashIndicator(INIT_SLASH_CONTRACT_ADDR);
     relayerHub = IRelayerHub(INIT_RELAYERHUB_CONTRACT_ADDR);
-    keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
 
@@ -438,37 +434,27 @@ contract BSCValidatorSet is System {
   }
 
 
-  function generateKey(uint64 packageSequence) internal view returns (bytes memory){
-    // A copy of keyPrefix
-    bytes memory sequenceBytes = new bytes(8);
-    TypesToBytes.uintToBytes(32, packageSequence, sequenceBytes);
-    return BytesLib.concat(keyPrefix, sequenceBytes);
-  }
+// | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
+// | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
+  function generateKey(uint256 _sequence) internal pure returns(bytes memory) {
+    bytes memory key = new bytes(14);
 
-
-
-  function generatePrefixKey() private pure returns(bytes memory prefix){
-
-    prefix = new bytes(5);
-    uint256 pos=prefix.length;
-
+    uint256 ptr;
     assembly {
-      mstore(add(prefix, pos), CHANNEL_ID)
+      ptr := add(key, 14)
     }
-    pos -=1;
     assembly {
-      mstore(add(prefix, pos), TO_CHAIN_ID)
+      mstore(ptr, _sequence)
     }
-    pos -=2;
-
+    ptr -= 8;
     assembly {
-      mstore(add(prefix, pos), FROM_CHAIN_ID)
+      mstore(ptr, crossChainKeyPrefix)
     }
-    pos -=2;
+    ptr -= 6;
     assembly {
-      mstore(add(prefix, pos), 0x5)
+      mstore(ptr, 14)
     }
-    return prefix;
+    return key;
   }
 
   function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
