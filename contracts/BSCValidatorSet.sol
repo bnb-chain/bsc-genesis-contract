@@ -125,6 +125,7 @@ contract BSCValidatorSet is System {
   event batchTransfer(uint256 indexed amount);
   event systemTransfer(uint256 indexed amount);
   event directTransfer(address payable indexed validator, uint256 indexed amount);
+  event directTransferFail(address payable indexed validator, uint256 indexed amount);
   event deprecatedDeposit(address indexed validator, uint256 indexed amount);
   event validatorDeposit(address indexed validator, uint256 indexed amount);
   event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
@@ -226,8 +227,12 @@ contract BSCValidatorSet is System {
     // do direct transfer
     if(directAddrs.length>0){
       for(uint i = 0;i<directAddrs.length;i++){
-        directAddrs[i].transfer(directAmounts[i]);
-        emit directTransfer(directAddrs[i], directAmounts[i]);
+        bool success = directAddrs[i].send(directAmounts[i]);
+        if (success){
+          emit directTransfer(directAddrs[i], directAmounts[i]);
+        }else{
+          emit directTransferFail(directAddrs[i], directAmounts[i]);
+        }
       }
     }
 
