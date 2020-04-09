@@ -303,6 +303,75 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
+
+contract('BSCValidatorSet', (accounts) => {
+  it('complicate distribute when one validar fee addr is contract', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+
+    let validatorA = validatorSetInstance.address;
+    let validatorB = web3.eth.accounts.create().address;
+    let validatorC = web3.eth.accounts.create().address;
+    let validatorD = web3.eth.accounts.create().address;
+    let validatorE = web3.eth.accounts.create().address;
+    let deprecated = web3.eth.accounts.create().address;
+    let relayerAccount = accounts[8];
+    let systemAccount = accounts[0];
+
+    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
+    // enough reward in system reward pool
+    await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
+
+    await validatorSetInstance.getValidators.call();
+    let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
+    await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,1,
+        {from: relayerAccount});
+
+    // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
+    await validatorSetInstance.deposit(validatorA, {from: systemAccount, value: web3.utils.toBN(1e16) });
+    await validatorSetInstance.deposit(validatorB, {from: systemAccount, value: web3.utils.toBN(1e16) });
+    await validatorSetInstance.deposit(validatorC, {from: systemAccount, value: web3.utils.toBN(1e17) });
+    await validatorSetInstance.deposit(validatorD, {from: systemAccount, value: web3.utils.toBN(1e18) });
+    await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e18) });
+    await validatorSetInstance.deposit(deprecated, {from: systemAccount, value: web3.utils.toBN(1e18) });
+
+    //add some dust incoming
+    await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
+
+
+    let tx = await validatorSetInstance.update(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,2,
+        {from: relayerAccount});
+
+    let validatorABalance = await web3.eth.getBalance(validatorA);
+    let validatorBBalance = await web3.eth.getBalance(validatorB);
+    let validatorCBalance = await web3.eth.getBalance(validatorC);
+    let validatorDBalance = await web3.eth.getBalance(validatorD);
+    let validatorEBalance = await web3.eth.getBalance(validatorE);
+    let deprecatedBalance = await web3.eth.getBalance(deprecated);
+
+    assert.equal(validatorABalance,0);
+    assert.equal(validatorBBalance,web3.utils.toBN(1e16));
+    assert.equal(validatorCBalance,0);
+    assert.equal(validatorDBalance,0);
+    assert.equal(validatorEBalance,0);
+    assert.equal(deprecatedBalance,0);
+
+    truffleAssert.eventEmitted(tx, "validatorSetUpdated");
+    truffleAssert.eventEmitted(tx, "batchTransfer",(ev) => {
+      return ev.amount.toString() === web3.utils.toBN(21e17).toString();
+    });
+    truffleAssert.eventEmitted(tx, "directTransfer",(ev) => {
+      return ev.amount.toString() === web3.utils.toBN(1e16).toString();
+    });
+    truffleAssert.eventEmitted(tx, "directTransferFail",(ev) => {
+      return ev.amount.toString() === web3.utils.toBN(1e16).toString();
+    });
+    truffleAssert.eventEmitted(tx, "systemTransfer",(ev) => {
+      return ev.amount.toString() === web3.utils.toBN(1e18).add(web3.utils.toBN(1e5)).add(web3.utils.toBN(1e16)).toString();
+    });
+  });
+});
+
 contract('BSCValidatorSet', (accounts) => {
   it('validator jail', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();

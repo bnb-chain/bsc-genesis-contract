@@ -165,7 +165,7 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit sequenceInOrder(packageSequence) blockSynced(height){
+  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height){
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
     bytes32 appHash = lightClient.getAppHash(height);
@@ -224,7 +224,6 @@ contract BSCValidatorSet is System {
       emit batchTransfer(crossTotal);
     }
 
-    // do direct transfer
     if(directAddrs.length>0){
       for(uint i = 0;i<directAddrs.length;i++){
         bool success = directAddrs[i].send(directAmounts[i]);
