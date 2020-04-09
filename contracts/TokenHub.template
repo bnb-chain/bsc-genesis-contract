@@ -5,6 +5,8 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
+
 {% if mock %}import "./mock/MerkleProof.sol";
 {% else %}import "./MerkleProof.sol";
 {% endif %}
@@ -55,9 +57,11 @@ contract TokenHub is ITokenHub {
   address public _systemRewardContract;
   address public _lightClientContract;
   address public _incentivizeContractForRelayers;
+  address public _relayerHubContract;
 {% else %}
   uint256 constant public _minimumRelayFee={{minimumRelayFee}};
   uint256 constant public _refundRelayReward={{refundRelayReward}};
+  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
   address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
   address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
@@ -104,10 +108,12 @@ contract TokenHub is ITokenHub {
     address systemRewardContract,
     address lightClientContractAddr,
     address incentivizeContractAddr,
+    address relayerHubContract,
     uint256 minimumRelayFee,
     uint256 refundReward) public payable {
     _systemRewardContract = systemRewardContract;
     _lightClientContract = lightClientContractAddr;
+    _relayerHubContract = relayerHubContract;
     _incentivizeContractForRelayers = incentivizeContractAddr;
     _minimumRelayFee=minimumRelayFee;
     _refundRelayReward=refundReward;
@@ -117,6 +123,12 @@ contract TokenHub is ITokenHub {
 
   modifier onlyHeaderSynced(uint64 height) {
     require(ILightClient(_lightClientContract).isHeaderSynced(height), "reference header is not synced");
+    _;
+  }
+
+
+  modifier onlyRelayer() {
+    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
     _;
   }
 
@@ -223,7 +235,7 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_bindChannelSequence, "wrong bind sequence");
     require(value.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -374,7 +386,7 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_transferInChannelSequence, "wrong transfer sequence");
     require(value.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -479,7 +491,7 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_refundChannelSequence, "wrong refund sequence");
     require(value.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);

@@ -1,6 +1,7 @@
 const SystemReward = artifacts.require("SystemReward");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
+const MockRelayerHub = artifacts.require("mock/MockRelayerHub");
 
 const crypto = require('crypto');
 const Web3 = require('web3');
@@ -12,7 +13,7 @@ contract('TendermintLightClient', (accounts) => {
         const lightClient = await TendermintLightClient.deployed();
 
         await lightClient.init({from: accounts[0]});
-        await lightClient.initSystemRewardContract(SystemReward.address, {from: accounts[0]});
+        await lightClient.initSystemRewardContract(SystemReward.address,MockRelayerHub.address, {from: accounts[0]});
 
         let _initialHeight = await lightClient._initialHeight.call();
         assert.equal(_initialHeight.toNumber(), 2, "mismatched initial consensus height");

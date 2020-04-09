@@ -8,6 +8,7 @@ import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
 import "./MerkleProof.sol";
 
 
@@ -32,13 +33,14 @@ contract BSCValidatorSet is System {
   // the store name of the package
   string constant STORE_NAME = "ibc";
 
-  uint16 public constant fromChainId = 0x0001;
-  uint16 public constant toChainId = 0x0002;
-  address payable public constant initSystemRewardAddr = 0x0000000000000000000000000000000000001002;
-  address public constant  initTokenHubAddr = 0x0000000000000000000000000000000000001004;
-  address public constant initLightClientAddr = 0x0000000000000000000000000000000000001003;
-  address public constant initSlashContract = 0x0000000000000000000000000000000000001001;
-  bytes public constant initValidatorSetBytes = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+  uint16 public constant FROM_CHAIN_ID = 0x0001;
+  uint16 public constant TO_CHAIN_ID = 0x0002;
+  address payable public constant INIT_SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
+  address public constant  INIT_TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
+  address public constant INIT_LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
+  address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
+  address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
 
   bool public alreadyInit;
   // used for generate key
@@ -49,6 +51,7 @@ contract BSCValidatorSet is System {
   ITokenHub tokenHub;
   ISystemReward systemReward;
   ISlashIndicator slash;
+  IRelayerHub relayerHub;
 
 
   // state of this contract
@@ -68,6 +71,11 @@ contract BSCValidatorSet is System {
     uint64  votingPower;
     bool jailed;
     uint256 incoming;
+  }
+
+  modifier onlyRelayer() {
+    require(relayerHub.isRelayer(msg.sender), "the msg sender is not a relayer");
+    _;
   }
 
   modifier onlyNotInit() {
@@ -123,17 +131,18 @@ contract BSCValidatorSet is System {
   event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 indexed amount);
 
   function init() external onlyNotInit{
-    Validator[] memory validatorSet = parseValidatorSet(initValidatorSetBytes);
+    Validator[] memory validatorSet = parseValidatorSet(INIT_VALIDATORSET_BYTES);
     (bool passVerify, string memory errorMsg) = verifyValidatorSet(validatorSet);
     require(passVerify,errorMsg);
     for(uint i = 0;i<validatorSet.length;i++){
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    lightClient = ILightClient(initLightClientAddr);
-    tokenHub = ITokenHub(initTokenHubAddr);
-    systemReward = ISystemReward(initSystemRewardAddr);
-    slash = ISlashIndicator(initSlashContract);
+    lightClient = ILightClient(INIT_LIGHT_CLIENT_ADDR);
+    tokenHub = ITokenHub(INIT_TOKEN_HUB_ADDR);
+    systemReward = ISystemReward(INIT_SYSTEM_REWARD_ADDR);
+    slash = ISlashIndicator(INIT_SLASH_CONTRACT_ADDR);
+    relayerHub = IRelayerHub(INIT_RELAYERHUB_CONTRACT_ADDR);
     keyPrefix = generatePrefixKey();
     alreadyInit = true;
   }
@@ -444,12 +453,12 @@ contract BSCValidatorSet is System {
     }
     pos -=1;
     assembly {
-      mstore(add(prefix, pos), toChainId)
+      mstore(add(prefix, pos), TO_CHAIN_ID)
     }
     pos -=2;
 
     assembly {
-      mstore(add(prefix, pos), fromChainId)
+      mstore(add(prefix, pos), FROM_CHAIN_ID)
     }
     pos -=2;
     assembly {

@@ -5,6 +5,8 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
+import "./interface/IRelayerHub.sol";
+
 import "./MerkleProof.sol";
 
 
@@ -51,6 +53,7 @@ contract TokenHub is ITokenHub {
 
   uint256 constant public _minimumRelayFee=10000000000000000;
   uint256 constant public _refundRelayReward=10000000000000000;
+  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
   address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
   address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
   address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
@@ -97,6 +100,12 @@ contract TokenHub is ITokenHub {
 
   modifier onlyHeaderSynced(uint64 height) {
     require(ILightClient(_lightClientContract).isHeaderSynced(height), "reference header is not synced");
+    _;
+  }
+
+
+  modifier onlyRelayer() {
+    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
     _;
   }
 
@@ -203,7 +212,7 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_bindChannelSequence, "wrong bind sequence");
     require(value.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -354,7 +363,7 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_transferInChannelSequence, "wrong transfer sequence");
     require(value.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
@@ -459,7 +468,7 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) override external returns (bool) {
+  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
     require(sequence==_refundChannelSequence, "wrong refund sequence");
     require(value.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);

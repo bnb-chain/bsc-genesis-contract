@@ -7,7 +7,9 @@ const BytesLib = artifacts.require("solidity-bytes-utils/contracts/BytesLib");
 
 const MockLightClient = artifacts.require("mock/MockLightClient");
 const MockTokenHub = artifacts.require("mock/MockTokenHub");
+const MockRelayerHub = artifacts.require("mock/MockRelayerHub");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
+const RelayerHub = artifacts.require("RelayerHub");
 
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
@@ -27,6 +29,7 @@ module.exports = function(deployer, network, accounts) {
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
   deployer.deploy(MaliciousToken);
+  deployer.deploy(MockRelayerHub);
 
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];
@@ -50,6 +53,11 @@ module.exports = function(deployer, network, accounts) {
     return deployer.deploy(MockLightClient);
   }).then(function() {
     // deploy mock
+    return deployer.deploy(RelayerHub);
+  }).then(function(relayerInstance) {
+    relayerInstance.init();
+    relayerInstance.register({from: accounts[8],value: 1e20});
+    // deploy mock
     return deployer.deploy(MockTokenHub);
   }).then(function() {
     // deploy mock
@@ -62,7 +70,7 @@ module.exports = function(deployer, network, accounts) {
     return deployer.deploy(BSCValidatorSet).then(function (instance) {
       instance.init();
       slashInstance.updateContractAddr(BSCValidatorSet.address);
-      instance.updateContractAddr(SystemReward.address, MockTokenHub.address, MockLightClient.address, SlashIndicator.address)
+      instance.updateContractAddr(SystemReward.address, MockTokenHub.address, MockLightClient.address, SlashIndicator.address,RelayerHub.address)
       });
   });
 };

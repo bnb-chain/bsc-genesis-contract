@@ -92,6 +92,11 @@ Promise.all([
       "TokenHub"
   ),
   compileContract(
+      "relayerHub",
+      "contracts/RelayerHub.sol",
+      "RelayerHub"
+  ),
+  compileContract(
       "relayerIncentivize",
       "contracts/RelayerIncentivize.sol",
       "RelayerIncentivize"
