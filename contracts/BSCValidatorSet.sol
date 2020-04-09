@@ -20,7 +20,7 @@ contract BSCValidatorSet is System {
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
-  uint256 constant public EXTRA_FEE = 1e12;
+  uint256 constant public EXTRA_FEE = 1e16;
   // will reward relayer at most 0.05 BNB.
   uint256 constant public RELAYER_REWARD = 5e16;
 
