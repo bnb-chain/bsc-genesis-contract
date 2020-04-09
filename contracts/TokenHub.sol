@@ -90,6 +90,7 @@ contract TokenHub is ITokenHub {
   event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
   event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 actualBalance);
   event LogRefundFailureUnboundToken(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
+  event LogRefundFailureUnknownReason(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
 
   event LogUnexpectedRevertInERC20(address contractAddr, string reason);
   event LogUnexpectedFailureAssertionInERC20(address contractAddr, bytes lowLevelData);
@@ -383,7 +384,10 @@ contract TokenHub is ITokenHub {
         emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
         return false;
       }
-      transferInPackage.recipient.transfer(transferInPackage.amount);
+      if (!transferInPackage.recipient.send(transferInPackage.amount)) {
+        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
+        return false;
+      }
       emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
@@ -490,7 +494,10 @@ contract TokenHub is ITokenHub {
         emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
         return false;
       }
-      refundPackage.refundAddr.transfer(refundPackage.refundAmount);
+      if (!refundPackage.refundAddr.send(refundPackage.refundAmount)){
+        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
+        return false;
+      }
       emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
       return true;
     } else {
@@ -507,17 +514,21 @@ contract TokenHub is ITokenHub {
             emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
             return false;
           } catch Error(string memory reason) {
+            emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
             emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
             return false;
           } catch (bytes memory lowLevelData) {
+            emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
             emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
             return false;
           }
         }
       } catch Error(string memory reason) {
+        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
         emit LogUnexpectedRevertInERC20(refundPackage.contractAddr, reason);
         return false;
       } catch (bytes memory lowLevelData) {
+        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
         emit LogUnexpectedFailureAssertionInERC20(refundPackage.contractAddr, lowLevelData);
         return false;
       }
