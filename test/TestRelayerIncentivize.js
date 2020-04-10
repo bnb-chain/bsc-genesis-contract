@@ -1,9 +1,20 @@
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
+const SystemReward = artifacts.require("SystemReward");
+const TendermintLightClient = artifacts.require("TendermintLightClient");
 
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
+const truffleAssert = require('truffle-assertions');
 
 contract('RelayerIncentivize', (accounts) => {
+    it('header relayer incentivize', async () => {
+        const relayerIncentivize = await RelayerIncentivize.deployed();
+        const systemReward = await SystemReward.deployed();
+        await relayerIncentivize.init(systemReward.address, {from: accounts[0]})
+
+        const systemRewardContract = await relayerIncentivize._systemRewardContract.call();
+        assert.equal(systemRewardContract, systemReward.address, "wrong system reward contract address");
+    });
     it('header relayer incentivize', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
 
@@ -171,6 +182,33 @@ contract('RelayerIncentivize', (accounts) => {
         assert.equal(pureRewardAccount5.eq(web3.utils.toBN(29226600000000000)), true, "wrong reward");
         assert.equal(pureRewardAccount6.eq(web3.utils.toBN(28042300000000000)), true, "wrong reward");
         assert.equal(pureRewardAccount7.eq(web3.utils.toBN(14858000000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount8.eq(web3.utils.toBN(34180760000000000)), true, "wrong reward"); // get extra 5% of total reward
+        assert.equal(pureRewardAccount8.eq(web3.utils.toBN(34181480000000000)), true, "wrong reward"); // get extra 5% of total reward
+    });
+    it('transfer relayer Incentivize', async () => {
+        const relayerIncentivize = await RelayerIncentivize.deployed();
+        const tendermintLightClient = await TendermintLightClient.deployed();
+
+        const tokenHub = accounts[9];
+        const relayer = accounts[0];
+
+        for(let i=0; i<15; i++){
+            await relayerIncentivize.addReward(tendermintLightClient.address, relayer, {from: tokenHub, value: web3.utils.toBN(1e16)});
+        }
+
+        for(let i=0; i<14; i++){
+            await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
+        }
+
+        let tx = await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
+        truffleAssert.eventEmitted(tx, "LogRefundHeaderRewardToSystemReward", (ev) => {
+            return ev.amount.eq(web3.utils.toBN(31500000000000000));
+        });
+        truffleAssert.eventEmitted(tx, "LogRefundTransferRewardToSystemReward", (ev) => {
+            return ev.amount.eq(web3.utils.toBN(126000000000000000));
+        });
+
+        let _roundSequence = await relayerIncentivize._roundSequence.call();
+        assert.equal(_roundSequence.toNumber(), 3, "wrong round sequence");
+
     });
 });
