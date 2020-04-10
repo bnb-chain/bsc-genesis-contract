@@ -17,6 +17,7 @@ const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("test/ABCToken");
 const DEFToken = artifacts.require("test/DEFToken");
 const MaliciousToken = artifacts.require("test/MaliciousToken");
+const BSCValidatorSetTool = artifacts.require("tool/BSCValidatorSetTool");
 
 const Web3 = require('web3');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
@@ -30,6 +31,7 @@ module.exports = function(deployer, network, accounts) {
   deployer.deploy(DEFToken);
   deployer.deploy(MaliciousToken);
   deployer.deploy(MockRelayerHub);
+  deployer.deploy(BSCValidatorSetTool);
 
   deployer.deploy(SlashIndicator);
   // let operators = [accounts[0],accounts[1], accounts[2]];

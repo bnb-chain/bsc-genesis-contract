@@ -17,11 +17,11 @@ program.option(
 )
 program.option("--fromChainId <fromChainId>",
     "fromChainId",
-    "0x0001");
+    "0001");
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "0x0002");
+    "0002");
 
 program.option("--mock <mock>",
     "if use mock",
