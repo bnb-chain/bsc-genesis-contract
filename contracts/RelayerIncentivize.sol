@@ -19,14 +19,19 @@ contract RelayerIncentivize is IRelayerIncentivize {
   uint256 public _roundSequence = 0;
   uint256 public _countInRound=0;
   
+  address payable public constant _systemRewardContract = 0x0000000000000000000000000000000000001002;
   address constant public _tokenHubContract = 0x0000000000000000000000000000000000001004;
   
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
+  event LogRefundTransferRewardToSystemReward(uint256 amount);
+  event LogRefundHeaderRewardToSystemReward(uint256 amount);
 
   modifier onlyTokenHub() {
     require(_tokenHubContract == msg.sender, "the message sender must be token hub contract");
     _;
   }
+  
+  
   
   function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
   
@@ -79,13 +84,24 @@ contract RelayerIncentivize is IRelayerIncentivize {
     uint256 callerReward = totalReward * 5/100; //TODO need further discussion
     totalReward = totalReward - callerReward;
     uint256 remainReward = totalReward;
+    uint256 failedTransferAmount = 0;
     for(uint256 index = 1; index < relayers.length; index++) {
       uint256 reward = relayerWeight[index]*totalReward/totalWeight;
-      relayers[index].transfer(reward);
+      if (!relayers[index].send(reward)) {
+        failedTransferAmount += reward;
+      }
       remainReward = remainReward-reward;
     }
-    relayers[0].transfer(remainReward);
-    caller.transfer(callerReward);
+    if (!relayers[0].send(remainReward)) {
+      failedTransferAmount += remainReward;
+    }
+    if (!caller.send(callerReward)) {
+      failedTransferAmount += callerReward;
+    }
+    if (failedTransferAmount>0) {
+      _systemRewardContract.transfer(failedTransferAmount);
+      emit LogRefundHeaderRewardToSystemReward(failedTransferAmount);
+    }
 
     delete _collectedRewardForHeaderRelayerPerRound[sequence];
     for (uint256 index = 0; index < relayers.length; index++){
@@ -111,13 +127,24 @@ contract RelayerIncentivize is IRelayerIncentivize {
     uint256 callerReward = totalReward * 5/100; //TODO need further discussion
     totalReward = totalReward - callerReward;
     uint256 remainReward = totalReward;
+    uint256 failedTransferAmount = 0;
     for(uint256 index = 1; index < relayers.length; index++) {
       uint256 reward = relayerWeight[index]*totalReward/totalWeight;
-      relayers[index].transfer(reward);
+      if (!relayers[index].send(reward)) {
+        failedTransferAmount += reward;
+      }
       remainReward = remainReward-reward;
     }
-    relayers[0].transfer(remainReward);
-    caller.transfer(callerReward);
+    if (!relayers[0].send(remainReward)) {
+      failedTransferAmount += remainReward;
+    }
+    if (!caller.send(callerReward)) {
+      failedTransferAmount += callerReward;
+    }
+    if (failedTransferAmount>0) {
+      _systemRewardContract.transfer(failedTransferAmount);
+      emit LogRefundTransferRewardToSystemReward(failedTransferAmount);
+    }
 
     delete _collectedRewardForTransferRelayerPerRound[sequence];
     for (uint256 index = 0; index < relayers.length; index++){
