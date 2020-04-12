@@ -39,7 +39,7 @@ contract BSCValidatorSet is System {
   address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
   address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
   bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
-  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 5 bytes
+  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 6 bytes
 
   bool public alreadyInit;
 
@@ -119,14 +119,16 @@ contract BSCValidatorSet is System {
 
   event validatorSetUpdated();
   event validatorJailed(address indexed validator);
-  event batchTransfer(uint256 indexed amount);
-  event systemTransfer(uint256 indexed amount);
-  event directTransfer(address payable indexed validator, uint256 indexed amount);
-  event directTransferFail(address payable indexed validator, uint256 indexed amount);
-  event deprecatedDeposit(address indexed validator, uint256 indexed amount);
-  event validatorDeposit(address indexed validator, uint256 indexed amount);
-  event validatorMisdemeanor(address indexed validator, uint256 indexed amount);
-  event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 indexed amount);
+  event batchTransfer(uint256 amount);
+  event batchTransferFailed(uint256 indexed amount, string reason);
+  event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
+  event systemTransfer(uint256 amount);
+  event directTransfer(address payable indexed validator, uint256 amount);
+  event directTransferFail(address payable indexed validator, uint256 amount);
+  event deprecatedDeposit(address indexed validator, uint256 amount);
+  event validatorDeposit(address indexed validator, uint256 amount);
+  event validatorMisdemeanor(address indexed validator, uint256 amount);
+  event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 amount);
 
   function init() external onlyNotInit{
     Validator[] memory validatorSet = parseValidatorSet(INIT_VALIDATORSET_BYTES);
@@ -216,8 +218,17 @@ contract BSCValidatorSet is System {
     // do cross chain transfer
     if(crossTotal > 0){
       uint256 relayFee = crossAddrs.length*EXTRA_FEE;
-      tokenHub.batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee);
-      emit batchTransfer(crossTotal);
+      try tokenHub.batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee) returns (bool success) {
+        if (success) {
+           emit batchTransfer(crossTotal);
+        }else{
+           emit batchTransferFailed(crossTotal, "batch transfer return false");
+        }
+      }catch Error(string memory reason) {
+        emit batchTransferFailed(crossTotal, reason);
+      } catch (bytes memory lowLevelData) {
+        emit batchTransferLowerFailed(crossTotal, lowLevelData);
+      }
     }
 
     if(directAddrs.length>0){

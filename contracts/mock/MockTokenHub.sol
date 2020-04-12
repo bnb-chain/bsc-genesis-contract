@@ -4,6 +4,8 @@ import "../interface/ITokenHub.sol";
 
 contract MockTokenHub is ITokenHub {
 
+  bool panicBatchTransferOut;
+
   function handleBindPackage(uint64, uint64, bytes calldata, bytes calldata)
   external override(ITokenHub) returns (bool) {
     return true;
@@ -27,7 +29,12 @@ contract MockTokenHub is ITokenHub {
   /* solium-disable-next-line */
   function batchTransferOut(address[] calldata, uint256[] calldata, address[] calldata,
     address, uint256, uint256) external override(ITokenHub) payable returns (bool) {
+    require(!panicBatchTransferOut, "panic in batchTransferOut");
     return true;
+  }
+
+  function setPanicBatchTransferOut(bool doPanic){
+    panicBatchTransferOut = doPanic;
   }
 }
 
