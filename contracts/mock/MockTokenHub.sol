@@ -33,7 +33,7 @@ contract MockTokenHub is ITokenHub {
     return true;
   }
 
-  function setPanicBatchTransferOut(bool doPanic){
+  function setPanicBatchTransferOut(bool doPanic)external{
     panicBatchTransferOut = doPanic;
   }
 }
