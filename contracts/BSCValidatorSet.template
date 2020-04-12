@@ -118,8 +118,15 @@ contract BSCValidatorSet is System {
     previousDepositHeight = uint64(block.number);
   }
 
+
+  modifier doClaimReward() {
+    _;
+    systemReward.claimRewards(msg.sender, RELAYER_REWARD);
+  }
+
   event validatorSetUpdated();
   event validatorJailed(address indexed validator);
+  event validatorEmptyJailed(address indexed validator);
   event batchTransfer(uint256 amount);
   event batchTransferFailed(uint256 indexed amount, string reason);
   event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
@@ -171,7 +178,7 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height){
+  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward{
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
     bytes32 appHash = lightClient.getAppHash(height);
@@ -194,6 +201,7 @@ contract BSCValidatorSet is System {
     Validator memory v = validatorSet[0];
     uint256 index = currentValidatorSetMap[v.consensusAddress];
     if (index<=0){
+      emit validatorEmptyJailed(v.consensusAddress);
       return;
     }
     bool otherValid = false;
@@ -205,10 +213,10 @@ contract BSCValidatorSet is System {
     }
     // will not jail if it is the last valid validator
     if(!otherValid){
+      emit validatorEmptyJailed(v.consensusAddress);
       return;
     }
     currentValidatorSet[index-1].jailed = true;
-    systemReward.claimRewards(msg.sender, RELAYER_REWARD);
     emit validatorJailed(v.consensusAddress);
     return;
   }
@@ -261,7 +269,6 @@ contract BSCValidatorSet is System {
     doUpdateState(validatorSet);
 
     // do claim reward, will reward to account rather than smart contract.
-    systemReward.claimRewards(msg.sender, RELAYER_REWARD);
     slash.clean();
     emit validatorSetUpdated();
   }
