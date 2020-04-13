@@ -46,10 +46,9 @@ contract SystemReward is System, ISystemReward{
 
   event NewOperator(address indexed operator);
   event DeleteOperator(address indexed operator);
-  event RewardTo(address indexed to, uint256 indexed amount);
+  event RewardTo(address indexed to, uint256 amount);
   event RewardEmpty();
-
-  event ReceiveDeposit(address indexed from, uint256 indexed amount);
+  event ReceiveDeposit(address indexed from, uint256 amount);
 
 
   receive() external payable{
