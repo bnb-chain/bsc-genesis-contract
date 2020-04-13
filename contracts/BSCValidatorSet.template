@@ -291,7 +291,16 @@ contract BSCValidatorSet is System {
     }
     return consensusAddrs;
   }
+  {% if mock %}
 
+  function isValidatorExist(address validator)external view returns(bool){
+    uint256 index = currentValidatorSetMap[validator];
+    if (index<=0){
+      return false;
+    }
+    return true;
+  }
+    {% endif %}
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0){
@@ -433,18 +442,29 @@ contract BSCValidatorSet is System {
     totalInComing = 0;
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;
-    uint k = n < m ? n:m;
-    if (n>m){
-      for(uint i = m;i<n;i++){
-        delete currentValidatorSetMap[currentValidatorSet[i].consensusAddress];
+
+    for(uint i = 0;i<n;i++){
+      bool stale = true;
+      Validator memory oldValidator = currentValidatorSet[i];
+      for(uint j = 0;j<m;j++){
+        if(oldValidator.consensusAddress == validatorSet[j].consensusAddress){
+          stale = false;
+          break;
+        }
       }
+      if (stale){
+        delete currentValidatorSetMap[oldValidator.consensusAddress];
+      }
+    }
+
+    if (n>m){
       for(uint i = m;i<n;i++){
         currentValidatorSet.pop();
       }
     }
+    uint k = n < m ? n:m;
     for(uint i = 0;i<k;i++){
       if (!isSameValidator(validatorSet[i], currentValidatorSet[i])){
-        delete currentValidatorSetMap[currentValidatorSet[i].consensusAddress];
         currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
         currentValidatorSet[i] = validatorSet[i];
       }else{

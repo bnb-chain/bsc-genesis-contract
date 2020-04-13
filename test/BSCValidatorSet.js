@@ -139,7 +139,7 @@ contract('BSCValidatorSet', (accounts) => {
 });
 
 contract('BSCValidatorSet', (accounts) => {
-  it('complicate validatorSet change', async () => {
+  it('complicate validatorSet change and test valdiatorset map', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
 
@@ -170,6 +170,13 @@ contract('BSCValidatorSet', (accounts) => {
       assert.equal(consensusAddres.length, arr.length);
       for(let i =0;i<consensusAddres.length;i++){
         assert.equal(consensusAddres[i],arr[i], "consensusAddr not equal");
+      }
+      for(let k=0;k<arr.length;k++){
+        let exist = await validatorSetInstance.isValidatorExist.call(arr[k]);
+        if (!exist){
+          console.log(j, k);
+        }
+        assert.equal(exist,true, "the address should be a validator");
       }
     }
   });
