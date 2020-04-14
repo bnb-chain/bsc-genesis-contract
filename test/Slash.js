@@ -31,7 +31,7 @@ contract('SlashIndicator', (accounts) => {
       await slashInstance.slash(validatorAccount.address, { from: nonSystemAccount });
       assert.fail();
     }catch (error) {
-      assert.ok(error.toString().includes("the message sender must be system account"), "slash from no system account should not be ok");
+      assert.ok(error.toString().includes("the message sender must be the block producer"), "slash from no system account should not be ok");
     }
   });
 
@@ -94,7 +94,7 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(amount.toNumber(),0);
 
     await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 1, {from: accounts[8]});
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 0, {from: accounts[8]});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
@@ -152,7 +152,7 @@ contract('SlashIndicator', (accounts) => {
     let secondValidator = accounts[1];
     let thirdValidator = accounts[2];
     await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 2, {from: accounts[8]});
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 1, {from: accounts[8]});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
@@ -176,7 +176,7 @@ contract('SlashIndicator', (accounts) => {
 
 
     await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 3, {from: accounts[8]});
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 2, {from: accounts[8]});
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
@@ -199,7 +199,7 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres[1],thirdValidator);
 
     await validatorSetInstance.update(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 4, {from: accounts[8]});
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 3, {from: accounts[8]});
 
     await validatorSetInstance.deposit(thirdValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);

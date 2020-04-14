@@ -14,14 +14,14 @@ program.option(
     "System.sol",
     "./contracts/System.sol"
 )
-program.option("--system-addr <system-addr>",
-    "system-addr",
-    "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE");
+program.option("--mock <mock>",
+    "if use mock",
+    false);
 
 program.parse(process.argv);
 
 const data = {
-  systemAddr: program.systemAddr,
+  mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
