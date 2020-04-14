@@ -516,6 +516,11 @@ contract('TokenHub', (accounts) => {
                 ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
         });
+        truffleAssert.eventEmitted(tx, "LogBatchTransferOutAddrs", (ev) => {
+            return ev.sequence.toNumber() === 2 &&
+                ev.recipientAddrs[0].toString().toLowerCase() === recipientAddrs[0] &&
+                ev.recipientAddrs[1].toString().toLowerCase() === recipientAddrs[1];
+        });
         txData = await web3.eth.getTransaction(tx.tx);
         result = decoder.decodeData(txData.input);
         batchTransferOut = decoder.decodeData(txData.input);
