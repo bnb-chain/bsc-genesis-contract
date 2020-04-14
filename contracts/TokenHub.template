@@ -88,6 +88,7 @@ contract TokenHub is ITokenHub {
 
   event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
   event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
+  event LogBatchTransferOutAddrs(uint256 sequence, address[] recipientAddrs, address[] refundAddrs);
 
   event LogTransferInSuccess(uint256 sequence, address recipient, uint256 amount, address contractAddr);
   event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
@@ -618,7 +619,8 @@ contract TokenHub is ITokenHub {
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       require(IERC20(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
     }
-    emit LogBatchTransferOut(_transferOutChannelSequence++, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
+    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
+    emit LogBatchTransferOutAddrs(_transferOutChannelSequence++, recipientAddrs, refundAddrs);
     return true;
   }
 }
