@@ -109,7 +109,7 @@ contract('SystemReward', (accounts) => {
       await systemRewardInstance.addOperator(newAccount.address, {from: accounts[1]})
       assert.fail();
     }catch (error) {
-      assert.ok(error.toString().includes("the message sender must be system account"));
+      assert.ok(error.toString().includes("the message sender must be the block producer"));
     }
 
     try{

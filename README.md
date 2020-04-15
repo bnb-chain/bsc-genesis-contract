@@ -12,8 +12,7 @@ npm install
 Generate contracts for testing:
 ```shell script
 # the first account of ganache
-addr=0x9fB29AAc15b9A4B7F17c3385939b007540f4d791 
-node generate-system.js --system-addr  $addr
+node generate-system.js --mock true
 node generate-validatorset.js --mock true
 node generate-tokenhub.js --mock true
 node generate-slash.js --mock true

@@ -45,7 +45,7 @@ contract('BSCValidatorSet', (accounts) => {
       await validatorSetInstance.deposit(validator, {from: accounts[2], value: 1e8 });
       assert.fail();
     }catch (error) {
-      assert.ok(error.toString().includes("the message sender must be system account"));
+      assert.ok(error.toString().includes("the message sender must be the block producer"));
     }
 
     try{
