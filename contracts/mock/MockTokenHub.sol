@@ -6,17 +6,17 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
-  function handleBindPackage(uint64, uint64, bytes calldata, bytes calldata)
+  function handleBindPackage(bytes calldata, bytes calldata, uint64, uint64)
   external override(ITokenHub) returns (bool) {
     return true;
   }
 
-  function handleTransferInPackage(uint64, uint64, bytes calldata, bytes calldata)
+  function handleTransferInPackage( bytes calldata, bytes calldata, uint64, uint64)
   external override(ITokenHub) returns (bool) {
     return true;
   }
 
-  function handleRefundPackage(uint64, uint64, bytes calldata, bytes calldata)
+  function handleRefundPackage( bytes calldata, bytes calldata, uint64, uint64)
   external override(ITokenHub) returns (bool) {
     return true;
   }
