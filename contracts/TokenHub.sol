@@ -64,13 +64,13 @@ contract TokenHub is ITokenHub {
   mapping(address => uint256) public _erc20ContractDecimals;
   mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
-  uint256 public _bindChannelSequence=0;
-  uint256 public _transferInChannelSequence=0;
-  uint256 public _refundChannelSequence=0;
+  uint64 public _bindChannelSequence=0;
+  uint64 public _transferInChannelSequence=0;
+  uint64 public _refundChannelSequence=0;
 
-  uint256 public _transferOutChannelSequence=0;
-  uint256 public _bindResponseChannelSequence=0;
-  uint256 public _transferInFailureChannelSequence=0;
+  uint64 public _transferOutChannelSequence=0;
+  uint64 public _bindResponseChannelSequence=0;
+  uint64 public _transferInFailureChannelSequence=0;
 
   event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
   event LogBindSuccess(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 decimals);
