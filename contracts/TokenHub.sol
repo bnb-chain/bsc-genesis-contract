@@ -214,15 +214,15 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_bindChannelSequence, "wrong bind sequence");
-    require(value.length==157, "wrong bind package size");
+  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_bindChannelSequence, "wrong bind sequence");
+    require(msgBytes.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), msgBytes, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-    BindPackage memory bindPackage = decodeBindPackage(value);
+    BindPackage memory bindPackage = decodeBindPackage(msgBytes);
     IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
@@ -365,15 +365,15 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_transferInChannelSequence, "wrong transfer sequence");
-    require(value.length==164, "wrong transfer package size");
+  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
+    require(msgBytes.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), msgBytes, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
-    TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
+    TransferInPackage memory transferInPackage = decodeTransferInPackage(msgBytes);
     IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
@@ -473,11 +473,11 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_refundChannelSequence, "wrong refund sequence");
-    require(value.length==74, "wrong refund package size");
+  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_refundChannelSequence, "wrong refund sequence");
+    require(msgBytes.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), msgBytes, proof), "invalid merkle proof");
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
@@ -488,7 +488,7 @@ contract TokenHub is ITokenHub {
     reward = _refundRelayReward-reward;
     ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);
 
-    RefundPackage memory refundPackage = decodeRefundPackage(value);
+    RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
     if (refundPackage.contractAddr==address(0x0)) {
       uint256 actualBalance = address(this).balance;
       if (actualBalance < refundPackage.refundAmount) {

@@ -84,7 +84,7 @@ contract('TokenHub', (accounts) => {
 
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        await tokenHub.handleBindPackage(merkleHeight, 0, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 0,  {from: relayer});
 
         _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 1, "wrong bind channel sequence");
@@ -148,7 +148,7 @@ contract('TokenHub', (accounts) => {
             expireTimeStr +                                                              // expire time
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
-        await tokenHub.handleBindPackage(merkleHeight, 1, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 1, {from: relayer});
 
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 2, "wrong bind channel sequence");
@@ -190,7 +190,7 @@ contract('TokenHub', (accounts) => {
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        await tokenHub.handleBindPackage(merkleHeight, 2, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 2, {from: relayer});
 
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 3, "wrong bind channel sequence");
@@ -234,7 +234,7 @@ contract('TokenHub', (accounts) => {
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        await tokenHub.handleBindPackage(merkleHeight, 3, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 3, {from: relayer});
 
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 4, "wrong bind channel sequence");
@@ -273,7 +273,7 @@ contract('TokenHub', (accounts) => {
 
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        await tokenHub.handleBindPackage(merkleHeight, 4, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 4, {from: relayer});
 
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 5, "wrong bind channel sequence");
@@ -312,7 +312,7 @@ contract('TokenHub', (accounts) => {
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.toNumber(), 0, "wrong balance");
 
-        await tokenHub.handleTransferInPackage(merkleHeight, 0, value, proof, {from: relayer});
+        await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 0, {from: relayer});
 
         const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
         assert.equal(_transferInChannelSequence.toNumber(), 1, "wrong transfer in channel sequence");
@@ -346,7 +346,7 @@ contract('TokenHub', (accounts) => {
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
         await sleep(10 * 1000);
-        const tx = await tokenHub.handleTransferInPackage(merkleHeight, 1, value, proof, {from: relayer});
+        const tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 1, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogTransferInFailureTimeout", (ev) => {
             return ev.bep2TokenSymbol === "0x4142432d39433700000000000000000000000000000000000000000000000000" && ev.bep2TokenAmount.toNumber() === 1550000000;
         });
@@ -380,7 +380,7 @@ contract('TokenHub', (accounts) => {
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
         const initBalance = await web3.eth.getBalance(accounts[2]);
-        const tx = await tokenHub.handleTransferInPackage(merkleHeight, 2, value, proof, {from: relayer});
+        const tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 2, {from: relayer});
         const newBalance = await web3.eth.getBalance(accounts[2]);
 
         const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
@@ -467,7 +467,7 @@ contract('TokenHub', (accounts) => {
         let balance = await abcToken.balanceOf.call(refundAddr);
         assert.equal(balance.eq(web3.utils.toBN(155e17).sub(amount)), true, "wrong balance");
 
-        const tx = await tokenHub.handleRefundPackage(merkleHeight, 0, value, proof, {from: relayer});
+        const tx = await tokenHub.handleRefundPackage( value, proof, merkleHeight, 0, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogRefundSuccess", (ev) => {
             return ev.reason.toNumber() === 0x0;
         });
@@ -553,7 +553,7 @@ contract('TokenHub', (accounts) => {
             "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
         let proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        await tokenHub.handleBindPackage(merkleHeight, 5, value, proof, {from: relayer});
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 5, {from: relayer});
 
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 6, "wrong bind channel sequence");
@@ -589,7 +589,7 @@ contract('TokenHub', (accounts) => {
         let _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
         assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
 
-        tx = await tokenHub.handleTransferInPackage(merkleHeight, 3, value, proof, {from: relayer});
+        tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 3, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
@@ -607,7 +607,7 @@ contract('TokenHub', (accounts) => {
         let _refundChannelSequence = await tokenHub._refundChannelSequence.call();
         assert.equal(_refundChannelSequence.toNumber(), 1, "wrong refund channel sequence");
 
-        tx = await tokenHub.handleRefundPackage(merkleHeight, 1, value, proof, {from: relayer});
+        tx = await tokenHub.handleRefundPackage(value, proof, merkleHeight, 1, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
