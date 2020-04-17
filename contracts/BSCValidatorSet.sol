@@ -335,8 +335,8 @@ contract BSCValidatorSet is System {
       currentValidatorSet[index].incoming = 0;
       return;
     }
-    felonySequence ++;
     emit validatorFelony(felonySequence,validator,income);
+    felonySequence ++;
     delete currentValidatorSetMap[validator];
     // It is ok that the validatorSet is not in order.
     if (index != currentValidatorSet.length-1){
