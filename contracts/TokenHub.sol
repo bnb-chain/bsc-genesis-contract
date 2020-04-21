@@ -153,8 +153,8 @@ contract TokenHub is ITokenHub {
     return key;
   }
 
-  // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | expireTime | relayFee |
-  // | 32 bytes | 32 bytes    | 20 bytes   |  32 bytes   | 32 bytes  | 8 bytes  | 32 bytes  |
+  // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | decimals | expireTime | relayFee |
+  // | 32 bytes | 32 bytes        | 20 bytes     |  32 bytes   | 32 bytes    | 1 byte   | 8 bytes    | 32 bytes |
   function decodeBindPackage(bytes memory value) internal pure returns(BindPackage memory) {
     BindPackage memory bindPackage;
 
