@@ -97,21 +97,21 @@ contract('TokenHub', (accounts) => {
         assert.equal(bindRequenst.expireTime.eq(web3.utils.toBN(expireTimeStr)), true, "wrong expire time");
         assert.equal(bindRequenst.relayFee.eq(web3.utils.toBN(1e16)), true, "wrong relayFee");
         try {
-            await tokenHub.approveBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: relayer})
+            await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: relayer})
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("only erc20 owner can approve this bind request"));
         }
 
         try {
-            await tokenHub.approveBind("0x0000000000000000000000000000000000000000", "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: relayer})
+            await tokenHub.approveBind("0x0000000000000000000000000000000000000000", "ABC-9C7", {from: relayer})
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("contact address doesn't equal to the contract address in bind request"));
         }
 
         try {
-            await tokenHub.approveBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner})
+            await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner})
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("allowance doesn't equal to (totalSupply - peggyAmount)"));
@@ -120,7 +120,7 @@ contract('TokenHub', (accounts) => {
         await abcToken.approve(tokenHub.address, new BN('1000000000000000000000000', 10), {from: owner});
         await sleep(10 * 1000);
         // approve expired bind request
-        await tokenHub.approveBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner});
+        await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner});
         bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
@@ -154,13 +154,13 @@ contract('TokenHub', (accounts) => {
         assert.equal(_bindChannelSequence.toNumber(), 2, "wrong bind channel sequence");
 
         try {
-            await tokenHub.rejectBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: relayer});
+            await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("only erc20 owner can reject"));
         }
 
-        await tokenHub.rejectBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner});
+        await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner});
 
         const bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
@@ -196,7 +196,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(_bindChannelSequence.toNumber(), 3, "wrong bind channel sequence");
 
         try {
-            await tokenHub.expireBind("0x4142432d39433700000000000000000000000000000000000000000000000000", {from: accounts[2]});
+            await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("bind request is not expired"));
@@ -204,7 +204,7 @@ contract('TokenHub', (accounts) => {
 
         await sleep(10 * 1000);
 
-        await tokenHub.expireBind("0x4142432d39433700000000000000000000000000000000000000000000000000", {from: accounts[2]});
+        await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
 
         bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
@@ -239,7 +239,7 @@ contract('TokenHub', (accounts) => {
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 4, "wrong bind channel sequence");
 
-        let tx = await tokenHub.approveBind(abcToken.address, "0x4445462d39433700000000000000000000000000000000000000000000000000", {from: owner});
+        let tx = await tokenHub.approveBind(abcToken.address, "DEF-9C7", {from: owner});
         truffleAssert.eventEmitted(tx, "LogBindInvalidParameter", (ev) => {
             return ev.bep2TokenSymbol === "0x4445462d39433700000000000000000000000000000000000000000000000000";
         });
@@ -278,7 +278,7 @@ contract('TokenHub', (accounts) => {
         const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
         assert.equal(_bindChannelSequence.toNumber(), 5, "wrong bind channel sequence");
 
-        await tokenHub.approveBind(abcToken.address, "0x4142432d39433700000000000000000000000000000000000000000000000000", {from: owner});
+        await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner});
 
         const bep2Symbol = await tokenHub._contractAddrToBEP2Symbol.call(abcToken.address);
         assert.equal(bep2Symbol, "0x4142432d39433700000000000000000000000000000000000000000000000000", "wrong symbol");
@@ -560,7 +560,7 @@ contract('TokenHub', (accounts) => {
 
         await maliciousToken.approve(tokenHub.address, new BN('1000000000000000000000000', 10), {from: owner});
 
-        let tx = await tokenHub.approveBind(maliciousToken.address, "0x4d414c4943494f55532d41303900000000000000000000000000000000000000", {from: owner});
+        let tx = await tokenHub.approveBind(maliciousToken.address, "MALICIOUS-A09", {from: owner});
 
         truffleAssert.eventEmitted(tx, "LogBindSuccess", (ev) => {
             return ev.bep2TokenSymbol === "0x4d414c4943494f55532d41303900000000000000000000000000000000000000";
