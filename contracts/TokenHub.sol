@@ -253,7 +253,8 @@ contract TokenHub is ITokenHub {
     return symbolMatch;
   }
 
-  function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+  function approveBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     uint256 lockedAmount = bindPackage.totalSupply-bindPackage.peggyAmount;
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
@@ -287,7 +288,8 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+  function rejectBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IERC20(contractAddr).getOwner()==msg.sender, "only erc20 owner can reject");
@@ -296,7 +298,8 @@ contract TokenHub is ITokenHub {
     return true;
   }
 
-  function expireBind(bytes32 bep2TokenSymbol) public returns (bool) {
+  function expireBind(string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
     delete _bindPackageRecord[bep2TokenSymbol];
