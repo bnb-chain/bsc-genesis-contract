@@ -9,7 +9,7 @@ import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
-import "./MerkleProof.sol";
+import "./mock/MerkleProof.sol";
 
 
 contract BSCValidatorSet is System {
@@ -153,6 +153,13 @@ contract BSCValidatorSet is System {
     alreadyInit = true;
   }
 
+  function updateContractAddr(address _systemRewardAddr, address _tokenHub, address _lightClientAddr, address _slashContract, address _relayerHub) external onlyInit onlySystem{
+    lightClient = ILightClient(_lightClientAddr);
+    tokenHub = ITokenHub(_tokenHub);
+    systemReward = ISystemReward(_systemRewardAddr);
+    slash = ISlashIndicator(_slashContract);
+    relayerHub = IRelayerHub(_relayerHub);
+  }
   /*********************** External Functions **************************/
 
   function deposit(address valAddr) external payable onlySystem onlyInit noEmptyDeposit onlyDepositOnce{
@@ -284,6 +291,15 @@ contract BSCValidatorSet is System {
     return consensusAddrs;
   }
   
+
+  function isValidatorExist(address validator)external view returns(bool){
+    uint256 index = currentValidatorSetMap[validator];
+    if (index<=0){
+      return false;
+    }
+    return true;
+  }
+    
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0){

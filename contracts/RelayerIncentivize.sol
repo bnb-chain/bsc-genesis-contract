@@ -4,8 +4,8 @@ import "./interface/IRelayerIncentivize.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize {
 
-  uint256 public constant roundSize=1000;
-  uint256 public constant maximumWeight=400;
+  uint256 public constant roundSize=30;
+  uint256 public constant maximumWeight=3;
 
   mapping( uint256 => mapping(address => uint256) ) public _headerRelayersSubmitCount;
   mapping( uint256 => address payable[] ) public _headerRelayerAddressRecord;
@@ -19,8 +19,8 @@ contract RelayerIncentivize is IRelayerIncentivize {
   uint256 public _roundSequence = 0;
   uint256 public _countInRound=0;
   
-  address payable public constant _systemRewardContract = 0x0000000000000000000000000000000000001002;
-  address constant public _tokenHubContract = 0x0000000000000000000000000000000000001004;
+  address payable public _systemRewardContract;
+  address constant public _tokenHubContract = address(0x0);
   
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
   event LogRefundTransferRewardToSystemReward(uint256 amount);
@@ -31,9 +31,12 @@ contract RelayerIncentivize is IRelayerIncentivize {
     _;
   }
   
+  function init(address payable systemRewardContract) external {
+    _systemRewardContract = systemRewardContract;
+  }
   
   
-  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable caller) external override payable returns (bool) {
   
     _countInRound++;
 

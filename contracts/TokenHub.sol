@@ -7,7 +7,7 @@ import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
 
-import "./MerkleProof.sol";
+import "./mock/MerkleProof.sol";
 
 
 contract TokenHub is ITokenHub {
@@ -51,12 +51,12 @@ contract TokenHub is ITokenHub {
 
   uint256 constant public _maxGasForCallingERC20=50000;
 
-  uint256 constant public _minimumRelayFee=10000000000000000;
-  uint256 constant public _refundRelayReward=10000000000000000;
-  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
-  address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
-  address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
-  address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
+  uint256 public _minimumRelayFee;
+  uint256 public _refundRelayReward;
+  address public _systemRewardContract;
+  address public _lightClientContract;
+  address public _incentivizeContractForRelayers;
+  address public _relayerHubContract;
 
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
@@ -98,6 +98,20 @@ contract TokenHub is ITokenHub {
 
   constructor() public {}
 
+  function initTokenHub(
+    address systemRewardContract,
+    address lightClientContractAddr,
+    address incentivizeContractAddr,
+    address relayerHubContract,
+    uint256 minimumRelayFee,
+    uint256 refundReward) public payable {
+    _systemRewardContract = systemRewardContract;
+    _lightClientContract = lightClientContractAddr;
+    _relayerHubContract = relayerHubContract;
+    _incentivizeContractForRelayers = incentivizeContractAddr;
+    _minimumRelayFee=minimumRelayFee;
+    _refundRelayReward=refundReward;
+  }
 
 
   modifier onlyHeaderSynced(uint64 height) {

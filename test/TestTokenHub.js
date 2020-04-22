@@ -481,16 +481,17 @@ contract('TokenHub', (accounts) => {
 
         const sender = accounts[0];
 
-        const recipientAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
-        let amounts = [web3.utils.toBN(1e11), web3.utils.toBN(2e11)];
-        const refundAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
-
+        const recipientAddrs = ["0x68655acb135a8706ac89e451e3efed732c5e838b", "0xa0d2ef4fbba9d5eec5287af6d2a1d7e0a0cc5cb6"];
+        let amounts = [web3.utils.toBN(1e18), web3.utils.toBN(1e18)];
+        const refundAddrs = ["0xfa5e36a04eef3152092099f352ddbe88953bb540", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
         let timestamp = Math.floor(Date.now() / 1000);
-        let expireTime = (timestamp + 150);
-        const relayFee = web3.utils.toBN(1e16);
+        let expireTime = (timestamp + 3600);
+        const relayFee = web3.utils.toBN(2e16);
 
-        await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});
+        await abcToken.approve(tokenHub.address, web3.utils.toBN(2e18), {from: sender});
+        console.log(abcToken.address);
         let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
+        console.log(tx);
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
             return ev.sequence.toNumber() === 1 &&
                 ev.contractAddr === abcToken.address &&
@@ -498,7 +499,7 @@ contract('TokenHub', (accounts) => {
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
         });
         let txData = await web3.eth.getTransaction(tx.tx);
-
+        console.log(txData)
         const decoder = new InputDataDecoder('./test/abi/tokenHub.json');
         let batchTransferOut = decoder.decodeData(txData.input);
         assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");
