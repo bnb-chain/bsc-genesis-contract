@@ -17,12 +17,6 @@ const Web3 = require('web3');
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
-const crossChainKeyPrefix = "0x00";
-
-const bindChannelID = "01";
-const transferChannelID = "02";
-const refundChannelID = "03";
-
 const minimumRelayFee = 1e12;
 const refundRelayReward = 1e12;
 
@@ -31,11 +25,11 @@ const merkleHeight = 100;
 contract('TokenHub', (accounts) => {
     it('Init TokenHub', async () => {
         const tokenHub = await TokenHub.deployed();
+
+        let uselessAddr = web3.eth.accounts.create().address;
+        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address);
+
         await tokenHub.initTokenHub(
-            SystemReward.address, 
-            MockLightClient.address,
-            RelayerIncentivize.address,
-            MockRelayerHub.address,
             minimumRelayFee,
             refundRelayReward,
             {

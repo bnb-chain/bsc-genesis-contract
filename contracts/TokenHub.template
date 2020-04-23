@@ -98,16 +98,8 @@ contract TokenHub is ITokenHub, System{
   constructor() public {}
 {% if mock %}
   function initTokenHub(
-    address systemRewardContract,
-    address lightClientContractAddr,
-    address incentivizeContractAddr,
-    address relayerHubContract,
     uint256 minimumRelayFee,
     uint256 refundReward) public payable {
-    SYSTEM_REWARD_ADDR = systemRewardContract;
-    LIGHT_CLIENT_ADDR = lightClientContractAddr;
-    RELAYERHUB_CONTRACT_ADDR = relayerHubContract;
-    INCENTIVIZE_ADDR = incentivizeContractAddr;
     _minimumRelayFee=minimumRelayFee;
     _refundRelayReward=refundReward;
   }
