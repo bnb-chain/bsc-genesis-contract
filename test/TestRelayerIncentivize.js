@@ -10,9 +10,10 @@ contract('RelayerIncentivize', (accounts) => {
     it('header relayer incentivize', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
         const systemReward = await SystemReward.deployed();
-        await relayerIncentivize.init(systemReward.address, {from: accounts[0]})
+        let uselessAddr = web3.eth.accounts.create().address;
+        await relayerIncentivize.updateContractAddr(uselessAddr,uselessAddr,systemReward.address,uselessAddr,uselessAddr,uselessAddr,uselessAddr, {from: accounts[0]});
 
-        const systemRewardContract = await relayerIncentivize._systemRewardContract.call();
+        const systemRewardContract = await relayerIncentivize.SYSTEM_REWARD_ADDR.call();
         assert.equal(systemRewardContract, systemReward.address, "wrong system reward contract address");
     });
     it('header relayer incentivize', async () => {

@@ -20,8 +20,6 @@ contract System {
     address public constant RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
 
 
-
-
     modifier onlyCoinbase() {
        require(msg.sender == block.coinbase, "the message sender must be the block producer");
        _;

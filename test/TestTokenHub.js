@@ -46,7 +46,7 @@ contract('TokenHub', (accounts) => {
 
         let balance_wei = await web3.eth.getBalance(tokenHub.address);
         assert.equal(balance_wei, 10e18, "wrong balance");
-        const _lightClientContract = await tokenHub._lightClientContract.call();
+        const _lightClientContract = await tokenHub.LIGHT_CLIENT_ADDR.call();
         assert.equal(_lightClientContract, MockLightClient.address, "wrong tendermint light client contract address");
 
         const systemReward = await SystemReward.deployed();
