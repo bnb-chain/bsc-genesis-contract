@@ -4,8 +4,9 @@ import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/IRelayerHub.sol";
+import "./System.sol";
 
-contract TendermintLightClient is ILightClient {
+contract TendermintLightClient is ILightClient, System{
 
   struct ConsensusState {
     uint64  preValidatorSetChangeHeight;
@@ -33,12 +34,6 @@ contract TendermintLightClient is ILightClient {
 
   /* solium-disable-next-line */
   constructor() public {}
-
-
-  modifier onlyRelayer() {
-    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
-    _;
-  }
 
   function init() public {
     require(!_alreadyInit, "already initialized");

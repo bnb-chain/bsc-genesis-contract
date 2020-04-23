@@ -5,14 +5,14 @@ import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/ILightClient.sol";
-import "./interface/ISystemReward.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IBSCValidatorSet.sol";
 import "./MerkleProof.sol";
 
 
-contract BSCValidatorSet is System {
+contract BSCValidatorSet is IBSCValidatorSet, System {
   // keep consistent with the channel id in BBC;
   uint8 public constant CHANNEL_ID =  8;
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
@@ -21,8 +21,6 @@ contract BSCValidatorSet is System {
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
   uint256 constant public EXTRA_FEE = 1e16;
-  // will reward relayer at most 0.05 BNB.
-  uint256 constant public RELAYER_REWARD = 5e16;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
@@ -30,26 +28,11 @@ contract BSCValidatorSet is System {
   // the precision of cross chain value transfer.
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
-  // the store name of the package
-  string constant STORE_NAME = "ibc";
 
-  address payable public constant INIT_SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
-  address public constant  INIT_TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
-  address public constant INIT_LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
-  address public constant INIT_SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
-  address public constant INIT_RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 6 bytes
 
   bool public alreadyInit;
-
-  // other contract
-  ILightClient lightClient;
-  ITokenHub tokenHub;
-  ISystemReward systemReward;
-  ISlashIndicator slash;
-  IRelayerHub relayerHub;
-
 
   // state of this contract
   Validator[] public currentValidatorSet;
@@ -70,11 +53,6 @@ contract BSCValidatorSet is System {
     uint256 incoming;
   }
 
-  modifier onlyRelayer() {
-    require(relayerHub.isRelayer(msg.sender), "the msg sender is not a relayer");
-    _;
-  }
-
   modifier onlyNotInit() {
     require(!alreadyInit, "the contract already init");
     _;
@@ -85,20 +63,10 @@ contract BSCValidatorSet is System {
     _;
   }
 
-  modifier onlySlash() {
-    require(msg.sender == address(slash) , "the message sender must be slash contract");
-    _;
-  }
-
   modifier sequenceInOrder(uint64 _sequence) {
     require(_sequence == sequence, "sequence not in order");
     _;
     sequence ++;
-  }
-
-  modifier blockSynced(uint64 _height) {
-    require(lightClient.isHeaderSynced(_height), "light client not sync the block yet");
-    _;
   }
 
   modifier enoughInComing() {
@@ -115,12 +83,6 @@ contract BSCValidatorSet is System {
     require(block.number > previousDepositHeight, "can not deposit twice in one block");
     _;
     previousDepositHeight = uint64(block.number);
-  }
-
-
-  modifier doClaimReward() {
-    _;
-    systemReward.claimRewards(msg.sender, RELAYER_REWARD);
   }
 
   event validatorSetUpdated();
@@ -145,17 +107,12 @@ contract BSCValidatorSet is System {
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    lightClient = ILightClient(INIT_LIGHT_CLIENT_ADDR);
-    tokenHub = ITokenHub(INIT_TOKEN_HUB_ADDR);
-    systemReward = ISystemReward(INIT_SYSTEM_REWARD_ADDR);
-    slash = ISlashIndicator(INIT_SLASH_CONTRACT_ADDR);
-    relayerHub = IRelayerHub(INIT_RELAYERHUB_CONTRACT_ADDR);
     alreadyInit = true;
   }
 
   /*********************** External Functions **************************/
 
-  function deposit(address valAddr) external payable onlySystem onlyInit noEmptyDeposit onlyDepositOnce{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit onlyDepositOnce{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
     if (index>0){
@@ -170,10 +127,10 @@ contract BSCValidatorSet is System {
     }
   }
 
-  function update(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward{
+  function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward{
     // verify key value against light client;
     bytes memory key = generateKey(packageSequence);
-    bytes32 appHash = lightClient.getAppHash(height);
+    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
     require(valid, "the package is invalid against its proof");
     uint8 msgType = getMsgType(msgBytes);
@@ -226,7 +183,7 @@ contract BSCValidatorSet is System {
     // do cross chain transfer
     if(crossTotal > 0){
       uint256 relayFee = crossAddrs.length*EXTRA_FEE;
-      try tokenHub.batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee) returns (bool success) {
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         }else{
@@ -253,7 +210,7 @@ contract BSCValidatorSet is System {
     // do dusk transfer
     if(address(this).balance>0){
       emit systemTransfer(address(this).balance);
-      address payable systemPayable = address(uint160(address(systemReward)));
+      address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
       systemPayable.transfer(address(this).balance);
     }
 
@@ -261,7 +218,7 @@ contract BSCValidatorSet is System {
     doUpdateState(validatorSet);
 
     // do claim reward, will reward to account rather than smart contract.
-    slash.clean();
+    ISlashIndicator(SLASH_CONTRACT_ADDR).clean();
     emit validatorSetUpdated();
   }
 
@@ -294,7 +251,7 @@ contract BSCValidatorSet is System {
 
   /*********************** For slash **************************/
 
-  function misdemeanor(address validator)external onlySlash{
+  function misdemeanor(address validator)external onlySlash override{
     uint256 index = currentValidatorSetMap[validator];
     if(index <= 0){
       return;
@@ -321,7 +278,7 @@ contract BSCValidatorSet is System {
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
-  function felony(address validator)external onlySlash{
+  function felony(address validator)external onlySlash override{
     uint256 index = currentValidatorSetMap[validator];
     if(index <= 0){
       return;
