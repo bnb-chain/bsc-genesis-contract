@@ -58,8 +58,9 @@ module.exports = function(deployer, network, accounts) {
     return deployer.deploy(RelayerHub);
   }).then(function(relayerInstance) {
     relayerInstance.init();
+    let uselessAddr = web3.eth.accounts.create().address;
     relayerInstance.register({from: accounts[8],value: 1e20});
-    relayerInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address);
+    relayerInstance.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address, uselessAddr,uselessAddr,uselessAddr,uselessAddr);
     // deploy mock
     return deployer.deploy(MockTokenHub);
   }).then(function() {

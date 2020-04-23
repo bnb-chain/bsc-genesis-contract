@@ -15,7 +15,7 @@ require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
 
 program.version("0.0.1")
-program.option("-c, --chain-id <chain-id>", "chain id", "714")
+program.option("-c, --chainid <chainid>", "chain id", "714")
 program.option(
   "-o, --output <output-file>",
   "Genesis json file",
@@ -109,7 +109,7 @@ program.option("--initLockedBNBOnTokenHub <initLockedBNBOnTokenHub>",
 
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
-    chainId: program.chainId,
+    chainId: program.chainid,
     initHolders: init_holders,
     extraData: web3.utils.bytesToHex(validators.extraValidatorBytes)
   }

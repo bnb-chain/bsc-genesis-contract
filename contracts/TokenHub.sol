@@ -59,13 +59,13 @@ contract TokenHub is ITokenHub, System{
   mapping(address => uint256) public _erc20ContractDecimals;
   mapping(bytes32 => address) public _bep2SymbolToContractAddr;
 
-  uint256 public _bindChannelSequence=0;
-  uint256 public _transferInChannelSequence=0;
-  uint256 public _refundChannelSequence=0;
+  uint64 public _bindChannelSequence=0;
+  uint64 public _transferInChannelSequence=0;
+  uint64 public _refundChannelSequence=0;
 
-  uint256 public _transferOutChannelSequence=0;
-  uint256 public _bindResponseChannelSequence=0;
-  uint256 public _transferInFailureChannelSequence=0;
+  uint64 public _transferOutChannelSequence=0;
+  uint64 public _bindResponseChannelSequence=0;
+  uint64 public _transferInFailureChannelSequence=0;
 
   event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
   event LogBindSuccess(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 decimals);
@@ -137,8 +137,8 @@ contract TokenHub is ITokenHub, System{
     return key;
   }
 
-  // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | expireTime | relayFee |
-  // | 32 bytes | 32 bytes    | 20 bytes   |  32 bytes   | 32 bytes  | 8 bytes  | 32 bytes  |
+  // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | decimals | expireTime | relayFee |
+  // | 32 bytes | 32 bytes        | 20 bytes     |  32 bytes   | 32 bytes    | 1 byte   | 8 bytes    | 32 bytes |
   function decodeBindPackage(bytes memory value) internal pure returns(BindPackage memory) {
     BindPackage memory bindPackage;
 
@@ -198,15 +198,15 @@ contract TokenHub is ITokenHub, System{
     return bindPackage;
   }
 
-  function handleBindPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_bindChannelSequence, "wrong bind sequence");
-    require(value.length==157, "wrong bind package size");
+  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_bindChannelSequence, "wrong bind sequence");
+    require(msgBytes.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), msgBytes, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    BindPackage memory bindPackage = decodeBindPackage(value);
+    BindPackage memory bindPackage = decodeBindPackage(msgBytes);
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
@@ -237,7 +237,8 @@ contract TokenHub is ITokenHub, System{
     return symbolMatch;
   }
 
-  function approveBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+  function approveBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     uint256 lockedAmount = bindPackage.totalSupply-bindPackage.peggyAmount;
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
@@ -271,7 +272,8 @@ contract TokenHub is ITokenHub, System{
     return true;
   }
 
-  function rejectBind(address contractAddr, bytes32 bep2TokenSymbol) public returns (bool) {
+  function rejectBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IERC20(contractAddr).getOwner()==msg.sender, "only erc20 owner can reject");
@@ -280,7 +282,8 @@ contract TokenHub is ITokenHub, System{
     return true;
   }
 
-  function expireBind(bytes32 bep2TokenSymbol) public returns (bool) {
+  function expireBind(string memory bep2Symbol) public returns (bool) {
+    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
     delete _bindPackageRecord[bep2TokenSymbol];
@@ -349,15 +352,15 @@ contract TokenHub is ITokenHub, System{
     return transferInPackage;
   }
 
-  function handleTransferInPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_transferInChannelSequence, "wrong transfer sequence");
-    require(value.length==164, "wrong transfer package size");
+  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
+    require(msgBytes.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), msgBytes, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    TransferInPackage memory transferInPackage = decodeTransferInPackage(value);
+    TransferInPackage memory transferInPackage = decodeTransferInPackage(msgBytes);
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
@@ -457,11 +460,11 @@ contract TokenHub is ITokenHub, System{
     return refundPackage;
   }
 
-  function handleRefundPackage(uint64 height, uint64 sequence, bytes calldata value, bytes calldata proof) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(sequence==_refundChannelSequence, "wrong refund sequence");
-    require(value.length==74, "wrong refund package size");
+  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+    require(packageSequence==_refundChannelSequence, "wrong refund sequence");
+    require(msgBytes.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), value, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), msgBytes, proof), "invalid merkle proof");
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
@@ -472,7 +475,7 @@ contract TokenHub is ITokenHub, System{
     reward = _refundRelayReward-reward;
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
 
-    RefundPackage memory refundPackage = decodeRefundPackage(value);
+    RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
     if (refundPackage.contractAddr==address(0x0)) {
       uint256 actualBalance = address(this).balance;
       if (actualBalance < refundPackage.refundAmount) {

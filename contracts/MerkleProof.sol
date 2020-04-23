@@ -63,9 +63,7 @@ library MerkleProof {
     assembly {
     // call validateMerkleProof precompile contract
     // Contract address: 0x65
-      if iszero(staticcall(not(0), 0x65, input, length, result, 0x20)) {
-        revert(0, 0)
-      }
+      if iszero(staticcall(not(0), 0x65, input, length, result, 0x20)) {}
     }
 
     if (result[0] != 0x01) {
