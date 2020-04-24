@@ -22,6 +22,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
 
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
+  event paramChange(string key, bytes value);
 
   struct Indicator {
     uint256 height;
@@ -82,18 +83,19 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
     if (Memory.compareStrings(key,"misdemeanorThreshold")){
-      require(value.length == 32, "the length of value must be 32 when update misdemeanorThreshold");
+      require(value.length == 32, "length of misdemeanorThreshold mismatch");
       uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newMisdemeanorThreshold >=10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
       misdemeanorThreshold = newMisdemeanorThreshold;
     }else if(Memory.compareStrings(key,"felonyThreshold")){
-      require(value.length == 32, "the length of value must be 32 when update felonyThreshold");
+      require(value.length == 32, "length of felonyThreshold mismatch");
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold >20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
     }else{
       require(false, "unknown param");
     }
+    emit paramChange(key,value);
   }
 
   /*********************** query api ********************************/

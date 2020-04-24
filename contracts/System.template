@@ -65,6 +65,11 @@ contract System {
         _;
     }
 
+    modifier onlyTokenHub() {
+        require(msg.sender == TOKEN_HUB_ADDR, "the message sender must be token hub contract");
+        _;
+    }
+
     modifier onlyGov() {
         require(msg.sender == GOV_HUB_ADDR, "the message sender must be governance contract");
         _;
@@ -84,7 +89,6 @@ contract System {
         _;
         ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
     }
-
 
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |

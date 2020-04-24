@@ -1,9 +1,10 @@
 pragma solidity 0.6.4;
 import "./System.sol";
 import "./Seriality/BytesToTypes.sol";
+import "./Seriality/Memory.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/IParamSubscriber.sol";
-import "./MerkleProof.sol";
+import "./mock/MerkleProof.sol";
 
 
 contract GovHub is System{
@@ -15,8 +16,9 @@ contract GovHub is System{
     uint256 public relayerReward;
     bool public alreadyInit;
 
-    event failReasonWithStr(string _message);
-    event failReasonWithBytes(bytes _message);
+    event failReasonWithStr(string message);
+    event failReasonWithBytes(bytes message);
+    event paramChange(string key, bytes value);
 
 
     modifier onlyNotInit() {
@@ -49,7 +51,7 @@ contract GovHub is System{
         if(msgType == PARAM_UPDATE_MESSAGE_TYPE){
             notifyUpdates(msgBytes);
         }else{
-            require(false, "unknown message type");
+            emit failReasonWithStr("unknown message type");
         }
     }
 
@@ -71,7 +73,7 @@ contract GovHub is System{
         string memory key = string(BytesLib.slice(proposalBytes, 2, keyLength));
         uint8 valueLength =  BytesToTypes.bytesToUint8(3+keyLength, proposalBytes);
         if(valueLength == 0||msgLength!=23+keyLength+valueLength){
-            emit failReasonWithStr("valuLength mismatch");
+            emit failReasonWithStr("valueLength mismatch");
             return;
         }
         bytes memory value = BytesLib.slice(proposalBytes, 3+keyLength, valueLength);
@@ -92,11 +94,18 @@ contract GovHub is System{
     /*********************** Param update ********************************/
     function updateParam(string memory key, bytes memory value) internal{
         if (Memory.compareStrings(key,"relayerReward")){
-            require(value.length == 32, "the length of value must be 32 when update relayerReward");
+            if(value.length != 32){
+                emit failReasonWithStr("length of relayerReward mismatch");
+                return;
+            }
             uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
-            require(newRelayerReward >=0 && newRelayerReward <= 1e18, "the relayerReward out of range");
+            if (newRelayerReward == 0 || newRelayerReward > 1e18){
+                emit failReasonWithStr("the relayerReward out of range");
+                return;
+            }
             relayerReward = newRelayerReward;
-        }else{
+            emit paramChange(key, value);
+    }else{
             emit failReasonWithStr("unknown param");
         }
     }

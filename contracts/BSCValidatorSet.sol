@@ -14,6 +14,7 @@ import "./interface/IBSCValidatorSet.sol";
 import "./MerkleProof.sol";
 
 
+
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
@@ -29,7 +30,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 6 bytes
 
   bool public alreadyInit;
@@ -101,6 +102,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   event validatorDeposit(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 amount);
+  event paramChange(string key, bytes value);
 
   function init() external onlyNotInit{
     Validator[] memory validatorSet = parseValidatorSet(INIT_VALIDATORSET_BYTES);
@@ -318,23 +320,24 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
     if (Memory.compareStrings(key,"relayerReward")){
-      require(value.length == 32, "the length of value must be 32 when update relayerReward");
+      require(value.length == 32, "length of relayerReward mismatch");
       uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
       require(newRelayerReward >=0 && newRelayerReward <= 1e18, "the relayerReward out of range");
       relayerReward = newRelayerReward;
     }else if(Memory.compareStrings(key,"extraFee")){
-      require(value.length == 32, "the length of value must be 32 when update extraFee");
+      require(value.length == 32, "length of extraFee mismatch");
       uint256 newExtraFee = BytesToTypes.bytesToUint256(32, value);
       require(newExtraFee >=0 && newExtraFee <= 1e17, "the extraFee out of range");
       extraFee = newExtraFee;
     }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
-      require(value.length == 32, "the length of value must be 32 when update expireTimeSecondGap");
+      require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the extraFee out of range");
       expireTimeSecondGap = newExpireTimeSecondGap;
     }else{
       require(false, "unknown param");
     }
+    emit paramChange(key, value);
   }
 
   /*********************** Internal Functions **************************/

@@ -62,7 +62,6 @@ contract System {
         ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
     }
 
-
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
     function generateKey(uint64 _sequence, bytes32 _crossChainKeyPrefix) internal pure returns(bytes memory) {

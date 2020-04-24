@@ -51,6 +51,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   event relayerRegister(address _relayer);
   event relayerUnRegister(address _relayer);
+  event paramChange(string key, bytes value);
+
 
   function init() external onlyNotInit{
     requiredDeposit = INIT_REQUIRED_DEPOSIT;
@@ -78,18 +80,19 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
     if (Memory.compareStrings(key,"requiredDeposit")){
-      require(value.length == 32, "the length of value must be 32 when update requiredDeposit");
+      require(value.length == 32, "length of requiredDeposit mismatch");
       uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
       require(newRequiredDeposit >=1 && newRequiredDeposit <= 1e21, "the requiredDeposit out of range");
       requiredDeposit = newRequiredDeposit;
     }else if(Memory.compareStrings(key,"dues")){
-      require(value.length == 32, "the length of value must be 32 when update dues");
+      require(value.length == 32, "length of dues mismatch");
       uint256 newDues = BytesToTypes.bytesToUint256(32, value);
       require(newDues >0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
     }else{
       require(false, "unknown param");
     }
+    emit paramChange(key, value);
   }
 
   function isRelayer(address sender) external override view returns (bool){

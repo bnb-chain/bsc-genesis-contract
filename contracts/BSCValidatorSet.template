@@ -103,6 +103,7 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
   event validatorDeposit(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 amount);
+  event paramChange(string key, bytes value);
 
   function init() external onlyNotInit{
     Validator[] memory validatorSet = parseValidatorSet(INIT_VALIDATORSET_BYTES);
@@ -329,23 +330,24 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
     if (Memory.compareStrings(key,"relayerReward")){
-      require(value.length == 32, "the length of value must be 32 when update relayerReward");
+      require(value.length == 32, "length of relayerReward mismatch");
       uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
       require(newRelayerReward >=0 && newRelayerReward <= 1e18, "the relayerReward out of range");
       relayerReward = newRelayerReward;
     }else if(Memory.compareStrings(key,"extraFee")){
-      require(value.length == 32, "the length of value must be 32 when update extraFee");
+      require(value.length == 32, "length of extraFee mismatch");
       uint256 newExtraFee = BytesToTypes.bytesToUint256(32, value);
       require(newExtraFee >=0 && newExtraFee <= 1e17, "the extraFee out of range");
       extraFee = newExtraFee;
     }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
-      require(value.length == 32, "the length of value must be 32 when update expireTimeSecondGap");
+      require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the extraFee out of range");
       expireTimeSecondGap = newExpireTimeSecondGap;
     }else{
       require(false, "unknown param");
     }
+    emit paramChange(key, value);
   }
 
   /*********************** Internal Functions **************************/
