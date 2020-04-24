@@ -232,7 +232,7 @@ contract TokenHub is ITokenHub, System{
     assembly {
       mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
     }
-    if (bep2TokenSymbolBytes[erc20SymbolBytes.length] != '-') {
+    if (bep2TokenSymbolBytes[erc20SymbolBytes.length] != 0x2d) { // '-'
       return false;
     }
     bool symbolMatch = true;
