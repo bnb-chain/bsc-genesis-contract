@@ -44,6 +44,8 @@ contract TokenHub is ITokenHub, System{
   uint8 constant public transferInChannelID = 0x02;
   uint8 constant public refundChannelID=0x03;
   uint256 constant public maxBep2TotalSupply = 9000000000000000000;
+  uint8 constant public minimumERC20Symbol = 3;
+  uint8 constant public maximumERC20Symbol = 8;
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000000010002; // last 5 bytes
@@ -216,6 +218,9 @@ contract TokenHub is ITokenHub, System{
 
   function checkSymbol(string memory erc20Symbol, bytes32 bep2TokenSymbol) public pure returns(bool) {
     bytes memory erc20SymbolBytes = bytes(erc20Symbol);
+    if (erc20SymbolBytes.length > maximumERC20Symbol || erc20SymbolBytes.length < minimumERC20Symbol) {
+      return false;
+    }
     //Upper case string
     for (uint i = 0; i < erc20SymbolBytes.length; i++) {
       if (0x61 <= uint8(erc20SymbolBytes[i]) && uint8(erc20SymbolBytes[i]) <= 0x7A) {
@@ -226,6 +231,9 @@ contract TokenHub is ITokenHub, System{
     bytes memory bep2TokenSymbolBytes = new bytes(32);
     assembly {
       mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
+    }
+    if (bep2TokenSymbolBytes[erc20SymbolBytes.length] != '-') {
+      return false;
     }
     bool symbolMatch = true;
     for(uint256 index=0; index < erc20SymbolBytes.length; index++) {
