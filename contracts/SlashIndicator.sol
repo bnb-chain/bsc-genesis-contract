@@ -7,8 +7,7 @@ import "./interface/IBSCValidatorSet.sol";
 contract SlashIndicator is ISlashIndicator,System {
   uint256 public constant MISDEMEANOR_THRESHOLD = 50; // around 1.45 hours
   uint256 public constant FELONY_THRESHOLD = 150;     // around 4.3 hours
-  address public constant  VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
-  
+
   // State of the contract
   address[] validators;
   mapping(address => Indicator) indicators;
@@ -29,12 +28,7 @@ contract SlashIndicator is ISlashIndicator,System {
     previousHeight = block.number;
   }
 
-  modifier onlyValidatorContract() {
-    require(msg.sender == VALIDATOR_CONTRACT_ADDR, "the message sender must be validatorSet contract");
-    _;
-  }
-
-  function slash(address validator) external onlySystem onlyOnce{
+  function slash(address validator) external onlyCoinbase onlyOnce{
     Indicator memory indicator = indicators[validator];
     if (indicator.exist){
       indicator.count++;

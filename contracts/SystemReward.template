@@ -44,7 +44,29 @@ contract SystemReward is System, ISystemReward{
       emit ReceiveDeposit(msg.sender, msg.value);
     }
   }
-  
+  {% if mock %}
+  modifier onlyOperatorExist(address _operator) {
+    require(operators[_operator], "the operator do not exist");
+    _;
+  }
+
+  modifier onlyOperatorNotExist(address _operator) {
+    require(!operators[_operator],"the operator already exist");
+    _;
+  }
+
+  function addOperator(address operator) external doInit onlyOperatorNotExist(operator){
+    operators[operator] = true;
+    numOperator ++;
+    emit NewOperator(operator);
+  }
+
+  function removeOperator(address operator) external doInit onlyOperatorExist(operator){
+    delete operators[operator];
+    numOperator --;
+    emit DeleteOperator(operator);
+  }
+  {% endif %}
   function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator rewardNotExceedLimit(amount){
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if(actualAmount>0){

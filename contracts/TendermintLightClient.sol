@@ -4,8 +4,9 @@ import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/IRelayerHub.sol";
+import "./System.sol";
 
-contract TendermintLightClient is ILightClient {
+contract TendermintLightClient is ILightClient, System{
 
   struct ConsensusState {
     uint64  preValidatorSetChangeHeight;
@@ -20,10 +21,6 @@ contract TendermintLightClient is ILightClient {
   uint64 public _latestHeight;
   bool public _alreadyInit;
 
-
-  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
-  address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
-
   string constant public _chainID="Binance-Chain-Nile";
   bytes constant public _initConsensusStateBytes = hex"746573742d636861696e00000000000000000000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000";
   uint256 constant public _rewardForValidatorSetChange = 10000000000000000;
@@ -33,12 +30,6 @@ contract TendermintLightClient is ILightClient {
 
   /* solium-disable-next-line */
   constructor() public {}
-
-
-  modifier onlyRelayer() {
-    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
-    _;
-  }
 
   function init() public {
     require(!_alreadyInit, "already initialized");
@@ -59,7 +50,7 @@ contract TendermintLightClient is ILightClient {
 
     emit InitConsensusState(_initialHeight, cs.appHash);
   }
-  
+
   function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
     require(_submitters[height] == address(0x0), "can't sync duplicated header");
     require(height > _initialHeight, "can't sync header before _initialHeight");
@@ -112,7 +103,7 @@ contract TendermintLightClient is ILightClient {
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      ISystemReward(_systemRewardContract).claimRewards(msg.sender, _rewardForValidatorSetChange);//TODO further discussion about reward amount
+      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, _rewardForValidatorSetChange);//TODO further discussion about reward amount
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
 

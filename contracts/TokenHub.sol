@@ -6,11 +6,12 @@ import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
+import "./System.sol";
 
 import "./MerkleProof.sol";
 
 
-contract TokenHub is ITokenHub {
+contract TokenHub is ITokenHub, System{
 
   struct BindPackage {
     bytes32 bep2TokenSymbol;
@@ -42,8 +43,6 @@ contract TokenHub is ITokenHub {
   uint8 constant public bindChannelID = 0x01;
   uint8 constant public transferInChannelID = 0x02;
   uint8 constant public refundChannelID=0x03;
-  // the store name of the package
-  string constant public STORE_NAME = "ibc";
   uint256 constant public maxBep2TotalSupply = 9000000000000000000;
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
@@ -53,10 +52,6 @@ contract TokenHub is ITokenHub {
 
   uint256 constant public _minimumRelayFee=10000000000000000;
   uint256 constant public _refundRelayReward=10000000000000000;
-  address constant public _relayerHubContract=0x0000000000000000000000000000000000001006;
-  address constant public _systemRewardContract=0x0000000000000000000000000000000000001002;
-  address constant public _lightClientContract=0x0000000000000000000000000000000000001003;
-  address constant public _incentivizeContractForRelayers=0x0000000000000000000000000000000000001005;
 
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
@@ -99,17 +94,6 @@ contract TokenHub is ITokenHub {
   constructor() public {}
 
 
-
-  modifier onlyHeaderSynced(uint64 height) {
-    require(ILightClient(_lightClientContract).isHeaderSynced(height), "reference header is not synced");
-    _;
-  }
-
-
-  modifier onlyRelayer() {
-    require(IRelayerHub(_relayerHubContract).isRelayer(msg.sender), "the msg sender is not a relayer");
-    _;
-  }
 
   function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
     bytes32 result;
@@ -214,16 +198,16 @@ contract TokenHub is ITokenHub {
     return bindPackage;
   }
 
-  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(packageSequence==_bindChannelSequence, "wrong bind sequence");
     require(msgBytes.length==157, "wrong bind package size");
-    bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
+    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), msgBytes, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
-    address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
+    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
     BindPackage memory bindPackage = decodeBindPackage(msgBytes);
-    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
+    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
     emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
@@ -368,16 +352,16 @@ contract TokenHub is ITokenHub {
     return transferInPackage;
   }
 
-  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
     require(msgBytes.length==164, "wrong transfer package size");
-    bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
+    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), msgBytes, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
-    address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
+    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
     TransferInPackage memory transferInPackage = decodeTransferInPackage(msgBytes);
-    IRelayerIncentivize(_incentivizeContractForRelayers).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
+    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
       if (block.timestamp > transferInPackage.expireTime) {
@@ -476,20 +460,20 @@ contract TokenHub is ITokenHub {
     return refundPackage;
   }
 
-  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) onlyHeaderSynced(height) onlyRelayer override external returns (bool) {
+  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(packageSequence==_refundChannelSequence, "wrong refund sequence");
     require(msgBytes.length==74, "wrong refund package size");
-    bytes32 appHash = ILightClient(_lightClientContract).getAppHash(height);
+    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), msgBytes, proof), "invalid merkle proof");
     _refundChannelSequence++;
 
-    address payable tendermintHeaderSubmitter = ILightClient(_lightClientContract).getSubmitter(height);
+    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
     //TODO system reward, need further discussion,
     //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
     uint256 reward = _refundRelayReward / 5;
-    ISystemReward(_systemRewardContract).claimRewards(tendermintHeaderSubmitter, reward);
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
     reward = _refundRelayReward-reward;
-    ISystemReward(_systemRewardContract).claimRewards(msg.sender, reward);
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
 
     RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
     if (refundPackage.contractAddr==address(0x0)) {

@@ -1,4 +1,5 @@
 const RelayerHub = artifacts.require("RelayerHub");
+const SystemReward = artifacts.require("SystemReward");
 const Web3 = require('web3');
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
@@ -6,13 +7,15 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 contract('RelayerHub', (accounts) => {
   it('register and unregister success', async () => {
     const relayerInstance = await RelayerHub.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+
     let tx =await relayerInstance.register({from: accounts[3],value: 1e20});
     truffleAssert.eventEmitted(tx, "relayerRegister");
     let res = await relayerInstance.isRelayer.call(accounts[3]);
     assert.equal(res,true);
 
     let balanceBefore = await web3.eth.getBalance(accounts[3]);
-    let systemRewardBefore = await web3.eth.getBalance("0x0000000000000000000000000000000000001002");
+    let systemRewardBefore = await web3.eth.getBalance(systemRewardInstance.address);
 
     tx =await relayerInstance.unregister({from: accounts[3]});
     truffleAssert.eventEmitted(tx, "relayerUnRegister");
@@ -26,7 +29,7 @@ contract('RelayerHub', (accounts) => {
     let dues = await relayerInstance.dues.call();
     assert.equal(web3.utils.toBN(balanceAfter).sub(web3.utils.toBN(balanceBefore)).add(web3.utils.toBN(2e10).mul(web3.utils.toBN(tx.receipt.gasUsed))).toString(), deposit.sub(dues).toString());
 
-    let systemRewardAfter = await web3.eth.getBalance("0x0000000000000000000000000000000000001002");
+    let systemRewardAfter = await web3.eth.getBalance(systemRewardInstance.address);
     assert.equal(web3.utils.toBN(systemRewardAfter).sub(web3.utils.toBN(systemRewardBefore)).toString(), web3.utils.toBN(1e17).toString())
   });
 

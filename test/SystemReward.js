@@ -103,14 +103,6 @@ contract('SystemReward', (accounts) => {
 
   it('Add and remove operators failed', async () => {
     const systemRewardInstance = await SystemReward.deployed();
-    let newAccount = web3.eth.accounts.create();
-
-    try{
-      await systemRewardInstance.addOperator(newAccount.address, {from: accounts[1]})
-      assert.fail();
-    }catch (error) {
-      assert.ok(error.toString().includes("the message sender must be the block producer"));
-    }
 
     try{
       await systemRewardInstance.addOperator(accounts[1], {from: accounts[0]})

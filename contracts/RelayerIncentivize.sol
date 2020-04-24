@@ -1,8 +1,9 @@
 pragma solidity 0.6.4;
 
 import "./interface/IRelayerIncentivize.sol";
+import "./System.sol";
 
-contract RelayerIncentivize is IRelayerIncentivize {
+contract RelayerIncentivize is IRelayerIncentivize, System {
 
   uint256 public constant roundSize=1000;
   uint256 public constant maximumWeight=400;
@@ -18,20 +19,11 @@ contract RelayerIncentivize is IRelayerIncentivize {
 
   uint256 public _roundSequence = 0;
   uint256 public _countInRound=0;
-  
-  address payable public constant _systemRewardContract = 0x0000000000000000000000000000000000001002;
-  address constant public _tokenHubContract = 0x0000000000000000000000000000000000001004;
-  
+
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
   event LogRefundTransferRewardToSystemReward(uint256 amount);
   event LogRefundHeaderRewardToSystemReward(uint256 amount);
 
-  modifier onlyTokenHub() {
-    require(_tokenHubContract == msg.sender, "the message sender must be token hub contract");
-    _;
-  }
-  
-  
   
   function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
   
@@ -99,7 +91,8 @@ contract RelayerIncentivize is IRelayerIncentivize {
       failedTransferAmount += callerReward;
     }
     if (failedTransferAmount>0) {
-      _systemRewardContract.transfer(failedTransferAmount);
+      address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+      systemPayable.transfer(failedTransferAmount);
       emit LogRefundHeaderRewardToSystemReward(failedTransferAmount);
     }
 
@@ -142,7 +135,8 @@ contract RelayerIncentivize is IRelayerIncentivize {
       failedTransferAmount += callerReward;
     }
     if (failedTransferAmount>0) {
-      _systemRewardContract.transfer(failedTransferAmount);
+      address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+      systemPayable.transfer(failedTransferAmount);
       emit LogRefundTransferRewardToSystemReward(failedTransferAmount);
     }
 

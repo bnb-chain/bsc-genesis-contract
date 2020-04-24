@@ -8,7 +8,7 @@ const validators = require("./validators")
 const init_holders = require("./init_holders")
 
 require("./generate-system");
-require("./generate-slash");
+require("./generate-systemReward");
 require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
