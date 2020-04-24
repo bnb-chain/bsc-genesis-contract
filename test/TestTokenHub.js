@@ -27,7 +27,7 @@ contract('TokenHub', (accounts) => {
         const tokenHub = await TokenHub.deployed();
 
         let uselessAddr = web3.eth.accounts.create().address;
-        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address);
+        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
 
         await tokenHub.initTokenHub(
             minimumRelayFee,

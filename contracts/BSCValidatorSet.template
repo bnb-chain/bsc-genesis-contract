@@ -4,18 +4,19 @@ import "./System.sol";
 import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
 import "./Seriality/BytesLib.sol";
+import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 {% if mock %}import "./mock/MerkleProof.sol";
 {% else %}import "./MerkleProof.sol";
 {% endif %}
 
-contract BSCValidatorSet is IBSCValidatorSet, System {
-  // keep consistent with the channel id in BBC;
-  uint8 public constant CHANNEL_ID =  8;
+
+contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
@@ -40,6 +41,9 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
   uint64 public sequence;
   uint64 public felonySequence;
   uint256 public totalInComing;
+  uint256 public relayerReward;
+  uint256 public extraFee;
+  uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
@@ -108,6 +112,9 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
+    relayerReward = RELAYER_REWARD;
+    extraFee = EXTRA_FEE;
+    expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;
   }
 
@@ -128,9 +135,9 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
     }
   }
 
-  function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward{
+  function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
     // verify key value against light client;
-    bytes memory key = generateKey(packageSequence);
+    bytes memory key = generateKey(packageSequence, crossChainKeyPrefix);
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
     require(valid, "the package is invalid against its proof");
@@ -140,7 +147,7 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
     }else if(msgType == JAIL_MESSAGE_TYPE){
       jailValidator(msgBytes);
     }else{
-       require(false, "unknown message type");
+      require(false, "unknown message type");
     }
   }
 
@@ -183,8 +190,8 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
     // do cross chain transfer
     if(crossTotal > 0){
-      uint256 relayFee = crossAddrs.length*EXTRA_FEE;
-      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + EXPIRE_TIME_SECOND_GAP, relayFee) returns (bool success) {
+      uint256 relayFee = crossAddrs.length*extraFee;
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + expireTimeSecondGap, relayFee) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         }else{
@@ -319,6 +326,27 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
     }
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
+  /*********************** Param update ********************************/
+  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+    if (Memory.compareStrings(key,"relayerReward")){
+      require(value.length == 32, "the length of value must be 32 when update relayerReward");
+      uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
+      require(newRelayerReward >=0 && newRelayerReward <= 1e18, "the relayerReward out of range");
+      relayerReward = newRelayerReward;
+    }else if(Memory.compareStrings(key,"extraFee")){
+      require(value.length == 32, "the length of value must be 32 when update extraFee");
+      uint256 newExtraFee = BytesToTypes.bytesToUint256(32, value);
+      require(newExtraFee >=0 && newExtraFee <= 1e17, "the extraFee out of range");
+      extraFee = newExtraFee;
+    }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
+      require(value.length == 32, "the length of value must be 32 when update expireTimeSecondGap");
+      uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
+      require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the extraFee out of range");
+      expireTimeSecondGap = newExpireTimeSecondGap;
+    }else{
+      require(false, "unknown param");
+    }
+  }
 
   /*********************** Internal Functions **************************/
 
@@ -375,7 +403,7 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
-        crossAmounts[crossSize] = value-EXTRA_FEE;
+        crossAmounts[crossSize] = value-extraFee;
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossTotal += value;
         crossSize ++;
@@ -427,38 +455,6 @@ bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
         currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
       }
     }
-  }
-
-
-// | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
-// | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-  function generateKey(uint256 _sequence) internal pure returns(bytes memory) {
-    bytes memory key = new bytes(14);
-
-    uint256 ptr;
-    assembly {
-      ptr := add(key, 14)
-    }
-    assembly {
-      mstore(ptr, _sequence)
-    }
-    ptr -= 8;
-    assembly {
-      mstore(ptr, crossChainKeyPrefix)
-    }
-    ptr -= 6;
-    assembly {
-      mstore(ptr, 14)
-    }
-    return key;
-  }
-
-  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
-    uint8 msgType = 0xff;
-    assembly {
-      msgType := mload(add(msgBytes, 1))
-    }
-    return msgType;
   }
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool){

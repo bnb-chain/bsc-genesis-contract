@@ -1,10 +1,13 @@
 pragma solidity 0.6.4;
 
+import "./Seriality/BytesToTypes.sol";
+import "./Seriality/Memory.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 
 
-contract RelayerHub is IRelayerHub, System {
+contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
   uint256 public constant INIT_DUES =  1e17;
@@ -70,6 +73,23 @@ contract RelayerHub is IRelayerHub, System {
     delete relayersExistMap[msg.sender];
     delete relayers[msg.sender];
     emit relayerUnRegister(msg.sender);
+  }
+
+  /*********************** Param update ********************************/
+  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+    if (Memory.compareStrings(key,"requiredDeposit")){
+      require(value.length == 32, "the length of value must be 32 when update requiredDeposit");
+      uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
+      require(newRequiredDeposit >=1 && newRequiredDeposit <= 1e21, "the requiredDeposit out of range");
+      requiredDeposit = newRequiredDeposit;
+    }else if(Memory.compareStrings(key,"dues")){
+      require(value.length == 32, "the length of value must be 32 when update dues");
+      uint256 newDues = BytesToTypes.bytesToUint256(32, value);
+      require(newDues >0 && newDues < requiredDeposit, "the dues out of range");
+      dues = newDues;
+    }else{
+      require(false, "unknown param");
+    }
   }
 
   function isRelayer(address sender) external override view returns (bool){
