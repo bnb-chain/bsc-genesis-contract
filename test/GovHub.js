@@ -130,7 +130,7 @@ contract('GovHub others', (accounts) => {
         truffleAssert.eventNotEmitted(tx, "paramChange")
 
         // exceed range  key
-        tx = await govHubInstance.handlePackage(serialize("0x00","unknown key", "0x0000000000000000000000000000000000000000000000000000000000000000", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 2,
+        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 2,
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
             return ev.message === "the relayerReward out of range";
@@ -138,10 +138,10 @@ contract('GovHub others', (accounts) => {
         truffleAssert.eventNotEmitted(tx, "paramChange")
 
         // length mismatch
-        tx = await govHubInstance.handlePackage(serialize("0x00","unknown key", "0x10", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 3,
+        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x10", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 3,
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "length of expireTimeSecondGap mismatch";
+            return ev.message === "length of relayerReward mismatch";
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
     });

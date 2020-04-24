@@ -332,7 +332,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     if (Memory.compareStrings(key,"relayerReward")){
       require(value.length == 32, "length of relayerReward mismatch");
       uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
-      require(newRelayerReward >=0 && newRelayerReward <= 1e18, "the relayerReward out of range");
+      require(newRelayerReward >0 && newRelayerReward <= 1e18, "the relayerReward out of range");
       relayerReward = newRelayerReward;
     }else if(Memory.compareStrings(key,"extraFee")){
       require(value.length == 32, "length of extraFee mismatch");

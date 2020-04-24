@@ -84,11 +84,11 @@ module.exports = function(deployer, network, accounts) {
       govHubInstance.init()
     });
 
-    return deployer.deploy(BSCValidatorSet).then(function (instance) {
-      instance.init();
+    return deployer.deploy(BSCValidatorSet).then(function (validatorInstance) {
+      validatorInstance.init();
       govHubInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
       slashInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
-      instance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
+      validatorInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
       });
   });
 };

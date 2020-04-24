@@ -538,7 +538,7 @@ contract('TokenHub', (accounts) => {
             expireTimeStr = '0' + expireTimeStr;
         }
         let value = Buffer.from(web3.utils.hexToBytes(
-            "0x4d414c4943494f55532d41303900000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOUS-A09
+            "0x4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOU-A09
             maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -554,10 +554,10 @@ contract('TokenHub', (accounts) => {
 
         await maliciousToken.approve(tokenHub.address, new BN('1000000000000000000000000', 10), {from: owner});
 
-        let tx = await tokenHub.approveBind(maliciousToken.address, "MALICIOUS-A09", {from: owner});
+        let tx = await tokenHub.approveBind(maliciousToken.address, "MALICIOU-A09", {from: owner});
 
         truffleAssert.eventEmitted(tx, "LogBindSuccess", (ev) => {
-            return ev.bep2TokenSymbol === "0x4d414c4943494f55532d41303900000000000000000000000000000000000000";
+            return ev.bep2TokenSymbol === "0x4d414c4943494f552d4130390000000000000000000000000000000000000000";
         });
 
         timestamp = Math.floor(Date.now() / 1000); // counted by second
@@ -568,7 +568,7 @@ contract('TokenHub', (accounts) => {
             expireTimeStr = '0' + expireTimeStr;
         }
         value = Buffer.from(web3.utils.hexToBytes(
-            "0x4d414c4943494f55532d41303900000000000000000000000000000000000000" + // bep2TokenSymbol
+            "0x4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol
             maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount

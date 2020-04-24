@@ -49,6 +49,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = 150;
+    alreadyInit = true;
   }
 
   function slash(address validator) external onlyCoinbase onlyInit onlyOnce{
