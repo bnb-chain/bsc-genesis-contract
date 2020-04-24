@@ -4,13 +4,14 @@ import "./Seriality/BytesToTypes.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/IParamSubscriber.sol";
-import "./MerkleProof.sol";
-
+{% if mock %}import "./mock/MerkleProof.sol";
+{% else %}import "./MerkleProof.sol";
+{% endif %}
 
 
 contract GovHub is System{
 
-   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000209; // last 6 bytes
+   bytes32 constant crossChainKeyPrefix = 0x000000000000000000000000000000000000000000000000000000{{fromChainId}}{{toChainId}}09; // last 6 bytes
     uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
 
     uint64 public sequence;
