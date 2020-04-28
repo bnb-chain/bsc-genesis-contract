@@ -102,12 +102,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   event validatorDeposit(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 amount);
+  event failReasonWithStr(string message);
   event paramChange(string key, bytes value);
 
   function init() external onlyNotInit{
-    Validator[] memory validatorSet = parseValidatorSet(INIT_VALIDATORSET_BYTES);
-    (bool passVerify, string memory errorMsg) = verifyValidatorSet(validatorSet);
-    require(passVerify,errorMsg);
+    (Validator[] memory validatorSet, bool valid, string memory errMsg)= parseValidatorSet(INIT_VALIDATORSET_BYTES);
+    require(valid, errMsg);
     for(uint i = 0;i<validatorSet.length;i++){
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
@@ -153,8 +153,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   function jailValidator(bytes memory validatorBytes) internal{
     // do deserialize and verify.
-    Validator[] memory validatorSet = parseValidatorSet(validatorBytes);
-    require(validatorSet.length == 1, "length of jail validators must be one");
+    (Validator[] memory validatorSet, bool valid, string memory errMsg) = parseValidatorSet(validatorBytes);
+    if(!valid){
+      emit failReasonWithStr(errMsg);
+      return;
+    }
+    if(validatorSet.length != 1){
+      emit failReasonWithStr("length of jail validators must be one");
+      return;
+    }
     Validator memory v = validatorSet[0];
     uint256 index = currentValidatorSetMap[v.consensusAddress];
     if (index<=0){
@@ -180,10 +187,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   function updateValidatorSet(bytes memory validatorSetBytes) internal{
     // do deserialize and verify.
-    Validator[] memory validatorSet = parseValidatorSet(validatorSetBytes);
-    (bool passVerify, string memory errorMsg) = verifyValidatorSet(validatorSet);
-    require(passVerify,errorMsg);
-
+    (Validator[] memory validatorSet, bool valid, string memory errMsg)= parseValidatorSet(validatorSetBytes);
+    if(!valid){
+      emit failReasonWithStr(errMsg);
+      return;
+    }
     // do calculate distribution
     (address[] memory crossAddrs, uint256[] memory crossAmounts, address[] memory crossRefundAddrs,
       address payable[] memory directAddrs, uint256[] memory directAmounts, uint256 crossTotal) = calDistribute();
@@ -342,10 +350,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   /*********************** Internal Functions **************************/
 
-  function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory){
+  function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory, bool, string memory){
     uint length = validatorSetBytes.length-1;
-    require(length > 0, "the validatorSetBytes should not be empty");
-    require(length % VALIDATOR_BYTES_LENGTH == 0, "the length of validatorSetBytes should be times of 68");
+    if(length == 0){
+      return (new Validator[](0), false, "the validatorSetBytes should not be empty");
+    }
+    if(length % VALIDATOR_BYTES_LENGTH != 0){
+      return (new Validator[](0), false, "the length of validatorSetBytes should be times of 68");
+    }
     uint n = length/VALIDATOR_BYTES_LENGTH;
     Validator[] memory validatorSet = new Validator[](n);
     for(uint i = 0;i<n;i++){
@@ -354,19 +366,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
       validatorSet[i].BBCFeeAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
       validatorSet[i].votingPower = BytesToTypes.bytesToUint64(1+i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
     }
-    return validatorSet;
-  }
-
-  function verifyValidatorSet(Validator[] memory validatorSet) private pure returns(bool,string memory){
-    uint n = validatorSet.length;
     for(uint i = 0;i<n;i++){
       for(uint j = 0;j<i;j++){
         if(validatorSet[i].consensusAddress == validatorSet[j].consensusAddress ){
-          return (false, "duplicate consensus address of validatorSet");
+          return (new Validator[](0), false, "duplicate consensus address of validatorSet");
         }
       }
     }
-    return (true,"");
+    return (validatorSet,true,"");
   }
 
   function calDistribute() private view enoughInComing returns (address[] memory, uint256[] memory,
