@@ -10,7 +10,7 @@ import "./MerkleProof.sol";
 
 contract GovHub is System{
 
-   bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000209; // last 6 bytes
+    bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000209; // last 6 bytes
     uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
 
     uint64 public sequence;
@@ -67,17 +67,17 @@ contract GovHub is System{
             return;
         }
         uint8 keyLength =  BytesToTypes.bytesToUint8(2, proposalBytes);
-        if(keyLength == 0||msgLength<24+keyLength){
+        if(keyLength == 0||msgLength<24+uint16(keyLength)){
             emit failReasonWithStr("keyLength mismatch");
             return;
         }
         string memory key = string(BytesLib.slice(proposalBytes, 2, keyLength));
-        uint8 valueLength =  BytesToTypes.bytesToUint8(3+keyLength, proposalBytes);
-        if(valueLength == 0||msgLength!=23+keyLength+valueLength){
+        uint8 valueLength =  BytesToTypes.bytesToUint8(3+uint16(keyLength), proposalBytes);
+        if(valueLength == 0||msgLength!=23+uint16(keyLength)+uint16(valueLength)){
             emit failReasonWithStr("valueLength mismatch");
             return;
         }
-        bytes memory value = BytesLib.slice(proposalBytes, 3+keyLength, valueLength);
+        bytes memory value = BytesLib.slice(proposalBytes, 3+uint16(keyLength), uint16(valueLength));
         address target = BytesToTypes.bytesToAddress(msgLength, proposalBytes);
         if (target == address(this)){
             updateParam(key, value);
