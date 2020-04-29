@@ -93,6 +93,20 @@ contract('GovHub self', (accounts) => {
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
     });
+
+    it('Gov it self and overflow', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handlePackage(serialize("0x00","44NefHcYoOIxHFBIRYpAGobD3ftcaDsh9Jo9BZhFiUpkdA7IgLWCILRLq4LbheFqe3lbKOOoJvqdXt8lIrm076rIxUIxID8UkOW8uq27q15Quc1tt90Tw540kENpZqQRKOtR2GDpDxLs50R7wZfymZ476Nx6vSiiTq7pjm8zzEJ5l2DJ0dzKcfQ6fsQw6KalrF6RE6aBQk1JnatKy4sBWDWTvJoMizYqUnZk441qLYOSpq8EKFcKPYrwcKQx", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 7,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "unknown param";
+        });
+        truffleAssert.eventNotEmitted(tx, "paramChange");
+
+        let reward = await govHubInstance.relayerReward.call();
+        assert.equal(reward.toNumber(), 65536, "value not equal");
+    });
 });
 
 
