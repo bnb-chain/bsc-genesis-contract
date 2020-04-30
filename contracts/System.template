@@ -96,7 +96,7 @@ contract System {
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
     function generateKey(uint64 _sequence, uint8 channelID) internal pure returns(bytes memory) {
-        uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix & channelID;
+        uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix | channelID;
         bytes memory key = new bytes(14);
 
         uint256 ptr;

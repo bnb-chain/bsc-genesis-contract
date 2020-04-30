@@ -23,7 +23,7 @@ contract TendermintLightClient is ILightClient, System{
 
   string constant public _chainID="Binance-Chain-Nile";
   bytes constant public _initConsensusStateBytes = hex"746573742d636861696e00000000000000000000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000";
-  uint256 constant public _rewardForValidatorSetChange = 10000000000000000;
+  uint256 constant public _rewardForValidatorSetChange = 1e16;
 
   event InitConsensusState(uint64 initHeight, bytes32 appHash);
   event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
