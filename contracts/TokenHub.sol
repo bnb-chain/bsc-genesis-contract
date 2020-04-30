@@ -539,6 +539,7 @@ contract TokenHub is ITokenHub, System{
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
     if (contractAddr==address(0x0)) {
+      require(amount%(10**10)==0, "invalid transfer amount: precision loss in amount conversion");
       require(msg.value==amount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
       convertedAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=bep2TokenSymbolForBNB;
