@@ -414,7 +414,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, relayFee, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("relayFee is must be N*10^10"));
+            assert.ok(error.toString().includes("relayFee is must be N*1e10"));
         }
 
         try {
