@@ -203,36 +203,40 @@ contract('BSCValidatorSet', (accounts) => {
     
     let arrs = [[validatorB,validatorA,validatorC,validatorD],
       [validatorB,validatorB,validatorE],
-      [],
-      [validatorC,validatorC,validatorB]];
+      [validatorC,validatorC,validatorB],
+      []];
 
     await validatorSetInstance.handlePackage(validatorUpdateSerialize(arrs[0], arrs[0], arrs[0]), crypto.randomBytes(32),100,0,
         {from: relayerAccount});
-    for(let j=1;j<arrs.length;j++){
+    for(let j=1;j<arrs.length-1;j++){
       let arr = arrs[j];
-      try{
-        await validatorSetInstance.handlePackage(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,1,
-            {from: relayerAccount});
-        assert.fail();
-      }catch(error){
-        // console.log(error);
-      }
+      let tx = await validatorSetInstance.handlePackage(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,j,
+          {from: relayerAccount});
+      truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+        return ev.message === "duplicate consensus address of validatorSet";
+      });
     }
-    
+   let arr =arrs[3];
+    let tx = await validatorSetInstance.handlePackage(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,3,
+        {from: relayerAccount});
+    truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+      return ev.message === "the validatorSetBytes should not be empty";
+    });
     // block the light client 
     const lightClientInstance = await LightClient.deployed();
     await lightClientInstance.setBlockNotSynced(true);
+
     let validArray = arrs[0];
     try{
-      await validatorSetInstance.handlePackage(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,1,
+      await validatorSetInstance.handlePackage(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,4,
           {from: relayerAccount});
       assert.fail();
     }catch(error){
-      // console.log(error);
+      assert.ok(error.toString().includes("light client not sync the block yet"));
     }
     await lightClientInstance.setBlockNotSynced(false);
     try{
-      await validatorSetInstance.handlePackage(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,1,
+      await validatorSetInstance.handlePackage(validatorUpdateSerialize(validArray, validArray,validArray), crypto.randomBytes(32),100,4,
           {from: accounts[4]});
       assert.fail();
     }catch(error){
@@ -471,16 +475,15 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(consensusAddres[1], newValidator2.address);
     assert.equal(consensusAddres[2], newValidator3.address);
 
-    try {
-      await validatorSetInstance.handlePackage(jailSerialize([newValidator1.address, newValidator2.address, newValidator3.address],
-          [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]), crypto.randomBytes(32), 100, 1,
-          {from: relayerAccount});
-    } catch (error) {
-      assert.ok(error.toString().includes("length of jail validators must be one"));
-    }
+    let tx = await validatorSetInstance.handlePackage(jailSerialize([newValidator1.address, newValidator2.address, newValidator3.address],
+        [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]), crypto.randomBytes(32), 100, 1,
+        {from: relayerAccount});
+    truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+      return ev.message === "length of jail validators must be one";
+    });
 
     await validatorSetInstance.handlePackage(jailSerialize([newValidator1.address],
-        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 1,
+        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 2,
         {from: relayerAccount});
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 2);
@@ -489,11 +492,11 @@ contract('BSCValidatorSet', (accounts) => {
 
     // ok to re jail
     await validatorSetInstance.handlePackage(jailSerialize([newValidator1.address],
-        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 2,
+        [newValidator1.address], [newValidator1.address]), crypto.randomBytes(32), 100, 3,
         {from: relayerAccount});
 
     await validatorSetInstance.handlePackage(jailSerialize([newValidator2.address],
-        [newValidator2.address], [newValidator2.address]), crypto.randomBytes(32), 100, 3,
+        [newValidator2.address], [newValidator2.address]), crypto.randomBytes(32), 100, 4,
         {from: relayerAccount});
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);
@@ -501,7 +504,7 @@ contract('BSCValidatorSet', (accounts) => {
 
     // can not jail if it is the last one validator
     await validatorSetInstance.handlePackage(jailSerialize([newValidator3.address],
-        [newValidator3.address], [newValidator3.address]), crypto.randomBytes(32), 100, 4,
+        [newValidator3.address], [newValidator3.address]), crypto.randomBytes(32), 100, 5,
         {from: relayerAccount});
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);

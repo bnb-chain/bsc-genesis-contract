@@ -27,7 +27,7 @@ contract('TokenHub', (accounts) => {
         const tokenHub = await TokenHub.deployed();
 
         let uselessAddr = web3.eth.accounts.create().address;
-        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address);
+        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
 
         await tokenHub.initTokenHub(
             minimumRelayFee,
@@ -414,7 +414,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, relayFee, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("relayFee is must be N*10^10"));
+            assert.ok(error.toString().includes("relayFee is must be N*1e10"));
         }
 
         try {

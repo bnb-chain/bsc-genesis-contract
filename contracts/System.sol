@@ -11,6 +11,9 @@ contract System {
     // the store name of the package
     string constant STORE_NAME = "ibc";
 
+    uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000200; // last 6 bytes
+
+
     address public constant  VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
@@ -18,6 +21,7 @@ contract System {
     address public constant  TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
     address constant public INCENTIVIZE_ADDR=0x0000000000000000000000000000000000001005;
     address public constant RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
+    address public constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
 
 
     modifier onlyCoinbase() {
@@ -41,6 +45,11 @@ contract System {
         _;
     }
 
+    modifier onlyGov() {
+        require(msg.sender == GOV_HUB_ADDR, "the message sender must be governance contract");
+        _;
+    }
+
     modifier onlyValidatorContract() {
         require(msg.sender == VALIDATOR_CONTRACT_ADDR, "the message sender must be validatorSet contract");
         _;
@@ -51,8 +60,40 @@ contract System {
         _;
     }
 
-    modifier doClaimReward() {
+    modifier doClaimReward(uint256 reward) {
         _;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, RELAYER_REWARD);
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
+    }
+
+    // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
+    // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
+    function generateKey(uint64 _sequence, uint8 channelID) internal pure returns(bytes memory) {
+        uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix | channelID;
+        bytes memory key = new bytes(14);
+
+        uint256 ptr;
+        assembly {
+            ptr := add(key, 14)
+        }
+        assembly {
+            mstore(ptr, _sequence)
+        }
+        ptr -= 8;
+        assembly {
+            mstore(ptr, fullCrossChainKeyPrefix)
+        }
+        ptr -= 6;
+        assembly {
+            mstore(ptr, 14)
+        }
+        return key;
+    }
+
+    function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+        uint8 msgType = 0xff;
+        assembly {
+            msgType := mload(add(msgBytes, 1))
+        }
+        return msgType;
     }
 }

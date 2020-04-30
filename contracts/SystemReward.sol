@@ -15,7 +15,8 @@ contract SystemReward is System, ISystemReward{
       operators[LIGHT_CLIENT_ADDR] = true;
       operators[VALIDATOR_CONTRACT_ADDR] = true;
       operators[TOKEN_HUB_ADDR] = true;
-      numOperator = 3;
+      operators[GOV_HUB_ADDR] = true;
+      numOperator = 4;
       alreadyInit = true;
     }
     _;

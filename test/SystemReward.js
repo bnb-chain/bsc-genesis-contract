@@ -77,46 +77,4 @@ contract('SystemReward', (accounts) => {
     let balance_wei = await web3.eth.getBalance(newAccount.address);
     assert.equal(balance_wei, 0, "balance not equal");
   });
-
-  it('Add and remove operators', async () => {
-    const systemRewardInstance = await SystemReward.deployed();
-    let newAccount = web3.eth.accounts.create();
-    let res = await systemRewardInstance.isOperator.call(newAccount.address);
-    let numOperator =  await systemRewardInstance.numOperator.call();
-    assert.ok(!res, "newAccount should not be operator");
-    assert.equal(numOperator, 8, "numOperator should be 6");
-
-
-    await systemRewardInstance.addOperator(newAccount.address, {from: accounts[0]})
-
-    res = await systemRewardInstance.isOperator.call(newAccount.address);
-    numOperator =  await systemRewardInstance.numOperator.call();
-    assert.ok(res, "newAccount should be operator");
-    assert.equal(numOperator, 9, "numOperator should be 7");
-
-    await systemRewardInstance.removeOperator(newAccount.address, {from: accounts[0]})
-    res = await systemRewardInstance.isOperator.call(newAccount.address);
-    numOperator =  await systemRewardInstance.numOperator.call();
-    assert.ok(!res, "newAccount should not be operator");
-    assert.equal(numOperator, 8, "numOperator should be 6");
-  });
-
-  it('Add and remove operators failed', async () => {
-    const systemRewardInstance = await SystemReward.deployed();
-
-    try{
-      await systemRewardInstance.addOperator(accounts[1], {from: accounts[0]})
-      assert.fail();
-    }catch (error) {
-      assert.ok(error.toString().includes("the operator already exist"));
-    }
-
-    try{
-      await systemRewardInstance.removeOperator(accounts[3], {from: accounts[0]})
-      assert.fail();
-    }catch (error) {
-      assert.ok(error.toString().includes("the operator do not exist"));
-    }
-
-  });
 });
