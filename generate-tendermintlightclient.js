@@ -22,7 +22,7 @@ program.option("--chainID <chainID>",
 
 program.option("--rewardForValidatorSetChange <rewardForValidatorSetChange>",
     "rewardForValidatorSetChange",
-    "10000000000000000"); //1e16
+    "1e16"); //1e16
 
 program.option("--initConsensusStateBytes <initConsensusStateBytes>",
     "init consensusState bytes, hex encoding, no prefix with 0x",

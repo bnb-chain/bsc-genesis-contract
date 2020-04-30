@@ -25,11 +25,11 @@ program.option("--toChainId <toChainId>",
 
 program.option("--refundRelayReward <refundRelayReward>",
     "refundRelayReward",
-    "10000000000000000");
+    "1e16");
 
 program.option("--minimumRelayFee <minimumRelayFee>",
     "minimumRelayFee",
-    "10000000000000000");
+    "1e16");
 
 program.option("--maxGasForCallingERC20 <maxGasForCallingERC20>",
     "maxGasForCallingERC20",
