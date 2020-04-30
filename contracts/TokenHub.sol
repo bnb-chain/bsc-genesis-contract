@@ -52,8 +52,8 @@ contract TokenHub is ITokenHub, System{
 
   uint256 constant public _maxGasForCallingERC20=50000;
 
-  uint256 constant public _minimumRelayFee=10000000000000000;
-  uint256 constant public _refundRelayReward=10000000000000000;
+  uint256 constant public _minimumRelayFee=1e16;
+  uint256 constant public _refundRelayReward=1e16;
 
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
@@ -373,21 +373,21 @@ contract TokenHub is ITokenHub, System{
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==bep2TokenSymbolForBNB) {
       if (block.timestamp > transferInPackage.expireTime) {
-        emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
+        emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
         return false;
       }
       if (address(this).balance < transferInPackage.amount) {
-        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
+        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
         return false;
       }
       if (!transferInPackage.recipient.send(transferInPackage.amount)) {
-        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/10**10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
+        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         return false;
       }
       emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
       return true;
     } else {
-      uint256 bep2Amount = transferInPackage.amount * (10**8) / (10**_erc20ContractDecimals[transferInPackage.contractAddr]);
+      uint256 bep2Amount = transferInPackage.amount * (1e8) / (10**_erc20ContractDecimals[transferInPackage.contractAddr]);
       if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
         emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
         return false;
@@ -532,15 +532,16 @@ contract TokenHub is ITokenHub, System{
   }
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
-    require(relayFee%(10**10)==0, "relayFee is must be N*10^10");
+    require(relayFee%(1e10)==0, "relayFee is must be N*1e10");
     require(relayFee>=_minimumRelayFee, "relayFee is too little");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    uint256 convertedRelayFee = relayFee / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+    uint256 convertedRelayFee = relayFee / (1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
     if (contractAddr==address(0x0)) {
+      require(amount%(1e10)==0, "invalid transfer amount: precision loss in amount conversion");
       require(msg.value==amount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-      convertedAmount = amount / (10**10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+      convertedAmount = amount / (1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=bep2TokenSymbolForBNB;
     } else {
       uint256 erc20TokenDecimals=_erc20ContractDecimals[contractAddr];
@@ -552,7 +553,7 @@ contract TokenHub is ITokenHub, System{
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       require(IERC20(contractAddr).transferFrom(msg.sender, address(this), amount));
-      convertedAmount = amount * (10**8)/ (10**erc20TokenDecimals); // bep2 token decimals is 8 on BBC
+      convertedAmount = amount * 1e8 / (10**erc20TokenDecimals); // bep2 token decimals is 8 on BBC
       require(convertedAmount<=maxBep2TotalSupply, "amount is too large, int64 overflow");
     }
     emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
@@ -563,7 +564,7 @@ contract TokenHub is ITokenHub, System{
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(relayFee/amounts.length>=_minimumRelayFee, "relayFee is too little");
-    require(relayFee%(10**10)==0, "relayFee must be N*10^10");
+    require(relayFee%(1e10)==0, "relayFee must be N*1e10");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     uint256 totalAmount = 0;
     for (uint i = 0; i < amounts.length; i++) {
@@ -573,16 +574,16 @@ contract TokenHub is ITokenHub, System{
     bytes32 bep2TokenSymbol;
     if (contractAddr==address(0x0)) {
       for (uint8 i = 0; i < amounts.length; i++) {
-        require(amounts[i]%10**10==0, "invalid transfer amount");
-        convertedAmounts[i] = amounts[i]/10**10;
+        require(amounts[i]%1e10==0, "invalid transfer amount");
+        convertedAmounts[i] = amounts[i]/1e10;
       }
       require(msg.value==totalAmount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
       bep2TokenSymbol=bep2TokenSymbolForBNB;
     } else {
       uint256 erc20TokenDecimals=_erc20ContractDecimals[contractAddr];
       for (uint i = 0; i < amounts.length; i++) {
-        require((amounts[i]*(10**8)%(10**erc20TokenDecimals))==0, "invalid transfer amount");
-        uint256 convertedAmount = amounts[i]*(10**8)/(10**erc20TokenDecimals);
+        require((amounts[i]*1e8%(10**erc20TokenDecimals))==0, "invalid transfer amount");
+        uint256 convertedAmount = amounts[i]*1e8/(10**erc20TokenDecimals);
         require(convertedAmount<=maxBep2TotalSupply, "amount is too large, int64 overflow");
         convertedAmounts[i] = convertedAmount;
       }
@@ -591,7 +592,7 @@ contract TokenHub is ITokenHub, System{
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       require(IERC20(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
     }
-    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(10**10));
+    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(1e10));
     emit LogBatchTransferOutAddrs(_transferOutChannelSequence++, recipientAddrs, refundAddrs);
     return true;
   }
