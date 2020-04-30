@@ -15,13 +15,6 @@ program.option(
     "BSCValidatorSet.sol",
     "./contracts/BSCValidatorSet.sol"
 )
-program.option("--fromChainId <fromChainId>",
-    "fromChainId",
-    "0001");
-
-program.option("--toChainId <toChainId>",
-    "toChainId",
-    "0002");
 
 program.option("--mock <mock>",
     "if use mock",
@@ -32,8 +25,6 @@ program.parse(process.argv);
 const validators = require("./validators")
 
 const data = {
-  fromChainId: program.fromChainId,
-  toChainId: program.toChainId,
   initValidatorSetBytes: validators.validatorSetBytes.slice(2),
   mock: program.mock,
 };

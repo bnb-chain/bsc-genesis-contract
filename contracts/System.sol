@@ -11,6 +11,9 @@ contract System {
     // the store name of the package
     string constant STORE_NAME = "ibc";
 
+    uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000200; // last 6 bytes
+
+
     address public constant  VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
@@ -64,7 +67,8 @@ contract System {
 
     // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
     // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-    function generateKey(uint64 _sequence, bytes32 _crossChainKeyPrefix) internal pure returns(bytes memory) {
+    function generateKey(uint64 _sequence, uint8 channelID) internal pure returns(bytes memory) {
+        uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix & channelID;
         bytes memory key = new bytes(14);
 
         uint256 ptr;
@@ -76,7 +80,7 @@ contract System {
         }
         ptr -= 8;
         assembly {
-            mstore(ptr, _crossChainKeyPrefix)
+            mstore(ptr, fullCrossChainKeyPrefix)
         }
         ptr -= 6;
         assembly {

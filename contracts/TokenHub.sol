@@ -48,7 +48,6 @@ contract TokenHub is ITokenHub, System{
   uint8 constant public maximumERC20Symbol = 8;
 
   bytes32 constant bep2TokenSymbolForBNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000000010002; // last 5 bytes
 
   uint256 constant public _maxGasForCallingERC20=50000;
 
@@ -103,40 +102,6 @@ contract TokenHub is ITokenHub, System{
       result := mload(add(symbol, 32))
     }
     return result;
-  }
-
-  // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
-  // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-  function generateKey(uint8 channelID, uint256 sequence) internal pure returns(bytes memory) {
-    bytes memory key = new bytes(14);
-
-    uint256 ptr;
-    assembly {
-      ptr := add(key, 14)
-    }
-
-
-    assembly {
-      mstore(ptr, sequence)
-    }
-    ptr -= 8;
-
-
-    assembly {
-      mstore(ptr, channelID)
-    }
-    ptr -= 1;
-
-    assembly {
-      mstore(ptr, crossChainKeyPrefix)
-    }
-    ptr -= 5;
-
-    assembly {
-      mstore(ptr, 14)
-    }
-
-    return key;
   }
 
   // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | decimals | expireTime | relayFee |
@@ -204,7 +169,7 @@ contract TokenHub is ITokenHub, System{
     require(packageSequence==_bindChannelSequence, "wrong bind sequence");
     require(msgBytes.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelID, _bindChannelSequence), msgBytes, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_bindChannelSequence, bindChannelID), msgBytes, proof), "invalid merkle proof");
     _bindChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
@@ -364,7 +329,7 @@ contract TokenHub is ITokenHub, System{
     require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
     require(msgBytes.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelID, _transferInChannelSequence), msgBytes, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_transferInChannelSequence, transferInChannelID), msgBytes, proof), "invalid merkle proof");
     _transferInChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
@@ -472,7 +437,7 @@ contract TokenHub is ITokenHub, System{
     require(packageSequence==_refundChannelSequence, "wrong refund sequence");
     require(msgBytes.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelID, _refundChannelSequence), msgBytes, proof), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_refundChannelSequence,refundChannelID), msgBytes, proof), "invalid merkle proof");
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);

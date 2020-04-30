@@ -15,13 +15,6 @@ program.option(
     "BSCValidatorSet.sol",
     "./contracts/GovHub.sol"
 )
-program.option("--fromChainId <fromChainId>",
-    "fromChainId",
-    "0001");
-
-program.option("--toChainId <toChainId>",
-    "toChainId",
-    "0002");
 
 program.option("--mock <mock>",
     "if use mock",
@@ -30,8 +23,6 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-  fromChainId: program.fromChainId,
-  toChainId: program.toChainId,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

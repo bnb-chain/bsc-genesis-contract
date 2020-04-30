@@ -10,8 +10,8 @@ import "./MerkleProof.sol";
 
 contract GovHub is System{
 
-    bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000209; // last 6 bytes
     uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
+    uint8 public constant CHANNEL_ID = 0x09;
 
     uint64 public sequence;
     uint256 public relayerReward;
@@ -44,7 +44,7 @@ contract GovHub is System{
     }
 
     function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
-        bytes memory key = generateKey(packageSequence, crossChainKeyPrefix);
+        bytes memory key = generateKey(packageSequence, CHANNEL_ID);
         bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
         bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
         require(valid, "the package is invalid against its proof");

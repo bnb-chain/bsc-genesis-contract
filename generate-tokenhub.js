@@ -15,13 +15,6 @@ program.option(
     "TokenHub.sol",
     "./contracts/TokenHub.sol"
 )
-program.option("--fromChainId <fromChainId>",
-    "fromChainId",
-    "0001");
-
-program.option("--toChainId <toChainId>",
-    "toChainId",
-    "0002");
 
 program.option("--refundRelayReward <refundRelayReward>",
     "refundRelayReward",
@@ -44,8 +37,6 @@ program.parse(process.argv);
 const data = {
   refundRelayReward: program.refundRelayReward,
   minimumRelayFee: program.minimumRelayFee,
-  fromChainId: program.fromChainId,
-  toChainId: program.toChainId,
   maxGasForCallingERC20: program.maxGasForCallingERC20,
   mock: program.mock,
 };

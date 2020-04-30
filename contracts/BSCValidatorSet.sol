@@ -25,13 +25,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
+  uint8 public constant CHANNEL_ID = 0x08;
 
   // the precision of cross chain value transfer.
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
-  bytes32 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000208; // last 6 bytes
 
   bool public alreadyInit;
 
@@ -137,7 +137,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
     // verify key value against light client;
-    bytes memory key = generateKey(packageSequence, crossChainKeyPrefix);
+    bytes memory key = generateKey(packageSequence, CHANNEL_ID);
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
     require(valid, "the package is invalid against its proof");
