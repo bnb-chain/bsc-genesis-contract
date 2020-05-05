@@ -4,11 +4,9 @@ import "./Seriality/BytesToTypes.sol";
 import "./Seriality/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IBSCValidatorSet.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/IParamSubscriber.sol";
 
 
-contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
+contract SlashIndicator is ISlashIndicator,System{
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
   uint256 public constant FELONY_THRESHOLD = 150;
 
@@ -23,6 +21,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
   event paramChange(string key, bytes value);
+
+  /* solium-disable-next-line */
+  constructor() public {}
 
   struct Indicator {
     uint256 height;
@@ -46,9 +47,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
     _;
   }
 
-  function init() external onlyNotInit{
-    misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
-    felonyThreshold = FELONY_THRESHOLD;
+  function init() public{
+    misdemeanorThreshold = 50;
+    felonyThreshold = 150;
     alreadyInit = true;
   }
 
@@ -80,24 +81,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
     emit indicatorCleaned();
   }
 
-
-  /*********************** Param update ********************************/
-  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
-    if (Memory.compareStrings(key,"misdemeanorThreshold")){
-      require(value.length == 32, "length of misdemeanorThreshold mismatch");
-      uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newMisdemeanorThreshold >=10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
-      misdemeanorThreshold = newMisdemeanorThreshold;
-    }else if(Memory.compareStrings(key,"felonyThreshold")){
-      require(value.length == 32, "length of felonyThreshold mismatch");
-      uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newFelonyThreshold >20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
-      felonyThreshold = newFelonyThreshold;
-    }else{
-      require(false, "unknown param");
-    }
-    emit paramChange(key,value);
-  }
 
   /*********************** query api ********************************/
   function getSlashIndicator(address validator) external view returns (uint256,uint256){
