@@ -48,7 +48,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
 
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
-    felonyThreshold = 150;
+    felonyThreshold = FELONY_THRESHOLD;
     alreadyInit = true;
   }
 
