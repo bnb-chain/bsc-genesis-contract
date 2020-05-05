@@ -5,8 +5,6 @@ import "./Seriality/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
-import "./interface/IParamSubscriber.sol";
-
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
