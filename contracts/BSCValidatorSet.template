@@ -232,7 +232,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }
 
     // do update state
-    doUpdateState(validatorSet);
+    if(validatorSet.length>0){
+      doUpdateState(validatorSet);
+    }
 
     // do claim reward, will reward to account rather than smart contract.
     ISlashIndicator(SLASH_CONTRACT_ADDR).clean();
@@ -362,9 +364,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory, bool, string memory){
     uint length = validatorSetBytes.length-1;
-    if(length == 0){
-      return (new Validator[](0), false, "the validatorSetBytes should not be empty");
-    }
     if(length % VALIDATOR_BYTES_LENGTH != 0){
       return (new Validator[](0), false, "the length of validatorSetBytes should be times of 68");
     }

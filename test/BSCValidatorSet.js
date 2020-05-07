@@ -216,12 +216,10 @@ contract('BSCValidatorSet', (accounts) => {
         return ev.message === "duplicate consensus address of validatorSet";
       });
     }
-   let arr =arrs[3];
+    let arr =arrs[3];
     let tx = await validatorSetInstance.handlePackage(validatorUpdateSerialize(arr, arr,arr), crypto.randomBytes(32),100,3,
         {from: relayerAccount});
-    truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-      return ev.message === "the validatorSetBytes should not be empty";
-    });
+    truffleAssert.eventNotEmitted(tx, "failReasonWithStr");
     // block the light client 
     const lightClientInstance = await LightClient.deployed();
     await lightClientInstance.setBlockNotSynced(true);
