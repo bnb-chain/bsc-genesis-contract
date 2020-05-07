@@ -18,7 +18,7 @@ library MerkleProof {
     bytes memory storeNameBytes = bytes(storeName);
     /* solium-disable-next-line */
     assembly {
-      mstore(add(ptr, 0), mload(add(storeNameBytes, 32)))
+      mstore(ptr, mload(add(storeNameBytes, 32)))
     }
 
     uint256 src;
@@ -66,10 +66,6 @@ library MerkleProof {
       if iszero(staticcall(not(0), 0x65, input, length, result, 0x20)) {}
     }
 
-    if (result[0] != 0x01) {
-      return false;
-    }
-
-    return true;
+    return result[0] == 0x01;
   }
 }

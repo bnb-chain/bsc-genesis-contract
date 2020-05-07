@@ -1,35 +1,11 @@
 pragma solidity 0.6.4;
 
-import "../interface/IERC20.sol";
+import "../interface/IBEP2E.sol";
 import "openzeppelin-solidity/contracts/GSN/Context.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 
-/**
- * @dev Implementation of the {IERC20} interface.
- *
- * This implementation is agnostic to the way tokens are created. This means
- * that a supply mechanism has to be added in a derived contract using {_mint}.
- * For a generic mechanism see {ERC20Mintable}.
- *
- * TIP: For a detailed writeup see our guide
- * https://forum.zeppelin.solutions/t/how-to-implement-erc20-supply-mechanisms/226[How
- * to implement supply mechanisms].
- *
- * We have followed general OpenZeppelin guidelines: functions revert instead
- * of returning `false` on failure. This behavior is nonetheless conventional
- * and does not conflict with the expectations of ERC20 applications.
- *
- * Additionally, an {Approval} event is emitted on calls to {transferFrom}.
- * This allows applications to reconstruct the allowance for all accounts just
- * by listening to said events. Other implementations of the EIP may not emit
- * these events, as it isn't required by the specification.
- *
- * Finally, the non-standard {decreaseAllowance} and {increaseAllowance}
- * functions have been added to mitigate the well-known issues around setting
- * allowances. See {IERC20-approve}.
- */
-contract ABCToken is Context, IERC20, Ownable {
+contract ABCToken is Context, IBEP2E, Ownable {
   using SafeMath for uint256;
 
   mapping (address => uint256) private _balances;
@@ -73,21 +49,21 @@ contract ABCToken is Context, IERC20, Ownable {
   }
 
   /**
-   * @dev See {IERC20-totalSupply}.
+   * @dev See {BEP2E-totalSupply}.
    */
   function totalSupply() external override view returns (uint256) {
     return _totalSupply;
   }
 
   /**
-   * @dev See {IERC20-balanceOf}.
+   * @dev See {BEP2E-balanceOf}.
    */
   function balanceOf(address account) external override view returns (uint256) {
     return _balances[account];
   }
 
   /**
-   * @dev See {IERC20-transfer}.
+   * @dev See {BEP2E-transfer}.
    *
    * Requirements:
    *
@@ -100,14 +76,14 @@ contract ABCToken is Context, IERC20, Ownable {
   }
 
   /**
-   * @dev See {IERC20-allowance}.
+   * @dev See {BEP2E-allowance}.
    */
   function allowance(address owner, address spender) external override view returns (uint256) {
     return _allowances[owner][spender];
   }
 
   /**
-   * @dev See {IERC20-approve}.
+   * @dev See {BEP2E-approve}.
    *
    * Requirements:
    *
@@ -119,10 +95,10 @@ contract ABCToken is Context, IERC20, Ownable {
   }
 
   /**
-   * @dev See {IERC20-transferFrom}.
+   * @dev See {BEP2E-transferFrom}.
    *
    * Emits an {Approval} event indicating the updated allowance. This is not
-   * required by the EIP. See the note at the beginning of {ERC20};
+   * required by the EIP. See the note at the beginning of {BEP2E};
    *
    * Requirements:
    * - `sender` and `recipient` cannot be the zero address.
@@ -132,7 +108,7 @@ contract ABCToken is Context, IERC20, Ownable {
    */
   function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
     _transfer(sender, recipient, amount);
-    _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
+    _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "BEP2E: transfer amount exceeds allowance"));
     return true;
   }
 
@@ -140,7 +116,7 @@ contract ABCToken is Context, IERC20, Ownable {
    * @dev Atomically increases the allowance granted to `spender` by the caller.
    *
    * This is an alternative to {approve} that can be used as a mitigation for
-   * problems described in {IERC20-approve}.
+   * problems described in {BEP2E-approve}.
    *
    * Emits an {Approval} event indicating the updated allowance.
    *
@@ -157,7 +133,7 @@ contract ABCToken is Context, IERC20, Ownable {
    * @dev Atomically decreases the allowance granted to `spender` by the caller.
    *
    * This is an alternative to {approve} that can be used as a mitigation for
-   * problems described in {IERC20-approve}.
+   * problems described in {BEP2E-approve}.
    *
    * Emits an {Approval} event indicating the updated allowance.
    *
@@ -168,7 +144,7 @@ contract ABCToken is Context, IERC20, Ownable {
    * `subtractedValue`.
    */
   function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-    _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
+    _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "BEP2E: decreased allowance below zero"));
     return true;
   }
 
@@ -187,10 +163,10 @@ contract ABCToken is Context, IERC20, Ownable {
    * - `sender` must have a balance of at least `amount`.
    */
   function _transfer(address sender, address recipient, uint256 amount) internal {
-    require(sender != address(0), "ERC20: transfer from the zero address");
-    require(recipient != address(0), "ERC20: transfer to the zero address");
+    require(sender != address(0), "BEP2E: transfer from the zero address");
+    require(recipient != address(0), "BEP2E: transfer to the zero address");
 
-    _balances[sender] = _balances[sender].sub(amount, "ERC20: transfer amount exceeds balance");
+    _balances[sender] = _balances[sender].sub(amount, "BEP2E: transfer amount exceeds balance");
     _balances[recipient] = _balances[recipient].add(amount);
     emit Transfer(sender, recipient, amount);
   }
@@ -205,7 +181,7 @@ contract ABCToken is Context, IERC20, Ownable {
    * - `to` cannot be the zero address.
    */
   function _mint(address account, uint256 amount) internal {
-    require(account != address(0), "ERC20: mint to the zero address");
+    require(account != address(0), "BEP2E: mint to the zero address");
 
     _totalSupply = _totalSupply.add(amount);
     _balances[account] = _balances[account].add(amount);
@@ -224,9 +200,9 @@ contract ABCToken is Context, IERC20, Ownable {
    * - `account` must have at least `amount` tokens.
    */
   function _burn(address account, uint256 amount) internal {
-    require(account != address(0), "ERC20: burn from the zero address");
+    require(account != address(0), "BEP2E: burn from the zero address");
 
-    _balances[account] = _balances[account].sub(amount, "ERC20: burn amount exceeds balance");
+    _balances[account] = _balances[account].sub(amount, "BEP2E: burn amount exceeds balance");
     _totalSupply = _totalSupply.sub(amount);
     emit Transfer(account, address(0), amount);
   }
@@ -245,8 +221,8 @@ contract ABCToken is Context, IERC20, Ownable {
    * - `spender` cannot be the zero address.
    */
   function _approve(address owner, address spender, uint256 amount) internal {
-    require(owner != address(0), "ERC20: approve from the zero address");
-    require(spender != address(0), "ERC20: approve to the zero address");
+    require(owner != address(0), "BEP2E: approve from the zero address");
+    require(spender != address(0), "BEP2E: approve to the zero address");
 
     _allowances[owner][spender] = amount;
     emit Approval(owner, spender, amount);
@@ -260,6 +236,6 @@ contract ABCToken is Context, IERC20, Ownable {
    */
   function _burnFrom(address account, uint256 amount) internal {
     _burn(account, amount);
-    _approve(account, _msgSender(), _allowances[account][_msgSender()].sub(amount, "ERC20: burn amount exceeds allowance"));
+    _approve(account, _msgSender(), _allowances[account][_msgSender()].sub(amount, "BEP2E: burn amount exceeds allowance"));
   }
 }

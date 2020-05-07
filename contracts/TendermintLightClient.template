@@ -3,7 +3,6 @@ pragma solidity 0.6.4;
 import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
-import "./interface/IRelayerHub.sol";
 import "./System.sol";
 
 contract TendermintLightClient is ILightClient, System{
@@ -20,10 +19,10 @@ contract TendermintLightClient is ILightClient, System{
   uint64 public _initialHeight;
   uint64 public _latestHeight;
   bool public _alreadyInit;
+  bytes32 public _chainID;
 
-  string constant public _chainID="{{chainID}}";
-  bytes constant public _initConsensusStateBytes = hex"{{initConsensusStateBytes}}";
-  uint256 constant public _rewardForValidatorSetChange = {{rewardForValidatorSetChange}};
+  bytes constant public INIT_CONSENSUS_STATE_BYTES = hex"{{initConsensusStateBytes}}";
+  uint256 public rewardForValidatorSetChange = {{rewardForValidatorSetChange}};
 
   event InitConsensusState(uint64 initHeight, bytes32 appHash);
   event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
@@ -36,7 +35,12 @@ contract TendermintLightClient is ILightClient, System{
 
     uint256 pointer;
     uint256 length;
-    (pointer, length) = Memory.fromBytes(_initConsensusStateBytes);
+    (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
+
+    /* solium-disable-next-line */
+    assembly {
+      sstore(_chainID_slot, mload(pointer))
+    }
 
     ConsensusState memory cs;
     uint64 height;
@@ -103,7 +107,7 @@ contract TendermintLightClient is ILightClient, System{
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, _rewardForValidatorSetChange);//TODO further discussion about reward amount
+      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
 
@@ -140,13 +144,34 @@ contract TendermintLightClient is ILightClient, System{
     return _submitters[height];
   }
 
+  function getChainID() external view returns (string memory) {
+    bytes memory chainIDBytes = new bytes(32);
+    assembly {
+      mstore(add(chainIDBytes,32), sload(_chainID_slot))
+    }
+
+    uint8 chainIDLength = 0;
+    for (uint8 j = 0; j < 32; j++) {
+      if (chainIDBytes[j] != 0) {
+          chainIDLength++;
+      } else {
+        break;
+      }
+    }
+
+    bytes memory chainID = new bytes(chainIDLength);
+    for (uint8 j = 0; j < chainIDLength; j++) {
+        chainID[j] = chainIDBytes[j];
+    }
+
+    return string(chainID);
+  }
+
   // | length   | _chainID   | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
   // | 32 bytes | 32 bytes   | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
   /* solium-disable-next-line */
-  function encodeConsensusState(ConsensusState memory cs, uint64 height, uint256 outputPtr, uint256 size) internal pure returns (bool) {
-    uint256 validatorQuantity = cs.nextValidatorSet.length/40;
-
-    outputPtr = outputPtr + size - 40 * validatorQuantity;
+  function encodeConsensusState(ConsensusState memory cs, uint64 height, uint256 outputPtr, uint256 size) internal view returns (bool) {
+    outputPtr = outputPtr + size - cs.nextValidatorSet.length;
 
     uint256 src;
     uint256 length;
@@ -174,10 +199,9 @@ contract TendermintLightClient is ILightClient, System{
     }
     outputPtr = outputPtr-8;
 
-    bytes memory chainIDBytes = bytes(_chainID);
     /* solium-disable-next-line */
     assembly {
-      mstore(outputPtr, mload(add(chainIDBytes, 32)))
+      mstore(outputPtr, sload(_chainID_slot))
     }
     outputPtr = outputPtr-32;
 
@@ -195,9 +219,6 @@ contract TendermintLightClient is ILightClient, System{
   // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
   /* solium-disable-next-line */
   function decodeConsensusState(uint256 ptr, uint256 size, bool leaveOutValidatorSet) internal pure returns(ConsensusState memory, uint64) {
-    // 104 = 32 +32 +8 + 32 +32
-    uint256 validatorSetLength = (size-104)/40;
-
     ptr = ptr+8;
     uint64 height;
     /* solium-disable-next-line */
@@ -226,7 +247,7 @@ contract TendermintLightClient is ILightClient, System{
     if (!leaveOutValidatorSet) {
       uint256 dest;
       uint256 length;
-      cs.nextValidatorSet = new bytes(40*validatorSetLength);
+      cs.nextValidatorSet = new bytes(size-104);
       (dest,length) = Memory.fromBytes(cs.nextValidatorSet);
 
       Memory.copy(ptr+32, dest, length);

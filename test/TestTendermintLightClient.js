@@ -18,7 +18,7 @@ contract('TendermintLightClient', (accounts) => {
 
         let _initialHeight = await lightClient._initialHeight.call();
         assert.equal(_initialHeight.toNumber(), 2, "mismatched initial consensus height");
-        let _chainID = await lightClient._chainID.call();
-        assert.equal(_chainID, "Binance-Chain-Nile", "mismatched initial consensus height");
+        const chainID  = await lightClient.getChainID.call();
+        assert.equal(chainID, "Binance-Chain-Nile", "mismatched chainID");
     });
 });

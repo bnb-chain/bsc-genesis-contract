@@ -24,8 +24,8 @@ program.option("--minimumRelayFee <minimumRelayFee>",
     "minimumRelayFee",
     "1e16");
 
-program.option("--maxGasForCallingERC20 <maxGasForCallingERC20>",
-    "maxGasForCallingERC20",
+program.option("--maxGasForCallingBEP2E <maxGasForCallingBEP2E>",
+    "maxGasForCallingBEP2E",
     "50000");
 
 program.option("--mock <mock>",
@@ -37,7 +37,7 @@ program.parse(process.argv);
 const data = {
   refundRelayReward: program.refundRelayReward,
   minimumRelayFee: program.minimumRelayFee,
-  maxGasForCallingERC20: program.maxGasForCallingERC20,
+  maxGasForCallingBEP2E: program.maxGasForCallingBEP2E,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

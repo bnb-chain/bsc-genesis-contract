@@ -30,8 +30,6 @@ contract('TokenHub', (accounts) => {
         await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
 
         await tokenHub.initTokenHub(
-            minimumRelayFee,
-            refundRelayReward,
             {
                 from: accounts[0],
                 value: 10e18
@@ -69,7 +67,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -94,7 +92,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: relayer})
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("only erc20 owner can approve this bind request"));
+            assert.ok(error.toString().includes("only bep2e owner can approve this bind request"));
         }
 
         try {
@@ -135,7 +133,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -151,7 +149,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("only erc20 owner can reject"));
+            assert.ok(error.toString().includes("only bep2e owner can reject"));
         }
 
         await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner});
@@ -176,7 +174,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -220,7 +218,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4445462d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol, symbol: DEF-9C7
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -258,7 +256,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -294,7 +292,7 @@ contract('TokenHub', (accounts) => {
         }
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
@@ -330,7 +328,7 @@ contract('TokenHub', (accounts) => {
         }
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
@@ -398,7 +396,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, relayFee, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("ERC20: transfer amount exceeds allowance"));
+            assert.ok(error.toString().includes("BEP2E: transfer amount exceeds allowance"));
         }
 
         try {
@@ -450,7 +448,7 @@ contract('TokenHub', (accounts) => {
 
         const value = Buffer.from(web3.utils.hexToBytes(
             "0x000000000000000000000000000000000000000000000000000000174876E800" + // refund amount
-            abcToken.address.toString().replace("0x", "") +      // erc20 contract address
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             refundAddr.toString().replace("0x", "")  +           // refund address
             "0000")                                                                     // failureCode, timeout
         );
@@ -481,7 +479,7 @@ contract('TokenHub', (accounts) => {
 
         let timestamp = Math.floor(Date.now() / 1000);
         let expireTime = (timestamp + 150);
-        const relayFee = web3.utils.toBN(1e16);
+        const relayFee = web3.utils.toBN(2e16);
 
         await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});
         let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
@@ -493,15 +491,7 @@ contract('TokenHub', (accounts) => {
         });
         let txData = await web3.eth.getTransaction(tx.tx);
 
-        const decoder = new InputDataDecoder('./test/abi/tokenHub.json');
-        let batchTransferOut = decoder.decodeData(txData.input);
-        assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");
-        assert.equal(batchTransferOut.inputs[0][1], recipientAddrs[1].toString().replace("0x", ""), "wrong recipient address");
-        assert.equal(batchTransferOut.inputs[2][0], refundAddrs[0].toString().replace("0x", ""), "wrong refund address");
-        assert.equal(batchTransferOut.inputs[2][1], refundAddrs[1].toString().replace("0x", ""), "wrong refund address");
-
         amounts = [web3.utils.toBN(3e11), web3.utils.toBN(4e11)];
-
         await abcToken.approve(tokenHub.address, web3.utils.toBN(7e11), {from: sender});
         tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
@@ -515,15 +505,8 @@ contract('TokenHub', (accounts) => {
                 ev.recipientAddrs[0].toString().toLowerCase() === recipientAddrs[0] &&
                 ev.recipientAddrs[1].toString().toLowerCase() === recipientAddrs[1];
         });
-        txData = await web3.eth.getTransaction(tx.tx);
-        result = decoder.decodeData(txData.input);
-        batchTransferOut = decoder.decodeData(txData.input);
-        assert.equal(batchTransferOut.inputs[0][0], recipientAddrs[0].toString().replace("0x", ""), "wrong recipient address");
-        assert.equal(batchTransferOut.inputs[0][1], recipientAddrs[1].toString().replace("0x", ""), "wrong recipient address");
-        assert.equal(batchTransferOut.inputs[2][0], refundAddrs[0].toString().replace("0x", ""), "wrong refund address");
-        assert.equal(batchTransferOut.inputs[2][1], refundAddrs[1].toString().replace("0x", ""), "wrong refund address");
     });
-    it('Bind malicious erc20 token', async () => {
+    it('Bind malicious BEP2E token', async () => {
         const maliciousToken = await MaliciousToken.deployed();
         const tokenHub = await TokenHub.deployed();
 
@@ -539,7 +522,7 @@ contract('TokenHub', (accounts) => {
         }
         let value = Buffer.from(web3.utils.hexToBytes(
             "0x4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOU-A09
-            maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
+            maliciousToken.address.toString().replace("0x", "") +// BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
             "12" +                                                                      // 18 decimals
@@ -569,7 +552,7 @@ contract('TokenHub', (accounts) => {
         }
         value = Buffer.from(web3.utils.hexToBytes(
             "0x4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol
-            maliciousToken.address.toString().replace("0x", "") +// erc20 contract address
+            maliciousToken.address.toString().replace("0x", "") +// BEP2E contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
             accounts[2].toString().replace("0x", "") +                                  // recipient amount
             "000000000000000000000000000000000000000000000000d71b0fe0a28e0000" +        // amount
@@ -584,7 +567,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
 
         tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 3, {from: relayer});
-        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
+        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInBEP2E", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
         _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
@@ -592,7 +575,7 @@ contract('TokenHub', (accounts) => {
 
         value = Buffer.from(web3.utils.hexToBytes(
             "0x000000000000000000000000000000000000000000000000000000174876E800" +      // refund amount
-            maliciousToken.address.toString().replace("0x", "") +     // erc20 contract address
+            maliciousToken.address.toString().replace("0x", "") +     // BEP2E contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48"  +                                    // refund address
             "0000")                                                                          // failureCode, timeout
         );
@@ -602,7 +585,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(_refundChannelSequence.toNumber(), 1, "wrong refund channel sequence");
 
         tx = await tokenHub.handleRefundPackage(value, proof, merkleHeight, 1, {from: relayer});
-        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInERC20", (ev) => {
+        truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInBEP2E", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
 

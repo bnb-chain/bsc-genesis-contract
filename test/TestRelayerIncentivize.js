@@ -28,9 +28,9 @@ contract('RelayerIncentivize', (accounts) => {
         const initialAccount7Balance = await web3.eth.getBalance(accounts[7]);
         const initialAccount8Balance = await web3.eth.getBalance(accounts[8]);
 
-        const roundSize = await relayerIncentivize.roundSize.call();
+        const roundSize = await relayerIncentivize.ROUND_SIZE.call();
         assert.equal(roundSize.toNumber(), 30, "wrong round size");
-        const maximumWeight = await relayerIncentivize.maximumWeight.call();
+        const maximumWeight = await relayerIncentivize.MAXIMUM_WEIGHT.call();
         assert.equal(maximumWeight.toNumber(), 3, "wrong maximum weight");
 
         for(let i=0; i<1; i++){
@@ -79,14 +79,13 @@ contract('RelayerIncentivize', (accounts) => {
         const rewardAccount7 = web3.utils.toBN(newAccount7Balance).sub(web3.utils.toBN(initialAccount7Balance));
         const rewardAccount8 = web3.utils.toBN(newAccount8Balance).sub(web3.utils.toBN(initialAccount8Balance));
 
-        assert.equal(rewardAccount1.eq(web3.utils.toBN(2850000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount2.eq(web3.utils.toBN(5700000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount3.eq(web3.utils.toBN(8550000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount4.eq(web3.utils.toBN(8550000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount5.eq(web3.utils.toBN(8550000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount6.eq(web3.utils.toBN(8550000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount7.eq(web3.utils.toBN(8550000000000000)), true, "wrong reward");
-        assert.equal(rewardAccount8.eq(web3.utils.toBN(5700000000000000)), true, "wrong reward"); // get extra 5% of total reward
+        assert.equal(rewardAccount1.lt(rewardAccount2), true, "wrong reward");
+        assert.equal(rewardAccount2.lt(rewardAccount3), true, "wrong reward");
+        assert.equal(rewardAccount3.eq(rewardAccount4), true, "wrong reward");
+        assert.equal(rewardAccount4.eq(rewardAccount5), true, "wrong reward");
+        assert.equal(rewardAccount5.eq(rewardAccount6), true, "wrong reward");
+        assert.equal(rewardAccount6.eq(rewardAccount7), true, "wrong reward");
+        assert.equal(rewardAccount8.eq(rewardAccount2), true, "wrong reward");
 
     });
     it('transfer relayer Incentivize', async () => {
@@ -176,14 +175,14 @@ contract('RelayerIncentivize', (accounts) => {
         const pureRewardAccount7 = web3.utils.toBN(newAccount7Balance).sub(web3.utils.toBN(initialAccount7Balance)).sub(account7TxFee);
         const pureRewardAccount8 = web3.utils.toBN(newAccount8Balance).sub(web3.utils.toBN(initialAccount8Balance)).sub(account8TxFee);
 
-        assert.equal(pureRewardAccount1.eq(web3.utils.toBN(7610060000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount2.eq(web3.utils.toBN(20775820000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount3.eq(web3.utils.toBN(31589680000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount4.eq(web3.utils.toBN(30403540000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount5.eq(web3.utils.toBN(29217400000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount6.eq(web3.utils.toBN(28031260000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount7.eq(web3.utils.toBN(14845120000000000)), true, "wrong reward");
-        assert.equal(pureRewardAccount8.eq(web3.utils.toBN(34178720000000000)), true, "wrong reward"); // get extra 5% of total reward
+        assert.equal(pureRewardAccount1.lt(pureRewardAccount2), true, "wrong reward");
+        assert.equal(pureRewardAccount2.lt(pureRewardAccount3), true, "wrong reward");
+        assert.equal(pureRewardAccount3.gt(pureRewardAccount4), true, "wrong reward");
+        assert.equal(pureRewardAccount4.gt(pureRewardAccount5), true, "wrong reward");
+        assert.equal(pureRewardAccount5.gt(pureRewardAccount6), true, "wrong reward");
+        assert.equal(pureRewardAccount6.gt(pureRewardAccount7), true, "wrong reward");
+        assert.equal(pureRewardAccount8.gt(pureRewardAccount2), true, "wrong reward"); // get extra 1/80 of total reward
+        assert.equal(pureRewardAccount8.lt(pureRewardAccount3), true, "wrong reward"); // get extra 1/80 of total reward
     });
     it('transfer relayer Incentivize', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
@@ -200,14 +199,11 @@ contract('RelayerIncentivize', (accounts) => {
             await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
         }
 
-        let tx = await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
-        truffleAssert.eventEmitted(tx, "LogRefundHeaderRewardToSystemReward", (ev) => {
-            return ev.amount.eq(web3.utils.toBN(31500000000000000));
-        });
-        truffleAssert.eventEmitted(tx, "LogRefundTransferRewardToSystemReward", (ev) => {
-            return ev.amount.eq(web3.utils.toBN(126000000000000000));
-        });
-
+        const systemReward = await SystemReward.deployed();
+        const originSystemRewardBalance = await web3.eth.getBalance(systemReward.address);
+        await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
+        const newSystemRewardBalance = await web3.eth.getBalance(systemReward.address);
+        assert.equal(web3.utils.toBN(newSystemRewardBalance).sub(web3.utils.toBN(originSystemRewardBalance)).eq(web3.utils.toBN(151875000000000000)), true, "wrong amount to systemReward contract");
         let _roundSequence = await relayerIncentivize._roundSequence.call();
         assert.equal(_roundSequence.toNumber(), 3, "wrong round sequence");
 

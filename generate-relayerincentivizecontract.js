@@ -23,6 +23,22 @@ program.option("--maximumWeight <maximumWeight>",
     "maximumWeight",
     "400");
 
+program.option("--moleculeHeaderRelayer <moleculeHeaderRelayer>",
+    "moleculeHeaderRelayer",
+    "1");
+
+program.option("--denominaroeHeaderRelayer <denominaroeHeaderRelayer>",
+    "denominaroeHeaderRelayer",
+    "5");
+
+program.option("--moleculeCallerCompensation <moleculeCallerCompensation>",
+    "moleculeCallerCompensation",
+    "1");
+
+program.option("--denominaroeCallerCompensation <denominaroeCallerCompensation>",
+    "denominaroeCallerCompensation",
+    "80");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -32,6 +48,10 @@ program.parse(process.argv);
 const data = {
   roundSize: program.roundSize,
   maximumWeight: program.maximumWeight,
+  moleculeHeaderRelayer: program.moleculeHeaderRelayer,
+  denominaroeHeaderRelayer: program.denominaroeHeaderRelayer,
+  moleculeCallerCompensation: program.moleculeCallerCompensation,
+  denominaroeCallerCompensation: program.denominaroeCallerCompensation,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
