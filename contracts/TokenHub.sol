@@ -519,17 +519,15 @@ contract TokenHub is ITokenHub, System{
       convertedAmount = amount / (1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
-      uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
-      if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
-        uint256 extraPrecision = 10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS);
-        require(amount%extraPrecision==0, "invalid transfer amount: precision loss in amount conversion");
-      }
       bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
-      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
+      uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
+      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount%(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
-      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, int64 overflow");
+      require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
+      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
     }
     emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
     return true;
@@ -557,12 +555,10 @@ contract TokenHub is ITokenHub, System{
     } else {
       uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
       for (uint i = 0; i < amounts.length; i++) {
-        if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
-          uint256 extraPrecision = 10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS);
-          require(amounts[i]%extraPrecision==0, "invalid transfer amount: precision loss in amount conversion");
-        }
+        require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amounts[i]%(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
         uint256 convertedAmount = convertToBep2Amount(amounts[i], bep2eTokenDecimals);// convert to bep2 amount
-        require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, int64 overflow");
+        require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amounts[i]), "amount is too large, uint256 overflow");
+        require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
         convertedAmounts[i] = convertedAmount;
       }
       bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
