@@ -133,7 +133,7 @@ contract TendermintLightClient is ILightClient, System{
   }
 
   function isHeaderSynced(uint64 height) external override view returns (bool) {
-    return _submitters[height] != address(0x0);
+    return _submitters[height] != address(0x0) || height == _initialHeight;
   }
 
   function getAppHash(uint64 height) external override view returns (bytes32) {

@@ -24,6 +24,14 @@ program.option("--minimumRelayFee <minimumRelayFee>",
     "minimumRelayFee",
     "1e16");
 
+program.option("--moleculeHeaderRelayerSystemReward <moleculeHeaderRelayerSystemReward>",
+    "moleculeHeaderRelayerSystemReward",
+    "1");
+
+program.option("--denominaroeHeaderRelayerSystemReward <denominaroeHeaderRelayerSystemReward>",
+    "denominaroeHeaderRelayerSystemReward",
+    "5");
+
 program.option("--maxGasForCallingBEP2E <maxGasForCallingBEP2E>",
     "maxGasForCallingBEP2E",
     "50000");
@@ -37,6 +45,8 @@ program.parse(process.argv);
 const data = {
   refundRelayReward: program.refundRelayReward,
   minimumRelayFee: program.minimumRelayFee,
+  moleculeHeaderRelayerSystemReward: program.moleculeHeaderRelayerSystemReward,
+  denominaroeHeaderRelayerSystemReward: program.denominaroeHeaderRelayerSystemReward,
   maxGasForCallingBEP2E: program.maxGasForCallingBEP2E,
   mock: program.mock,
 };

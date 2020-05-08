@@ -49,8 +49,11 @@ contract TokenHub is ITokenHub, System{
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
 
-  uint256 public minimumRelayFee=1e16;
-  uint256 public refundRelayReward=1e16;
+  //TODO  Add governance later
+  uint256 constant public minimumRelayFee=1e16;
+  uint256 constant public refundRelayReward=1e16;
+  uint256 constant public moleculeHeaderRelayerSystemReward = 1;
+  uint256 constant public denominaroeHeaderRelayerSystemReward = 5;
 
   mapping(bytes32 => BindPackage) public _bindPackageRecord;
   mapping(address => bytes32) public _contractAddrToBEP2Symbol;
@@ -448,11 +451,11 @@ contract TokenHub is ITokenHub, System{
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    //TODO system reward, need further discussion,
-    //TODO taking malicious refund cases caused by inconsistent total supply into consideration, so this reward must be less than minimum relay fee
-    uint256 reward = refundRelayReward / 5;
+    uint256 reward = refundRelayReward * moleculeHeaderRelayerSystemReward / denominaroeHeaderRelayerSystemReward;
+    //TODO ensure reward is in (0, 1e18)
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
     reward = refundRelayReward-reward;
+    //TODO ensure reward is in (0, 1e18)
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
 
     RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
