@@ -4,3 +4,4 @@ build/
 pids
 logs
 .idea/
+contracts/flattened/*.sol

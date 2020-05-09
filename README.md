@@ -34,6 +34,11 @@ truffle migrate
 truffle test
 ```
 
+Flatten all system contracts:
+```shell script
+npm run flatten
+```
+
 #### how to generate genesis file.
  
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
