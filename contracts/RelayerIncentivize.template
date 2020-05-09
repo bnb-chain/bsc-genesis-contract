@@ -8,10 +8,11 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
   uint256 public constant ROUND_SIZE={{roundSize}};
   uint256 public constant MAXIMUM_WEIGHT={{maximumWeight}};
 
-  uint256 public moleculeHeaderRelayer = {{moleculeHeaderRelayer}};
-  uint256 public denominaroeHeaderRelayer = {{denominaroeHeaderRelayer}};
-  uint256 public moleculeCallerCompensation = {{moleculeCallerCompensation}};
-  uint256 public denominaroeCallerCompensation = {{denominaroeCallerCompensation}};
+  //TODO add governance later
+  uint256 public constant moleculeHeaderRelayer = {{moleculeHeaderRelayer}};
+  uint256 public constant denominaroeHeaderRelayer = {{denominaroeHeaderRelayer}};
+  uint256 public constant moleculeCallerCompensation = {{moleculeCallerCompensation}};
+  uint256 public constant denominaroeCallerCompensation = {{denominaroeCallerCompensation}};
 
   mapping(address => uint256) public _headerRelayersSubmitCount;
   address payable[] public _headerRelayerAddressRecord;
@@ -63,7 +64,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
     return true;
   }
 
-  //TODO need further discussion
   function calculateRewardForHeaderRelayer(uint256 reward) internal view returns (uint256) {
     return reward * moleculeHeaderRelayer / denominaroeHeaderRelayer;
   }
