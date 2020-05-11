@@ -58,8 +58,8 @@ contract('RelayerIncentivize', (accounts) => {
             await relayerIncentivize.addReward(accounts[8], accounts[0], {from: accounts[0], value: web3.utils.toBN(1e16)});
         }
 
-        let _roundSequence = await relayerIncentivize._roundSequence.call();
-        assert.equal(_roundSequence.toNumber(), 1, "wrong round sequence");
+        let roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 1, "wrong round sequence");
 
         const newAccount1Balance = await web3.eth.getBalance(accounts[1]);
         const newAccount2Balance = await web3.eth.getBalance(accounts[2]);
@@ -154,8 +154,8 @@ contract('RelayerIncentivize', (accounts) => {
             const txFee = web3.utils.toBN(tx.receipt.gasUsed).mul(gasPrice);
             account8TxFee = account8TxFee.add(txFee)
         }
-        let _roundSequence = await relayerIncentivize._roundSequence.call();
-        assert.equal(_roundSequence.toNumber(), 2, "wrong round sequence");
+        let roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 2, "wrong round sequence");
 
         const newAccount1Balance = await web3.eth.getBalance(accounts[1]);
         const newAccount2Balance = await web3.eth.getBalance(accounts[2]);
@@ -204,8 +204,8 @@ contract('RelayerIncentivize', (accounts) => {
         await relayerIncentivize.addReward(relayer, tendermintLightClient.address, {from: tokenHub, value: web3.utils.toBN(1e16)});
         const newSystemRewardBalance = await web3.eth.getBalance(systemReward.address);
         assert.equal(web3.utils.toBN(newSystemRewardBalance).sub(web3.utils.toBN(originSystemRewardBalance)).eq(web3.utils.toBN(151875000000000000)), true, "wrong amount to systemReward contract");
-        let _roundSequence = await relayerIncentivize._roundSequence.call();
-        assert.equal(_roundSequence.toNumber(), 3, "wrong round sequence");
+        let roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 3, "wrong round sequence");
 
     });
 });
