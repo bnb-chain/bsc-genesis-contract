@@ -426,12 +426,12 @@ contract('BSCValidatorSet', (accounts) => {
     let validatorEBalance = await web3.eth.getBalance(validatorE);
     let deprecatedBalance = await web3.eth.getBalance(deprecated);
 
-    assert.equal(validatorABalance,0);
-    assert.equal(validatorBBalance,web3.utils.toBN(1e16));
-    assert.equal(validatorCBalance,0);
-    assert.equal(validatorDBalance,0);
-    assert.equal(validatorEBalance,0);
-    assert.equal(deprecatedBalance,0);
+    assert.equal(validatorABalance, 0);
+    assert.equal(validatorBBalance, web3.utils.toBN(1e16));
+    assert.equal(validatorCBalance, web3.utils.toBN(1e17));
+    assert.equal(validatorDBalance, web3.utils.toBN(1e18));
+    assert.equal(validatorEBalance, web3.utils.toBN(1e18).add(web3.utils.toBN(1e5)));
+    assert.equal(deprecatedBalance, 0);
 
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
     truffleAssert.eventEmitted(tx, "batchTransferFailed",(ev) => {
@@ -444,7 +444,7 @@ contract('BSCValidatorSet', (accounts) => {
       return ev.amount.toString() === web3.utils.toBN(1e16).toString();
     });
     truffleAssert.eventEmitted(tx, "systemTransfer",(ev) => {
-      return ev.amount.toString() === web3.utils.toBN(31e17).add(web3.utils.toBN(1e5)).add(web3.utils.toBN(1e16)).toString();
+      return ev.amount.toString() === web3.utils.toBN(1e18).add(web3.utils.toBN(1e16)).toString();
     });
   });
 });
