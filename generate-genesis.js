@@ -101,6 +101,11 @@ Promise.all([
       "relayerIncentivize",
       "contracts/RelayerIncentivize.sol",
       "RelayerIncentivize"
+  ),
+  compileContract(
+      "govHub",
+      "contracts/GovHub.sol",
+      "GovHub"
   )
 ]).then(result => {
 

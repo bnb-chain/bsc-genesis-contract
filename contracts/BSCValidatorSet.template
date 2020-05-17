@@ -126,9 +126,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     uint256 index = currentValidatorSetMap[valAddr];
     if (index>0){
       Validator storage validator = currentValidatorSet[index-1];
-      validator.incoming += value;
-      totalInComing += value;
-      emit validatorDeposit(valAddr,value);
+      if(validator.jailed){
+        emit deprecatedDeposit(valAddr,value);
+      }else{
+        validator.incoming += value;
+        totalInComing += value;
+        emit validatorDeposit(valAddr,value);
+      }
     }else{
       // get incoming from deprecated validator;
       // will not add it to the `totalInComing`;
@@ -193,11 +197,47 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
       emit failReasonWithStr(errMsg);
       return;
     }
-    // do calculate distribution
-    (address[] memory crossAddrs, uint256[] memory crossAmounts, address[] memory crossRefundAddrs,
-      address payable[] memory directAddrs, uint256[] memory directAmounts, uint256 crossTotal) = calDistribute();
 
-    // do cross chain transfer
+    //step 1: do calculate distribution, do not make it as an internal function for saving gas.
+    uint n = currentValidatorSet.length;
+    uint crossSize;
+    uint directSize;
+    for(uint i = 0;i<n;i++){
+      if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
+        crossSize ++;
+      }else if (currentValidatorSet[i].incoming > 0){
+        directSize ++;
+      }
+    }
+    //cross transfer
+    address[] memory crossAddrs = new address[](crossSize);
+    uint256[] memory crossAmounts = new uint256[](crossSize);
+    uint256[] memory crossIndexes = new uint256[](crossSize);
+    address[] memory crossRefundAddrs = new address[](crossSize);
+    uint256 crossTotal;
+    // direct transfer
+    address payable[] memory directAddrs = new address payable[](directSize);
+    uint256[] memory directAmounts = new uint256[](directSize);
+    delete crossSize;
+    delete directSize;
+    for(uint i = 0;i<n;i++){
+      if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
+        crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
+        uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
+        crossAmounts[crossSize] = value-extraFee;
+        crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
+        crossIndexes[crossSize] = i;
+        crossTotal += value;
+        crossSize ++;
+      }else if (currentValidatorSet[i].incoming > 0){
+        directAddrs[directSize] = currentValidatorSet[i].feeAddress;
+        directAmounts[directSize] = currentValidatorSet[i].incoming;
+        directSize ++;
+      }
+    }
+
+    //step 2: do cross chain transfer
+    bool failCross = false;
     if(crossTotal > 0){
       uint256 relayFee = crossAddrs.length*extraFee;
       try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + expireTimeSecondGap, relayFee) returns (bool success) {
@@ -207,11 +247,26 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
            emit batchTransferFailed(crossTotal, "batch transfer return false");
         }
       }catch Error(string memory reason) {
+        failCross = true;
         emit batchTransferFailed(crossTotal, reason);
-      } catch (bytes memory lowLevelData) {
+      }catch (bytes memory lowLevelData) {
+        failCross = true;
         emit batchTransferLowerFailed(crossTotal, lowLevelData);
       }
     }
+
+    if(failCross){
+      for(uint i = 0; i< crossIndexes.length;i++){
+        uint idx = crossIndexes[i];
+        bool success = currentValidatorSet[idx].feeAddress.send(currentValidatorSet[idx].incoming);
+        if (success){
+          emit directTransfer(currentValidatorSet[idx].feeAddress, currentValidatorSet[idx].incoming);
+        }else{
+          emit directTransferFail(currentValidatorSet[idx].feeAddress, currentValidatorSet[idx].incoming);
+        }
+      }
+    }
+
 
     if(directAddrs.length>0){
       for(uint i = 0;i<directAddrs.length;i++){
@@ -230,7 +285,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
       address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
       systemPayable.transfer(address(this).balance);
     }
-
+    totalInComing = 0;
     // do update state
     if(validatorSet.length>0){
       doUpdateState(validatorSet);
@@ -385,47 +440,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     return (validatorSet,true,"");
   }
 
-  function calDistribute() private view enoughInComing returns (address[] memory, uint256[] memory,
-      address[] memory, address payable[]memory, uint256[] memory, uint256){
-    uint n = currentValidatorSet.length;
-    uint crossSize;
-    uint directSize;
-    for(uint i = 0;i<n;i++){
-      if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
-        crossSize ++;
-      }else if (currentValidatorSet[i].incoming > 0){
-        directSize ++;
-      }
-    }
-    //cross transfer
-    address[] memory crossAddrs = new address[](crossSize);
-    uint256[] memory crossAmounts = new uint256[](crossSize);
-    address[] memory crossRefundAddrs = new address[](crossSize);
-    uint256 crossTotal;
-    // direct transfer
-    address payable[] memory directAddrs = new address payable[](directSize);
-    uint256[] memory directAmounts = new uint256[](directSize);
-    delete crossSize;
-    delete directSize;
-    for(uint i = 0;i<n;i++){
-      if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
-        crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
-        uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
-        crossAmounts[crossSize] = value-extraFee;
-        crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
-        crossTotal += value;
-        crossSize ++;
-      }else if (currentValidatorSet[i].incoming > 0){
-        directAddrs[directSize] = currentValidatorSet[i].feeAddress;
-        directAmounts[directSize] = currentValidatorSet[i].incoming;
-        directSize ++;
-      }
-    }
-    return (crossAddrs, crossAmounts, crossRefundAddrs, directAddrs, directAmounts, crossTotal);
-  }
-
   function doUpdateState(Validator[] memory validatorSet) private{
-    totalInComing = 0;
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;
 
