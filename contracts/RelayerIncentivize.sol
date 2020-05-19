@@ -5,7 +5,7 @@ import "./System.sol";
 import "./lib/SafeMath.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesToTypes.sol";
-import "./interface/IParamSubscriber.sol"
+import "./interface/IParamSubscriber.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
@@ -38,7 +38,12 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   uint256 public roundSequence=0;
   uint256 public countInRound=0;
 
-  event LogParamChange(string key, bytes value);
+  event paramChange(string key, bytes value);
+
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
+    _;
+  }
 
   function init() public {
     require(!alreadyInit, "already initialized");
@@ -52,7 +57,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
   
-  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub onlyInit override payable returns (bool) {
   
     countInRound++;
 
@@ -89,7 +94,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     return reward.mul(moleculeHeaderRelayer).div(denominatorHeaderRelayer);
   }
 
-  function distributeHeaderRelayerReward(address payable caller) internal returns (bool) {
+  function distributeHeaderRelayerReward(address payable caller) internal {
     uint256 totalReward = collectedRewardForHeaderRelayer;
 
     uint256 totalWeight=0;
@@ -120,7 +125,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     delete headerRelayerAddressRecord;
   }
 
-  function distributeTransferRelayerReward(address payable caller) internal returns (bool) {
+  function distributeTransferRelayerReward(address payable caller) internal {
     uint256 totalReward = collectedRewardForTransferRelayer;
 
     uint256 totalWeight=0;
@@ -194,6 +199,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     }else{
       require(false, "unknown param");
     }
-    emit LogParamChange(key, value);
+    emit paramChange(key, value);
   }
 }

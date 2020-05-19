@@ -103,7 +103,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
   event LogUnexpectedRevertInBEP2E(address indexed contractAddr, string reason);
   event LogUnexpectedFailureAssertionInBEP2E(address indexed contractAddr, bytes lowLevelData);
 
-  event LogParamChange(string key, bytes value);
+  event paramChange(string key, bytes value);
 
   constructor() public {}
   
@@ -118,6 +118,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
   
   modifier sequenceInOrder(uint64 sequence, uint64 expectedSequence) {
     require(sequence == expectedSequence, "sequence not in order");
+    _;
+  }
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
     _;
   }
 
@@ -672,6 +676,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
      }else{
       require(false, "unknown param");
     }
-    emit LogParamChange(key, value);
+    emit paramChange(key, value);
   }
 }

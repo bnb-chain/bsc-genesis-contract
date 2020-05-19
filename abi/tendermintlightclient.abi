@@ -56,6 +56,61 @@
 		"type": "event"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "paramChange",
+		"type": "event"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "BCLightClientConsensusStates",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "preValidatorSetChangeHeight",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "appHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "curValidatorSetHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes",
+				"name": "nextValidatorSet",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"constant": true,
 		"inputs": [],
 		"name": "GOV_HUB_ADDR",
@@ -94,6 +149,21 @@
 				"internalType": "bytes",
 				"name": "",
 				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_REWARD_FOR_VALIDATOR_SER_CHANGE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -207,44 +277,8 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"name": "_BBCLightClientConsensusState",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "preValidatorSetChangeHeight",
-				"type": "uint64"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "appHash",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "curValidatorSetHash",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes",
-				"name": "nextValidatorSet",
-				"type": "bytes"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
 		"inputs": [],
-		"name": "_alreadyInit",
+		"name": "alreadyInit",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -259,63 +293,12 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "_chainID",
+		"name": "chainID",
 		"outputs": [
 			{
 				"internalType": "bytes32",
 				"name": "",
 				"type": "bytes32"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_initialHeight",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_latestHeight",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"name": "_submitters",
-		"outputs": [
-			{
-				"internalType": "address payable",
-				"name": "",
-				"type": "address"
 			}
 		],
 		"payable": false,
@@ -390,6 +373,21 @@
 	},
 	{
 		"constant": true,
+		"inputs": [],
+		"name": "initialHeight",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint64",
@@ -412,12 +410,48 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "latestHeight",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "rewardForValidatorSetChange",
 		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "submitters",
+		"outputs": [
+			{
+				"internalType": "address payable",
+				"name": "",
+				"type": "address"
 			}
 		],
 		"payable": false,
@@ -446,6 +480,26 @@
 				"type": "bool"
 			}
 		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "updateParam",
+		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"

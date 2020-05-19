@@ -29,7 +29,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
   event InitConsensusState(uint64 initHeight, bytes32 appHash);
   event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
-  event LogParamChange(string key, bytes value);
+  event paramChange(string key, bytes value);
 
   /* solium-disable-next-line */
   constructor() public {}
@@ -272,6 +272,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     }else{
       require(false, "unknown param");
     }
-    emit LogParamChange(key, value);
+    emit paramChange(key, value);
   }
 }
