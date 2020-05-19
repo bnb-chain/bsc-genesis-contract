@@ -106,19 +106,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
 
   event LogParamChange(string key, bytes value);
 
-  modifier onlyNotInit() {
-    require(!alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
-  }
-
   constructor() public {}
   {% if mock %}
   function initTokenHub() public payable {
+    require(!alreadyInit, "already initialized");
     minimumRelayFee = INIT_MINIMUM_RELAY_FEE;
     refundRelayReward = INIT_REFUND_RELAY_REWARD;
     moleculeForHeaderRelayer = INIT_MOLECULE_FOR_HEADER_RELAYER;
@@ -126,7 +117,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     alreadyInit=true;
   }
   {% else %}
-  function init() external onlyNotInit{
+  function init() external {
+    require(!alreadyInit, "already initialized");
     minimumRelayFee = INIT_MINIMUM_RELAY_FEE;
     refundRelayReward = INIT_REFUND_RELAY_REWARD;
     moleculeForHeaderRelayer = INIT_MOLECULE_FOR_HEADER_RELAYER;
@@ -285,7 +277,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return string(bep2Symbol);
   }
 
-  function approveBind(address contractAddr, string memory bep2Symbol) public onlyInit returns (bool) {
+  function approveBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -321,7 +313,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return true;
   }
 
-  function rejectBind(address contractAddr, string memory bep2Symbol) public onlyInit returns (bool) {
+  function rejectBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -332,7 +324,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return true;
   }
 
-  function expireBind(string memory bep2Symbol) public onlyInit returns (bool) {
+  function expireBind(string memory bep2Symbol) public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -587,7 +579,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return false;
   }
 
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override external onlyInit payable returns (bool) {
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
     require(relayFee%(1e10)==0, "relayFee is must be N*1e10");
     require(relayFee>=minimumRelayFee, "relayFee is too little");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
@@ -614,7 +606,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return true;
   }
 
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override external onlyInit payable returns (bool) {
+  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(relayFee.div(amounts.length)>=minimumRelayFee, "relayFee is too little");
@@ -652,7 +644,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return true;
   }
 
-  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
     require(value.length == 32, "expected value length is 32");
     string memory localKey = key;
     bytes memory localValue = value;
