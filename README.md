@@ -1,5 +1,12 @@
 # bsc-genesis-contracts
 
+This repo hold all the genesis contracts on Binance Smart chain. More details in [doc-site](https://github.com/binance-chain/docs-site/blob/add-bsc/docs/smart-chain/guides/concepts/system-contract.md).
+
+#### Disclaimer
+**The software and related documentation are under active development, 
+all subjected to potential future change without notification and not ready for production use. 
+The code and security audit have not been fully completed and not ready for any bug bounty.**
+
 #### Prepare
 
 Install dependency:
@@ -48,5 +55,7 @@ npm run flatten
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
 
+#### License
 
-
+The library is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0),
+also included in our repository in the [LICENSE](LICENSE) file.
