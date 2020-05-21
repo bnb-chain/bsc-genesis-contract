@@ -4,7 +4,7 @@ This repo hold all the genesis contracts on Binance Smart chain. More details in
 
 #### Disclaimer
 **The software and related documentation are under active development, 
-all subjected to potential future change without notification and not ready for production use. 
+all subject to potential future change without notification and not ready for production use. 
 The code and security audit have not been fully completed and not ready for any bug bounty.**
 
 #### Prepare
