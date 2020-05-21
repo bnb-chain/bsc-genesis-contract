@@ -1,0 +1,65 @@
+{
+  "config": {
+    "chainId": {{chainId}},
+    "homesteadBlock": 0,
+    "eip150Block": 0,
+    "eip150Hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "eip155Block": 0,
+    "eip158Block": 0,
+    "byzantiumBlock": 0,
+    "constantinopleBlock": 0,
+    "petersburgBlock": 0,
+    "istanbulBlock": 0,
+    "muirGlacierBlock": 0,
+    "parlia": {
+      "period": 3,
+      "epoch": 200
+    }
+  },
+  "nonce": "0x0",
+  "timestamp": "0x5e9da7ce",
+  "extraData": "{{extraData}}",
+  "gasLimit": "0x2625a00",
+  "difficulty": "0x1",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "coinbase": "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE",
+  "alloc": {
+    "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE": {
+      "balance": "0x0"
+    },
+    "0x0000000000000000000000000000000000001000": {
+      "balance": "0x0",
+      "code": "0x{{validatorContract}}"
+    },
+    "0x0000000000000000000000000000000000001001": {
+      "balance": "0x0",
+      "code": "0x{{slashContract}}"
+    },
+    "0x0000000000000000000000000000000000001002": {
+      "balance": "0x0",
+      "code": "0x{{systemRewardContract}}"
+    },
+    "0x0000000000000000000000000000000000001003": {
+      "balance": "0x0",
+      "code": "0x{{tendermintLightClient}}"
+    },
+    "0x0000000000000000000000000000000000001004": {
+      "balance": "{{initLockedBNBOnTokenHub}}",
+      "code": "0x{{tokenHub}}"
+    },
+    "0x0000000000000000000000000000000000001005": {
+      "balance": "0x0",
+      "code": "0x{{relayerIncentivize}}"
+    },
+    "0x0000000000000000000000000000000000001006": {
+      "balance": "0x0",
+      "code": "0x{{relayerHub}}"
+    }{% for v in initHolders %},
+    "{{ v.address.replace('0x', '') }}": {
+      "balance": "0x{{ v.balance }}"
+    }{% endfor %}
+  },
+  "number": "0x0",
+  "gasUsed": "0x0",
+  "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+}

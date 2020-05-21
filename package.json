@@ -1,0 +1,33 @@
+{
+  "name": "genesis-contracts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "testrpc": "ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000 -e 100000",
+    "truffle": "truffle",
+    "truffle:test": "truffle test",
+    "truffle:compile": "truffle compile",
+    "truffle:migrate": "truffle migrate",
+    "test:ci": "scripts/run-test.sh",
+    "lint": "npm run lint:sol && npm run lint:js",
+    "lint:js": "eslint test/**/*.js",
+    "lint:sol:fix": "solium -d contracts/ --fix",
+    "lint:sol": "solium -d contracts/",
+    "flatten": "truffle-flattener contracts/BSCValidatorSet.sol > contracts/flattened/BSCValidatorSet.sol && truffle-flattener contracts/GovHub.sol > contracts/flattened/GovHub.sol && truffle-flattener contracts/RelayerHub.sol > contracts/flattened/RelayerHub.sol && truffle-flattener contracts/RelayerIncentivize.sol > contracts/flattened/RelayerIncentivize.sol && truffle-flattener contracts/SlashIndicator.sol > contracts/flattened/SlashIndicator.sol && truffle-flattener contracts/SystemReward.sol > contracts/flattened/SystemReward.sol && truffle-flattener contracts/TendermintLightClient.sol > contracts/flattened/TendermintLightClient.sol && truffle-flattener contracts/TokenHub.sol > contracts/flattened/TokenHub.sol"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^3.0.1",
+    "nunjucks": "^3.2.0",
+    "openzeppelin-solidity": "v3.0.0-rc.0",
+    "solidity-bytes-utils": "0.0.8",
+    "solium": "^1.2.5",
+    "truffle-assertions": "0.9.2",
+    "truffle-flattener": "1.4.4",
+    "web3": "1.2.6",
+    "await-sleep": "0.0.1",
+    "ethereum-input-data-decoder": "0.3.0"
+  }
+}
