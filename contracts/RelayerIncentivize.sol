@@ -2,8 +2,11 @@ pragma solidity 0.6.4;
 
 import "./interface/IRelayerIncentivize.sol";
 import "./System.sol";
+import "./lib/SafeMath.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize, System {
+
+  using SafeMath for uint256;
 
   uint256 public constant ROUND_SIZE=1000;
   uint256 public constant MAXIMUM_WEIGHT=400;
@@ -34,8 +37,8 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
     _countInRound++;
 
     uint256 reward = calculateRewardForHeaderRelayer(msg.value);
-    _collectedRewardForHeaderRelayer += reward;
-    _collectedRewardForTransferRelayer += msg.value - reward;
+    _collectedRewardForHeaderRelayer = _collectedRewardForHeaderRelayer.add(reward);
+    _collectedRewardForTransferRelayer = _collectedRewardForTransferRelayer.add(msg.value).sub(reward);
 
     if (_headerRelayersSubmitCount[headerRelayerAddr]==0){
       _headerRelayerAddressRecord.push(headerRelayerAddr);
@@ -63,7 +66,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
   }
 
   function calculateRewardForHeaderRelayer(uint256 reward) internal view returns (uint256) {
-    return reward * moleculeHeaderRelayer / denominaroeHeaderRelayer;
+    return reward.mul(moleculeHeaderRelayer).div(denominaroeHeaderRelayer);
   }
 
   function distributeHeaderRelayerReward(address payable caller) internal returns (bool) {
@@ -76,16 +79,16 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
       address relayer = relayers[index];
       uint256 weight = calculateHeaderRelayerWeight(_headerRelayersSubmitCount[relayer]);
       relayerWeight[index] = weight;
-      totalWeight = totalWeight + weight;
+      totalWeight = totalWeight.add(weight);
     }
 
-    uint256 callerReward = totalReward * moleculeCallerCompensation / denominaroeCallerCompensation;
-    totalReward = totalReward - callerReward;
+    uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominaroeCallerCompensation);
+    totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
     for(uint256 index = 1; index < relayers.length; index++) {
-      uint256 reward = relayerWeight[index]*totalReward/totalWeight;
+      uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayers[index].send(reward);
-      remainReward = remainReward-reward;
+      remainReward = remainReward.sub(reward);
     }
     relayers[0].send(remainReward);
     caller.send(callerReward);
@@ -110,13 +113,13 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
       totalWeight = totalWeight + weight;
     }
 
-    uint256 callerReward = totalReward * moleculeCallerCompensation / denominaroeCallerCompensation;
-    totalReward = totalReward - callerReward;
+    uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominaroeCallerCompensation);
+    totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
     for(uint256 index = 1; index < relayers.length; index++) {
-      uint256 reward = relayerWeight[index]*totalReward/totalWeight;
+      uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayers[index].send(reward);
-      remainReward = remainReward-reward;
+      remainReward = remainReward.sub(reward);
     }
     relayers[0].send(remainReward);
     caller.send(callerReward);
