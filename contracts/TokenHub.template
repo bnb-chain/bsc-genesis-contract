@@ -102,6 +102,11 @@ contract TokenHub is ITokenHub, System{
   {% else %}
   {% endif %}
 
+  modifier sequenceInOrder(uint64 sequence, uint64 expectedSequence) {
+    require(sequence == expectedSequence, "sequence not in order");
+    _;
+  }
+
   function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
     bytes32 result;
     assembly {
@@ -171,8 +176,7 @@ contract TokenHub is ITokenHub, System{
     return bindPackage;
   }
 
-  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_bindChannelSequence, "wrong bind sequence");
+  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, _bindChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(msgBytes.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_bindChannelSequence, BIND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
@@ -341,8 +345,7 @@ contract TokenHub is ITokenHub, System{
     return transferInPackage;
   }
 
-  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
+  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, _transferInChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(msgBytes.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_transferInChannelSequence, TRANSFER_IN_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
@@ -449,8 +452,7 @@ contract TokenHub is ITokenHub, System{
     return refundPackage;
   }
 
-  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_refundChannelSequence, "wrong refund sequence");
+  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, _refundChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
     require(msgBytes.length==74, "wrong refund package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_refundChannelSequence,REFUND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
