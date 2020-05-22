@@ -7,10 +7,13 @@ import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
 import "./System.sol";
+import "./lib/SafeMath.sol";
 import "./MerkleProof.sol";
 
 
 contract TokenHub is ITokenHub, System{
+
+  using SafeMath for uint256;
 
   struct BindPackage {
     bytes32 bep2TokenSymbol;
@@ -212,16 +215,16 @@ contract TokenHub is ITokenHub, System{
 
   function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) public pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
-      return amount/10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS);
+      return amount.div(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
     }
-    return amount*(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
+    return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
   }
 
   function approveBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
     require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    uint256 lockedAmount = bindPackage.totalSupply-bindPackage.peggyAmount;
+    uint256 lockedAmount = bindPackage.totalSupply.sub(bindPackage.peggyAmount);
     require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
     require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
@@ -451,10 +454,10 @@ contract TokenHub is ITokenHub, System{
     _refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    uint256 reward = refundRelayReward * moleculeHeaderRelayerSystemReward / denominaroeHeaderRelayerSystemReward;
+    uint256 reward = refundRelayReward.mul(moleculeHeaderRelayerSystemReward).div(denominaroeHeaderRelayerSystemReward);
     //TODO ensure reward is in (0, 1e18)
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
-    reward = refundRelayReward-reward;
+    reward = refundRelayReward.sub(reward);
     //TODO ensure reward is in (0, 1e18)
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
 
@@ -510,20 +513,20 @@ contract TokenHub is ITokenHub, System{
     require(relayFee%(1e10)==0, "relayFee is must be N*1e10");
     require(relayFee>=minimumRelayFee, "relayFee is too little");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    uint256 convertedRelayFee = relayFee / (1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+    uint256 convertedRelayFee = relayFee.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
     if (contractAddr==address(0x0)) {
-      require(amount%(1e10)==0, "invalid transfer amount: precision loss in amount conversion");
-      require(msg.value==amount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-      convertedAmount = amount / (1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+      require(amount%1e10==0, "invalid transfer amount: precision loss in amount conversion");
+      require(msg.value==amount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+      convertedAmount = amount.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
-      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount%(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
+      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
       require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
@@ -536,26 +539,26 @@ contract TokenHub is ITokenHub, System{
   function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
-    require(relayFee/amounts.length>=minimumRelayFee, "relayFee is too little");
+    require(relayFee.div(amounts.length)>=minimumRelayFee, "relayFee is too little");
     require(relayFee%(1e10)==0, "relayFee must be N*1e10");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     uint256 totalAmount = 0;
     for (uint i = 0; i < amounts.length; i++) {
-      totalAmount += amounts[i];
+      totalAmount = totalAmount.add(amounts[i]);
     }
     uint256[] memory convertedAmounts = new uint256[](amounts.length);
     bytes32 bep2TokenSymbol;
     if (contractAddr==address(0x0)) {
       for (uint8 i = 0; i < amounts.length; i++) {
         require(amounts[i]%1e10==0, "invalid transfer amount");
-        convertedAmounts[i] = amounts[i]/1e10;
+        convertedAmounts[i] = amounts[i].div(1e10);
       }
-      require(msg.value==totalAmount+relayFee, "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+      require(msg.value==totalAmount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
       for (uint i = 0; i < amounts.length; i++) {
-        require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amounts[i]%(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
+        require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amounts[i].mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
         uint256 convertedAmount = convertToBep2Amount(amounts[i], bep2eTokenDecimals);// convert to bep2 amount
         require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amounts[i]), "amount is too large, uint256 overflow");
         require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
@@ -566,7 +569,7 @@ contract TokenHub is ITokenHub, System{
       require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
       require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
     }
-    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee/(1e10));
+    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee.div(1e10));
     emit LogBatchTransferOutAddrs(_transferOutChannelSequence++, recipientAddrs, refundAddrs);
     return true;
   }
