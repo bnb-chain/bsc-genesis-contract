@@ -592,4 +592,37 @@ contract('TokenHub', (accounts) => {
         _refundChannelSequence = await tokenHub._refundChannelSequence.call();
         assert.equal(_refundChannelSequence.toNumber(), 2, "wrong refund channel sequence");
     });
+    it('Uint256 overflow in transferOut and batchTransferOut', async () => {
+        const tokenHub = await TokenHub.deployed();
+
+        const sender = accounts[2];
+
+        let timestamp = Math.floor(Date.now() / 1000); // counted by second
+        let expireTime = timestamp + 150; // expire at two minutes later
+        let recipient = "0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60";
+        let amount = web3.utils.toBN("115792089237316195423570985008687907853269984665640564039457584007910000000000");
+        let relayFee = web3.utils.toBN("10000000000000000");
+
+        try {
+            await tokenHub.transferOut("0x0000000000000000000000000000000000000000", recipient, amount, expireTime, relayFee, {from: sender, value: web3.utils.toBN("9999996870360065")});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("SafeMath: addition overflow"));
+        }
+
+        const recipientAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
+        let amounts = [web3.utils.toBN("100000000000000000000000000000000000000000000000000000000000000000000000000000"), web3.utils.toBN("15792089237316195423570985008687907853269984665640564039457584007910000000000")];
+        const refundAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
+
+        timestamp = Math.floor(Date.now() / 1000);
+        expireTime = (timestamp + 150);
+        relayFee = web3.utils.toBN(2e16);
+
+        try {
+            await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, "0x0000000000000000000000000000000000000000", expireTime, relayFee, {from: sender, value: web3.utils.toBN("19999996870360065")});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("SafeMath: addition overflow"));
+        }
+    });
 });
