@@ -2,6 +2,7 @@ pragma solidity 0.6.4;
 
 /**
  * @title SizeOf
+ * Copyright (c) 2016-2020 zpouladzade/Seriality
  * @dev The SizeOf return the size of the solidity types in byte
  * @author pouladzade@gmail.com
  */

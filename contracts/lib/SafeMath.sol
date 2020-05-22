@@ -1,6 +1,7 @@
 pragma solidity 0.6.4;
 
 /**
+ * Copyright (c) 2016-2019 zOS Global Limited
  * @dev Wrappers over Solidity's arithmetic operations with added overflow
  * checks.
  *

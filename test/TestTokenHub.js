@@ -604,7 +604,7 @@ contract('TokenHub', (accounts) => {
         let relayFee = web3.utils.toBN("10000000000000000");
 
         try {
-            await tokenHub.transferOut("0x0000000000000000000000000000000000000000", recipient, amount, expireTime, relayFee, {from: sender, value: web3.utils.toBN("9999996870360065")});
+            await tokenHub.transferOut("0x0000000000000000000000000000000000000000", recipient, amount, expireTime, relayFee, {from: sender, value: web3.utils.toBN("9999996870360064")});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));
@@ -619,7 +619,7 @@ contract('TokenHub', (accounts) => {
         relayFee = web3.utils.toBN(2e16);
 
         try {
-            await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, "0x0000000000000000000000000000000000000000", expireTime, relayFee, {from: sender, value: web3.utils.toBN("19999996870360065")});
+            await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, "0x0000000000000000000000000000000000000000", expireTime, relayFee, {from: sender, value: web3.utils.toBN("19999996870360064")});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));

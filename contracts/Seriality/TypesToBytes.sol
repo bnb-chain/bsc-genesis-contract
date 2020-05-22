@@ -2,6 +2,7 @@ pragma solidity 0.6.4;
 
 /**
  * @title TypesToBytes
+ * Copyright (c) 2016-2020 zpouladzade/Seriality
  * @dev The TypesToBytes contract converts the standard solidity types to the byte array
  * @author pouladzade@gmail.com
  */
