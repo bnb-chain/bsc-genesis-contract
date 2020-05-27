@@ -82,6 +82,10 @@ contract GovHub is System{
         if (target == address(this)){
             updateParam(key, value);
         }else{
+            if (!isContract(target)){
+                emit failReasonWithStr("the target is not a contract");
+                return;
+            }
             try IParamSubscriber(target).updateParam(key, value){
             }catch Error(string memory reason) {
                 emit failReasonWithStr(reason);
@@ -109,5 +113,11 @@ contract GovHub is System{
     }else{
             emit failReasonWithStr("unknown param");
         }
+    }
+
+    function isContract(address addr) internal view returns (bool) {
+        uint size;
+        assembly { size := extcodesize(addr) }
+        return size > 0;
     }
 }
