@@ -132,6 +132,7 @@ contract('GovHub others', (accounts) => {
     it('Gov others failed', async () => {
         const govHubInstance = await GovHub.deployed();
         const bSCValidatorSetInstance =await BSCValidatorSet.deployed();
+        const systemRewardInstance = await SystemReward.deployed();
         const relayerAccount = accounts[8];
 
 
@@ -158,6 +159,20 @@ contract('GovHub others', (accounts) => {
             return ev.message === "length of relayerReward mismatch";
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
+
+        // address do not exist
+        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", "0x1110000000000000000000000000000000001004"),crypto.randomBytes(32),100, 4,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "the target is not a contract";
+        });
+
+        // method do no exist
+        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", systemRewardInstance.address),crypto.randomBytes(32),100, 5,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithBytes",(ev) => {
+            return ev.message === null;
+        });
     });
 
 });
