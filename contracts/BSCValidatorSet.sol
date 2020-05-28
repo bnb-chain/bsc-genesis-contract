@@ -397,7 +397,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
       require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
-      require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the extraFee out of range");
+      require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the expireTimeSecondGap is out of range");
       expireTimeSecondGap = newExpireTimeSecondGap;
     }else{
       require(false, "unknown param");
