@@ -18,6 +18,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
   using SafeMath for uint256;
 
   struct BindPackage {
+    uint8   packageType;
     bytes32 bep2TokenSymbol;
     address contractAddr;
     uint256 totalSupply;
@@ -44,6 +45,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     uint64  expireTime;
     uint256 relayFee;
   }
+
+  uint8 constant public   BIND_PACKAGE = 0x00;
+  uint8 constant public   UNBIND_PACKAGE = 0x01;
 
   uint8 constant public   BIND_CHANNEL_ID = 0x01;
   uint8 constant public   TRANSFER_IN_CHANNEL_ID = 0x02;
@@ -153,6 +157,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
       ptr := value
     }
 
+    uint8 packageType;
+    ptr+=1;
+    assembly {
+      packageType := mload(ptr)
+    }
+    bindPackage.packageType = packageType;
+
     bytes32 bep2TokenSymbol;
     ptr+=32;
     assembly {
@@ -205,7 +216,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
   }
 
   function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, bindChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
-    require(msgBytes.length==157, "wrong bind package size");
+    require(msgBytes.length==158, "wrong bind package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelSequence, BIND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
     bindChannelSequence++;
@@ -214,9 +225,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     BindPackage memory bindPackage = decodeBindPackage(msgBytes);
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
 
-    bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
-    emit LogBindRequest(packageSequence, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
-    return true;
+    if (bindPackage.packageType == BIND_PACKAGE) {
+      bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
+      emit LogBindRequest(packageSequence, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
+      return true;
+    } else if (bindPackage.packageType == UNBIND_PACKAGE) {
+      address contractAddr = bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol];
+      if (contractAddr!=address(0x00)) {
+        delete contractAddrToBEP2Symbol[contractAddr];
+        delete bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol];
+      }
+      return true;
+    }
+    return false;
   }
 
   function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
@@ -544,10 +565,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
       emit LogRefundSuccess(packageSequence, refundPackage.transferOutSequence, refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
       return true;
     } else {
-      if (contractAddrToBEP2Symbol[refundPackage.contractAddr]==bytes32(0x00)) {
-        emit LogRefundFailureUnboundToken(refundPackage.transferOutSequence, refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-        return false;
-      }
       try IBEP2E(refundPackage.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this)) returns (uint256 actualBalance) {
         if (actualBalance < refundPackage.refundAmount) {
           emit LogRefundFailureInsufficientBalance(refundPackage.transferOutSequence, refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
