@@ -9,9 +9,9 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferOutSequenceBSC",
 				"type": "uint256"
 			},
 			{
@@ -21,7 +21,7 @@
 				"type": "uint256[]"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -52,9 +52,9 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferOutSequenceBSC",
 				"type": "uint256"
 			},
 			{
@@ -77,13 +77,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "bindResponseSequence",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -102,13 +102,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "bindResponseSequence",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -127,7 +127,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "bindPackageSequence",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -158,13 +164,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "bindResponseSequence",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -201,13 +207,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "bindResponseSequence",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -226,7 +232,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "transferOutSequenceBSC",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -248,12 +260,6 @@
 				"internalType": "uint16",
 				"name": "reason",
 				"type": "uint16"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "actualBalance",
-				"type": "uint256"
 			}
 		],
 		"name": "LogRefundFailureInsufficientBalance",
@@ -263,7 +269,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "transferOutSequenceBSC",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -294,7 +306,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "transferOutSequenceBSC",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -325,7 +343,19 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "refundPackageSequence",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint256",
+				"name": "transferOutSequenceBSC",
+				"type": "uint256"
+			},
+			{
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -356,10 +386,16 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferInFailureSequence",
 				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "transferOutSequenceBC",
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
@@ -380,7 +416,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -390,12 +426,6 @@
 				"internalType": "bytes32",
 				"name": "bep2TokenSymbol",
 				"type": "bytes32"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "actualBalance",
-				"type": "uint256"
 			}
 		],
 		"name": "LogTransferInFailureInsufficientBalance",
@@ -405,10 +435,16 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferInFailureSequence",
 				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "transferOutSequenceBC",
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
@@ -429,7 +465,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -439,12 +475,6 @@
 				"internalType": "bytes32",
 				"name": "bep2TokenSymbol",
 				"type": "bytes32"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "expireTime",
-				"type": "uint256"
 			}
 		],
 		"name": "LogTransferInFailureTimeout",
@@ -454,10 +484,16 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferInFailureSequence",
 				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "transferOutSequenceBC",
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
@@ -478,7 +514,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -497,10 +533,16 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferInFailureSequence",
 				"type": "uint256"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "transferOutSequenceBC",
+				"type": "uint64"
 			},
 			{
 				"indexed": false,
@@ -521,7 +563,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -540,13 +582,13 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferOutSequenceBC",
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "recipient",
 				"type": "address"
@@ -558,7 +600,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -571,9 +613,9 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "uint256",
-				"name": "sequence",
+				"name": "transferOutSequenceBSC",
 				"type": "uint256"
 			},
 			{
@@ -595,7 +637,7 @@
 				"type": "uint256"
 			},
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -626,7 +668,7 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -645,7 +687,7 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
+				"indexed": true,
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -658,6 +700,25 @@
 			}
 		],
 		"name": "LogUnexpectedRevertInBEP2E",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "paramChange",
 		"type": "event"
 	},
 	{
@@ -729,6 +790,66 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_DENOMINATOR_FOR_HEADER_RELAYER",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_MINIMUM_RELAY_FEE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_MOLECULE_FOR_HEADER_RELAYER",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_REFUND_RELAY_REWARD",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -932,202 +1053,13 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"name": "_bep2SymbolToContractAddr",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "_bep2eContractDecimals",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
 		"inputs": [],
-		"name": "_bindChannelSequence",
+		"name": "alreadyInit",
 		"outputs": [
 			{
-				"internalType": "uint64",
+				"internalType": "bool",
 				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"name": "_bindPackageRecord",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "bep2TokenSymbol",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "totalSupply",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "peggyAmount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "bep2eDecimals",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint64",
-				"name": "expireTime",
-				"type": "uint64"
-			},
-			{
-				"internalType": "uint256",
-				"name": "relayFee",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_bindResponseChannelSequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "_contractAddrToBEP2Symbol",
-		"outputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_refundChannelSequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_transferInChannelSequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_transferInFailureChannelSequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "_transferOutChannelSequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
+				"type": "bool"
 			}
 		],
 		"payable": false,
@@ -1210,64 +1142,12 @@
 		"constant": true,
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "symbol",
-				"type": "string"
-			}
-		],
-		"name": "bep2TokenSymbolConvert",
-		"outputs": [
-			{
-				"internalType": "bytes32",
+				"internalType": "address",
 				"name": "",
-				"type": "bytes32"
+				"type": "address"
 			}
 		],
-		"payable": false,
-		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "bep2eSymbol",
-				"type": "string"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "bep2TokenSymbol",
-				"type": "bytes32"
-			}
-		],
-		"name": "checkSymbol",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"payable": false,
-		"stateMutability": "pure",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "bep2eTokenDecimals",
-				"type": "uint256"
-			}
-		],
-		"name": "convertToBep2Amount",
+		"name": "bep2eContractDecimals",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -1276,13 +1156,94 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "pure",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "denominaroeHeaderRelayerSystemReward",
+		"name": "bindChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"name": "bindPackageRecord",
+		"outputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bep2TokenSymbol",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "totalSupply",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "peggyAmount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint8",
+				"name": "bep2eDecimals",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint64",
+				"name": "expireTime",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint256",
+				"name": "relayFee",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "bindResponseChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "denominatorForHeaderRelayer",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -1313,6 +1274,48 @@
 		],
 		"payable": false,
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			}
+		],
+		"name": "getBoundBep2Symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "bep2Symbol",
+				"type": "string"
+			}
+		],
+		"name": "getBoundContract",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -1424,6 +1427,15 @@
 		"type": "function"
 	},
 	{
+		"constant": false,
+		"inputs": [],
+		"name": "init",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"constant": true,
 		"inputs": [],
 		"name": "minimumRelayFee",
@@ -1441,12 +1453,27 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "moleculeHeaderRelayerSystemReward",
+		"name": "moleculeForHeaderRelayer",
 		"outputs": [
 			{
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "refundChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
 			}
 		],
 		"payable": false,
@@ -1495,6 +1522,36 @@
 		"type": "function"
 	},
 	{
+		"constant": true,
+		"inputs": [],
+		"name": "transferInChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "transferInFailureChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"constant": false,
 		"inputs": [
 			{
@@ -1533,6 +1590,41 @@
 		],
 		"payable": true,
 		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "transferOutChannelSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "updateParam",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]

@@ -25,9 +25,24 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 
 module.exports = function(deployer, network, accounts) {
-  deployer.deploy(RelayerIncentivize);
-  deployer.deploy(TendermintLightClient);
+  let relayerIncentivizeInstance;
+  deployer.deploy(RelayerIncentivize).then(function(_relayerIncentivizeInstance){
+    relayerIncentivizeInstance=_relayerIncentivizeInstance;
+    relayerIncentivizeInstance.init();
+  });
+  let tendermintLightClientInstance;
+  deployer.deploy(TendermintLightClient).then(function(_tendermintLightClientInstance){
+    tendermintLightClientInstance=_tendermintLightClientInstance;
+    tendermintLightClientInstance.init();
+  });
   deployer.deploy(TokenHub);
+  let tokenHubInstance;
+  deployer.deploy(TokenHub).then(function(_tokenHubInstance){
+    tokenHubInstance=_tokenHubInstance;
+    tokenHubInstance.init({
+      from: accounts[0],
+      value: 10e18})
+  });
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
   deployer.deploy(MaliciousToken);
@@ -86,6 +101,9 @@ module.exports = function(deployer, network, accounts) {
 
     return deployer.deploy(BSCValidatorSet).then(function (validatorInstance) {
       validatorInstance.init();
+      relayerIncentivizeInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
+      tendermintLightClientInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
+      tokenHubInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
       govHubInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
       slashInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);
       validatorInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,  MockLightClient.address,MockTokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address);

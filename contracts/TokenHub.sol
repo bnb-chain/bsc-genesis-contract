@@ -6,12 +6,13 @@ import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./lib/SafeMath.sol";
 import "./MerkleProof.sol";
 
 
-contract TokenHub is ITokenHub, System{
+contract TokenHub is ITokenHub, System, IParamSubscriber{
 
   using SafeMath for uint256;
 
@@ -53,16 +54,22 @@ contract TokenHub is ITokenHub, System{
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
 
-  //TODO  Add governance later
-  uint256 constant public minimumRelayFee=1e16;
-  uint256 constant public refundRelayReward=1e16;
-  uint256 constant public moleculeHeaderRelayerSystemReward = 1;
-  uint256 constant public denominatorHeaderRelayerSystemReward = 5;
+  uint256 constant public INIT_MINIMUM_RELAY_FEE=1e16;
+  uint256 constant public INIT_REFUND_RELAY_REWARD=1e16;
+  uint256 constant public INIT_MOLECULE_FOR_HEADER_RELAYER=1;
+  uint256 constant public INIT_DENOMINATOR_FOR_HEADER_RELAYER=5;
+
+  uint256 public minimumRelayFee;
+  uint256 public refundRelayReward;
+  uint256 public moleculeForHeaderRelayer;
+  uint256 public denominatorForHeaderRelayer;
 
   mapping(bytes32 => BindPackage) public bindPackageRecord;
   mapping(address => uint256) public bep2eContractDecimals;
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
+
+  bool public alreadyInit;
 
   uint64 public bindChannelSequence=0;
   uint64 public transferInChannelSequence=0;
@@ -96,16 +103,29 @@ contract TokenHub is ITokenHub, System{
   event LogUnexpectedRevertInBEP2E(address indexed contractAddr, string reason);
   event LogUnexpectedFailureAssertionInBEP2E(address indexed contractAddr, bytes lowLevelData);
 
+  event paramChange(string key, bytes value);
+
   constructor() public {}
   
+  function init() external {
+    require(!alreadyInit, "already initialized");
+    minimumRelayFee = INIT_MINIMUM_RELAY_FEE;
+    refundRelayReward = INIT_REFUND_RELAY_REWARD;
+    moleculeForHeaderRelayer = INIT_MOLECULE_FOR_HEADER_RELAYER;
+    denominatorForHeaderRelayer = INIT_DENOMINATOR_FOR_HEADER_RELAYER;
+    alreadyInit=true;
+  }
   
-
   modifier sequenceInOrder(uint64 sequence, uint64 expectedSequence) {
     require(sequence == expectedSequence, "sequence not in order");
     _;
   }
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
+    _;
+  }
 
-  function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
+  function bep2TokenSymbolConvert(string memory symbol) internal pure returns(bytes32) {
     bytes32 result;
     assembly {
       result := mload(add(symbol, 32))
@@ -174,7 +194,7 @@ contract TokenHub is ITokenHub, System{
     return bindPackage;
   }
 
-  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, bindChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, bindChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
     require(msgBytes.length==157, "wrong bind package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelSequence, BIND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
@@ -189,7 +209,7 @@ contract TokenHub is ITokenHub, System{
     return true;
   }
 
-  function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) public pure returns(bool) {
+  function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
     bytes memory bep2eSymbolBytes = bytes(bep2eSymbol);
     if (bep2eSymbolBytes.length > MAXIMUM_BEP2E_SYMBOL_LEN || bep2eSymbolBytes.length < MINIMUM_BEP2E_SYMBOL_LEN) {
       return false;
@@ -218,7 +238,7 @@ contract TokenHub is ITokenHub, System{
     return symbolMatch;
   }
 
-  function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) public pure returns (uint256) {
+  function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
       return amount.div(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
     }
@@ -369,7 +389,7 @@ contract TokenHub is ITokenHub, System{
     return transferInPackage;
   }
 
-  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, transferInChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, transferInChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
     require(msgBytes.length==164, "wrong transfer package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelSequence, TRANSFER_IN_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
@@ -488,18 +508,16 @@ contract TokenHub is ITokenHub, System{
     return refundPackage;
   }
 
-  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, refundChannelSequence) blockSynced(height) onlyRelayer override external returns (bool) {
+  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, refundChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
     require(msgBytes.length==82, "wrong refund package size");
     bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelSequence,REFUND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
     refundChannelSequence++;
 
     address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    uint256 reward = refundRelayReward.mul(moleculeHeaderRelayerSystemReward).div(denominatorHeaderRelayerSystemReward);
-    //TODO ensure reward is in (0, 1e18)
+    uint256 reward = refundRelayReward.mul(moleculeForHeaderRelayer).div(denominatorForHeaderRelayer);
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
     reward = refundRelayReward.sub(reward);
-    //TODO ensure reward is in (0, 1e18)
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
 
     RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
@@ -618,5 +636,46 @@ contract TokenHub is ITokenHub, System{
     emit LogBatchTransferOut(transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee.div(1e10));
     emit LogBatchTransferOutAddrs(transferOutChannelSequence++, recipientAddrs, refundAddrs);
     return true;
+  }
+
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+    require(value.length == 32, "expected value length is 32");
+    string memory localKey = key;
+    bytes memory localValue = value;
+    bytes32 bytes32Key;
+    assembly {
+      bytes32Key := mload(add(localKey, 32))
+    }
+    if (bytes32Key == bytes32(0x6d696e696d756d52656c61794665650000000000000000000000000000000000)){ // minimumRelayFee
+      uint256 newMinimumRelayFee;
+      assembly {
+        newMinimumRelayFee := mload(add(localValue, 32))
+      }
+      require(newMinimumRelayFee >= 0 && newMinimumRelayFee <= 1e18, "the relayerReward out of range");
+      minimumRelayFee = newMinimumRelayFee;
+    }else if(bytes32Key == bytes32(0x726566756e6452656c6179526577617264000000000000000000000000000000)){ // refundRelayReward
+      uint256 newRefundRelayReward;
+      assembly {
+        newRefundRelayReward := mload(add(localValue, 32))
+      }
+      require(newRefundRelayReward >= 0 && newRefundRelayReward <= 1e18, "the refundRelayReward out of range");
+      refundRelayReward = newRefundRelayReward;
+    }else if (bytes32Key == bytes32(0x6d6f6c6563756c65466f7248656164657252656c617965720000000000000000)){ // moleculeForHeaderRelayer
+      uint256 newMoleculeForHeaderRelayer;
+      assembly {
+        newMoleculeForHeaderRelayer := mload(add(localValue, 32))
+      }
+      moleculeForHeaderRelayer = newMoleculeForHeaderRelayer;
+    }else if (bytes32Key == bytes32(0x64656e6f6d696e61746f72466f7248656164657252656c617965720000000000)){ // denominatorForHeaderRelayer
+       uint256 newDenominatorForHeaderRelayer;
+       assembly {
+         newDenominatorForHeaderRelayer := mload(add(localValue, 32))
+       }
+       require(newDenominatorForHeaderRelayer != 0, "the denominatorForHeaderRelayer must not be zero");
+       denominatorForHeaderRelayer = newDenominatorForHeaderRelayer;
+     }else{
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 }

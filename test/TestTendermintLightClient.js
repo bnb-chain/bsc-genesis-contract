@@ -12,9 +12,7 @@ contract('TendermintLightClient', (accounts) => {
     it('Init consensus state', async () => {
         const lightClient = await TendermintLightClient.deployed();
 
-        await lightClient.init({from: accounts[0]});
         let uselessAddr = web3.eth.accounts.create().address;
-        await lightClient.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  uselessAddr, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
 
         let initialHeight = await lightClient.initialHeight.call();
         assert.equal(initialHeight.toNumber(), 2, "mismatched initial consensus height");
