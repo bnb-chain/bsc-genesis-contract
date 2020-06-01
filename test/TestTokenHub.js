@@ -58,7 +58,8 @@ contract('TokenHub', (accounts) => {
         }
 
         const value = Buffer.from(web3.utils.hexToBytes(
-            "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
+            "0x00"+
+            "4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -124,7 +125,8 @@ contract('TokenHub', (accounts) => {
         }
 
         const value = Buffer.from(web3.utils.hexToBytes(
-            "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
+            "0x00"+
+            "4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -165,7 +167,8 @@ contract('TokenHub', (accounts) => {
         }
 
         const value = Buffer.from(web3.utils.hexToBytes(
-            "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
+            "0x00"+
+            "4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -209,7 +212,8 @@ contract('TokenHub', (accounts) => {
         }
 
         const value = Buffer.from(web3.utils.hexToBytes(
-            "0x4445462d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol, symbol: DEF-9C7
+            "0x00"+
+            "4445462d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol, symbol: DEF-9C7
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -247,7 +251,8 @@ contract('TokenHub', (accounts) => {
         }
 
         const value = Buffer.from(web3.utils.hexToBytes(
-            "0x4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
+            "0x00"+
+            "4142432d39433700000000000000000000000000000000000000000000000000" + // bep2TokenSymbol
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -514,7 +519,8 @@ contract('TokenHub', (accounts) => {
             expireTimeStr = '0' + expireTimeStr;
         }
         let value = Buffer.from(web3.utils.hexToBytes(
-            "0x4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOU-A09
+            "0x00"+
+            "4d414c4943494f552d4130390000000000000000000000000000000000000000" + // bep2TokenSymbol: MALICIOU-A09
             maliciousToken.address.toString().replace("0x", "") +// BEP2E contract address
             "00000000000000000000000000000000000000000052b7d2dcc80cd2e4000000" +        // total supply
             "00000000000000000000000000000000000000000051e410c0f93fe543000000" +        // peggy amount
@@ -617,6 +623,91 @@ contract('TokenHub', (accounts) => {
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));
+        }
+    });
+    it('Unbind Token', async () => {
+        const tokenHub = await TokenHub.deployed();
+        const abcToken = await ABCToken.deployed();
+
+        const relayer = accounts[1];
+
+        let value = Buffer.from(web3.utils.hexToBytes(
+            "0x01"+
+            "4142432d39433700000000000000000000000000000000000000000000000000" +        // bep2TokenSymbol: ABC-9C7
+            "0000000000000000000000000000000000000000" +
+            "0000000000000000000000000000000000000000000000000000000000000000" +
+            "0000000000000000000000000000000000000000000000000000000000000000" +
+            "00" +
+            "0000000000000000" +
+            "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
+        let proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        await tokenHub.handleBindPackage(value, proof, merkleHeight, 6, {from: relayer});
+
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 7, "wrong bind channel sequence");
+
+        const bep2Symbol = await tokenHub.getBoundBep2Symbol.call(abcToken.address);
+        assert.equal(bep2Symbol, "", "wrong symbol");
+        const contractAddr = await tokenHub.getBoundContract.call("ABC-9C7");
+        assert.equal(contractAddr, "0x0000000000000000000000000000000000000000", "wrong contract addr");
+
+        // transferIn should be failed and emit LogTransferInFailureUnboundToken to trigger refund
+        let timestamp = Math.floor(Date.now() / 1000); // counted by second
+        let initialExpireStr = (timestamp + 5).toString(16); // expire at 5 second later
+        const initialExpireStrLength = initialExpireStr.length;
+        let expireTimeStr = initialExpireStr;
+        for (var i = 0; i < 16 - initialExpireStrLength; i++) {
+            expireTimeStr = '0' + expireTimeStr;
+        }
+        value = Buffer.from(web3.utils.hexToBytes(
+            "0x4142432d39433700000000000000000000000000000000000000000000000000" + // native token BNB
+            abcToken.address.toString().replace("0x", "") +      // zero contract address
+            "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48" +                                // refund address
+            accounts[2].toString().replace("0x", "") +                                  // recipient amount
+            "0000000000000000000000000000000000000000000000000DE0B6B3A7640000" +        // amount 1e18
+            expireTimeStr +                                                             // expire time
+            "000000000000000000000000000000000000000000000000002386f26fc10000"));       // relayFee
+
+        proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+        let tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 4, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogTransferInFailureUnboundToken", (ev) => {
+            return ev.transferInFailureSequence.toNumber() === 2;
+        });
+
+        // refund should be successful
+        const refundAddr = accounts[2];
+        value = Buffer.from(web3.utils.hexToBytes(
+            "0x0000000000000000000000000000000000000000000000000DE0B6B3A7640000" + // refund amount
+            abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
+            refundAddr.toString().replace("0x", "")  +           // refund address
+            "0000000000000002"  +                                                       // transferOutSequenceBSC
+            "0001")                                                                     // failureCode, unbond
+        );
+        proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+
+        let beforeRefundBalance = await abcToken.balanceOf.call(refundAddr);
+        tx = await tokenHub.handleRefundPackage( value, proof, merkleHeight, 2, {from: relayer});
+        truffleAssert.eventEmitted(tx, "LogRefundSuccess", (ev) => {
+            return ev.reason.toNumber() === 0x1;
+        });
+
+        let afterRefundBalance = await abcToken.balanceOf.call(refundAddr);
+        assert.equal(afterRefundBalance.sub(beforeRefundBalance).eq(web3.utils.toBN(1e18)), true, "wrong balance");
+
+        // transferOut should be failed
+        const sender = accounts[2];
+        timestamp = Math.floor(Date.now() / 1000); // counted by second
+        let expireTime = timestamp + 150; // expire at two minutes later
+        const recipient = "0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60";
+        const amount = web3.utils.toBN(1e11);
+        const relayFee = web3.utils.toBN(1e16);
+        await abcToken.approve(tokenHub.address, amount, {from: sender});
+        try {
+            await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, relayFee, {from: sender});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("the contract has not been bind to any bep2 token"));
         }
     });
 });

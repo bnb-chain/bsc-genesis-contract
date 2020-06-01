@@ -23,7 +23,7 @@ program.option("--fromChainId <fromChainId>",
 
 program.option("--toChainId <toChainId>",
     "toChainId",
-    "0002");
+    "0060");
 
 program.parse(process.argv);
 

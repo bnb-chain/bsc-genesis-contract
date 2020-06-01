@@ -11,7 +11,7 @@ contract System {
     // the store name of the package
     string constant STORE_NAME = "ibc";
 
-    uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000200; // last 6 bytes
+    uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
 
 
     address public constant  VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
