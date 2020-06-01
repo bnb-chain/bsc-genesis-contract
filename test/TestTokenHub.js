@@ -54,8 +54,8 @@ contract('TokenHub', (accounts) => {
 
         const owner = accounts[0];
         const relayer = accounts[1];
-        let _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 0, "wrong bind channel sequence");
+        let bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 0, "wrong bind channel sequence");
         
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let initialExpireTimeStr = (timestamp + 5).toString(16); // expire at 5 second later
@@ -78,10 +78,10 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 0,  {from: relayer});
 
-        _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 1, "wrong bind channel sequence");
+        bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 1, "wrong bind channel sequence");
 
-        let bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        let bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x4142432d39433700000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
         assert.equal(bindRequenst.totalSupply.eq(new BN('52b7d2dcc80cd2e4000000', 16)), true, "wrong total supply");
         assert.equal(bindRequenst.peggyAmount.eq(new BN('51e410c0f93fe543000000', 16)), true, "wrong peggy amount");
@@ -113,7 +113,7 @@ contract('TokenHub', (accounts) => {
         await sleep(10 * 1000);
         // approve expired bind request
         await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner});
-        bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Reject bind', async () => {
@@ -142,8 +142,8 @@ contract('TokenHub', (accounts) => {
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 1, {from: relayer});
 
-        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 2, "wrong bind channel sequence");
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 2, "wrong bind channel sequence");
 
         try {
             await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer});
@@ -154,7 +154,7 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner});
 
-        const bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        const bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Expire bind', async () => {
@@ -184,8 +184,8 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 2, {from: relayer});
 
-        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 3, "wrong bind channel sequence");
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 3, "wrong bind channel sequence");
 
         try {
             await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
@@ -198,7 +198,7 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
 
-        bindRequenst = await tokenHub._bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Mismatched token symbol', async () => {
@@ -228,15 +228,15 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 3, {from: relayer});
 
-        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 4, "wrong bind channel sequence");
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 4, "wrong bind channel sequence");
 
         let tx = await tokenHub.approveBind(abcToken.address, "DEF-9C7", {from: owner});
         truffleAssert.eventEmitted(tx, "LogBindInvalidParameter", (ev) => {
             return ev.bep2TokenSymbol === "0x4445462d39433700000000000000000000000000000000000000000000000000";
         });
 
-        bindRequenst = await tokenHub._bindPackageRecord.call("0x4445462d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
+        bindRequenst = await tokenHub.bindPackageRecord.call("0x4445462d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Success bind', async () => {
@@ -267,14 +267,14 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 4, {from: relayer});
 
-        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 5, "wrong bind channel sequence");
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 5, "wrong bind channel sequence");
 
         await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner});
 
-        const bep2Symbol = await tokenHub._contractAddrToBEP2Symbol.call(abcToken.address);
-        assert.equal(bep2Symbol, "0x4142432d39433700000000000000000000000000000000000000000000000000", "wrong symbol");
-        const contractAddr = await tokenHub._bep2SymbolToContractAddr.call("0x4142432d39433700000000000000000000000000000000000000000000000000");
+        const bep2Symbol = await tokenHub.getBoundBep2Symbol.call(abcToken.address);
+        assert.equal(bep2Symbol, "ABC-9C7", "wrong symbol");
+        const contractAddr = await tokenHub.getBoundContract.call("ABC-9C7");
         assert.equal(contractAddr, abcToken.address, "wrong contract addr");
     });
     it('Relayer transfer from BBC to BSC', async () => {
@@ -306,8 +306,8 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 0, {from: relayer});
 
-        const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
-        assert.equal(_transferInChannelSequence.toNumber(), 1, "wrong transfer in channel sequence");
+        const transferInChannelSequence = await tokenHub.transferInChannelSequence.call();
+        assert.equal(transferInChannelSequence.toNumber(), 1, "wrong transfer in channel sequence");
 
         balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
@@ -342,8 +342,8 @@ contract('TokenHub', (accounts) => {
         truffleAssert.eventEmitted(tx, "LogTransferInFailureTimeout", (ev) => {
             return ev.bep2TokenSymbol === "0x4142432d39433700000000000000000000000000000000000000000000000000" && ev.bep2TokenAmount.toNumber() === 1550000000;
         });
-        const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
-        assert.equal(_transferInChannelSequence.toNumber(), 2, "wrong transfer in channel sequence");
+        const transferInChannelSequence = await tokenHub.transferInChannelSequence.call();
+        assert.equal(transferInChannelSequence.toNumber(), 2, "wrong transfer in channel sequence");
 
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
@@ -375,8 +375,8 @@ contract('TokenHub', (accounts) => {
         const tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 2, {from: relayer});
         const newBalance = await web3.eth.getBalance(accounts[2]);
 
-        const _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
-        assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
+        const transferInChannelSequence = await tokenHub.transferInChannelSequence.call();
+        assert.equal(transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
         assert.equal(web3.utils.toBN(newBalance).sub(web3.utils.toBN(initBalance)).eq(web3.utils.toBN(1e18)), true, "wrong balance");
     });
     it('Transfer from BSC to BBC', async () => {
@@ -433,8 +433,8 @@ contract('TokenHub', (accounts) => {
         truffleAssert.eventEmitted(tx, "LogTransferOut", (ev) => {
             return ev.bep2TokenSymbol === "0x4142432d39433700000000000000000000000000000000000000000000000000";
         });
-        const _transferOutChannelSequence = await tokenHub._transferOutChannelSequence.call();
-        assert.equal(_transferOutChannelSequence.toNumber(), 1, "wrong transfer out channel sequence");
+        const transferOutChannelSequence = await tokenHub.transferOutChannelSequence.call();
+        assert.equal(transferOutChannelSequence.toNumber(), 1, "wrong transfer out channel sequence");
 
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17).sub(amount)), true, "wrong balance");
@@ -450,6 +450,7 @@ contract('TokenHub', (accounts) => {
             "0x000000000000000000000000000000000000000000000000000000174876E800" + // refund amount
             abcToken.address.toString().replace("0x", "") +      // BEP2E contract address
             refundAddr.toString().replace("0x", "")  +           // refund address
+            "0000000000000001"  +                                                       // transferOutSequenceBSC
             "0000")                                                                     // failureCode, timeout
         );
         const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
@@ -484,7 +485,7 @@ contract('TokenHub', (accounts) => {
         await abcToken.approve(tokenHub.address, web3.utils.toBN(3e11), {from: sender});
         let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
-            return ev.sequence.toNumber() === 1 &&
+            return ev.transferOutSequenceBSC.toNumber() === 1 &&
                 ev.contractAddr === abcToken.address &&
                 ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
@@ -495,13 +496,13 @@ contract('TokenHub', (accounts) => {
         await abcToken.approve(tokenHub.address, web3.utils.toBN(7e11), {from: sender});
         tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, abcToken.address, expireTime, relayFee, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "LogBatchTransferOut", (ev) => {
-            return ev.sequence.toNumber() === 2 &&
+            return ev.transferOutSequenceBSC.toNumber() === 2 &&
                 ev.contractAddr === abcToken.address &&
                 ev.amounts[0].eq(amounts[0].div(web3.utils.toBN(1e10))) &&
                 ev.amounts[1].eq(amounts[1].div(web3.utils.toBN(1e10)));
         });
         truffleAssert.eventEmitted(tx, "LogBatchTransferOutAddrs", (ev) => {
-            return ev.sequence.toNumber() === 2 &&
+            return ev.transferOutSequenceBSC.toNumber() === 2 &&
                 ev.recipientAddrs[0].toString().toLowerCase() === recipientAddrs[0] &&
                 ev.recipientAddrs[1].toString().toLowerCase() === recipientAddrs[1];
         });
@@ -532,8 +533,8 @@ contract('TokenHub', (accounts) => {
 
         await tokenHub.handleBindPackage(value, proof, merkleHeight, 5, {from: relayer});
 
-        const _bindChannelSequence = await tokenHub._bindChannelSequence.call();
-        assert.equal(_bindChannelSequence.toNumber(), 6, "wrong bind channel sequence");
+        const bindChannelSequence = await tokenHub.bindChannelSequence.call();
+        assert.equal(bindChannelSequence.toNumber(), 6, "wrong bind channel sequence");
 
         await maliciousToken.approve(tokenHub.address, new BN('1000000000000000000000000', 10), {from: owner});
 
@@ -563,34 +564,35 @@ contract('TokenHub', (accounts) => {
         let balance = await maliciousToken.balanceOf.call(accounts[2]);
         assert.equal(balance.toNumber(), 0, "wrong balance");
 
-        let _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
-        assert.equal(_transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
+        let transferInChannelSequence = await tokenHub.transferInChannelSequence.call();
+        assert.equal(transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
 
         tx = await tokenHub.handleTransferInPackage(value, proof, merkleHeight, 3, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInBEP2E", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
-        _transferInChannelSequence = await tokenHub._transferInChannelSequence.call();
-        assert.equal(_transferInChannelSequence.toNumber(), 4, "wrong transfer in channel sequence");
+        transferInChannelSequence = await tokenHub.transferInChannelSequence.call();
+        assert.equal(transferInChannelSequence.toNumber(), 4, "wrong transfer in channel sequence");
 
         value = Buffer.from(web3.utils.hexToBytes(
             "0x000000000000000000000000000000000000000000000000000000174876E800" +      // refund amount
             maliciousToken.address.toString().replace("0x", "") +     // BEP2E contract address
             "35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48"  +                                    // refund address
+            "0000000000000001"  +                                                            // transferOutSequenceBSC
             "0000")                                                                          // failureCode, timeout
         );
         proof = Buffer.from(web3.utils.hexToBytes("0x00"));
 
-        let _refundChannelSequence = await tokenHub._refundChannelSequence.call();
-        assert.equal(_refundChannelSequence.toNumber(), 1, "wrong refund channel sequence");
+        let refundChannelSequence = await tokenHub.refundChannelSequence.call();
+        assert.equal(refundChannelSequence.toNumber(), 1, "wrong refund channel sequence");
 
         tx = await tokenHub.handleRefundPackage(value, proof, merkleHeight, 1, {from: relayer});
         truffleAssert.eventEmitted(tx, "LogUnexpectedRevertInBEP2E", (ev) => {
             return ev.contractAddr === maliciousToken.address && ev.reason === "malicious method";
         });
 
-        _refundChannelSequence = await tokenHub._refundChannelSequence.call();
-        assert.equal(_refundChannelSequence.toNumber(), 2, "wrong refund channel sequence");
+        refundChannelSequence = await tokenHub.refundChannelSequence.call();
+        assert.equal(refundChannelSequence.toNumber(), 2, "wrong refund channel sequence");
     });
     it('Uint256 overflow in transferOut and batchTransferOut', async () => {
         const tokenHub = await TokenHub.deployed();

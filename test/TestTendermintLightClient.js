@@ -16,8 +16,8 @@ contract('TendermintLightClient', (accounts) => {
         let uselessAddr = web3.eth.accounts.create().address;
         await lightClient.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  uselessAddr, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
 
-        let _initialHeight = await lightClient._initialHeight.call();
-        assert.equal(_initialHeight.toNumber(), 2, "mismatched initial consensus height");
+        let initialHeight = await lightClient.initialHeight.call();
+        assert.equal(initialHeight.toNumber(), 2, "mismatched initial consensus height");
         const chainID  = await lightClient.getChainID.call();
         assert.equal(chainID, "Binance-Chain-Nile", "mismatched chainID");
 

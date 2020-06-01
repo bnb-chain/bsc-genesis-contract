@@ -27,16 +27,16 @@ program.option("--moleculeHeaderRelayer <moleculeHeaderRelayer>",
     "moleculeHeaderRelayer",
     "1");
 
-program.option("--denominaroeHeaderRelayer <denominaroeHeaderRelayer>",
-    "denominaroeHeaderRelayer",
+program.option("--denominatorHeaderRelayer <denominatorHeaderRelayer>",
+    "denominatorHeaderRelayer",
     "5");
 
 program.option("--moleculeCallerCompensation <moleculeCallerCompensation>",
     "moleculeCallerCompensation",
     "1");
 
-program.option("--denominaroeCallerCompensation <denominaroeCallerCompensation>",
-    "denominaroeCallerCompensation",
+program.option("--denominatorCallerCompensation <denominatorCallerCompensation>",
+    "denominatorCallerCompensation",
     "80");
 
 program.option("--mock <mock>",
@@ -49,9 +49,9 @@ const data = {
   roundSize: program.roundSize,
   maximumWeight: program.maximumWeight,
   moleculeHeaderRelayer: program.moleculeHeaderRelayer,
-  denominaroeHeaderRelayer: program.denominaroeHeaderRelayer,
+  denominatorHeaderRelayer: program.denominatorHeaderRelayer,
   moleculeCallerCompensation: program.moleculeCallerCompensation,
-  denominaroeCallerCompensation: program.denominaroeCallerCompensation,
+  denominatorCallerCompensation: program.denominatorCallerCompensation,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
