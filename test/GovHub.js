@@ -184,7 +184,7 @@ contract('GovHub others', (accounts) => {
         let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","minimumRelayFee", "0x0000000000000000000000000000000000000000000000000000000000010000", tokenHub.address),crypto.randomBytes(32),101, 4,
+        let tx = await govHubInstance.handlePackage(serialize("0x00","minimumRelayFee", "0x0000000000000000000000000000000000000000000000000000000000010000", tokenHub.address),crypto.randomBytes(32),101, 6,
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === "minimumRelayFee";
@@ -200,7 +200,7 @@ contract('GovHub others', (accounts) => {
         let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","rewardForValidatorSetChange", "0x0000000000000000000000000000000000000000000000000000000000010000", TendermintLightClient.address),crypto.randomBytes(32),101, 5,
+        let tx = await govHubInstance.handlePackage(serialize("0x00","rewardForValidatorSetChange", "0x0000000000000000000000000000000000000000000000000000000000010000", TendermintLightClient.address),crypto.randomBytes(32),101, 7,
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === "rewardForValidatorSetChange";
@@ -216,7 +216,7 @@ contract('GovHub others', (accounts) => {
         let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),crypto.randomBytes(32),101, 6,
+        let tx = await govHubInstance.handlePackage(serialize("0x00","moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),crypto.randomBytes(32),101, 8,
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === "moleculeHeaderRelayer";
