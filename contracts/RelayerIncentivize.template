@@ -3,19 +3,28 @@ pragma solidity 0.6.4;
 import "./interface/IRelayerIncentivize.sol";
 import "./System.sol";
 import "./lib/SafeMath.sol";
+import "./Seriality/Memory.sol";
+import "./Seriality/BytesToTypes.sol";
+import "./interface/IParamSubscriber.sol";
 
-contract RelayerIncentivize is IRelayerIncentivize, System {
+contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   using SafeMath for uint256;
 
   uint256 public constant ROUND_SIZE={{roundSize}};
   uint256 public constant MAXIMUM_WEIGHT={{maximumWeight}};
 
-  //TODO add governance later
-  uint256 public constant moleculeHeaderRelayer = {{moleculeHeaderRelayer}};
-  uint256 public constant denominatorHeaderRelayer = {{denominatorHeaderRelayer}};
-  uint256 public constant moleculeCallerCompensation = {{moleculeCallerCompensation}};
-  uint256 public constant denominatorCallerCompensation = {{denominatorCallerCompensation}};
+  uint256 public constant MOLECULE_HEADER_RELAYER = {{moleculeHeaderRelayer}};
+  uint256 public constant DENOMINATOR_HEADER_RELAYER = {{denominatorHeaderRelayer}};
+  uint256 public constant MOLECULE_CALLER_COMPENSATION = {{moleculeCallerCompensation}};
+  uint256 public constant DENOMINATOR_CALLER_COMPENSATION = {{denominatorCallerCompensation}};
+
+  uint256 public moleculeHeaderRelayer;
+  uint256 public denominatorHeaderRelayer;
+  uint256 public moleculeCallerCompensation;
+  uint256 public denominatorCallerCompensation;
+
+  bool public alreadyInit;
 
   mapping(address => uint256) public headerRelayersSubmitCount;
   address payable[] public headerRelayerAddressRecord;
@@ -29,12 +38,28 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
   uint256 public roundSequence=0;
   uint256 public countInRound=0;
 
+  event paramChange(string key, bytes value);
+
+  modifier onlyInit() {
+    require(alreadyInit, "the contract not init yet");
+    _;
+  }
+
+  function init() public {
+    require(!alreadyInit, "already initialized");
+    moleculeHeaderRelayer=MOLECULE_HEADER_RELAYER;
+    denominatorHeaderRelayer=DENOMINATOR_HEADER_RELAYER;
+    moleculeCallerCompensation=MOLECULE_CALLER_COMPENSATION;
+    denominatorCallerCompensation=DENOMINATOR_CALLER_COMPENSATION;
+    alreadyInit = true;
+  }
+
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
   {% if mock %}
   function addReward(address payable headerRelayerAddr, address payable caller) external override payable returns (bool) {
   {% else %}
-  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub onlyInit override payable returns (bool) {
   {% endif %}
     countInRound++;
 
@@ -71,7 +96,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
     return reward.mul(moleculeHeaderRelayer).div(denominatorHeaderRelayer);
   }
 
-  function distributeHeaderRelayerReward(address payable caller) internal returns (bool) {
+  function distributeHeaderRelayerReward(address payable caller) internal {
     uint256 totalReward = collectedRewardForHeaderRelayer;
 
     uint256 totalWeight=0;
@@ -102,7 +127,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
     delete headerRelayerAddressRecord;
   }
 
-  function distributeTransferRelayerReward(address payable caller) internal returns (bool) {
+  function distributeTransferRelayerReward(address payable caller) internal {
     uint256 totalReward = collectedRewardForTransferRelayer;
 
     uint256 totalWeight=0;
@@ -151,5 +176,31 @@ contract RelayerIncentivize is IRelayerIncentivize, System {
     } else {
       return MAXIMUM_WEIGHT;
     }
+  }
+
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+    require(alreadyInit, "contract has not been initialized");
+    if (Memory.compareStrings(key,"moleculeHeaderRelayer")){
+      require(value.length == 32, "length of moleculeHeaderRelayer mismatch");
+      uint256 newMoleculeHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
+      moleculeHeaderRelayer = newMoleculeHeaderRelayer;
+    } else if (Memory.compareStrings(key,"denominatorHeaderRelayer")){
+      require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
+      uint256 newDenominatorHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
+      require(newDenominatorHeaderRelayer != 0, "the newDenominatorHeaderRelayer must not be zero");
+      denominatorHeaderRelayer = newDenominatorHeaderRelayer;
+    }else if (Memory.compareStrings(key,"moleculeCallerCompensation")){
+      require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
+      uint256 newMoleculeCallerCompensation = BytesToTypes.bytesToUint256(32, value);
+      moleculeCallerCompensation = newMoleculeCallerCompensation;
+    } else if (Memory.compareStrings(key,"denominatorCallerCompensation")){
+      require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
+      uint256 newDenominatorCallerCompensation = BytesToTypes.bytesToUint256(32, value);
+      require(newDenominatorCallerCompensation != 0, "the newDenominatorCallerCompensation must not be zero");
+      denominatorCallerCompensation = newDenominatorCallerCompensation;
+    }else{
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 }

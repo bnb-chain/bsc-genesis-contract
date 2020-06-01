@@ -10,32 +10,18 @@ const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("ABCToken");
 const DEFToken = artifacts.require("DEFToken");
 const MaliciousToken = artifacts.require("test/MaliciousToken");
-const MockRelayerHub = artifacts.require("mock/MockRelayerHub");
+const RelayerHub = artifacts.require("RelayerHub");
 
 const crypto = require('crypto');
 const Web3 = require('web3');
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
-const minimumRelayFee = 1e12;
-const refundRelayReward = 1e12;
-
 const merkleHeight = 100;
 
 contract('TokenHub', (accounts) => {
     it('Init TokenHub', async () => {
         const tokenHub = await TokenHub.deployed();
-
-        let uselessAddr = web3.eth.accounts.create().address;
-        await tokenHub.updateContractAddr(uselessAddr, uselessAddr, SystemReward.address,  MockLightClient.address, uselessAddr, RelayerIncentivize.address, MockRelayerHub.address, uselessAddr);
-
-        await tokenHub.initTokenHub(
-            {
-                from: accounts[0],
-                value: 10e18
-            }
-        );
-
         let balance_wei = await web3.eth.getBalance(tokenHub.address);
         assert.equal(balance_wei, 10e18, "wrong balance");
         const _lightClientContract = await tokenHub.LIGHT_CLIENT_ADDR.call();
@@ -44,6 +30,12 @@ contract('TokenHub', (accounts) => {
         const systemReward = await SystemReward.deployed();
         const isOperator = await systemReward.isOperator.call(tokenHub.address);
         assert.equal(isOperator, true, "failed to grant system reward authority to tokenhub contract");
+
+        const relayer = accounts[1];
+        const relayerInstance = await RelayerHub.deployed();
+        await relayerInstance.register({from: relayer, value: 1e20});
+        let res = await relayerInstance.isRelayer.call(relayer);
+        assert.equal(res,true);
     });
     it('Relay expired bind package', async () => {
         const mockLightClient = await MockLightClient.deployed();
@@ -277,7 +269,7 @@ contract('TokenHub', (accounts) => {
         const contractAddr = await tokenHub.getBoundContract.call("ABC-9C7");
         assert.equal(contractAddr, abcToken.address, "wrong contract addr");
     });
-    it('Relayer transfer from BBC to BSC', async () => {
+    it('Relayer transfer from BC to BSC', async () => {
         const tokenHub = await TokenHub.deployed();
         const abcToken = await ABCToken.deployed();
 
@@ -312,7 +304,7 @@ contract('TokenHub', (accounts) => {
         balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
     });
-    it('Expired transfer from BBC to BSC', async () => {
+    it('Expired transfer from BC to BSC', async () => {
         const tokenHub = await TokenHub.deployed();
         const abcToken = await ABCToken.deployed();
 
@@ -348,7 +340,7 @@ contract('TokenHub', (accounts) => {
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.eq(web3.utils.toBN(155e17)), true, "wrong balance");
     });
-    it('Relayer BNB transfer from BBC to BSC', async () => {
+    it('Relayer BNB transfer from BC to BSC', async () => {
         const tokenHub = await TokenHub.deployed();
 
         const relayer = accounts[1];
@@ -379,7 +371,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(transferInChannelSequence.toNumber(), 3, "wrong transfer in channel sequence");
         assert.equal(web3.utils.toBN(newBalance).sub(web3.utils.toBN(initBalance)).eq(web3.utils.toBN(1e18)), true, "wrong balance");
     });
-    it('Transfer from BSC to BBC', async () => {
+    it('Transfer from BSC to BC', async () => {
         const tokenHub = await TokenHub.deployed();
         const abcToken = await ABCToken.deployed();
         const defToken = await DEFToken.deployed();

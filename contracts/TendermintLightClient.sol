@@ -1,11 +1,13 @@
 pragma solidity 0.6.4;
 
 import "./Seriality/Memory.sol";
+import "./Seriality/BytesToTypes.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 
-contract TendermintLightClient is ILightClient, System{
+contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
   struct ConsensusState {
     uint64  preValidatorSetChangeHeight;
@@ -22,11 +24,12 @@ contract TendermintLightClient is ILightClient, System{
   bytes32 public chainID;
 
   bytes constant public INIT_CONSENSUS_STATE_BYTES = hex"42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000";
-  //TODO add governance later
-  uint256 constant public rewardForValidatorSetChange = 1e16;
+  uint256 constant public INIT_REWARD_FOR_VALIDATOR_SER_CHANGE  = 1e16;
+  uint256 public rewardForValidatorSetChange;
 
   event InitConsensusState(uint64 initHeight, bytes32 appHash);
   event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
+  event paramChange(string key, bytes value);
 
   /* solium-disable-next-line */
   constructor() public {}
@@ -52,6 +55,7 @@ contract TendermintLightClient is ILightClient, System{
     initialHeight = height;
     latestHeight = height;
     alreadyInit = true;
+    rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
 
     emit InitConsensusState(initialHeight, cs.appHash);
   }
@@ -161,12 +165,12 @@ contract TendermintLightClient is ILightClient, System{
       }
     }
 
-    bytes memory chainID = new bytes(chainIDLength);
+    bytes memory chainIDStr = new bytes(chainIDLength);
     for (uint8 j = 0; j < chainIDLength; j++) {
-        chainID[j] = chainIDBytes[j];
+        chainIDStr[j] = chainIDBytes[j];
     }
 
-    return string(chainID);
+    return string(chainIDStr);
   }
 
   // | length   | chainID   | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
@@ -256,5 +260,18 @@ contract TendermintLightClient is ILightClient, System{
     }
 
     return (cs, height);
+  }
+
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+    require(alreadyInit, "contract has not been initialized");
+    if (Memory.compareStrings(key,"rewardForValidatorSetChange")){
+      require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
+      uint256 newRewardForValidatorSetChange = BytesToTypes.bytesToUint256(32, value);
+      require(newRewardForValidatorSetChange >0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
+      rewardForValidatorSetChange = newRewardForValidatorSetChange;
+    }else{
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 }

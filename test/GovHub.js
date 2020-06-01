@@ -2,6 +2,9 @@ const truffleAssert = require('truffle-assertions');
 const GovHub = artifacts.require("GovHub");
 const SystemReward = artifacts.require("SystemReward");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
+const TokenHub = artifacts.require("TokenHub");
+const RelayerIncentivize = artifacts.require("RelayerIncentivize");
+const TendermintLightClient = artifacts.require("TendermintLightClient");
 const Web3 = require('web3');
 const crypto = require('crypto');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
@@ -175,6 +178,53 @@ contract('GovHub others', (accounts) => {
         });
     });
 
+    it('Gov tokenhub', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const tokenHub =await TokenHub.deployed();
+        let uselessAddr = web3.eth.accounts.create().address;
+
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handlePackage(serialize("0x00","minimumRelayFee", "0x0000000000000000000000000000000000000000000000000000000000010000", tokenHub.address),crypto.randomBytes(32),101, 6,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "minimumRelayFee";
+        });
+
+        let minimumRelayFee = await tokenHub.minimumRelayFee.call();
+        assert.equal(minimumRelayFee.toNumber(), 65536, "value not equal");
+    });
+
+    it('Gov tendermintLightClient', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const tendermintLightClient =await TendermintLightClient.deployed();
+        let uselessAddr = web3.eth.accounts.create().address;
+
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handlePackage(serialize("0x00","rewardForValidatorSetChange", "0x0000000000000000000000000000000000000000000000000000000000010000", TendermintLightClient.address),crypto.randomBytes(32),101, 7,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "rewardForValidatorSetChange";
+        });
+
+        let rewardForValidatorSetChange = await tendermintLightClient.rewardForValidatorSetChange.call();
+        assert.equal(rewardForValidatorSetChange.toNumber(), 65536, "value not equal");
+    });
+
+    it('Gov relayerIncentivize', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const relayerIncentivize =await RelayerIncentivize.deployed();
+        let uselessAddr = web3.eth.accounts.create().address;
+
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handlePackage(serialize("0x00","moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),crypto.randomBytes(32),101, 8,
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "moleculeHeaderRelayer";
+        });
+
+        let moleculeHeaderRelayer = await relayerIncentivize.moleculeHeaderRelayer.call();
+        assert.equal(moleculeHeaderRelayer.toNumber(), 65536, "value not equal");
+    });
 });
 
 function serialize(msgType, key,value, target, extra) {
