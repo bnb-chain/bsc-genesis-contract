@@ -11,18 +11,18 @@ import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
-{% if mock %}import "./mock/MerkleProof.sol";
-{% else %}import "./MerkleProof.sol";
-{% endif %}
+import "./interface/IApplication.sol";
+import "./lib/SafeMath.sol";
 
 
-contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
+contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
+
+  using SafeMath for uint256;
+
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
-  // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
-  uint256 constant public EXTRA_FEE = 1e16;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
@@ -34,15 +34,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
-  bool public alreadyInit;
-
   // state of this contract
   Validator[] public currentValidatorSet;
   uint64 public sequence;
   uint64 public felonySequence;
   uint256 public totalInComing;
-  uint256 public relayerReward;
-  uint256 public extraFee;
   uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
@@ -56,16 +52,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     uint64  votingPower;
     bool jailed;
     uint256 incoming;
-  }
-
-  modifier onlyNotInit() {
-    require(!alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
   }
 
   modifier sequenceInOrder(uint64 _sequence) {
@@ -113,8 +99,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    relayerReward = RELAYER_REWARD;
-    extraFee = EXTRA_FEE;
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;
   }
@@ -140,12 +124,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }
   }
 
-  function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
-    // verify key value against light client;
-    bytes memory key = generateKey(packageSequence, CHANNEL_ID);
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
-    require(valid, "the package is invalid against its proof");
+  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
     uint8 msgType = getMsgType(msgBytes);
     if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){
       updateValidatorSet(msgBytes);
@@ -154,7 +133,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }else{
       require(false, "unknown message type");
     }
+    return new bytes(0);
   }
+
+  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
+  }
+
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
+  }
+
 
   function jailValidator(bytes memory validatorBytes) internal{
     // do deserialize and verify.
@@ -220,11 +209,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     uint256[] memory directAmounts = new uint256[](directSize);
     delete crossSize;
     delete directSize;
+    Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
+    (uint256 syncRelayFee, uint256 ackRelayFee) = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
     for(uint i = 0;i<n;i++){
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
-        crossAmounts[crossSize] = value-extraFee;
+        crossAmounts[crossSize] = value.sub(syncRelayFee).sub(ackRelayFee);
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossIndexes[crossSize] = i;
         crossTotal += value;
@@ -239,8 +230,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     //step 2: do cross chain transfer
     bool failCross = false;
     if(crossTotal > 0){
-      uint256 relayFee = crossAddrs.length*extraFee;
-      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + expireTimeSecondGap, relayFee) returns (bool success) {
+      uint256 relayFee = crossAddrs.length*(syncRelayFee.add(ackRelayFee));
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOutBNB{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         }else{
@@ -287,8 +278,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }
     totalInComing = 0;
     // do update state
-    if(validatorSet.length>0){
-      doUpdateState(validatorSet);
+    if(validatorSetTemp.length>0){
+      doUpdateState(validatorSetTemp);
     }
 
     // do claim reward, will reward to account rather than smart contract.
@@ -394,17 +385,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   }
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
-    if (Memory.compareStrings(key,"relayerReward")){
-      require(value.length == 32, "length of relayerReward mismatch");
-      uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
-      require(newRelayerReward >0 && newRelayerReward <= 1e18, "the relayerReward out of range");
-      relayerReward = newRelayerReward;
-    }else if(Memory.compareStrings(key,"extraFee")){
-      require(value.length == 32, "length of extraFee mismatch");
-      uint256 newExtraFee = BytesToTypes.bytesToUint256(32, value);
-      require(newExtraFee >=0 && newExtraFee <= 1e17, "the extraFee out of range");
-      extraFee = newExtraFee;
-    }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
+    if (Memory.compareStrings(key, "expireTimeSecondGap")){
       require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the expireTimeSecondGap is out of range");
@@ -416,6 +397,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   }
 
   /*********************** Internal Functions **************************/
+
+  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+    uint8 msgType = 0xff;
+    assembly {
+      msgType := mload(add(msgBytes, 1))
+    }
+    return msgType;
+  }
 
   function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory, bool, string memory){
     uint length = validatorSetBytes.length-1;

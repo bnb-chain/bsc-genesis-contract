@@ -14,7 +14,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   address[] validators;
   mapping(address => Indicator) indicators;
   uint256 public previousHeight;
-  bool public alreadyInit;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
 
@@ -32,16 +31,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
     require(block.number > previousHeight, "can not slash twice in one block");
     _;
     previousHeight = block.number;
-  }
-
-  modifier onlyNotInit() {
-    require(!alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
   }
 
   function init() external onlyNotInit{

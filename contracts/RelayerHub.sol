@@ -14,7 +14,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   uint256 public requiredDeposit;
   uint256 public dues;
-  bool public alreadyInit;
 
   mapping(address =>relayer) relayers;
   mapping(address =>bool) relayersExistMap;
@@ -22,16 +21,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   struct relayer{
     uint256 deposit;
     uint256  dues;
-  }
-
-  modifier onlyNotInit() {
-    require(!alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
   }
 
   modifier notContract() {
@@ -97,11 +86,5 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   function isRelayer(address sender) external override view returns (bool){
     return relayersExistMap[sender];
-  }
-
-  function isContract(address addr) internal view returns (bool) {
-    uint size;
-    assembly { size := extcodesize(addr) }
-    return size > 0;
   }
 }

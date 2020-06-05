@@ -14,7 +14,7 @@
     "lint:js": "eslint test/**/*.js",
     "lint:sol:fix": "solium -d contracts/ --fix",
     "lint:sol": "solium -d contracts/",
-    "flatten": "truffle-flattener contracts/BSCValidatorSet.sol > contracts/flattened/BSCValidatorSet.sol && truffle-flattener contracts/GovHub.sol > contracts/flattened/GovHub.sol && truffle-flattener contracts/RelayerHub.sol > contracts/flattened/RelayerHub.sol && truffle-flattener contracts/RelayerIncentivize.sol > contracts/flattened/RelayerIncentivize.sol && truffle-flattener contracts/SlashIndicator.sol > contracts/flattened/SlashIndicator.sol && truffle-flattener contracts/SystemReward.sol > contracts/flattened/SystemReward.sol && truffle-flattener contracts/TendermintLightClient.sol > contracts/flattened/TendermintLightClient.sol && truffle-flattener contracts/TokenHub.sol > contracts/flattened/TokenHub.sol"
+    "flatten": "truffle-flattener contracts/BSCValidatorSet.sol > contracts/flattened/BSCValidatorSet.sol && truffle-flattener contracts/GovHub.sol > contracts/flattened/GovHub.sol && truffle-flattener contracts/RelayerHub.sol > contracts/flattened/RelayerHub.sol && truffle-flattener contracts/RelayerIncentivize.sol > contracts/flattened/RelayerIncentivize.sol && truffle-flattener contracts/SlashIndicator.sol > contracts/flattened/SlashIndicator.sol && truffle-flattener contracts/SystemReward.sol > contracts/flattened/SystemReward.sol && truffle-flattener contracts/TendermintLightClient.sol > contracts/flattened/TendermintLightClient.sol && truffle-flattener contracts/TokenHub.sol > contracts/flattened/TokenHub.sol && truffle-flattener contracts/CrossChain.sol > contracts/flattened/CrossChain.sol"
   },
   "author": "",
   "license": "MIT",
@@ -28,6 +28,7 @@
     "truffle-flattener": "1.4.4",
     "web3": "1.2.6",
     "await-sleep": "0.0.1",
-    "ethereum-input-data-decoder": "0.3.0"
+    "ethereum-input-data-decoder": "0.3.0",
+    "rlp": "2.2.5"
   }
 }

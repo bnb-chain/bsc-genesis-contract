@@ -6,6 +6,7 @@ import "./lib/SafeMath.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
+import "./interface/ISystemReward.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
@@ -24,8 +25,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   uint256 public moleculeCallerCompensation;
   uint256 public denominatorCallerCompensation;
 
-  bool public alreadyInit;
-
   mapping(address => uint256) public headerRelayersSubmitCount;
   address payable[] public headerRelayerAddressRecord;
 
@@ -40,12 +39,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event paramChange(string key, bytes value);
 
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
-  }
-
-  function init() public {
+  function init() onlyNotInit public {
     require(!alreadyInit, "already initialized");
     moleculeHeaderRelayer=MOLECULE_HEADER_RELAYER;
     denominatorHeaderRelayer=DENOMINATOR_HEADER_RELAYER;
@@ -56,30 +50,39 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
+  receive() external payable{}
+
   
-  function addReward(address payable headerRelayerAddr, address payable caller) external onlyTokenHub onlyInit override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable packageRelayer, uint256 amount, bool fromSystemReward) onlyInit onlyCrossChainContract external override returns (bool) {
   
+    uint256 actualAmount;
+    if (fromSystemReward) {
+      actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+    } else {
+      actualAmount = ISystemReward(TOKEN_HUB_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+    }
+
     countInRound++;
 
-    uint256 reward = calculateRewardForHeaderRelayer(msg.value);
+    uint256 reward = calculateRewardForHeaderRelayer(actualAmount);
     collectedRewardForHeaderRelayer = collectedRewardForHeaderRelayer.add(reward);
-    collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(msg.value).sub(reward);
+    collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(actualAmount).sub(reward);
 
     if (headerRelayersSubmitCount[headerRelayerAddr]==0){
       headerRelayerAddressRecord.push(headerRelayerAddr);
     }
     headerRelayersSubmitCount[headerRelayerAddr]++;
 
-    if (transferRelayersSubmitCount[caller]==0){
-      transferRelayerAddressRecord.push(caller);
+    if (transferRelayersSubmitCount[packageRelayer]==0){
+      transferRelayerAddressRecord.push(packageRelayer);
     }
-    transferRelayersSubmitCount[caller]++;
+    transferRelayersSubmitCount[packageRelayer]++;
 
     if (countInRound==ROUND_SIZE){
       emit LogDistributeCollectedReward(roundSequence, collectedRewardForHeaderRelayer, collectedRewardForTransferRelayer);
 
-      distributeHeaderRelayerReward(caller);
-      distributeTransferRelayerReward(caller);
+      distributeHeaderRelayerReward(packageRelayer);
+      distributeTransferRelayerReward(packageRelayer);
 
       address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
       systemPayable.transfer(address(this).balance);
@@ -94,7 +97,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     return reward.mul(moleculeHeaderRelayer).div(denominatorHeaderRelayer);
   }
 
-  function distributeHeaderRelayerReward(address payable caller) internal {
+  function distributeHeaderRelayerReward(address payable packageRelayer) internal {
     uint256 totalReward = collectedRewardForHeaderRelayer;
 
     uint256 totalWeight=0;
@@ -116,7 +119,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       remainReward = remainReward.sub(reward);
     }
     relayers[0].send(remainReward);
-    caller.send(callerReward);
+    packageRelayer.send(callerReward);
 
     collectedRewardForHeaderRelayer = 0;
     for (uint256 index = 0; index < relayers.length; index++){
@@ -125,7 +128,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     delete headerRelayerAddressRecord;
   }
 
-  function distributeTransferRelayerReward(address payable caller) internal {
+  function distributeTransferRelayerReward(address payable packageRelayer) internal {
     uint256 totalReward = collectedRewardForTransferRelayer;
 
     uint256 totalWeight=0;
@@ -147,7 +150,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       remainReward = remainReward.sub(reward);
     }
     relayers[0].send(remainReward);
-    caller.send(callerReward);
+    packageRelayer.send(callerReward);
 
     collectedRewardForTransferRelayer = 0;
     for (uint256 index = 0; index < relayers.length; index++){

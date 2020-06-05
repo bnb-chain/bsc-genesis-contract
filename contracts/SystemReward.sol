@@ -6,7 +6,6 @@ contract SystemReward is System, ISystemReward{
   uint256 public constant MAX_REWARDS = 1e18;
 
   uint public numOperator;
-  bool public alreadyInit;
   mapping(address => bool) operators;
 
 
@@ -46,7 +45,7 @@ contract SystemReward is System, ISystemReward{
     }
   }
   
-  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator rewardNotExceedLimit(amount){
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator rewardNotExceedLimit(amount) returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if(actualAmount>0){
       to.transfer(actualAmount);
@@ -54,6 +53,7 @@ contract SystemReward is System, ISystemReward{
     }else{
       emit RewardEmpty();
     }
+    return actualAmount;
   }
 
   function isOperator(address addr) external view returns (bool){

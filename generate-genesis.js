@@ -14,6 +14,7 @@ require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
+require("./generate-crosschain");
 
 program.version("0.0.1")
 program.option("-c, --chainid <chainid>", "chain id", "714")
@@ -106,6 +107,11 @@ Promise.all([
       "govHub",
       "contracts/GovHub.sol",
       "GovHub"
+  ),
+  compileContract(
+      "crossChain",
+      "contracts/CrossChain.sol",
+      "CrossChain"
   )
 ]).then(result => {
 

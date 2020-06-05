@@ -20,7 +20,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   mapping(uint64 => address payable) public submitters;
   uint64 public initialHeight;
   uint64 public latestHeight;
-  bool public alreadyInit;
   bytes32 public chainID;
 
   bytes constant public INIT_CONSENSUS_STATE_BYTES = hex"{{initConsensusStateBytes}}";
@@ -34,9 +33,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   /* solium-disable-next-line */
   constructor() public {}
 
-  function init() public {
-    require(!alreadyInit, "already initialized");
-
+  function init() onlyNotInit public {
     uint256 pointer;
     uint256 length;
     (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
@@ -112,7 +109,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      //TODO ensure reward is in (0, 1e18)
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
