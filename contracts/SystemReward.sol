@@ -6,7 +6,6 @@ contract SystemReward is System, ISystemReward{
   uint256 public constant MAX_REWARDS = 1e18;
 
   uint public numOperator;
-  bool public alreadyInit;
   mapping(address => bool) operators;
 
 

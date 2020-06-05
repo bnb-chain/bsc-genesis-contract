@@ -11,17 +11,20 @@ import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
+import "./interface/Application.sol";
 import "./MerkleProof.sol";
 
 
 
-contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
+contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Application {
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
   // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
   uint256 constant public EXTRA_FEE = 1e16;
+  // will reward relayer at most 0.05 BNB.
+  uint256 constant public RELAYER_REWARD = 5e16;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
@@ -32,8 +35,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
-
-  bool public alreadyInit;
 
   // state of this contract
   Validator[] public currentValidatorSet;
@@ -55,16 +56,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     uint64  votingPower;
     bool jailed;
     uint256 incoming;
-  }
-
-  modifier onlyNotInit() {
-    require(!alreadyInit, "the contract already init");
-    _;
-  }
-
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
   }
 
   modifier sequenceInOrder(uint64 _sequence) {
@@ -139,21 +130,26 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
     }
   }
 
-  function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
-    // verify key value against light client;
-    bytes memory key = generateKey(packageSequence, CHANNEL_ID);
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
-    require(valid, "the package is invalid against its proof");
-    uint8 msgType = getMsgType(msgBytes);
+  function handleSyncPackage(uint8 channelId, bytes calldata payload, address relayer) external onlyInit doClaimReward(relayer, relayerReward) returns(bytes memory responsePayload) {
+    uint8 msgType = getMsgType(payload);
     if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){
-      updateValidatorSet(msgBytes);
+      updateValidatorSet(payload);
     }else if(msgType == JAIL_MESSAGE_TYPE){
-      jailValidator(msgBytes);
+      jailValidator(payload);
     }else{
       require(false, "unknown message type");
     }
+    return new bytes(0);
   }
+
+  function handleAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+    return true;
+  }
+
+  function handleFailAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+    return true;
+  }
+
 
   function jailValidator(bytes memory validatorBytes) internal{
     // do deserialize and verify.
@@ -406,6 +402,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber {
   }
 
   /*********************** Internal Functions **************************/
+
+  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+    uint8 msgType = 0xff;
+    assembly {
+      msgType := mload(add(msgBytes, 1))
+    }
+    return msgType;
+  }
 
   function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory, bool, string memory){
     uint length = validatorSetBytes.length-1;

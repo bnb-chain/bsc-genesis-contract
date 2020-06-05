@@ -15,22 +15,10 @@ contract GovHub is System{
 
     uint64 public sequence;
     uint256 public relayerReward;
-    bool public alreadyInit;
 
     event failReasonWithStr(string message);
     event failReasonWithBytes(bytes message);
     event paramChange(string key, bytes value);
-
-
-    modifier onlyNotInit() {
-        require(!alreadyInit, "the contract already init");
-        _;
-    }
-
-    modifier onlyInit() {
-        require(alreadyInit, "the contract not init yet");
-        _;
-    }
 
     function init() external onlyNotInit{
         relayerReward = RELAYER_REWARD;
@@ -43,17 +31,22 @@ contract GovHub is System{
         sequence ++;
     }
 
-    function handlePackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) external onlyInit onlyRelayer sequenceInOrder(packageSequence) blockSynced(height) doClaimReward(relayerReward){
-        bytes memory key = generateKey(packageSequence, CHANNEL_ID);
-        bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-        bool valid = MerkleProof.validateMerkleProof(appHash, STORE_NAME, key, msgBytes, proof);
-        require(valid, "the package is invalid against its proof");
+    function handleSyncPackage(uint8 channelId, bytes calldata payload, address relayer) external onlyInit doClaimReward(relayer, relayerReward) returns(bytes memory responsePayload){
         uint8 msgType = getMsgType(msgBytes);
         if(msgType == PARAM_UPDATE_MESSAGE_TYPE){
             notifyUpdates(msgBytes);
         }else{
             emit failReasonWithStr("unknown message type");
         }
+        return new bytes(0);
+    }
+
+    function handleAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+        return true;
+    }
+
+    function handleFailAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+        return true;
     }
 
     //| Proposal type | key length | bytes of  key  | value length | value  | target addr |

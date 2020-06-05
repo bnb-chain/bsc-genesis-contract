@@ -24,8 +24,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   uint256 public moleculeCallerCompensation;
   uint256 public denominatorCallerCompensation;
 
-  bool public alreadyInit;
-
   mapping(address => uint256) public headerRelayersSubmitCount;
   address payable[] public headerRelayerAddressRecord;
 
@@ -40,12 +38,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event paramChange(string key, bytes value);
 
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
-  }
-
-  function init() public {
+  function init() onlyNotInit public {
     require(!alreadyInit, "already initialized");
     moleculeHeaderRelayer=MOLECULE_HEADER_RELAYER;
     denominatorHeaderRelayer=DENOMINATOR_HEADER_RELAYER;
