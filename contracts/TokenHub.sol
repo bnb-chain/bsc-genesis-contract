@@ -9,8 +9,6 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./lib/SafeMath.sol";
-import "./MerkleProof.sol";
-
 
 contract TokenHub is ITokenHub, System, IParamSubscriber{
 
@@ -111,8 +109,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
 
   constructor() public {}
   
-  function init() external {
-    require(!alreadyInit, "already initialized");
+  function init() onlyNotInit external {
     minimumRelayFee = INIT_MINIMUM_RELAY_FEE;
     refundRelayReward = INIT_REFUND_RELAY_REWARD;
     moleculeForHeaderRelayer = INIT_MOLECULE_FOR_HEADER_RELAYER;
@@ -124,10 +121,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     require(sequence == expectedSequence, "sequence not in order");
     _;
   }
-  modifier onlyInit() {
-    require(alreadyInit, "the contract not init yet");
-    _;
-  }
 
   function bep2TokenSymbolConvert(string memory symbol) internal pure returns(bytes32) {
     bytes32 result;
@@ -135,6 +128,28 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
       result := mload(add(symbol, 32))
     }
     return result;
+  }
+
+  function handleSyncPackage(uint8 channelId, bytes calldata payload, address relayer) external onlyInit returns(bytes memory responsePayload){
+    address headerRelayer = address(0x0);
+    if (channelId == BIND_CHANNELID) {
+      handleBindPackage(payload, relayer, headerRelayer);
+    } else if (channelId == TRANSFER_IN_CHANNELID) {
+      handleTransferInPackage(payload, relayer, headerRelayer);
+    } else if (channelId == TRANSFER_IN_CHANNELID) {
+      handleTransferOutPackage(payload, relayer, headerRelayer);
+    } else {
+
+    }
+    return new bytes(0);
+  }
+
+  function handleAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+      return true;
+  }
+
+  function handleFailAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
+      return true;
   }
 
   // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | decimals | expireTime | relayFee |
@@ -205,15 +220,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return bindPackage;
   }
 
-  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, bindChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
-    require(msgBytes.length==158, "wrong bind package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(bindChannelSequence, BIND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    bindChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    BindPackage memory bindPackage = decodeBindPackage(msgBytes);
-    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
+  function handleBindPackage(bytes calldata payload, address relayer, address headerRelayer) onlyInit external override returns (bool) {
+    BindPackage memory bindPackage = decodeBindPackage(payload);
+    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(headerRelayer, relayer);
 
     if (bindPackage.packageType == BIND_PACKAGE) {
       bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
@@ -410,15 +419,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return transferInPackage;
   }
 
-  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, transferInChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
-    require(msgBytes.length==164, "wrong transfer package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(transferInChannelSequence, TRANSFER_IN_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    transferInChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    TransferInPackage memory transferInPackage = decodeTransferInPackage(msgBytes);
-    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
+  function handleTransferInPackage(bytes calldata payload, address relayer, address headerRelayer) onlyInit external override  returns (bool) {
+    TransferInPackage memory transferInPackage = decodeTransferInPackage(payload);
+    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: transferInPackage.relayFee}(headerRelayer, relayer);
 
     if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==BEP2_TOKEN_SYMBOL_FOR_BNB) {
       if (block.timestamp > transferInPackage.expireTime) {
@@ -529,19 +532,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber{
     return refundPackage;
   }
 
-  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) sequenceInOrder(packageSequence, refundChannelSequence) blockSynced(height) onlyRelayer override external onlyInit returns (bool) {
-    require(msgBytes.length==82, "wrong refund package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(refundChannelSequence,REFUND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    refundChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
+  function handleTransferOutPackage(bytes calldata payload, address relayer, address headerRelayer) onlyInit external override  returns (bool) {
     uint256 reward = refundRelayReward.mul(moleculeForHeaderRelayer).div(denominatorForHeaderRelayer);
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(headerRelayer, reward);
     reward = refundRelayReward.sub(reward);
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(relayer, reward);
 
-    RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
+    RefundPackage memory refundPackage = decodeRefundPackage(payload);
     if (refundPackage.contractAddr==address(0x0)) {
       uint256 actualBalance = address(this).balance;
       if (actualBalance < refundPackage.refundAmount) {
