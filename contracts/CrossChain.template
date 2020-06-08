@@ -3,7 +3,9 @@ pragma solidity 0.6.4;
 import "./interface/Application.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/ILightClient.sol";
+import "./interface/IRelayerIncentivize.sol";
 import "./interface/IRelayerHub.sol";
+import "./Seriality/Memory.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 {% if mock %}import "./mock/MerkleProof.sol";
@@ -26,8 +28,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) channelSendSequenceMap;
   mapping(uint8 => uint64) channelReceiveSequenceMap;
 
-  event crossChainPackage(uint64 indexed sequence, uint8 indexed channelId, uint8 packageType, bytes payload);
-  event unsupportedPackage(uint64 indexed sequence, uint8 indexed channelId, uint8 packageType);
+  event crossChainPackage(uint64 indexed sequence, uint8 indexed channelId, bytes payload);
+  event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event unexpectedRevertInPackageHandler(address indexed contractAddr, string reason);
   event unexpectedFailureAssertionInPackageHandler(address indexed contractAddr, bytes lowLevelData);
 
@@ -57,20 +59,16 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     _;
   }
 
-  // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence | type   |
-  // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  | 1 byte |
-  function generateKey(uint64 _sequence, uint8 _channelID, uint8 _type) internal pure returns(bytes memory) {
+  // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
+  // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
+  function generateKey(uint64 _sequence, uint8 _channelID) internal pure returns(bytes memory) {
     uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix | _channelID;
-    bytes memory key = new bytes(15);
+    bytes memory key = new bytes(14);
 
     uint256 ptr;
     assembly {
-      ptr := add(key, 15)
+      ptr := add(key, 14)
     }
-    assembly {
-      mstore(ptr, _type)
-    }
-    ptr -= 1;
     assembly {
       mstore(ptr, _sequence)
     }
@@ -80,7 +78,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
     ptr -= 6;
     assembly {
-      mstore(ptr, 15)
+      mstore(ptr, 14)
     }
     return key;
   }
@@ -100,51 +98,126 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     alreadyInit=true;
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId, uint8 packageType) onlyInit onlyRelayer sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external returns(bool) {
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
+  function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) internal pure returns(bytes memory) {
+    uint256 payloadLength = msgBytes.length + 65;
+    bytes memory payload = new bytes(payloadLength);
+    (uint256 ptr, ) = Memory.fromBytes(payload);
+    ptr+=65;
+    assembly {
+      mstore(ptr, ackRelayFee)
+    }
+
+    ptr-=32;
+    assembly {
+      mstore(ptr, syncRelayFee)
+    }
+
+    ptr-=32;
+    assembly {
+      mstore(ptr, packageType)
+    }
+
+    ptr-=1;
+    assembly {
+      mstore(ptr, payloadLength)
+    }
+
+    ptr+=65;
+    (uint256 src,) = Memory.fromBytes(msgBytes);
+    Memory.copy(ptr, src, msgBytes.length);
+
+    return payload;
+  }
+
+  // | type   | syncRelayFee   | ackRelayFee  | package  |
+  // | 1 byte | 32 bytes       | 32 bytes     | bytes    |
+  function decodePayload(bytes memory payload) internal pure returns(bool, uint8, uint256, uint256, bytes memory) {
+    if (payload.length < 65) {
+      return (false, 0, 0, 0, new bytes(0));
+    }
+
+    uint256 ptr;
+    assembly {
+      ptr := payload
+    }
+
+    uint8 packageType;
+    ptr+=1;
+    assembly {
+      packageType := mload(ptr)
+    }
+
+    uint256 syncRelayFee;
+    ptr+=32;
+    assembly {
+      syncRelayFee := mload(ptr)
+    }
+
+    uint256 ackRelayFee;
+    ptr+=32;
+    assembly {
+      ackRelayFee := mload(ptr)
+    }
+
+    bytes memory msgBytes = new bytes(payload.length-65);
+    (uint256 dst, ) = Memory.fromBytes(msgBytes);
+    Memory.copy(ptr, dst, payload.length-65);
+
+    return (true, packageType, syncRelayFee, ackRelayFee, msgBytes);
+  }
+
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(packageSequence, channelId, packageType), payloadLocal, proofLocal), "invalid merkle proof");
+    require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
+    channelReceiveSequenceMap[channelId]++;
 
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    address handlerContract = channelHandlerContractMap[channelId];
+
+    uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
+    (bool success, uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) = decodePayload(payloadLocal);
+    if (!success) {
+      emit unsupportedPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, payloadLocal);
+      return;
+    }
+
     if (packageType == SYNC_PACKAGE) {
-      uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
-      try Application(handlerContract).handleSyncPackage(channelIdLocal, payloadLocal, msg.sender, headerRelayer) returns (bytes memory responsePayload) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, ACK_PACKAGE, responsePayload);
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: syncRelayFee}(headerRelayer, msg.sender);
+      address handlerContract = channelHandlerContractMap[channelIdLocal];
+      try Application(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
+        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
       } catch Error(string memory reason) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, FAIL_ACK_PACKAGE, payloadLocal);
+        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, FAIL_ACK_PACKAGE, payloadLocal);
+        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
       channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
     } else if (packageType == ACK_PACKAGE) {
-      try Application(handlerContract).handleAckPackage(channelId, payloadLocal, msg.sender, headerRelayer) returns (bool success) {
-        return success;
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
+      address handlerContract = channelHandlerContractMap[channelIdLocal];
+      try Application(handlerContract).handleAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
     } else if (packageType == FAIL_ACK_PACKAGE) {
-      try Application(handlerContract).handleFailAckPackage(channelId, payloadLocal, msg.sender, headerRelayer) returns (bool success) {
-        return success;
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
+      address handlerContract = channelHandlerContractMap[channelIdLocal];
+      try Application(handlerContract).handleFailAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
-    } else {
-      emit unsupportedPackage(packageSequence, channelId, packageType);
     }
-    return true;
   }
 
-  function sendPackage(uint8 channelId, bytes calldata payload) onlyInit registeredContract external override returns(bool) {
+  function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 syncRelayFee, uint256 ackRelayFee) onlyInit registeredContract external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
-    emit crossChainPackage(sendSequence, channelId, SYNC_PACKAGE, payload);
+    emit crossChainPackage(sendSequence, channelId, encodePayload(SYNC_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
     return true;
@@ -176,7 +249,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       assembly {
         handlerContract := mload(add(localValue, 20))
       }
-      require(isContract(handlerContract), "handle address is not a contract");
+      require(isContract(handlerContract), "address is not a contract");
       channelHandlerContractMap[channelId]=handlerContract;
       registeredContractMap[handlerContract] = true;
       emit addChannel(channelId, handlerContract);

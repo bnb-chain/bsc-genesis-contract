@@ -11,8 +11,8 @@ contract System {
     uint8 constant public BIND_CHANNELID = 0x01;
     uint8 constant public TRANSFER_IN_CHANNELID = 0x02;
     uint8 constant public TRANSFER_OUT_CHANNELID = 0x03;
-    uint8 constant public STAKING_CHANNELID = 0x04;
-    uint8 constant public GOV_CHANNELID = 0x05;
+    uint8 constant public STAKING_CHANNELID = 0x08;
+    uint8 constant public GOV_CHANNELID = 0x09;
 
 
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;

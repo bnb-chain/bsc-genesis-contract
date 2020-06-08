@@ -16,21 +16,13 @@ program.option(
     "./contracts/TokenHub.sol"
 )
 
-program.option("--refundRelayReward <refundRelayReward>",
-    "refundRelayReward",
+program.option("--syncRelayFee <syncRelayFee>",
+    "syncRelayFee",
     "1e16");
 
-program.option("--minimumRelayFee <minimumRelayFee>",
-    "minimumRelayFee",
+program.option("--ackRelayFee <ackRelayFee>",
+    "ackRelayFee",
     "1e16");
-
-program.option("--moleculeForHeaderRelayer <moleculeForHeaderRelayer>",
-    "moleculeForHeaderRelayer",
-    "1");
-
-program.option("--denominatorForHeaderRelayer <denominatorForHeaderRelayer>",
-    "denominatorForHeaderRelayer",
-    "5");
 
 program.option("--maxGasForCallingBEP2E <maxGasForCallingBEP2E>",
     "maxGasForCallingBEP2E",
@@ -43,10 +35,8 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-  refundRelayReward: program.refundRelayReward,
-  minimumRelayFee: program.minimumRelayFee,
-  moleculeForHeaderRelayer: program.moleculeForHeaderRelayer,
-  denominatorForHeaderRelayer: program.denominatorForHeaderRelayer,
+    syncRelayFee: program.syncRelayFee,
+    ackRelayFee: program.ackRelayFee,
   maxGasForCallingBEP2E: program.maxGasForCallingBEP2E,
   mock: program.mock,
 };
