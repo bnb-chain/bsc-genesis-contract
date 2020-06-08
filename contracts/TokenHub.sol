@@ -42,12 +42,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, Application {
     uint64  expireTime;
   }
 
+
   uint8 constant public   BIND_PACKAGE = 0x00;
   uint8 constant public   UNBIND_PACKAGE = 0x01;
 
   uint8 constant public   BIND_CHANNEL_ID = 0x01;
   uint8 constant public   TRANSFER_IN_CHANNEL_ID = 0x02;
   uint8 constant public   REFUND_CHANNEL_ID=0x03;
+
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;

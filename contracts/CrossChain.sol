@@ -177,6 +177,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     (bool success, uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) = decodePayload(payloadLocal);
     if (!success) {
       emit unsupportedPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, payloadLocal);
+      return;
     }
 
     if (packageType == SYNC_PACKAGE) {
