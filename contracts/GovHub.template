@@ -4,26 +4,22 @@ import "./Seriality/BytesToTypes.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/IParamSubscriber.sol";
+import "./interface/Application.sol";
 
 
-contract GovHub is System{
+contract GovHub is System, Application{
 
   uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
-  uint8 public constant CHANNEL_ID = 0x09;
-
-  uint64 public sequence;
-  uint256 public relayerReward;
 
   event failReasonWithStr(string message);
   event failReasonWithBytes(bytes message);
   event paramChange(string key, bytes value);
 
   function init() external onlyNotInit{
-    relayerReward = RELAYER_REWARD;
     alreadyInit = true;
   }
 
-  function handleSyncPackage(uint8 channelId, bytes calldata payload, address relayer) onlyInit onlyCrossChainContract external doClaimReward(relayer, relayerReward) returns(bytes memory responsePayload){
+  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload){
     uint8 msgType = getMsgType(msgBytes);
     if(msgType == PARAM_UPDATE_MESSAGE_TYPE){
       notifyUpdates(msgBytes);
@@ -33,12 +29,12 @@ contract GovHub is System{
     return new bytes(0);
   }
 
-  function handleAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
-    return true;
+  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
   }
 
-  function handleFailAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
-    return true;
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
   }
 
   //| Proposal type | key length | bytes of  key  | value length | value  | target addr |
@@ -81,22 +77,16 @@ contract GovHub is System{
     return;
   }
 
+  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
+    uint8 msgType = 0xff;
+    assembly {
+      msgType := mload(add(msgBytes, 1))
+    }
+    return msgType;
+  }
+
   /*********************** Param update ********************************/
   function updateParam(string memory key, bytes memory value) internal{
-    if (Memory.compareStrings(key,"relayerReward")){
-      if(value.length != 32){
-        emit failReasonWithStr("length of relayerReward mismatch");
-        return;
-      }
-      uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
-      if (newRelayerReward == 0 || newRelayerReward > 1e18){
-        emit failReasonWithStr("the relayerReward out of range");
-        return;
-      }
-      relayerReward = newRelayerReward;
-      emit paramChange(key, value);
-  }else{
-      emit failReasonWithStr("unknown param");
-    }
+
   }
 }

@@ -12,15 +12,17 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/Application.sol";
+import "./lib/SafeMath.sol";
 
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Application {
+
+  using SafeMath for uint256;
+
   // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
   uint constant  VALIDATOR_BYTES_LENGTH = 68;
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
-  // extra fee for cross chain transfer,should keep consistent with cross chain transfer smart contract.
-  uint256 constant public EXTRA_FEE = 1e16;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
@@ -37,8 +39,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
   uint64 public sequence;
   uint64 public felonySequence;
   uint256 public totalInComing;
-  uint256 public relayerReward;
-  uint256 public extraFee;
   uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
   // key is the `consensusAddress` of `Validator`,
@@ -99,8 +99,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
       currentValidatorSet.push(validatorSet[i]);
       currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
     }
-    relayerReward = RELAYER_REWARD;
-    extraFee = EXTRA_FEE;
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;
   }
@@ -126,24 +124,24 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
     }
   }
 
-  function handleSyncPackage(uint8 channelId, bytes calldata payload, address relayer) onlyInit onlyCrossChainContract external doClaimReward(relayer, relayerReward) returns(bytes memory responsePayload) {
-    uint8 msgType = getMsgType(payload);
+  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
+    uint8 msgType = getMsgType(msgBytes);
     if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){
-      updateValidatorSet(payload);
+      updateValidatorSet(msgBytes);
     }else if(msgType == JAIL_MESSAGE_TYPE){
-      jailValidator(payload);
+      jailValidator(msgBytes);
     }else{
       require(false, "unknown message type");
     }
     return new bytes(0);
   }
 
-  function handleAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
-    return true;
+  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
   }
 
-  function handleFailAckPackage(uint8 channelId, bytes calldata payload, address relayer) external returns(bool) {
-    return true;
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
+    return;
   }
 
 
@@ -211,11 +209,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
     uint256[] memory directAmounts = new uint256[](directSize);
     delete crossSize;
     delete directSize;
+    Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
+    (uint256 syncRelayFee, uint256 ackRelayFee) = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
     for(uint i = 0;i<n;i++){
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
-        crossAmounts[crossSize] = value-extraFee;
+        crossAmounts[crossSize] = value.sub(syncRelayFee).sub(ackRelayFee);
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossIndexes[crossSize] = i;
         crossTotal += value;
@@ -230,8 +230,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
     //step 2: do cross chain transfer
     bool failCross = false;
     if(crossTotal > 0){
-      uint256 relayFee = crossAddrs.length*extraFee;
-      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + expireTimeSecondGap, relayFee) returns (bool success) {
+      uint256 relayFee = crossAddrs.length*(syncRelayFee.add(ackRelayFee));
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), block.timestamp + expireTimeSecondGap) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         }else{
@@ -278,8 +278,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
     }
     totalInComing = 0;
     // do update state
-    if(validatorSet.length>0){
-      doUpdateState(validatorSet);
+    if(validatorSetTemp.length>0){
+      doUpdateState(validatorSetTemp);
     }
 
     // do claim reward, will reward to account rather than smart contract.
@@ -385,17 +385,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Applicat
   }
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
-    if (Memory.compareStrings(key,"relayerReward")){
-      require(value.length == 32, "length of relayerReward mismatch");
-      uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
-      require(newRelayerReward >0 && newRelayerReward <= 1e18, "the relayerReward out of range");
-      relayerReward = newRelayerReward;
-    }else if(Memory.compareStrings(key,"extraFee")){
-      require(value.length == 32, "length of extraFee mismatch");
-      uint256 newExtraFee = BytesToTypes.bytesToUint256(32, value);
-      require(newExtraFee >=0 && newExtraFee <= 1e17, "the extraFee out of range");
-      extraFee = newExtraFee;
-    }else if (Memory.compareStrings(key, "expireTimeSecondGap")){
+    if (Memory.compareStrings(key, "expireTimeSecondGap")){
       require(value.length == 32, "length of expireTimeSecondGap mismatch");
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the expireTimeSecondGap is out of range");
