@@ -4,12 +4,12 @@ interface ITokenHub {
 
   function getRelayFee() external returns(uint256, uint256);
 
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime)
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
     external payable returns (bool);
 
   /* solium-disable-next-line */
   function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
-    address contractAddr, uint256 expireTime) external payable returns (bool);
+    address contractAddr, uint64 expireTime) external payable returns (bool);
 
 }
 
