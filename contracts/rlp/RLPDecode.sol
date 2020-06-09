@@ -1,170 +1,270 @@
 pragma solidity 0.6.4;
 
-/**
- * @title RLPReader
- * @dev RLPReader is used to read and parse RLP encoded data in memory.
- * @author Andreas Olofsson (androlo1980@gmail.com)
- */
-
-
 library RLPDecode {
-    uint constant DATA_SHORT_START = 0x80;
-    uint constant DATA_LONG_START = 0xB8;
-    uint constant LIST_SHORT_START = 0xC0;
-    uint constant LIST_LONG_START = 0xF8;
+    uint8 constant STRING_SHORT_START = 0x80;
+    uint8 constant STRING_LONG_START  = 0xb8;
+    uint8 constant LIST_SHORT_START   = 0xc0;
+    uint8 constant LIST_LONG_START    = 0xf8;
 
-    uint constant DATA_LONG_OFFSET = 0xB7;
-    uint constant LIST_LONG_OFFSET = 0xF7;
-
-
+    uint8 constant WORD_SIZE = 32;
 
     struct RLPItem {
-        uint _unsafeMemPtr;    // Pointer to the RLP-encoded bytes.
-        uint _unsafeLength;    // Number of bytes. This is the full length of the string.
+        uint len;
+        uint memPtr;
     }
 
     struct Iterator {
-        RLPItem _unsafeItem;   // Item that's being iterated over.
-        uint _unsafeNextPtr;   // Position of the next item in the list.
+        RLPItem item;   // Item that's being iterated over.
+        uint nextPtr;   // Position of the next item in the list.
+    }
+
+    function next(Iterator memory self) internal pure returns (RLPItem memory) {
+        require(hasNext(self));
+
+        uint ptr = self.nextPtr;
+        uint itemLength = _itemLength(ptr);
+        self.nextPtr = ptr + itemLength;
+
+        return RLPItem(itemLength, ptr);
+    }
+
+    function hasNext(Iterator memory self) internal pure returns (bool) {
+        RLPItem memory item = self.item;
+        return self.nextPtr < item.memPtr + item.len;
     }
 
     function toRLPItem(bytes memory self) internal pure returns (RLPItem memory) {
-        uint len = self.length;
         uint memPtr;
         assembly {
             memPtr := add(self, 0x20)
         }
-        return RLPItem(memPtr, len);
+
+        return RLPItem(self.length, memPtr);
     }
 
-    function toList(RLPItem memory self, uint256 numItems) internal pure returns (RLPItem[] memory list) {
-        list = new RLPItem[](numItems);
-        Iterator memory it = iterator(self);
-        uint idx;
-        while (idx < numItems) {
-            list[idx] = next(it);
-            idx++;
+    function iterator(RLPItem memory self) internal pure returns (Iterator memory) {
+        require(isList(self));
+
+        uint ptr = self.memPtr + _payloadOffset(self.memPtr);
+        return Iterator(self, ptr);
+    }
+
+    function rlpLen(RLPItem memory item) internal pure returns (uint) {
+        return item.len;
+    }
+
+    function payloadLen(RLPItem memory item) internal pure returns (uint) {
+        return item.len - _payloadOffset(item.memPtr);
+    }
+
+    function toList(RLPItem memory item) internal pure returns (RLPItem[] memory) {
+        require(isList(item));
+
+        uint items = numItems(item);
+        RLPItem[] memory result = new RLPItem[](items);
+
+        uint memPtr = item.memPtr + _payloadOffset(item.memPtr);
+        uint dataLen;
+        for (uint i = 0; i < items; i++) {
+            dataLen = _itemLength(memPtr);
+            result[i] = RLPItem(dataLen, memPtr);
+            memPtr = memPtr + dataLen;
         }
+
+        return result;
     }
 
-    function toUint(RLPItem memory self) internal pure returns (uint data) {
-        (uint rStartPos, uint len) = _decode(self);
+    function isList(RLPItem memory item) internal pure returns (bool) {
+        if (item.len == 0) return false;
+
+        uint8 byte0;
+        uint memPtr = item.memPtr;
         assembly {
-            data := div(mload(rStartPos), exp(256, sub(32, len)))
+            byte0 := byte(0, mload(memPtr))
         }
+
+        if (byte0 < LIST_SHORT_START)
+            return false;
+        return true;
     }
 
-    function toAddress(RLPItem memory self) internal pure returns (address data)
-    {
-        (uint rStartPos,) = _decode(self);
+    function toRlpBytes(RLPItem memory item) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(item.len);
+        if (result.length == 0) return result;
+
+        uint ptr;
         assembly {
-            data := div(mload(rStartPos), exp(256, 12))
+            ptr := add(0x20, result)
         }
+
+        copy(item.memPtr, ptr, item.len);
+        return result;
     }
 
-    function iterator(RLPItem memory self) private pure returns (Iterator memory it) {
-        uint ptr = self._unsafeMemPtr + _payloadOffset(self);
-        it._unsafeItem = self;
-        it._unsafeNextPtr = ptr;
-    }
-
-
-    function next(Iterator memory self) private pure returns (RLPItem memory subItem) {
-        uint ptr = self._unsafeNextPtr;
-        uint itemLength = _itemLength(ptr);
-        subItem._unsafeMemPtr = ptr;
-        subItem._unsafeLength = itemLength;
-        self._unsafeNextPtr = ptr + itemLength;
-    }
-
-    function hasNext(Iterator memory self) private pure returns (bool) {
-        RLPItem memory item = self._unsafeItem;
-        return self._unsafeNextPtr < item._unsafeMemPtr + item._unsafeLength;
-    }
-
-    // Get the payload offset.
-    function _payloadOffset(RLPItem memory self) private pure returns (uint)
-    {
-        uint b0;
-        uint memPtr = self._unsafeMemPtr;
+    function toBoolean(RLPItem memory item) internal pure returns (bool) {
+        require(item.len == 1);
+        uint result;
+        uint memPtr = item.memPtr;
         assembly {
-            b0 := byte(0, mload(memPtr))
+            result := byte(0, mload(memPtr))
         }
-        if (b0 < DATA_SHORT_START)
-            return 0;
-        if (b0 < DATA_LONG_START || (b0 >= LIST_SHORT_START && b0 < LIST_LONG_START))
-            return 1;
-        if (b0 < LIST_SHORT_START)
-            return b0 - DATA_LONG_OFFSET + 1;
-        return b0 - LIST_LONG_OFFSET + 1;
+
+        return result == 0 ? false : true;
     }
 
-    // Get the full length of an RLP item.
-    function _itemLength(uint memPtr) private pure returns (uint len) {
-        uint b0;
-        assembly {
-            b0 := byte(0, mload(memPtr))
-        }
-        if (b0 < DATA_SHORT_START)
-            len = 1;
-        else if (b0 < DATA_LONG_START)
-            len = b0 - DATA_SHORT_START + 1;
+    function toAddress(RLPItem memory item) internal pure returns (address) {
+        // 1 byte for the length prefix
+        require(item.len == 21);
+
+        return address(toUint(item));
     }
 
-    // Get start position and length of the data.
-    function _decode(RLPItem memory self) private pure returns (uint memPtr, uint len) {
-        uint b0;
-        uint start = self._unsafeMemPtr;
+    function toUint(RLPItem memory item) internal pure returns (uint) {
+        require(item.len > 0 && item.len <= 33);
+
+        uint offset = _payloadOffset(item.memPtr);
+        uint len = item.len - offset;
+
+        uint result;
+        uint memPtr = item.memPtr + offset;
         assembly {
-            b0 := byte(0, mload(start))
+            result := mload(memPtr)
+
+        // shfit to the correct location if neccesary
+            if lt(len, 32) {
+                result := div(result, exp(256, sub(32, len)))
+            }
         }
-        if (b0 < DATA_SHORT_START) {
-            memPtr = start;
-            len = 1;
-            return (memPtr, len);
+
+        return result;
+    }
+
+    // enforces 32 byte length
+    function toUintStrict(RLPItem memory item) internal pure returns (uint) {
+        // one byte prefix
+        require(item.len == 33);
+
+        uint result;
+        uint memPtr = item.memPtr + 1;
+        assembly {
+            result := mload(memPtr)
         }
-        if (b0 < DATA_LONG_START) {
-            len = self._unsafeLength - 1;
-            memPtr = start + 1;
-        } else {
-            uint bLen;
+
+        return result;
+    }
+
+    function toBytes(RLPItem memory item) internal pure returns (bytes memory) {
+        require(item.len > 0);
+
+        uint offset = _payloadOffset(item.memPtr);
+        uint len = item.len - offset; // data length
+        bytes memory result = new bytes(len);
+
+        uint destPtr;
+        assembly {
+            destPtr := add(0x20, result)
+        }
+
+        copy(item.memPtr + offset, destPtr, len);
+        return result;
+    }
+
+    function numItems(RLPItem memory item) private pure returns (uint) {
+        if (item.len == 0) return 0;
+
+        uint count = 0;
+        uint currPtr = item.memPtr + _payloadOffset(item.memPtr);
+        uint endPtr = item.memPtr + item.len;
+        while (currPtr < endPtr) {
+            currPtr = currPtr + _itemLength(currPtr); // skip over an item
+            count++;
+        }
+
+        return count;
+    }
+
+    function _itemLength(uint memPtr) private pure returns (uint) {
+        uint itemLen;
+        uint byte0;
+        assembly {
+            byte0 := byte(0, mload(memPtr))
+        }
+
+        if (byte0 < STRING_SHORT_START)
+            itemLen = 1;
+
+        else if (byte0 < STRING_LONG_START)
+            itemLen = byte0 - STRING_SHORT_START + 1;
+
+        else if (byte0 < LIST_SHORT_START) {
             assembly {
-                bLen := sub(b0, 0xB7) // DATA_LONG_OFFSET
+                let byteLen := sub(byte0, 0xb7) // # of bytes the actual length is
+                memPtr := add(memPtr, 1) // skip over the first byte
+
+            /* 32 byte word size */
+                let dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to get the len
+                itemLen := add(dataLen, add(byteLen, 1))
             }
-            len = self._unsafeLength - 1 - bLen;
-            memPtr = start + bLen + 1;
         }
-        return (memPtr, len);
-    }
 
-    function toBytes(RLPItem memory self) internal pure returns (bytes memory bts) {
-        uint len = self._unsafeLength;
-        if (len == 0)
-            return bts;
-        bts = new bytes(len);
-        _copyToBytes(self._unsafeMemPtr, bts, len);
-    }
+        else if (byte0 < LIST_LONG_START) {
+            itemLen = byte0 - LIST_SHORT_START + 1;
+        }
 
-    // Assumes that enough memory has been allocated to store in target.
-    function _copyToBytes(uint btsPtr, bytes memory tgt, uint btsLen) private pure {
-        // Exploiting the fact that 'tgt' was the last thing to be allocated,
-        // we can write entire words, and just overwrite any excess.
-        assembly {
-            {
-            // evm operations on words
-                let words := div(add(btsLen, 31), 32)
-                let rOffset := btsPtr
-                let wOffset := add(tgt, 0x20)
-                for
-                { let i := 0 } // start at arr + 0x20 -> first byte corresponds to length
-                lt(i, words)
-                { i := add(i, 1) }
-                {
-                    let offset := mul(i, 0x20)
-                    mstore(add(wOffset, offset), mload(add(rOffset, offset)))
-                }
-                mstore(add(tgt, add(0x20, mload(tgt))), 0)
+        else {
+            assembly {
+                let byteLen := sub(byte0, 0xf7)
+                memPtr := add(memPtr, 1)
+
+                let dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to the correct length
+                itemLen := add(dataLen, add(byteLen, 1))
             }
+        }
+
+        return itemLen;
+    }
+
+    // @return number of bytes until the data
+    function _payloadOffset(uint memPtr) private pure returns (uint) {
+        uint byte0;
+        assembly {
+            byte0 := byte(0, mload(memPtr))
+        }
+
+        if (byte0 < STRING_SHORT_START)
+            return 0;
+        else if (byte0 < STRING_LONG_START || (byte0 >= LIST_SHORT_START && byte0 < LIST_LONG_START))
+            return 1;
+        else if (byte0 < LIST_SHORT_START)  // being explicit
+            return byte0 - (STRING_LONG_START - 1) + 1;
+        else
+            return byte0 - (LIST_LONG_START - 1) + 1;
+    }
+
+    /*
+    * @param src Pointer to source
+    * @param dest Pointer to destination
+    * @param len Amount of memory to copy from the source
+    */
+    function copy(uint src, uint dest, uint len) private pure {
+        if (len == 0) return;
+
+        // copy as many word sizes as possible
+        for (; len >= WORD_SIZE; len -= WORD_SIZE) {
+            assembly {
+                mstore(dest, mload(src))
+            }
+
+            src += WORD_SIZE;
+            dest += WORD_SIZE;
+        }
+
+        // left over bytes. Mask is used to remove unwanted bytes from the word
+        uint mask = 256 ** (WORD_SIZE - len) - 1;
+        assembly {
+            let srcpart := and(mload(src), not(mask)) // zero out src
+            let destpart := and(mload(dest), mask) // retrieve the bytes
+            mstore(dest, or(destpart, srcpart))
         }
     }
 }
