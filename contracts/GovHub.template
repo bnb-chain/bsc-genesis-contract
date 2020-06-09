@@ -4,10 +4,10 @@ import "./Seriality/BytesToTypes.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/IParamSubscriber.sol";
-import "./interface/Application.sol";
+import "./interface/IApplication.sol";
 
 
-contract GovHub is System, Application{
+contract GovHub is System, IApplication{
 
   uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
 

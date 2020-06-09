@@ -11,11 +11,11 @@ import "./interface/ITokenHub.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
-import "./interface/Application.sol";
+import "./interface/IApplication.sol";
 import "./lib/SafeMath.sol";
 
 
-contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, Application {
+contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
   using SafeMath for uint256;
 
