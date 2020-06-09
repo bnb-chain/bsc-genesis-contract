@@ -109,7 +109,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      //TODO ensure reward is in (0, 1e18)
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;

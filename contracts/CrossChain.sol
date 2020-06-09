@@ -1,6 +1,6 @@
 pragma solidity 0.6.4;
 
-import "./interface/Application.sol";
+import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
@@ -183,7 +183,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     if (packageType == SYNC_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: syncRelayFee}(headerRelayer, msg.sender);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
-      try Application(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
+      try IApplication(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
         emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
       } catch Error(string memory reason) {
         emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
@@ -196,7 +196,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     } else if (packageType == ACK_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
-      try Application(handlerContract).handleAckPackage(channelIdLocal, msgBytes) {
+      try IApplication(handlerContract).handleAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
@@ -205,7 +205,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     } else if (packageType == FAIL_ACK_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
-      try Application(handlerContract).handleFailAckPackage(channelIdLocal, msgBytes) {
+      try IApplication(handlerContract).handleFailAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {

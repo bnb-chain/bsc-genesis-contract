@@ -14,7 +14,6 @@ contract System {
     uint8 constant public STAKING_CHANNELID = 0x08;
     uint8 constant public GOV_CHANNELID = 0x09;
 
-
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
@@ -30,7 +29,6 @@ contract System {
        require(msg.sender == block.coinbase, "the message sender must be the block producer");
        _;
    }
-
 
     modifier onlyNotInit() {
         require(!alreadyInit, "the contract already init");

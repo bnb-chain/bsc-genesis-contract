@@ -13,7 +13,6 @@ contract System {
     uint8 constant public TRANSFER_OUT_CHANNELID = 0x03;
     uint8 constant public STAKING_CHANNELID = 0x08;
     uint8 constant public GOV_CHANNELID = 0x09;
-
 {% if mock %}
     address public  VALIDATOR_CONTRACT_ADDR;
     address public  SLASH_CONTRACT_ADDR;
@@ -23,10 +22,10 @@ contract System {
     address public INCENTIVIZE_ADDR;
     address public RELAYERHUB_CONTRACT_ADDR;
     address public GOV_HUB_ADDR;
-
+    address public CROSS_CHAIN_CONTRACT_ADDR;
 
     function updateContractAddr(address valAddr, address slashAddr, address rewardAddr, address lightAddr, address tokenHubAddr,
-    address incentivizeAddr, address relayerHubAddr, address govHub) external {
+    address incentivizeAddr, address relayerHubAddr, address govHub, address crossChain) external {
       VALIDATOR_CONTRACT_ADDR = valAddr;
       SLASH_CONTRACT_ADDR = slashAddr;
       SYSTEM_REWARD_ADDR = rewardAddr;
@@ -35,6 +34,7 @@ contract System {
       INCENTIVIZE_ADDR = incentivizeAddr;
       RELAYERHUB_CONTRACT_ADDR = relayerHubAddr;
       GOV_HUB_ADDR = govHub;
+      CROSS_CHAIN_CONTRACT_ADDR = crossChain;
     }{% else %}
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
@@ -59,7 +59,6 @@ contract System {
        _;
    }
 {% endif %}
-
     modifier onlyNotInit() {
         require(!alreadyInit, "the contract already init");
         _;
