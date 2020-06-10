@@ -94,6 +94,11 @@ contract System {
         _;
     }
 
+    modifier onlyRelayerIncentivize() {
+        require(msg.sender == INCENTIVIZE_ADDR, "the message sender must be relayer incentivize contract");
+        _;
+    }
+
     modifier onlyRelayer() {
         require(IRelayerHub(RELAYERHUB_CONTRACT_ADDR).isRelayer(msg.sender), "the msg sender is not a relayer");
         _;

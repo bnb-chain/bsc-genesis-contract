@@ -5,12 +5,13 @@ import "./interface/ITokenHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
 import "./rlp/RLPEncode.sol";
 import "./rlp/RLPDecode.sol";
 import "./System.sol";
 
-contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication {
+contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
 
   using SafeMath for uint256;
 
@@ -119,6 +120,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication {
   event refundFailure(address bep2eAddr, address refundAddr, uint256 amount);
   event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount);
   event transferOutSuccess();
+  event rewardTo(address to, uint256 amount);
 
   event LogUnexpectedRevertInBEP2E(address indexed contractAddr, string reason);
   event LogUnexpectedFailureAssertionInBEP2E(address indexed contractAddr, bytes lowLevelData);
@@ -133,6 +135,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication {
     alreadyInit=true;
   }
   
+
+  function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
+    uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
+    if(actualAmount>0){
+      to.transfer(actualAmount);
+      emit rewardTo(to, actualAmount);
+    }
+    return actualAmount;
+  }
 
   function getRelayFee() external override returns(uint256, uint256) {
     return (syncRelayFee, ackRelayFee);
