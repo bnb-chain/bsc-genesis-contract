@@ -24,11 +24,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint16 constant bscChainID = 0x{{bscChainId}};
   uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001{{bscChainId}}00; // last 6 bytes
 
-  mapping(uint8 => address) channelHandlerContractMap;
-  mapping(address => bool) registeredContractMap;
-  mapping(uint8 => uint64) channelSendSequenceMap;
-  mapping(uint8 => uint64) channelReceiveSequenceMap;
-  mapping(uint8 => bool) isRelayRewardFromSystemReward;
+  mapping(uint8 => address) public channelHandlerContractMap;
+  mapping(address => bool) public registeredContractMap;
+  mapping(uint8 => uint64) public channelSendSequenceMap;
+  mapping(uint8 => uint64) public channelReceiveSequenceMap;
+  mapping(uint8 => bool) public isRelayRewardFromSystemReward;
 
   event crossChainPackage(uint16 chainId, uint64 indexed sequence, uint8 indexed channelId, bytes payload);
   event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
@@ -106,6 +106,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     alreadyInit=true;
   }
 
+  // TODO
   function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) internal pure returns(bytes memory) {
     uint256 payloadLength = msgBytes.length + 65;
     bytes memory payload = new bytes(payloadLength);
@@ -167,6 +168,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       ackRelayFee := mload(ptr)
     }
 
+    ptr+=32;
     bytes memory msgBytes = new bytes(payload.length-65);
     (uint256 dst, ) = Memory.fromBytes(msgBytes);
     Memory.copy(ptr, dst, payload.length-65);
@@ -178,7 +180,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
-    channelReceiveSequenceMap[channelId]++;
 
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
 

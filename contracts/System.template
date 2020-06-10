@@ -95,7 +95,7 @@ contract System {
     }
 
     modifier onlyRelayerIncentivize() {
-        require(msg.sender == INCENTIVIZE_ADDR, "the message sender must be relayer incentivize contract");
+        require(msg.sender == INCENTIVIZE_ADDR, "the message sender must be incentivize contract");
         _;
     }
 

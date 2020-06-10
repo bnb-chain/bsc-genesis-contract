@@ -50,6 +50,8 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
+  receive() external payable{}
+
   
   function addReward(address payable headerRelayerAddr, address payable packageRelayer, uint256 amount, bool fromSystemReward) onlyInit onlyCrossChainContract external override returns (bool) {
   

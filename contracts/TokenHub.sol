@@ -116,7 +116,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
-  event unrecognizedPackage(bytes msgBytes);
   event refundFailure(address bep2eAddr, address refundAddr, uint256 amount);
   event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount);
   event transferOutSuccess();
@@ -201,10 +200,17 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function handleBindSyncPackage(bytes memory msgBytes) onlyInit internal returns(bytes memory) {
     (BindSyncPackage memory bindSyncPkg, bool success) = decodeBindSyncPackage(msgBytes);
     if (!success) {
-      emit unrecognizedPackage(msgBytes);
       return msgBytes;
     }
-    bindPackageRecord[bindSyncPkg.bep2TokenSymbol]=bindSyncPkg;
+    if (bindSyncPkg.packageType == BIND_PACKAGE) {
+      bindPackageRecord[bindSyncPkg.bep2TokenSymbol]=bindSyncPkg;
+    } else if (bindSyncPkg.packageType == UNBIND_PACKAGE) {
+      address contractAddr = bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol];
+      if (contractAddr!=address(0x00)) {
+        delete contractAddrToBEP2Symbol[contractAddr];
+        delete bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol];
+      }
+    }
     BindAckPackage memory bindAckPackage = BindAckPackage({
       bep2TokenSymbol: bindSyncPkg.bep2TokenSymbol
     });
@@ -334,7 +340,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function handleTransferInSyncPackage(bytes memory msgBytes) internal returns(bytes memory) {
     (TransferInSyncPackage memory transInSyncPkg, bool success) = decodeTransferInSyncPackage(msgBytes);
     if (!success) {
-      emit unrecognizedPackage(msgBytes);
       return msgBytes;
     }
     uint32 status = doTransferIn(transInSyncPkg);
@@ -437,7 +442,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
     (TransferOutAckPackage memory transOutAckPkg, bool decodeSuccess) = decodeTransferOutAckPackage(msgBytes);
     if (!decodeSuccess) {
-      emit unrecognizedPackage(msgBytes);
       return;
     }
     if (transOutAckPkg.contractAddr==address(0x0)) {
@@ -513,7 +517,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
-      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
+      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
       require(msg.value==syncRelayFee.add(ackRelayFee), "received BNB amount doesn't equal to relayFee");
       uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
       require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");

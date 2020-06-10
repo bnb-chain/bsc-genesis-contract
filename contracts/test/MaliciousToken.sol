@@ -19,7 +19,7 @@ contract MaliciousToken is Context, IBEP2E, Ownable {
 
   constructor() public {
     _name = "Malicious token";
-    _symbol = "maliciou";
+    _symbol = "MALICIOU";
     _decimals = 18;
     _totalSupply = 100000000000000000000000000;
     _balances[msg.sender] = _totalSupply;

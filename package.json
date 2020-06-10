@@ -28,6 +28,7 @@
     "truffle-flattener": "1.4.4",
     "web3": "1.2.6",
     "await-sleep": "0.0.1",
-    "ethereum-input-data-decoder": "0.3.0"
+    "ethereum-input-data-decoder": "0.3.0",
+    "rlp": "2.2.5"
   }
 }
