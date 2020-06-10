@@ -6,6 +6,7 @@ import "./lib/SafeMath.sol";
 import "./Seriality/Memory.sol";
 import "./Seriality/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
+import "./interface/ISystemReward.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
@@ -49,14 +50,23 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event LogDistributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
 
+  receive() external payable{}
+
   
-  function addReward(address payable headerRelayerAddr, address payable packageRelayer) external onlyTokenHub onlyInit override payable returns (bool) {
+  function addReward(address payable headerRelayerAddr, address payable packageRelayer, uint256 amount, bool fromSystemReward) onlyInit onlyCrossChainContract external override returns (bool) {
   
+    uint256 actualAmount;
+    if (fromSystemReward) {
+      actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+    } else {
+      actualAmount = ISystemReward(TOKEN_HUB_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+    }
+
     countInRound++;
 
-    uint256 reward = calculateRewardForHeaderRelayer(msg.value);
+    uint256 reward = calculateRewardForHeaderRelayer(actualAmount);
     collectedRewardForHeaderRelayer = collectedRewardForHeaderRelayer.add(reward);
-    collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(msg.value).sub(reward);
+    collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(actualAmount).sub(reward);
 
     if (headerRelayersSubmitCount[headerRelayerAddr]==0){
       headerRelayerAddressRecord.push(headerRelayerAddr);

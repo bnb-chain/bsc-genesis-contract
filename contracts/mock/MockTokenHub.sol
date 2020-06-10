@@ -16,8 +16,8 @@ contract MockTokenHub is ITokenHub {
   }
 
   /* solium-disable-next-line */
-  function batchTransferOut(address[] calldata, uint256[] calldata, address[] calldata,
-    address, uint64) external override(ITokenHub) payable returns (bool) {
+  function batchTransferOutBNB(address[] calldata, uint256[] calldata, address[] calldata,
+    uint64) external override(ITokenHub) payable returns (bool) {
     require(!panicBatchTransferOut, "panic in batchTransferOut");
     return true;
   }

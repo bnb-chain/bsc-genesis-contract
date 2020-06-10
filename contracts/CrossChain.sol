@@ -23,10 +23,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint16 constant bscChainID = 0x0060;
   uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
 
-  mapping(uint8 => address) channelHandlerContractMap;
-  mapping(address => bool) registeredContractMap;
-  mapping(uint8 => uint64) channelSendSequenceMap;
-  mapping(uint8 => uint64) channelReceiveSequenceMap;
+  mapping(uint8 => address) public channelHandlerContractMap;
+  mapping(address => bool) public registeredContractMap;
+  mapping(uint8 => uint64) public channelSendSequenceMap;
+  mapping(uint8 => uint64) public channelReceiveSequenceMap;
+  mapping(uint8 => bool) public isRelayRewardFromSystemReward;
 
   event crossChainPackage(uint16 chainId, uint64 indexed sequence, uint8 indexed channelId, bytes payload);
   event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
@@ -85,23 +86,32 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function init() public onlyNotInit {
     channelHandlerContractMap[BIND_CHANNELID] = TOKEN_HUB_ADDR;
+    isRelayRewardFromSystemReward[BIND_CHANNELID] = false;
     channelHandlerContractMap[TRANSFER_IN_CHANNELID] = TOKEN_HUB_ADDR;
+    isRelayRewardFromSystemReward[TRANSFER_IN_CHANNELID] = false;
     channelHandlerContractMap[TRANSFER_OUT_CHANNELID] = TOKEN_HUB_ADDR;
+    isRelayRewardFromSystemReward[TRANSFER_OUT_CHANNELID] = false;
     registeredContractMap[TOKEN_HUB_ADDR] = true;
 
+
     channelHandlerContractMap[STAKING_CHANNELID] = VALIDATOR_CONTRACT_ADDR;
+    isRelayRewardFromSystemReward[STAKING_CHANNELID] = true;
     registeredContractMap[VALIDATOR_CONTRACT_ADDR] = true;
 
     channelHandlerContractMap[GOV_CHANNELID] = GOV_HUB_ADDR;
+    isRelayRewardFromSystemReward[GOV_CHANNELID] = true;
     registeredContractMap[GOV_HUB_ADDR] = true;
 
     alreadyInit=true;
   }
 
-  function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) internal pure returns(bytes memory) {
+function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) public pure returns(bytes memory) {
     uint256 payloadLength = msgBytes.length + 65;
     bytes memory payload = new bytes(payloadLength);
-    (uint256 ptr, ) = Memory.fromBytes(payload);
+    uint256 ptr;
+    assembly {
+      ptr := payload
+    }
     ptr+=65;
     assembly {
       mstore(ptr, ackRelayFee)
@@ -122,9 +132,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       mstore(ptr, payloadLength)
     }
 
-    ptr+=65;
+    ptr+=97;
     (uint256 src,) = Memory.fromBytes(msgBytes);
-    Memory.copy(ptr, src, msgBytes.length);
+    Memory.copy(src, ptr, msgBytes.length);
 
     return payload;
   }
@@ -159,6 +169,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       ackRelayFee := mload(ptr)
     }
 
+    ptr+=32;
     bytes memory msgBytes = new bytes(payload.length-65);
     (uint256 dst, ) = Memory.fromBytes(msgBytes);
     Memory.copy(ptr, dst, payload.length-65);
@@ -170,7 +181,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
-    channelReceiveSequenceMap[channelId]++;
 
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
 
@@ -182,7 +192,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
 
     if (packageType == SYNC_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: syncRelayFee}(headerRelayer, msg.sender);
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, syncRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
         emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
@@ -195,7 +205,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       }
       channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
     } else if (packageType == ACK_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, ackRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
@@ -204,7 +214,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
     } else if (packageType == FAIL_ACK_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: ackRelayFee}(headerRelayer, msg.sender);
+      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, ackRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleFailAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {

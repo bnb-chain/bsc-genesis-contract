@@ -23,6 +23,7 @@ node generate-system.js --mock true
 node generate-systemReward.js --mock true
 node generate-validatorset.js --mock true
 node generate-system.js --mock true
+node generate-crosschain.js --mock true
 node generate-govhub.js --mock true
 node generate-tokenhub.js --mock true
 node generate-tendermintlightclient.js --mock true

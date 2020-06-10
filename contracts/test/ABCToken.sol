@@ -19,7 +19,7 @@ contract ABCToken is Context, IBEP2E, Ownable {
 
   constructor() public {
     _name = "ABC token";
-    _symbol = "abc";
+    _symbol = "ABC";
     _decimals = 18;
     _totalSupply = 100000000000000000000000000;
     _balances[msg.sender] = _totalSupply;
