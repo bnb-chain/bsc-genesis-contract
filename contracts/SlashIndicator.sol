@@ -3,10 +3,12 @@ import "./System.sol";
 import "./Seriality/BytesToTypes.sol";
 import "./Seriality/Memory.sol";
 import "./interface/ISlashIndicator.sol";
+import "./interface/IApplication.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
+import "./rlp/CmnPkg.sol";
 
-contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
+contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
   uint256 public constant FELONY_THRESHOLD = 150;
 
@@ -20,6 +22,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
   event paramChange(string key, bytes value);
+
+  event knownResponse(uint32 code);
+  event unKnownResponse(uint32 code);
+  event crashResponse();
 
   struct Indicator {
     uint256 height;
@@ -39,6 +45,27 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber{
     alreadyInit = true;
   }
 
+  /*********************** Implement cross chain app ********************************/
+  function handleSynPackage(uint8, bytes calldata) onlyCrossChainContract external override returns(bytes memory){
+    require(false, "receive unexpected syn package");
+  }
+
+  function handleAckPackage(uint8, bytes calldata msgBytes) external override {
+    (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
+    if(ok){
+      emit knownResponse(response.code);
+    }else{
+      emit unKnownResponse(response.code);
+    }
+    return;
+  }
+
+  function handleFailAckPackage(uint8, bytes calldata) external override {
+    emit crashResponse();
+    return;
+  }
+
+  /*********************** External func ********************************/
   function slash(address validator) external onlyCoinbase onlyInit onlyOnce{
     Indicator memory indicator = indicators[validator];
     if (indicator.exist){

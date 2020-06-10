@@ -194,7 +194,7 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
     if (packageType == SYNC_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, syncRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
-      try IApplication(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
+      try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
         emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
       } catch Error(string memory reason) {
         emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));

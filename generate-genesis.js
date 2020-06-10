@@ -9,7 +9,6 @@ const init_holders = require("./init_holders")
 
 require("./generate-system");
 require("./generate-systemReward");
-require("./generate-govhub");
 require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
