@@ -20,6 +20,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;
 
+  uint16 constant bscChainID = 0x0060;
   uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
 
   mapping(uint8 => address) channelHandlerContractMap;
@@ -27,7 +28,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) channelSendSequenceMap;
   mapping(uint8 => uint64) channelReceiveSequenceMap;
 
-  event crossChainPackage(uint64 indexed sequence, uint8 indexed channelId, bytes payload);
+  event crossChainPackage(uint16 chainId, uint64 indexed sequence, uint8 indexed channelId, bytes payload);
   event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event unexpectedRevertInPackageHandler(address indexed contractAddr, string reason);
   event unexpectedFailureAssertionInPackageHandler(address indexed contractAddr, bytes lowLevelData);
@@ -184,12 +185,12 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: syncRelayFee}(headerRelayer, msg.sender);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
+        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
       } catch Error(string memory reason) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
+        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
-        emit crossChainPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
+        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
       channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
@@ -216,7 +217,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 syncRelayFee, uint256 ackRelayFee) onlyInit registeredContract external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
-    emit crossChainPackage(sendSequence, channelId, encodePayload(SYNC_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
+    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYNC_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
     return true;
