@@ -13,21 +13,15 @@ import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
 import "./lib/SafeMath.sol";
-import "./rlp/RLPEncode.sol";
 import "./rlp/RLPDecode.sol";
-import "./rlp/CommonPackage.sol";
+import "./rlp/CmnPkg.sol";
 
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
   using SafeMath for uint256;
-  using CommonPackage for uint32;
 
-  using RLPEncode for *;
   using RLPDecode for *;
-
-  using RLPDecode for RLPDecode.RLPItem;
-  using RLPDecode for RLPDecode.Iterator;
 
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
@@ -41,12 +35,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
-  uint32 public CODE_OK = 0;
-  uint32 public ERROR_FAIL_DECODE = 101;
-  uint32 public ERROR_UNKNOWN_PACKAGE_TYPE = 102;
-  uint32 public ERROR_FAIL_CHECK_VALIDATORS = 103;
-  uint32 public ERROR_LEN_OF_VAL_MISMATCH = 104;
-  uint32 public ERROR_RELAYFEE_TOO_LARGE = 105;
+  uint32 public constant CODE_OK = 0;
+  uint32 public constant ERROR_FAIL_DECODE = 101;
+  uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 102;
+  uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 103;
+  uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 104;
+  uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 105;
 
 
   /*********************** state of the contract **************************/
@@ -103,9 +97,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event validatorFelony(address indexed validator, uint256 amount);
   event failReasonWithStr(string message);
   event paramChange(string key, bytes value);
-  event receiveAckPkg();
-  event receiveFailAckPkg();
-
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -123,9 +114,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
 
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSyncPackage(msgBytes);
-    if (!ok){
-      return ERROR_FAIL_DECODE.encodeCommonAckPackage();
-    }
+    require(ok, "fail to parse cross chain package");
     uint32 resCode;
     if(validatorSetPackage.packageType == VALIDATORS_UPDATE_MESSAGE_TYPE){
       resCode = updateValidatorSet(validatorSetPackage.validatorSet);
@@ -134,19 +123,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }else{
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
     }
-    return resCode.encodeCommonAckPackage();
+    return CmnPkg.encodeCommonAckPackage(resCode);
   }
 
   function handleAckPackage(uint8, bytes calldata) external override {
     // should not happen
-    emit receiveAckPkg();
-    return;
+    require(false, "receive unexpected ack package");
   }
 
   function handleFailAckPackage(uint8, bytes calldata) external override {
     // should not happen
-    emit receiveFailAckPkg();
-    return;
+    require(false, "receive unexpected fail ack package");
   }
 
   /*********************** External Functions **************************/
@@ -333,7 +320,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     return true;
   }
-    {% endif %}
+  {% endif %}
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0){
