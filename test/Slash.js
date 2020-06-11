@@ -2,9 +2,11 @@ const SlashIndicator = artifacts.require("SlashIndicator");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 const Web3 = require('web3');
 const crypto = require('crypto');
+const RLP = require('rlp');
 const SystemReward = artifacts.require("SystemReward");
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
+const STAKE_CHANNEL_ID = 0x08;
 
 contract('SlashIndicator', (accounts) => {
   it('slash success', async () => {
@@ -93,8 +95,9 @@ contract('SlashIndicator', (accounts) => {
     amount = await validatorSetInstance.getIncoming.call(validator);
     assert.equal(amount.toNumber(),0);
 
-    await validatorSetInstance.handlePackage(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 0, {from: accounts[8]});
+    let packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: accounts[8]});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
@@ -151,8 +154,10 @@ contract('SlashIndicator', (accounts) => {
     let validator = accounts[0];
     let secondValidator = accounts[1];
     let thirdValidator = accounts[2];
-    await validatorSetInstance.handlePackage(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 1, {from: accounts[8]});
+
+    let packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: accounts[8]});
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
@@ -174,9 +179,9 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres[0],thirdValidator);
     assert.equal(consensusAddres[1],secondValidator);
 
-
-    await validatorSetInstance.handlePackage(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 2, {from: accounts[8]});
+    packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: accounts[8]});
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
@@ -198,8 +203,9 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres[0],validator);
     assert.equal(consensusAddres[1],thirdValidator);
 
-    await validatorSetInstance.handlePackage(serialize([validator,secondValidator,thirdValidator],
-        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]), crypto.randomBytes(32),100, 3, {from: accounts[8]});
+    packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
+        [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: accounts[8]});
 
     await validatorSetInstance.deposit(thirdValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
@@ -224,15 +230,20 @@ contract('SlashIndicator', (accounts) => {
   });
 });
 
-function serialize(consensusAddrList,feeAddrList, bscFeeAddrList) {
+
+function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
+  let pkg = [];
+  pkg.push(0x00);
   let n = consensusAddrList.length;
-  let arr = [];
-  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")));
-  for(let i = 0;i<n;i++){
-    arr.push(Buffer.from(web3.utils.hexToBytes(consensusAddrList[i].toString())));
-    arr.push(Buffer.from(web3.utils.hexToBytes(feeAddrList[i].toString())));
-    arr.push(Buffer.from(web3.utils.hexToBytes(bscFeeAddrList[i].toString())));
-    arr.push(Buffer.from(web3.utils.hexToBytes("0x0000000000000064")));
+  let vals = [];
+  for(let i = 0;i<n;i++) {
+    vals.push([
+      consensusAddrList[i].toString(),
+      feeAddrList[i].toString(),
+      bscFeeAddrList[i].toString(),
+      0x0000000000000064,
+    ]);
   }
-  return Buffer.concat(arr);
+  pkg.push(vals);
+  return RLP.encode(pkg)
 }

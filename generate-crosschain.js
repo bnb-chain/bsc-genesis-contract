@@ -16,10 +16,6 @@ program.option(
     "./contracts/CrossChain.sol"
 )
 
-program.option("--bscChainId <bscChainId>",
-    "bsc chain id",
-    "0060");
-
 program.option("--mock <mock>",
     "if use mock",
     false);

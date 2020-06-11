@@ -6,11 +6,17 @@ import "./interface/ISlashIndicator.sol";
 import "./interface/IApplication.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
+import "./interface/ICrossChain.sol";
 import "./rlp/CmnPkg.sol";
+import "./rlp/RLPEncode.sol";
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
+  using RLPEncode for *;
+
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
   uint256 public constant FELONY_THRESHOLD = 150;
+  uint256 public constant RELAYER_REWARD = 1e16;
+
 
   // State of the contract
   address[] validators;
@@ -18,6 +24,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public previousHeight;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
+  uint256 public  relayerReward;
 
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
@@ -42,6 +49,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
+    relayerReward = RELAYER_REWARD;
     alreadyInit = true;
   }
 
@@ -79,6 +87,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     indicators[validator] = indicator;
     if(indicator.count % felonyThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0, relayerReward);
     }else if (indicator.count % misdemeanorThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
@@ -107,6 +116,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold >20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
+    }else if(Memory.compareStrings(key,"relayerReward")){
+      require(value.length == 32, "length of relayerReward mismatch");
+      uint256 newRelayerReward = BytesToTypes.bytesToUint256(32, value);
+      require(newRelayerReward > 1e18, "the relayerReward out of range");
+      relayerReward = newRelayerReward;
     }else{
       require(false, "unknown param");
     }
@@ -117,5 +131,14 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function getSlashIndicator(address validator) external view returns (uint256,uint256){
     Indicator memory indicator = indicators[validator];
     return (indicator.height, indicator.count);
+  }
+
+  function encodeSlashPackage(address valAddr) internal view returns (bytes memory) {
+    bytes[] memory elements = new bytes[](4);
+    elements[0] = valAddr.encodeAddress();
+    elements[1] = uint256(block.number).encodeUint();
+    elements[2] = uint256(bscChainID).encodeUint();
+    elements[3] = uint256(block.timestamp).encodeUint();
+    return elements.encodeList();
   }
 }

@@ -4,9 +4,9 @@ const LightClient = artifacts.require("MockLightClient");
 const crypto = require('crypto');
 const MockTokenHub = artifacts.require("mock/MockTokenHub");
 const Web3 = require('web3');
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 const RLP = require('rlp');
 const truffleAssert = require('truffle-assertions');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 const CrossChain = artifacts.require("CrossChain");
 const STAKE_CHANNEL_ID = 0x08;
 
