@@ -8,8 +8,8 @@ interface ITokenHub {
     external payable returns (bool);
 
   /* solium-disable-next-line */
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
-    address contractAddr, uint64 expireTime) external payable returns (bool);
+  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
+    uint64 expireTime) external payable returns (bool);
 
 }
 

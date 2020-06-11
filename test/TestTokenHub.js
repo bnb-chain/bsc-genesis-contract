@@ -152,13 +152,13 @@ contract('TokenHub', (accounts) => {
         await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), proof, merkleHeight, sequence, BIND_CHANNEL_ID, {from: relayer});
 
         try {
-            await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer});
+            await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer, value: web3.utils.toBN('20000000000000000')});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("only bep2e owner can reject"));
         }
 
-        await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner});
+        await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner, value: web3.utils.toBN('20000000000000000')});
 
         const bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
@@ -202,7 +202,7 @@ contract('TokenHub', (accounts) => {
         await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), proof, merkleHeight, sequence, BIND_CHANNEL_ID, {from: relayer});
 
         try {
-            await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
+            await tokenHub.expireBind("ABC-9C7", {from: accounts[2], value: web3.utils.toBN('20000000000000000')});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("bind request is not expired"));
@@ -210,7 +210,7 @@ contract('TokenHub', (accounts) => {
 
         await sleep(10 * 1000);
 
-        await tokenHub.expireBind("ABC-9C7", {from: accounts[2]});
+        await tokenHub.expireBind("ABC-9C7", {from: accounts[2], value: web3.utils.toBN('20000000000000000')});
 
         bindRequenst = await tokenHub.bindPackageRecord.call("0x4142432d39433700000000000000000000000000000000000000000000000000"); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
@@ -528,7 +528,7 @@ contract('TokenHub', (accounts) => {
         let expireTime = (timestamp + 150);
         const relayFee = web3.utils.toBN(4e16);
 
-        let tx = await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, "0x0000000000000000000000000000000000000000", expireTime, {from: sender, value: web3.utils.toBN(7e16)});
+        let tx = await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN(7e16)});
         assert.equal(tx.receipt.status, true, "failed transaction");
     });
     it('Bind malicious BEP2E token', async () => {
@@ -627,7 +627,7 @@ contract('TokenHub', (accounts) => {
         tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), proof, merkleHeight, sequence, TRANSFER_OUT_CHANNELID, {from: relayer});
         assert.equal(tx.receipt.status, true, "failed transaction");
     });
-    it('Uint256 overflow in transferOut and batchTransferOut', async () => {
+    it('Uint256 overflow in transferOut and batchTransferOutBNB', async () => {
         const tokenHub = await TokenHub.deployed();
 
         const sender = accounts[2];
@@ -654,7 +654,7 @@ contract('TokenHub', (accounts) => {
         relayFee = web3.utils.toBN(4e16);
 
         try {
-            await tokenHub.batchTransferOut(recipientAddrs, amounts, refundAddrs, "0x0000000000000000000000000000000000000000", expireTime, {from: sender, value: web3.utils.toBN("39999996870360064")});
+            await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN("39999996870360064")});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));
@@ -713,7 +713,7 @@ contract('TokenHub', (accounts) => {
         packageBytes = RLP.encode([
             "0x4142432d39433700000000000000000000000000000000000000000000000000",  //bep2TokenSymbol
             abcToken.address,                                                      //bep2e contract address
-            "0000000000000000000000000000000000000000000000000DE0B6B3A7640000",  //amount
+            "0000000000000000000000000000000000000000000000000DE0B6B3A7640000",    //amount
             accounts[2],                                                           //recipient amount
             "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48",                          //refund address
             expireTimeStr]);                                                       //expire time

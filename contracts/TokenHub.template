@@ -283,12 +283,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function rejectBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
+  function rejectBind(address contractAddr, string memory bep2Symbol) payable public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(contractAddr==bindSyncPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
+    require(msg.value == syncRelayFee.add(ackRelayFee), "msg.value doesn't equal to syncRelayFee + ackRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
       status: BIND_STATUS_REJECTED,
@@ -298,11 +299,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function expireBind(string memory bep2Symbol) public returns (bool) {
+  function expireBind(string memory bep2Symbol) payable public returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(bindSyncPkg.expireTime<block.timestamp, "bind request is not expired");
+    require(msg.value == syncRelayFee.add(ackRelayFee), "msg.value doesn't equal to syncRelayFee + ackRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
       status: BIND_STATUS_TIMEOUT,
@@ -352,7 +354,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     if (status != TRANSFER_IN_SUCCESS) {
       uint256 bep2Amount = convertToBep2Amount(transInSyncPkg.amount, bep2eContractDecimals[transInSyncPkg.contractAddr]);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
-          bep2TokenSymbol: contractAddrToBEP2Symbol[transInSyncPkg.contractAddr],
+          bep2TokenSymbol: transInSyncPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
           refundAddr: transInSyncPkg.refundAddr,
           status: status
@@ -378,6 +380,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     } else {
       if (block.timestamp > transInSyncPkg.expireTime) {
         return TRANSFER_IN_FAILURE_TIMEOUT;
+      }
+      if (contractAddrToBEP2Symbol[transInSyncPkg.contractAddr]!= transInSyncPkg.bep2TokenSymbol) {
+        return TRANSFER_IN_FAILURE_UNBOUND_TOKEN;
       }
       try IBEP2E(transInSyncPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this)) returns (uint256 actualBalance) {
         if (actualBalance < transInSyncPkg.amount) {
@@ -544,16 +549,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       refundAddrs: new address[](1),
       expireTime: expireTime
     });
-    transOutSyncPkg.amounts[0]=amount;
+    transOutSyncPkg.amounts[0]=convertedAmount;
     transOutSyncPkg.recipients[0]=recipient;
     transOutSyncPkg.refundAddrs[0]=msg.sender;
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), syncRelayFee.div(1e10), ackRelayFee);
     return true;
   }
 
-  // TODO delete parameter contractAddr
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint64 expireTime) override external payable returns (bool) {
-    require(contractAddr==address(0x0), "batchTransferOut only supports BNB");
+  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) override external payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
@@ -570,15 +573,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
     require(msg.value==totalAmount.add(syncRelayFee.mul(batchLength)).add(ackRelayFee.mul(batchLength)), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
 
-    address[] memory recipientAddrsLocal = recipientAddrs; // fix error:  Stack too deep, try removing local variables.
-    uint256[] memory amountsLocal = amounts; // fix error:  Stack too deep, try removing local variables.
-    address[] memory refundAddrsLocal = refundAddrs; // fix error:  Stack too deep, try removing local variables.
     TransferOutSyncPackage memory transOutSyncPkg = TransferOutSyncPackage({
       bep2TokenSymbol: BEP2_TOKEN_SYMBOL_FOR_BNB,
-      contractAddr: contractAddr,
-      amounts: amountsLocal,
-      recipients: recipientAddrsLocal,
-      refundAddrs: refundAddrsLocal,
+      contractAddr: address(0x00),
+      amounts: convertedAmounts,
+      recipients: recipientAddrs,
+      refundAddrs: refundAddrs,
       expireTime: expireTime
     });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), syncRelayFee.mul(batchLength).div(1e10), ackRelayFee.mul(batchLength));
