@@ -237,7 +237,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     //step 2: do cross chain transfer
     bool failCross = false;
     if(crossTotal > 0){
-      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOut{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, address(0x0), uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
+      try ITokenHub(TOKEN_HUB_ADDR).batchTransferOutBNB{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
         }else{
