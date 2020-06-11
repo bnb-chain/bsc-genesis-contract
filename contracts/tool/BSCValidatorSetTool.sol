@@ -23,11 +23,11 @@ contract BSCValidatorSetTool {
   }
 
   function init() external {
-    (IbcValidatorSetPackage memory x, bool valid)= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
+    bool valid= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to init");
   }
 
-  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
@@ -42,7 +42,7 @@ contract BSCValidatorSetTool {
         for(uint j = 0;j<items.length;j++){
           (Validator memory val, bool ok) = decodeValidator(items[j]);
           if (!ok){
-            return (validatorSetPkg, false);
+            return false;
           }
           validatorSetPkg.validatorSet[j] = val;
         }
@@ -52,7 +52,7 @@ contract BSCValidatorSetTool {
       }
       idx++;
     }
-    return (validatorSetPkg, success);
+    return success;
   }
 
   function decodeValidator(RLPDecode.RLPItem memory itemValidator) internal pure returns(Validator memory, bool) {

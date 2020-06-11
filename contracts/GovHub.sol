@@ -10,7 +10,6 @@ import "./rlp/CmnPkg.sol";
 
 
 contract GovHub is System, IApplication{
-//  using CommonPackage for uint32;
   using RLPDecode for *;
 
   uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
@@ -36,10 +35,12 @@ contract GovHub is System, IApplication{
     return CmnPkg.encodeCommonAckPackage(resCode);
   }
 
+  // should not happen
   function handleAckPackage(uint8, bytes calldata) external override {
     require(false, "receive unexpected ack package");
   }
 
+  // should not happen
   function handleFailAckPackage(uint8, bytes calldata) external override {
     require(false, "receive unexpected fail ack package");
   }

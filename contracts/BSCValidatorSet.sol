@@ -111,7 +111,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** Cross Chain App Implement **************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
-
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSyncPackage(msgBytes);
     require(ok, "fail to parse cross chain package");
     uint32 resCode;

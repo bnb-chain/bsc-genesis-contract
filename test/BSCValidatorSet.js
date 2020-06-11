@@ -82,13 +82,11 @@ contract('BSCValidatorSet', (accounts) => {
   it('test distribute algorithm', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
-    const crossChain = await CrossChain.deployed();
 
     let validator =  accounts[0];
     let systemAccount = accounts[0];
     let tmpAccount = web3.eth.accounts.create();
 
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
@@ -114,11 +112,10 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(totalInComing.toString(), web3.utils.toBN(5e18).add(web3.utils.toBN(5e8)).toString(), "totalInComing is not correct");
     assert.equal(totalBalance.toString(), web3.utils.toBN(1e19).add(web3.utils.toBN(1e9)).toString(), "totalbalance is not correct");
 
-
     // do update
     let packageBytes = validatorUpdateRlpEncode([newValidator.address],
         [newValidator.address],[newValidator.address]);
-    let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     truffleAssert.eventEmitted(tx, "validatorSetUpdated");
     truffleAssert.eventEmitted(tx, "batchTransfer",(ev) => {
@@ -135,7 +132,7 @@ contract('BSCValidatorSet', (accounts) => {
     totalInComing = await validatorSetInstance.totalInComing.call();
     let afterRelayerBalance = await web3.eth.getBalance(relayerAccount);
 
-    assert.equal(web3.utils.toBN(afterRelayerBalance).sub(web3.utils.toBN(relayerBalance)).toString(), web3.utils.toBN(5e16).sub(used_wei).toString(), "totalInComing is not correct");
+    assert.equal(web3.utils.toBN(relayerBalance).sub(web3.utils.toBN(afterRelayerBalance)).toString(), used_wei.toString(), "totalInComing is not correct");
     assert.equal(totalInComing.toNumber(), 0, "totalInComing is not correct");
     assert.equal(totalBalance, 0, "totalbalance is not correct");
 
@@ -147,7 +144,6 @@ contract('BSCValidatorSet', (accounts) => {
   it('complicate validatorSet change and test valdiatorset map', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
-    const crossChain = await CrossChain.deployed();
 
     let validatorA =  accounts[0];
     let validatorB = web3.eth.accounts.create().address;
@@ -155,9 +151,7 @@ contract('BSCValidatorSet', (accounts) => {
     let validatorD = web3.eth.accounts.create().address;
     let validatorE = web3.eth.accounts.create().address;
     let relayerAccount = accounts[8];
-    let systemAccount = accounts[0];
 
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
@@ -171,7 +165,7 @@ contract('BSCValidatorSet', (accounts) => {
     for(let j=0;j<arrs.length;j++){
       let arr = arrs[j];
       let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-      await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100,j, STAKE_CHANNEL_ID, {from: relayerAccount});
+      await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
       let consensusAddres = await validatorSetInstance.getValidators.call();
       assert.equal(consensusAddres.length, arr.length);
       for(let i =0;i<consensusAddres.length;i++){
@@ -195,30 +189,26 @@ contract('BSCValidatorSet', (accounts) => {
     const systemRewardInstance = await SystemReward.deployed();
     const crossChain = await CrossChain.deployed();
 
-
     let validatorA =  accounts[0];
     let validatorB = web3.eth.accounts.create().address;
     let validatorC = web3.eth.accounts.create().address;
     let validatorD = web3.eth.accounts.create().address;
     let validatorE = web3.eth.accounts.create().address;
     let relayerAccount = accounts[8];
-    let systemAccount = accounts[0];
-
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
-    
+
     let arrs = [[validatorB,validatorA,validatorC,validatorD],
       [validatorB,validatorB,validatorE],
       [validatorC,validatorC,validatorB],
       []];
     let packageBytes = validatorUpdateRlpEncode(arrs[0], arrs[0], arrs[0]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100,0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     for(let j=1;j<arrs.length-1;j++){
       let arr = arrs[j];
       let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-      let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, j, STAKE_CHANNEL_ID, {from: relayerAccount});
+      let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
       truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
         return ev.message === "duplicate consensus address of validatorSet";
       });
@@ -226,16 +216,16 @@ contract('BSCValidatorSet', (accounts) => {
     let arr =arrs[3];
 
     packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 3, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     truffleAssert.eventNotEmitted(tx, "failReasonWithStr");
-    // block the light client 
+    // block the light client
     const lightClientInstance = await LightClient.deployed();
     await lightClientInstance.setBlockNotSynced(true);
 
     let validArray = arrs[0];
     try{
       packageBytes = validatorUpdateRlpEncode(validArray, validArray,validArray);
-      await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 4, STAKE_CHANNEL_ID, {from: relayerAccount});
+      await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
       assert.fail();
     }catch(error){
       assert.ok(error.toString().includes("light client not sync the block yet"));
@@ -243,12 +233,12 @@ contract('BSCValidatorSet', (accounts) => {
     await lightClientInstance.setBlockNotSynced(false);
     try{
       packageBytes = validatorUpdateRlpEncode(validArray, validArray,validArray);
-      await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 4, STAKE_CHANNEL_ID, {from: accounts[4]});
+      await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: accounts[4]});
       assert.fail();
     }catch(error){
       assert.ok(error.toString().includes("the msg sender is not a relayer"));
     }
-    
+
   });
 });
 
@@ -256,7 +246,6 @@ contract('BSCValidatorSet', (accounts) => {
   it('complicate distribute', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
-    const crossChain = await CrossChain.deployed();
 
     let validatorA = web3.eth.accounts.create().address;
     let validatorB = web3.eth.accounts.create().address;
@@ -267,7 +256,6 @@ contract('BSCValidatorSet', (accounts) => {
     let relayerAccount = accounts[8];
     let systemAccount = accounts[0];
 
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
@@ -275,7 +263,7 @@ contract('BSCValidatorSet', (accounts) => {
     let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
 
     let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
     await validatorSetInstance.deposit(validatorA, {from: systemAccount, value: web3.utils.toBN(1e16) });
@@ -289,7 +277,7 @@ contract('BSCValidatorSet', (accounts) => {
     await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
 
     packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 1, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     let validatorABalance = await web3.eth.getBalance(validatorA);
     let validatorBBalance = await web3.eth.getBalance(validatorB);
     let validatorCBalance = await web3.eth.getBalance(validatorC);
@@ -322,7 +310,6 @@ contract('BSCValidatorSet', (accounts) => {
   it('complicate distribute when one validar fee addr is contract', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
-    const crossChain = await CrossChain.deployed();
 
     let validatorA = validatorSetInstance.address;
     let validatorB = web3.eth.accounts.create().address;
@@ -333,7 +320,6 @@ contract('BSCValidatorSet', (accounts) => {
     let relayerAccount = accounts[8];
     let systemAccount = accounts[0];
 
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
@@ -341,7 +327,7 @@ contract('BSCValidatorSet', (accounts) => {
     let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
 
     let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
     await validatorSetInstance.deposit(validatorA, {from: systemAccount, value: web3.utils.toBN(1e16) });
@@ -355,7 +341,7 @@ contract('BSCValidatorSet', (accounts) => {
     await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
 
     packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 1, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     let validatorABalance = await web3.eth.getBalance(validatorA);
     let validatorBBalance = await web3.eth.getBalance(validatorB);
@@ -387,13 +373,11 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
-
 contract('BSCValidatorSet', (accounts) => {
   it('complicate distribute when cross chain transfer failed', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const systemRewardInstance = await SystemReward.deployed();
     const tokenHub = await MockTokenHub.deployed();
-    const crossChain = await CrossChain.deployed();
 
     let validatorA = validatorSetInstance.address;
     let validatorB = web3.eth.accounts.create().address;
@@ -405,7 +389,6 @@ contract('BSCValidatorSet', (accounts) => {
     let systemAccount = accounts[0];
     await  tokenHub.setPanicBatchTransferOut(true);
 
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
     // enough reward in system reward pool
     await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
 
@@ -413,7 +396,7 @@ contract('BSCValidatorSet', (accounts) => {
     let arr = [validatorA,validatorB,validatorC,validatorD,validatorE];
 
     let packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
 
     // deposit A: 1e16 B:1e16 C:1e17, D: 1e18, E:1e19, deprecated: 1e18
     await validatorSetInstance.deposit(validatorA, {from: systemAccount, value: web3.utils.toBN(1e16) });
@@ -426,9 +409,8 @@ contract('BSCValidatorSet', (accounts) => {
     //add some dust incoming
     await validatorSetInstance.deposit(validatorE, {from: systemAccount, value: web3.utils.toBN(1e5) });
 
-
     packageBytes = validatorUpdateRlpEncode(arr, arr,arr);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 1, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     let validatorABalance = await web3.eth.getBalance(validatorA);
     let validatorBBalance = await web3.eth.getBalance(validatorB);
@@ -463,10 +445,6 @@ contract('BSCValidatorSet', (accounts) => {
 contract('BSCValidatorSet', (accounts) => {
   it('validator jail', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
-    const systemRewardInstance = await SystemReward.deployed();
-    let systemAccount = accounts[0];
-    await systemRewardInstance.addOperator(validatorSetInstance.address, {from: systemAccount});
-    const crossChain = await CrossChain.deployed();
 
     let newValidator1 = web3.eth.accounts.create();
     let newValidator2 = web3.eth.accounts.create();
@@ -476,7 +454,7 @@ contract('BSCValidatorSet', (accounts) => {
     // do update
     let packageBytes = validatorUpdateRlpEncode([newValidator1.address, newValidator2.address, newValidator3.address],
         [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 0, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     let consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 3);
@@ -486,14 +464,14 @@ contract('BSCValidatorSet', (accounts) => {
 
     packageBytes = jailRlpEncode([newValidator1.address, newValidator2.address, newValidator3.address],
         [newValidator1.address, newValidator2.address, newValidator3.address], [newValidator1.address, newValidator2.address, newValidator3.address]);
-    let tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 1, STAKE_CHANNEL_ID, {from: relayerAccount});
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
       return ev.message === "length of jail validators must be one";
     });
 
     packageBytes = jailRlpEncode([newValidator1.address], [newValidator1.address], [newValidator1.address]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 2, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 2);
@@ -502,10 +480,10 @@ contract('BSCValidatorSet', (accounts) => {
 
     // ok to re jail
     packageBytes = jailRlpEncode([newValidator1.address], [newValidator1.address], [newValidator1.address]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 3, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     packageBytes = jailRlpEncode([newValidator2.address], [newValidator2.address], [newValidator2.address]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 4, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);
@@ -513,7 +491,7 @@ contract('BSCValidatorSet', (accounts) => {
 
     // can not jail if it is the last one validator
     packageBytes = jailRlpEncode([newValidator3.address], [newValidator3.address], [newValidator3.address]);
-    await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), crypto.randomBytes(32),100, 5, STAKE_CHANNEL_ID, {from: relayerAccount});
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     consensusAddres = await validatorSetInstance.getValidators.call();
     assert.equal(consensusAddres.length, 1);

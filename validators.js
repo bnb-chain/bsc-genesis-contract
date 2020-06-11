@@ -41,9 +41,6 @@ function validatorUpdateRlpEncode(validators) {
     ]);
   }
   let pkg = [0x00, vals];
-  console.log(pkg);
-  let x = web3.utils.bytesToHex(RLP.encode(pkg));
-  console.log(x);
   return web3.utils.bytesToHex(RLP.encode(pkg));
 }
 
