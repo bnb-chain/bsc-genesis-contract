@@ -244,7 +244,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         status: BIND_STATUS_TIMEOUT,
         bep2TokenSymbol: bep2TokenSymbol
       });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee, ackRelayFee);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
       return false;
     }
 
@@ -260,7 +260,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         status: BIND_STATUS_INCORRECT_PARAMETERS,
         bep2TokenSymbol: bep2TokenSymbol
       });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee, ackRelayFee);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
       return false;
     }
     IBEP2E(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
@@ -273,7 +273,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       status: BIND_STATUS_SUCCESS,
       bep2TokenSymbol: bep2TokenSymbol
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee, ackRelayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
     return true;
   }
 
