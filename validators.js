@@ -1,4 +1,5 @@
 const web3 = require("web3")
+const RLP = require('rlp');
 
 // Configure
 const validators = [
@@ -28,22 +29,25 @@ function extraDataSerialize(validators) {
   return Buffer.concat(arr);
 }
 
-function validatorsSerialize(validators) {
+function validatorUpdateRlpEncode(validators) {
+  let pkg = [];
+  pkg.push(0x00);
   let n = validators.length;
-  let arr = [];
-  arr.push(Buffer.from(web3.utils.hexToBytes("0x00")))
-  for(let i = 0;i<n;i++){
-    let validator = validators[i];
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.feeAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.bscFeeAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(validator.votingPower)));
+  let vals = [];
+  for(let i = 0;i<n;i++) {
+    vals.push([
+      web3.utils.hexToBytes(validators[i].consensusAddr),
+      web3.utils.hexToBytes(validators[i].feeAddr),
+      web3.utils.hexToBytes(validators[i].bscFeeAddr),
+      web3.utils.hexToBytes(validators[i].votingPower),
+    ]);
   }
-  return web3.utils.bytesToHex(Buffer.concat(arr));
+  pkg.push(vals);
+  return web3.utils.bytesToHex(RLP.encode(pkg));
 }
 
 extraValidatorBytes = generateExtradata(validators);
-validatorSetBytes = validatorsSerialize(validators);
+validatorSetBytes = validatorUpdateRlpEncode(validators);
 
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,

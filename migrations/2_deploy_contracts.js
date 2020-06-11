@@ -98,13 +98,12 @@ module.exports = function(deployer, network, accounts) {
     deployer.link(BytesLib, GovHub);
 
     let govHubInstance;
-    deployer.deploy(GovHub).then(function(_govHubInstance){
+    return deployer.deploy(GovHub).then(function(_govHubInstance){
       govHubInstance=_govHubInstance;
-      govHubInstance.init()
     });
 
     return deployer.deploy(BSCValidatorSet).then(function (validatorInstance) {
-      validatorInstance.init();
+      // validatorInstance.init();
       relayerIncentivizeInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, CrossChain.address);
       tendermintLightClientInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, CrossChain.address);
       tokenHubInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, CrossChain.address);

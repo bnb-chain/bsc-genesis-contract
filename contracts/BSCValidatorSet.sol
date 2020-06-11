@@ -33,7 +33,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f87780f874f872e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191c88080808080808064";
 
   uint32 public constant CODE_OK = 0;
   uint32 public constant ERROR_FAIL_DECODE = 101;
@@ -47,6 +47,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   Validator[] public currentValidatorSet;
   uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
+  uint256 public totalInComing;
 
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
@@ -145,6 +146,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if(validator.jailed){
         emit deprecatedDeposit(valAddr,value);
       }else{
+        totalInComing += value;
         validator.incoming += value;
         emit validatorDeposit(valAddr,value);
       }
@@ -283,6 +285,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
     // step 5: do update validator set state
+    totalInComing = 0;
     if(validatorSetTemp.length>0){
       doUpdateState(validatorSetTemp);
     }

@@ -47,6 +47,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   Validator[] public currentValidatorSet;
   uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
+  uint256 public totalInComing;
 
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
@@ -145,6 +146,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if(validator.jailed){
         emit deprecatedDeposit(valAddr,value);
       }else{
+        totalInComing += value;
         validator.incoming += value;
         emit validatorDeposit(valAddr,value);
       }
@@ -283,6 +285,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
     // step 5: do update validator set state
+    totalInComing = 0;
     if(validatorSetTemp.length>0){
       doUpdateState(validatorSetTemp);
     }
