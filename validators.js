@@ -7,7 +7,7 @@ const validators = [
     consensusAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
     feeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
     bscFeeAddr: "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791",
-    votingPower: "0x0000000000000064"
+    votingPower: 0x0000000000000064
   }
 ];
 
@@ -30,19 +30,20 @@ function extraDataSerialize(validators) {
 }
 
 function validatorUpdateRlpEncode(validators) {
-  let pkg = [];
-  pkg.push(0x00);
   let n = validators.length;
   let vals = [];
   for(let i = 0;i<n;i++) {
     vals.push([
-      web3.utils.hexToBytes(validators[i].consensusAddr),
-      web3.utils.hexToBytes(validators[i].feeAddr),
-      web3.utils.hexToBytes(validators[i].bscFeeAddr),
-      web3.utils.hexToBytes(validators[i].votingPower),
+      validators[i].consensusAddr,
+      validators[i].feeAddr,
+      validators[i].bscFeeAddr,
+      validators[i].votingPower,
     ]);
   }
-  pkg.push(vals);
+  let pkg = [0x00, vals];
+  console.log(pkg);
+  let x = web3.utils.bytesToHex(RLP.encode(pkg));
+  console.log(x);
   return web3.utils.bytesToHex(RLP.encode(pkg));
 }
 

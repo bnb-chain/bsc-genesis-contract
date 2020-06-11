@@ -1,9 +1,7 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
-import "./Seriality/BytesLib.sol";
 import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISlashIndicator.sol";
@@ -33,7 +31,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"f87780f874f872e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191e2819f81b2819a81ac1581b981a481b781f17c3381858193819b80754081f481d78191c88080808080808064";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
 
   uint32 public constant CODE_OK = 0;
   uint32 public constant ERROR_FAIL_DECODE = 101;

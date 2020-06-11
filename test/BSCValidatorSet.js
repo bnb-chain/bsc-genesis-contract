@@ -530,10 +530,10 @@ function jailRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let vals = [];
   for(let i = 0;i<n;i++) {
     vals.push([
-        web3.utils.hexToBytes(consensusAddrList[i].toString()),
-        web3.utils.hexToBytes(feeAddrList[i].toString()),
-        web3.utils.hexToBytes(bscFeeAddrList[i].toString()),
-        web3.utils.hexToBytes("0x0000000000000064"),
+       consensusAddrList[i].toString(),
+       feeAddrList[i].toString(),
+       bscFeeAddrList[i].toString(),
+       0x0000000000000064,
     ]);
   }
   pkg.push(vals);
@@ -547,10 +547,10 @@ function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList)
   let vals = [];
   for(let i = 0;i<n;i++) {
     vals.push([
-      web3.utils.hexToBytes(consensusAddrList[i].toString()),
-      web3.utils.hexToBytes(feeAddrList[i].toString()),
-      web3.utils.hexToBytes(bscFeeAddrList[i].toString()),
-      web3.utils.hexToBytes("0x0000000000000064"),
+      consensusAddrList[i].toString(),
+      feeAddrList[i].toString(),
+      bscFeeAddrList[i].toString(),
+      0x0000000000000064,
     ]);
   }
   pkg.push(vals);
