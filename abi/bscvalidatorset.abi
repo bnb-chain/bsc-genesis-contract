@@ -189,12 +189,6 @@
 		"inputs": [
 			{
 				"indexed": true,
-				"internalType": "uint64",
-				"name": "sequence",
-				"type": "uint64"
-			},
-			{
-				"indexed": true,
 				"internalType": "address",
 				"name": "validator",
 				"type": "address"
@@ -250,12 +244,42 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "CHANNEL_ID",
+		"name": "BIND_CHANNELID",
 		"outputs": [
 			{
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "CODE_OK",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "CROSS_CHAIN_CONTRACT_ADDR",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
 			}
 		],
 		"payable": false,
@@ -280,12 +304,87 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "EXTRA_FEE",
+		"name": "ERROR_FAIL_CHECK_VALIDATORS",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint32",
 				"name": "",
-				"type": "uint256"
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_FAIL_DECODE",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_LEN_OF_VAL_MISMATCH",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_RELAYFEE_TOO_LARGE",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_UNKNOWN_PACKAGE_TYPE",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "GOV_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -385,12 +484,12 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "RELAYER_REWARD",
+		"name": "SLASH_CHANNELID",
 		"outputs": [
 			{
-				"internalType": "uint256",
+				"internalType": "uint8",
 				"name": "",
-				"type": "uint256"
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -406,6 +505,21 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "STAKING_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -436,6 +550,36 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "TRANSFER_IN_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "TRANSFER_OUT_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -564,21 +708,6 @@
 		"type": "function"
 	},
 	{
-		"constant": true,
-		"inputs": [],
-		"name": "extraFee",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
 		"constant": false,
 		"inputs": [
 			{
@@ -591,21 +720,6 @@
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "felonySequence",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -648,28 +762,64 @@
 		"constant": false,
 		"inputs": [
 			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"name": "handleAckPackage",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"name": "handleFailAckPackage",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			},
+			{
 				"internalType": "bytes",
 				"name": "msgBytes",
 				"type": "bytes"
-			},
-			{
-				"internalType": "bytes",
-				"name": "proof",
-				"type": "bytes"
-			},
-			{
-				"internalType": "uint64",
-				"name": "height",
-				"type": "uint64"
-			},
-			{
-				"internalType": "uint64",
-				"name": "packageSequence",
-				"type": "uint64"
 			}
 		],
-		"name": "handlePackage",
-		"outputs": [],
+		"name": "handleSynPackage",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "responsePayload",
+				"type": "bytes"
+			}
+		],
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -702,36 +852,6 @@
 		"constant": true,
 		"inputs": [],
 		"name": "previousDepositHeight",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "relayerReward",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "sequence",
 		"outputs": [
 			{
 				"internalType": "uint64",
