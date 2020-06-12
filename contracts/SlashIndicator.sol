@@ -54,7 +54,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) onlyCrossChainContract external override returns(bytes memory){
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract override returns(bytes memory){
     require(false, "receive unexpected syn package");
   }
 
@@ -105,16 +105,16 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
 
   /*********************** Param update ********************************/
-  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
     if (Memory.compareStrings(key,"misdemeanorThreshold")){
       require(value.length == 32, "length of misdemeanorThreshold mismatch");
       uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newMisdemeanorThreshold >=10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
+      require(newMisdemeanorThreshold >= 10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
       misdemeanorThreshold = newMisdemeanorThreshold;
     }else if(Memory.compareStrings(key,"felonyThreshold")){
       require(value.length == 32, "length of felonyThreshold mismatch");
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newFelonyThreshold >20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
+      require(newFelonyThreshold > 20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
     }else if(Memory.compareStrings(key,"bscRelayerReward")){
       require(value.length == 32, "length of bscRelayerReward mismatch");
