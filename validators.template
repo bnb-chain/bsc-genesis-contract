@@ -7,7 +7,7 @@ const validators = [
      "consensusAddr": "{{ v.consensusAddr }}",
      "feeAddr": "{{ v.feeAddr }}",
      "bscFeeAddr": "{{ v.bscFeeAddr }}",
-     "votingPower": "{{ v.votingPower }}",
+     "votingPower": {{ v.votingPower }},
    },{% endfor %}
 ];
 
