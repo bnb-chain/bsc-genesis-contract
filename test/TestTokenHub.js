@@ -1,6 +1,5 @@
 const BN = require('bn.js');
 const sleep = require("await-sleep");
-const InputDataDecoder = require('ethereum-input-data-decoder');
 const RLP = require('rlp');
 
 const SystemReward = artifacts.require("SystemReward");
@@ -61,7 +60,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -133,7 +131,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -183,7 +180,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -235,7 +231,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -278,7 +273,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -322,7 +316,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -365,7 +358,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -404,7 +396,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -492,7 +483,6 @@ contract('TokenHub', (accounts) => {
 
         const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x01" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -551,7 +541,6 @@ contract('TokenHub', (accounts) => {
 
         let packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -588,7 +577,6 @@ contract('TokenHub', (accounts) => {
 
         packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -611,7 +599,6 @@ contract('TokenHub', (accounts) => {
 
         packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x01" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -669,7 +656,6 @@ contract('TokenHub', (accounts) => {
 
         let packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -706,7 +692,6 @@ contract('TokenHub', (accounts) => {
 
         packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x00" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 
@@ -729,7 +714,6 @@ contract('TokenHub', (accounts) => {
 
         packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x01" +
-            "000000000000000000000000000000000000000000000000002386F26FC10000" +
             "000000000000000000000000000000000000000000000000002386F26FC10000"
         ));
 

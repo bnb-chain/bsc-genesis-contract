@@ -12,10 +12,8 @@ contract SystemReward is System, ISystemReward{
   modifier doInit() {
     if(!alreadyInit){
       operators[LIGHT_CLIENT_ADDR] = true;
-      operators[VALIDATOR_CONTRACT_ADDR] = true;
-      operators[TOKEN_HUB_ADDR] = true;
-      operators[GOV_HUB_ADDR] = true;
-      numOperator = 4;
+      operators[INCENTIVIZE_ADDR] = true;
+      numOperator = 2;
       alreadyInit = true;
     }
     _;
@@ -24,11 +22,6 @@ contract SystemReward is System, ISystemReward{
 
   modifier onlyOperator() {
     require(operators[msg.sender],"only operator is available to call the method");
-    _;
-  }
-
-  modifier rewardNotExceedLimit(uint256 _amount) {
-    require(_amount<MAX_REWARDS && _amount>0, "the claim amount exceed the limit");
     _;
   }
 
@@ -44,9 +37,13 @@ contract SystemReward is System, ISystemReward{
       emit ReceiveDeposit(msg.sender, msg.value);
     }
   }
+
   
-  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator rewardNotExceedLimit(amount) returns(uint256) {
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
+    if(actualAmount > MAX_REWARDS){
+      actualAmount = MAX_REWARDS;
+    }
     if(actualAmount>0){
       to.transfer(actualAmount);
       emit RewardTo(to, actualAmount);

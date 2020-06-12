@@ -109,21 +109,17 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     alreadyInit=true;
   }
 
-function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) public pure returns(bytes memory) {
-    uint256 payloadLength = msgBytes.length + 65;
+function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
+    uint256 payloadLength = msgBytes.length + 33;
     bytes memory payload = new bytes(payloadLength);
     uint256 ptr;
     assembly {
       ptr := payload
     }
-    ptr+=65;
-    assembly {
-      mstore(ptr, ackRelayFee)
-    }
+    ptr+=33;
 
-    ptr-=32;
     assembly {
-      mstore(ptr, syncRelayFee)
+      mstore(ptr, relayFee)
     }
 
     ptr-=32;
@@ -136,18 +132,18 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
       mstore(ptr, payloadLength)
     }
 
-    ptr+=97;
+    ptr+=65;
     (uint256 src,) = Memory.fromBytes(msgBytes);
     Memory.copy(src, ptr, msgBytes.length);
 
     return payload;
   }
 
-  // | type   | syncRelayFee   | ackRelayFee  | package  |
-  // | 1 byte | 32 bytes       | 32 bytes     | bytes    |
-  function decodePayload(bytes memory payload) internal pure returns(bool, uint8, uint256, uint256, bytes memory) {
-    if (payload.length < 65) {
-      return (false, 0, 0, 0, new bytes(0));
+  // | type   | relayFee   |package  |
+  // | 1 byte | 32 bytes   | bytes    |
+  function decodePayloadHeader(bytes memory payload) internal pure returns(bool, uint8, uint256, bytes memory) {
+    if (payload.length < 33) {
+      return (false, 0, 0, new bytes(0));
     }
 
     uint256 ptr;
@@ -161,27 +157,22 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
       packageType := mload(ptr)
     }
 
-    uint256 syncRelayFee;
+    uint256 relayFee;
     ptr+=32;
     assembly {
-      syncRelayFee := mload(ptr)
-    }
-
-    uint256 ackRelayFee;
-    ptr+=32;
-    assembly {
-      ackRelayFee := mload(ptr)
+      relayFee := mload(ptr)
     }
 
     ptr+=32;
-    bytes memory msgBytes = new bytes(payload.length-65);
+    bytes memory msgBytes = new bytes(payload.length-33);
     (uint256 dst, ) = Memory.fromBytes(msgBytes);
-    Memory.copy(ptr, dst, payload.length-65);
+    Memory.copy(ptr, dst, payload.length-33);
 
-    return (true, packageType, syncRelayFee, ackRelayFee, msgBytes);
+    return (true, packageType, relayFee, msgBytes);
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer
+      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
@@ -189,27 +180,29 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
 
     uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
-    (bool success, uint8 packageType, uint256 syncRelayFee, uint256 ackRelayFee, bytes memory msgBytes) = decodePayload(payloadLocal);
+    (bool success, uint8 packageType, uint256 relayFee, bytes memory msgBytes) = decodePayloadHeader(payloadLocal);
     if (!success) {
       emit unsupportedPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, payloadLocal);
       return;
     }
 
     if (packageType == SYN_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, syncRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
-        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
+        if(responsePayload.length!=0){
+          emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, responsePayload));
+          channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
+        }
       } catch Error(string memory reason) {
-        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
+        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
+        channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
-        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
+        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
+        channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
-      channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
     } else if (packageType == ACK_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, ackRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
@@ -218,7 +211,6 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
     } else if (packageType == FAIL_ACK_PACKAGE) {
-      IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, ackRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleFailAckPackage(channelIdLocal, msgBytes) {
       } catch Error(string memory reason) {
@@ -227,11 +219,12 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
     }
+    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 syncRelayFee, uint256 ackRelayFee) onlyInit registeredContract external override returns(bool) {
+  function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit registeredContract external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
-    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYN_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
+    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
     return true;
