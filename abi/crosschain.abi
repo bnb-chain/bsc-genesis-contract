@@ -3,13 +3,19 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": false,
-				"internalType": "bytes",
-				"name": "message",
-				"type": "bytes"
+				"indexed": true,
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
 			}
 		],
-		"name": "failReasonWithBytes",
+		"name": "addChannel",
 		"type": "event"
 	},
 	{
@@ -17,12 +23,30 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "string",
-				"name": "message",
-				"type": "string"
+				"internalType": "uint16",
+				"name": "chainId",
+				"type": "uint16"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "sequence",
+				"type": "uint64"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "payload",
+				"type": "bytes"
 			}
 		],
-		"name": "failReasonWithStr",
+		"name": "crossChainPackage",
 		"type": "event"
 	},
 	{
@@ -45,9 +69,72 @@
 		"type": "event"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "lowLevelData",
+				"type": "bytes"
+			}
+		],
+		"name": "unexpectedFailureAssertionInPackageHandler",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "reason",
+				"type": "string"
+			}
+		],
+		"name": "unexpectedRevertInPackageHandler",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "packageSequence",
+				"type": "uint64"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "payload",
+				"type": "bytes"
+			}
+		],
+		"name": "unsupportedPackage",
+		"type": "event"
+	},
+	{
 		"constant": true,
 		"inputs": [],
-		"name": "BIND_CHANNELID",
+		"name": "ACK_PACKAGE",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -62,12 +149,12 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "CODE_OK",
+		"name": "BIND_CHANNELID",
 		"outputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint8",
 				"name": "",
-				"type": "uint32"
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -92,27 +179,12 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "ERROR_TARGET_CONTRACT_FAIL",
+		"name": "FAIL_ACK_PACKAGE",
 		"outputs": [
 			{
-				"internalType": "uint32",
+				"internalType": "uint8",
 				"name": "",
-				"type": "uint32"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "ERROR_TARGET_NOT_CONTRACT",
-		"outputs": [
-			{
-				"internalType": "uint32",
-				"name": "",
-				"type": "uint32"
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -182,21 +254,6 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "PARAM_UPDATE_MESSAGE_TYPE",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
 		"name": "RELAYERHUB_CONTRACT_ADDR",
 		"outputs": [
 			{
@@ -243,6 +300,36 @@
 		"constant": true,
 		"inputs": [],
 		"name": "STAKING_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "STORE_NAME",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SYNC_PACKAGE",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -345,52 +432,85 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
-			},
-			{
-				"internalType": "bytes",
-				"name": "",
-				"type": "bytes"
 			}
 		],
-		"name": "handleAckPackage",
-		"outputs": [],
+		"name": "channelHandlerContractMap",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
-			},
-			{
-				"internalType": "bytes",
-				"name": "",
-				"type": "bytes"
 			}
 		],
-		"name": "handleFailAckPackage",
-		"outputs": [],
+		"name": "channelReceiveSequenceMap",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
+			}
+		],
+		"name": "channelSendSequenceMap",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "packageType",
+				"type": "uint8"
+			},
+			{
+				"internalType": "uint256",
+				"name": "syncRelayFee",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "ackRelayFee",
+				"type": "uint256"
 			},
 			{
 				"internalType": "bytes",
@@ -398,14 +518,156 @@
 				"type": "bytes"
 			}
 		],
-		"name": "handleSynPackage",
+		"name": "encodePayload",
 		"outputs": [
 			{
 				"internalType": "bytes",
-				"name": "responsePayload",
+				"name": "",
 				"type": "bytes"
 			}
 		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "bytes",
+				"name": "payload",
+				"type": "bytes"
+			},
+			{
+				"internalType": "bytes",
+				"name": "proof",
+				"type": "bytes"
+			},
+			{
+				"internalType": "uint64",
+				"name": "height",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint64",
+				"name": "packageSequence",
+				"type": "uint64"
+			},
+			{
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			}
+		],
+		"name": "handlePackage",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "init",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"name": "isRelayRewardFromSystemReward",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "registeredContractMap",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes",
+				"name": "msgBytes",
+				"type": "bytes"
+			},
+			{
+				"internalType": "uint256",
+				"name": "syncRelayFee",
+				"type": "uint256"
+			},
+			{
+				"internalType": "uint256",
+				"name": "ackRelayFee",
+				"type": "uint256"
+			}
+		],
+		"name": "sendPackage",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "updateParam",
+		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"

@@ -16,7 +16,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     bytes   nextValidatorSet;
   }
 
-  mapping(uint64 => ConsensusState) public BCLightClientConsensusStates;
+  mapping(uint64 => ConsensusState) public lightClientConsensusStates;
   mapping(uint64 => address payable) public submitters;
   uint64 public initialHeight;
   uint64 public latestHeight;
@@ -26,14 +26,14 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   uint256 constant public INIT_REWARD_FOR_VALIDATOR_SER_CHANGE  = 1e16;
   uint256 public rewardForValidatorSetChange;
 
-  event InitConsensusState(uint64 initHeight, bytes32 appHash);
-  event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
+  event initConsensusState(uint64 initHeight, bytes32 appHash);
+  event syncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
   event paramChange(string key, bytes value);
 
   /* solium-disable-next-line */
   constructor() public {}
 
-  function init() onlyNotInit public {
+  function init() public onlyNotInit {
     uint256 pointer;
     uint256 length;
     (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
@@ -47,14 +47,14 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     uint64 height;
     (cs, height) = decodeConsensusState(pointer, length, false);
     cs.preValidatorSetChangeHeight = 0;
-    BCLightClientConsensusStates[height] = cs;
+    lightClientConsensusStates[height] = cs;
 
     initialHeight = height;
     latestHeight = height;
     alreadyInit = true;
     rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
 
-    emit InitConsensusState(initialHeight, cs.appHash);
+    emit initConsensusState(initialHeight, cs.appHash);
   }
 
   function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
@@ -62,18 +62,18 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     require(height > initialHeight, "can't sync header before initialHeight");
 
     uint64 preValidatorSetChangeHeight = latestHeight;
-    ConsensusState memory cs = BCLightClientConsensusStates[preValidatorSetChangeHeight];
+    ConsensusState memory cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     for(; preValidatorSetChangeHeight >= initialHeight;) {
       if (preValidatorSetChangeHeight < height) {
         // find nearest previous height
         break;
       }
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
-      cs = BCLightClientConsensusStates[preValidatorSetChangeHeight];
+      cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     }
     if (cs.nextValidatorSet.length == 0) {
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
-      cs.nextValidatorSet = BCLightClientConsensusStates[preValidatorSetChangeHeight].nextValidatorSet;
+      cs.nextValidatorSet = lightClientConsensusStates[preValidatorSetChangeHeight].nextValidatorSet;
       require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
     }
 
@@ -124,12 +124,12 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     submitters[height] = msg.sender;
     cs.preValidatorSetChangeHeight = preValidatorSetChangeHeight;
-    BCLightClientConsensusStates[height] = cs;
+    lightClientConsensusStates[height] = cs;
     if (height > latestHeight) {
       latestHeight = height;
     }
 
-    emit SyncConsensusState(height, preValidatorSetChangeHeight, cs.appHash, validatorChanged);
+    emit syncConsensusState(height, preValidatorSetChangeHeight, cs.appHash, validatorChanged);
 
     return true;
   }
@@ -139,7 +139,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   }
 
   function getAppHash(uint64 height) external override view returns (bytes32) {
-    return BCLightClientConsensusStates[height].appHash;
+    return lightClientConsensusStates[height].appHash;
   }
 
   function getSubmitter(uint64 height) external override view returns (address payable) {
@@ -155,7 +155,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     uint8 chainIDLength = 0;
     for (uint8 j = 0; j < 32; j++) {
       if (chainIDBytes[j] != 0) {
-          chainIDLength++;
+        chainIDLength++;
       } else {
         break;
       }
@@ -163,7 +163,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     bytes memory chainIDStr = new bytes(chainIDLength);
     for (uint8 j = 0; j < chainIDLength; j++) {
-        chainIDStr[j] = chainIDBytes[j];
+      chainIDStr[j] = chainIDBytes[j];
     }
 
     return string(chainIDStr);
@@ -258,12 +258,11 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     return (cs, height);
   }
 
-  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
-    require(alreadyInit, "contract has not been initialized");
+  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
     if (Memory.compareStrings(key,"rewardForValidatorSetChange")){
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newRewardForValidatorSetChange = BytesToTypes.bytesToUint256(32, value);
-      require(newRewardForValidatorSetChange >0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
+      require(newRewardForValidatorSetChange > 0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
       rewardForValidatorSetChange = newRewardForValidatorSetChange;
     }else{
       require(false, "unknown param");

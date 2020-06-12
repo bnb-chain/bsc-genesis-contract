@@ -1,3 +1,9 @@
 node_modules
 contracts/Migrations.sol
 contracts/Seriality
+contracts/tool
+contracts/rlp
+contracts/interface
+contracts/mock
+contracts/test
+contracts/lib
