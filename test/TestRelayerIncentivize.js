@@ -7,7 +7,7 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 const truffleAssert = require('truffle-assertions');
 
 contract('RelayerIncentivize', (accounts) => {
-    it('header relayer incentivize', async () => {
+    it('init incentivize', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
         const systemReward = await SystemReward.deployed();
         let uselessAddr = web3.eth.accounts.create().address;
@@ -183,7 +183,7 @@ contract('RelayerIncentivize', (accounts) => {
         assert.equal(pureRewardAccount8.gt(pureRewardAccount2), true, "wrong reward"); // get extra 1/80 of total reward
         assert.equal(pureRewardAccount8.lt(pureRewardAccount3), true, "wrong reward"); // get extra 1/80 of total reward
     });
-    it('transfer relayer Incentivize', async () => {
+    it('non-payable address', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
         const tendermintLightClient = await TendermintLightClient.deployed();
 
@@ -200,11 +200,12 @@ contract('RelayerIncentivize', (accounts) => {
 
         const systemReward = await SystemReward.deployed();
         const originSystemRewardBalance = await web3.eth.getBalance(systemReward.address);
+
         await relayerIncentivize.addReward(relayer, tendermintLightClient.address, web3.utils.toBN(1e16), true, {from: tokenHub});
         const newSystemRewardBalance = await web3.eth.getBalance(systemReward.address);
-        assert.equal(web3.utils.toBN(newSystemRewardBalance).sub(web3.utils.toBN(originSystemRewardBalance)).eq(web3.utils.toBN(151875000000000000)), true, "wrong amount to systemReward contract");
+        assert.equal(web3.utils.toBN(newSystemRewardBalance).sub(web3.utils.toBN(originSystemRewardBalance)).eq(web3.utils.toBN(146812500000000000)), true, "wrong amount to systemReward contract");
+
         let roundSequence = await relayerIncentivize.roundSequence.call();
         assert.equal(roundSequence.toNumber(), 3, "wrong round sequence");
-
     });
 });

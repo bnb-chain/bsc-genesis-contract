@@ -16,6 +16,10 @@ program.option(
     "./contracts/CrossChain.sol"
 )
 
+program.option("--bscChainId <bscChainId>",
+    "bsc chain id",
+    "0060");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -23,6 +27,7 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
+  bscChainId: program.bscChainId,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
