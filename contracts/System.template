@@ -14,7 +14,7 @@ contract System {
   uint8 constant public STAKING_CHANNELID = 0x08;
   uint8 constant public GOV_CHANNELID = 0x09;
   uint8 constant public SLASH_CHANNELID = 0x0b;
-  uint16 constant bscChainID = 0x{{bscChainId}};
+  uint16 constant public bscChainID = 0x{{bscChainId}};
 {% if mock %}
   address public  VALIDATOR_CONTRACT_ADDR;
   address public  SLASH_CONTRACT_ADDR;

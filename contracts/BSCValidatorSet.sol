@@ -28,8 +28,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
 
   // the precision of cross chain value transfer.
-  uint256 constant PRECISION = 1e10;
-  uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
+  uint256 public constant PRECISION = 1e10;
+  uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
 
@@ -49,7 +49,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
-  mapping(address =>uint256) currentValidatorSetMap;
+  mapping(address =>uint256) public currentValidatorSetMap;
 
   struct Validator{
     address consensusAddress;
@@ -166,7 +166,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return CODE_OK;
     }
     bool otherValid = false;
-    for(uint i=0;i<currentValidatorSet.length;i++){
+    uint n = currentValidatorSet.length;
+    for(uint i=0;i<n;i++){
       if(!currentValidatorSet[i].jailed && currentValidatorSet[i].consensusAddress != v.consensusAddress){
         otherValid = true;
         break;
@@ -341,7 +342,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       for(uint i=0;i<index;i++){
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
-      for(uint i=index+1;i<currentValidatorSet.length;i++){
+      uint n = currentValidatorSet.length;
+      for(uint i=index+1;i<n;i++){
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
@@ -372,7 +374,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     currentValidatorSet.pop();
     uint256 averageDistribute = income/rest;
     if(averageDistribute!=0){
-      for(uint i=0;i<currentValidatorSet.length;i++){
+      uint n = currentValidatorSet.length;
+      for(uint i=0;i<n;i++){
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
