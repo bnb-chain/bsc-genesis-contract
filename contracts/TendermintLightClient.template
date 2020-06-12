@@ -33,7 +33,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   /* solium-disable-next-line */
   constructor() public {}
 
-  function init() onlyNotInit public {
+  function init() public onlyNotInit {
     uint256 pointer;
     uint256 length;
     (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
@@ -155,7 +155,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     uint8 chainIDLength = 0;
     for (uint8 j = 0; j < 32; j++) {
       if (chainIDBytes[j] != 0) {
-          chainIDLength++;
+        chainIDLength++;
       } else {
         break;
       }
@@ -163,7 +163,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     bytes memory chainIDStr = new bytes(chainIDLength);
     for (uint8 j = 0; j < chainIDLength; j++) {
-        chainIDStr[j] = chainIDBytes[j];
+      chainIDStr[j] = chainIDBytes[j];
     }
 
     return string(chainIDStr);
@@ -258,12 +258,12 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     return (cs, height);
   }
 
-  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+  function updateParam(string calldata key, bytes calldata value) external override onlyGov{
     require(alreadyInit, "contract has not been initialized");
     if (Memory.compareStrings(key,"rewardForValidatorSetChange")){
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newRewardForValidatorSetChange = BytesToTypes.bytesToUint256(32, value);
-      require(newRewardForValidatorSetChange >0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
+      require(newRewardForValidatorSetChange > 0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
       rewardForValidatorSetChange = newRewardForValidatorSetChange;
     }else{
       require(false, "unknown param");

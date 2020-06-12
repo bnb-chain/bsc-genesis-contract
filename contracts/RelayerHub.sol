@@ -49,7 +49,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     alreadyInit = true;
   }
 
-  function register() payable external noExist onlyInit notContract{
+  function register() external payable noExist onlyInit notContract{
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
     relayers[msg.sender] = relayer(requiredDeposit, dues);
     relayersExistMap[msg.sender] = true;
@@ -67,16 +67,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   /*********************** Param update ********************************/
-  function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
+  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
     if (Memory.compareStrings(key,"requiredDeposit")){
       require(value.length == 32, "length of requiredDeposit mismatch");
       uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
-      require(newRequiredDeposit >=1 && newRequiredDeposit <= 1e21, "the requiredDeposit out of range");
+      require(newRequiredDeposit >= 1 && newRequiredDeposit <= 1e21, "the requiredDeposit out of range");
       requiredDeposit = newRequiredDeposit;
     }else if(Memory.compareStrings(key,"dues")){
       require(value.length == 32, "length of dues mismatch");
       uint256 newDues = BytesToTypes.bytesToUint256(32, value);
-      require(newDues >0 && newDues < requiredDeposit, "the dues out of range");
+      require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
     }else{
       require(false, "unknown param");

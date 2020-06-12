@@ -17,7 +17,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // the store name of the package
   string constant public STORE_NAME = "ibc";
 
-  uint8 constant public SYNC_PACKAGE = 0x00;
+  uint8 constant public SYN_PACKAGE = 0x00;
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;
 
@@ -195,7 +195,7 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
       return;
     }
 
-    if (packageType == SYNC_PACKAGE) {
+    if (packageType == SYN_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, syncRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
@@ -231,7 +231,7 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
 
   function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 syncRelayFee, uint256 ackRelayFee) onlyInit registeredContract external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
-    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYNC_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
+    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYN_PACKAGE, syncRelayFee, ackRelayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
     return true;
