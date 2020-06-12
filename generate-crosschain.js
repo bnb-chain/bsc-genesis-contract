@@ -23,7 +23,6 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-  bscChainId: program.bscChainId,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
