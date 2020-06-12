@@ -21,7 +21,26 @@
 				"type": "bytes32"
 			}
 		],
-		"name": "InitConsensusState",
+		"name": "initConsensusState",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "paramChange",
 		"type": "event"
 	},
 	{
@@ -52,63 +71,8 @@
 				"type": "bool"
 			}
 		],
-		"name": "SyncConsensusState",
+		"name": "syncConsensusState",
 		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "key",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes",
-				"name": "value",
-				"type": "bytes"
-			}
-		],
-		"name": "paramChange",
-		"type": "event"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"name": "BCLightClientConsensusStates",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "preValidatorSetChangeHeight",
-				"type": "uint64"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "appHash",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "curValidatorSetHash",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "bytes",
-				"name": "nextValidatorSet",
-				"type": "bytes"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
 	},
 	{
 		"constant": true,
@@ -239,6 +203,21 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SLASH_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -491,6 +470,42 @@
 				"internalType": "uint64",
 				"name": "",
 				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"name": "lightClientConsensusStates",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "preValidatorSetChangeHeight",
+				"type": "uint64"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "appHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes32",
+				"name": "curValidatorSetHash",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "bytes",
+				"name": "nextValidatorSet",
+				"type": "bytes"
 			}
 		],
 		"payable": false,
