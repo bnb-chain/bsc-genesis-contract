@@ -106,11 +106,6 @@ contract System {
     _;
   }
 
-  modifier doClaimReward(address relayer, uint256 reward) {
-    _;
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
-  }
-
   function isContract(address addr) internal view returns (bool) {
     uint size;
     assembly { size := extcodesize(addr) }
