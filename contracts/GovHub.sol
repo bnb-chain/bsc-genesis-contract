@@ -5,88 +5,83 @@ import "./Seriality/Memory.sol";
 import "./Seriality/BytesLib.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IApplication.sol";
+import "./rlp/RLPDecode.sol";
+import "./rlp/CmnPkg.sol";
 
 
 contract GovHub is System, IApplication{
+  using RLPDecode for *;
 
   uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
+
+  uint32 public constant CODE_OK = 0;
+  uint32 public constant ERROR_TARGET_NOT_CONTRACT = 101;
+  uint32 public constant ERROR_TARGET_CONTRACT_FAIL = 102;
 
   event failReasonWithStr(string message);
   event failReasonWithBytes(bytes message);
   event paramChange(string key, bytes value);
 
-  function init() external onlyNotInit{
-    alreadyInit = true;
+  struct ParamChangePackage {
+    string   key;
+    bytes    value;
+    address  target;
   }
 
-  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload){
-    uint8 msgType = getMsgType(msgBytes);
-    if(msgType == PARAM_UPDATE_MESSAGE_TYPE){
-      notifyUpdates(msgBytes);
-    }else{
-      emit failReasonWithStr("unknown message type");
-    }
-    return new bytes(0);
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory responsePayload){
+    (ParamChangePackage memory proposal, bool success) = decodeSynPackage(msgBytes);
+    require(success, "fail to parse cross chain package");
+    uint32  resCode = notifyUpdates(proposal);
+    return CmnPkg.encodeCommonAckPackage(resCode);
   }
 
-  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
-    return;
+  // should not happen
+  function handleAckPackage(uint8, bytes calldata) external override {
+    require(false, "receive unexpected ack package");
   }
 
-  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
-    return;
+  // should not happen
+  function handleFailAckPackage(uint8, bytes calldata) external override {
+    require(false, "receive unexpected fail ack package");
   }
 
-  //| Proposal type | key length | bytes of  key  | value length | value  | target addr |
-  //|    1 byte   | 1 byte   |   N bytes  |   1 byte   | M bytes|  20 byte  |
+  function notifyUpdates(ParamChangePackage memory proposal) internal returns(uint32) {
 
-  function notifyUpdates(bytes memory proposalBytes) internal {
-    uint msgLength = proposalBytes.length;
-    // the minimum length is 25
-    if(msgLength <25){
-      emit failReasonWithStr("msg length less than 25");
-      return;
+    if (!isContract(proposal.target)){
+      emit failReasonWithStr("the target is not a contract");
+      return ERROR_TARGET_NOT_CONTRACT;
     }
-    uint8 keyLength =  BytesToTypes.bytesToUint8(2, proposalBytes);
-    if(keyLength == 0||msgLength<24+uint16(keyLength)){
-      emit failReasonWithStr("keyLength mismatch");
-      return;
+    try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value){
+    }catch Error(string memory reason) {
+      emit failReasonWithStr(reason);
+      return ERROR_TARGET_CONTRACT_FAIL;
+    } catch (bytes memory lowLevelData) {
+      emit failReasonWithBytes(lowLevelData);
+      return ERROR_TARGET_CONTRACT_FAIL;
     }
-    string memory key = string(BytesLib.slice(proposalBytes, 2, keyLength));
-    uint8 valueLength =  BytesToTypes.bytesToUint8(3+uint16(keyLength), proposalBytes);
-    if(valueLength == 0||msgLength!=23+uint16(keyLength)+uint16(valueLength)){
-      emit failReasonWithStr("valueLength mismatch");
-      return;
-    }
-    bytes memory value = BytesLib.slice(proposalBytes, 3+uint16(keyLength), uint16(valueLength));
-    address target = BytesToTypes.bytesToAddress(msgLength, proposalBytes);
-    if (target == address(this)){
-      updateParam(key, value);
-    }else{
-      if (!isContract(target)){
-        emit failReasonWithStr("the target is not a contract");
-        return;
+    return CODE_OK;
+  }
+
+  //rlp encode & decode function
+  function decodeSynPackage(bytes memory msgBytes) internal pure returns (ParamChangePackage memory, bool) {
+    ParamChangePackage memory pkg;
+
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while(iter.hasNext()) {
+      if ( idx == 0 ) {
+        pkg.key = string(iter.next().toBytes());
+      }else if (idx == 1) {
+        pkg.value = iter.next().toBytes();
+      }else if (idx == 2){
+        pkg.target = iter.next().toAddress();
+        success = true;
+      } else {
+        break;
       }
-      try IParamSubscriber(target).updateParam(key, value){
-      }catch Error(string memory reason) {
-        emit failReasonWithStr(reason);
-      } catch (bytes memory lowLevelData) {
-        emit failReasonWithBytes(lowLevelData);
-      }
+      idx++;
     }
-    return;
-  }
-
-  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
-    uint8 msgType = 0xff;
-    assembly {
-      msgType := mload(add(msgBytes, 1))
-    }
-    return msgType;
-  }
-
-  /*********************** Param update ********************************/
-  function updateParam(string memory key, bytes memory value) internal{
-
+    return (pkg, success);
   }
 }

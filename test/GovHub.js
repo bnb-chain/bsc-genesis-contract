@@ -1,134 +1,27 @@
 const truffleAssert = require('truffle-assertions');
 const GovHub = artifacts.require("GovHub");
-const SystemReward = artifacts.require("SystemReward");
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
+const CrossChain = artifacts.require("CrossChain");
+const SystemReward = artifacts.require("SystemReward");
 const TokenHub = artifacts.require("TokenHub");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
-const Web3 = require('web3');
-const crypto = require('crypto');
-const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
-
-contract('GovHub self', (accounts) => {
-    it('Gov it self', async () => {
-        const govHubInstance = await GovHub.deployed();
-        const systemRewardInstance = await SystemReward.deployed();
-        let systemAccount = accounts[0];
-        await systemRewardInstance.addOperator(govHubInstance.address, {from: systemAccount});
-
-        const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 0,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === "relayerReward";
-        });
-
-        let reward = await govHubInstance.relayerReward.call();
-        assert.equal(reward.toNumber(), 65536, "value not equal");
-    });
-
-    it('Gov it self fail error package', async () => {
-        const govHubInstance = await GovHub.deployed();
-        const relayerAccount = accounts[8];
-
-        //seq not in order
-        try{
-            await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 0,
-                {from: relayerAccount});
-            assert.fail();
-        }catch(error){
-            assert.ok(error.toString().includes("sequence not in order"));
-        }
-        //not rlayer
-        try{
-            await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 1,
-                {from: accounts[0]});
-            assert.fail();
-        }catch(error){
-            assert.ok(error.toString().includes("the msg sender is not a relayer"));
-        }
-
-        // wrong message type
-        let tx = await govHubInstance.handlePackage(serialize("0x01","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 1,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "unknown message type";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-
-        // unknown  key
-        tx = await govHubInstance.handlePackage(serialize("0x00","unknown key", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 2,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "unknown param";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-
-        // invalid param value
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x10000", govHubInstance.address),crypto.randomBytes(32),100, 3,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "length of relayerReward mismatch";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-
-        // out of range
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", govHubInstance.address),crypto.randomBytes(32),100, 4,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "the relayerReward out of range";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-
-        // out of range2
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000010000000000000000000000000000000000000000000000000000", govHubInstance.address),crypto.randomBytes(32),100, 5,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "the relayerReward out of range";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-
-        // length mismatch
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000010000000000000000000000000000000000000000000000000000", govHubInstance.address,"0x0000"),crypto.randomBytes(32),100, 6,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "valueLength mismatch";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange")
-    });
-
-    it('Gov it self and overflow', async () => {
-        const govHubInstance = await GovHub.deployed();
-        const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","44NefHcYoOIxHFBIRYpAGobD3ftcaDsh9Jo9BZhFiUpkdA7IgLWCILRLq4LbheFqe3lbKOOoJvqdXt8lIrm076rIxUIxID8UkOW8uq27q15Quc1tt90Tw540kENpZqQRKOtR2GDpDxLs50R7wZfymZ476Nx6vSiiTq7pjm8zzEJ5l2DJ0dzKcfQ6fsQw6KalrF6RE6aBQk1JnatKy4sBWDWTvJoMizYqUnZk441qLYOSpq8EKFcKPYrwcKQx", "0x0000000000000000000000000000000000000000000000000000000000010000", govHubInstance.address),crypto.randomBytes(32),100, 7,
-            {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "unknown param";
-        });
-        truffleAssert.eventNotEmitted(tx, "paramChange");
-
-        let reward = await govHubInstance.relayerReward.call();
-        assert.equal(reward.toNumber(), 65536, "value not equal");
-    });
-});
-
+const RLP = require('rlp');
+const GOV_CHANNEL_ID = 0x09;
 
 contract('GovHub others', (accounts) => {
     it('Gov others success', async () => {
         const govHubInstance = await GovHub.deployed();
-        const systemRewardInstance = await SystemReward.deployed();
         const bSCValidatorSetInstance =await BSCValidatorSet.deployed();
-        let systemAccount = accounts[0];
-        await systemRewardInstance.addOperator(govHubInstance.address, {from: systemAccount});
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000010000", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 0,
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x0000000000000000000000000000000000000000000000000000000000010000", bSCValidatorSetInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === "relayerReward";
+            return ev.key === "expireTimeSecondGap";
         });
 
-        let reward = await bSCValidatorSetInstance.relayerReward.call();
+        let reward = await bSCValidatorSetInstance.expireTimeSecondGap.call();
         assert.equal(reward.toNumber(), 65536, "value not equal");
     });
 
@@ -138,40 +31,40 @@ contract('GovHub others', (accounts) => {
         const systemRewardInstance = await SystemReward.deployed();
         const relayerAccount = accounts[8];
 
-
         // unknown  key
-        let tx = await govHubInstance.handlePackage(serialize("0x00","unknown key", "0x0000000000000000000000000000000000000000000000000000000000010000", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 1,
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("unknown key", "0x0000000000000000000000000000000000000000000000000000000000010000", bSCValidatorSetInstance.address),
             {from: relayerAccount});
+
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
             return ev.message === "unknown param";
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
 
         // exceed range  key
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 2,
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x000000000000010000000000000000000000000000000000000000000000000", bSCValidatorSetInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "the relayerReward out of range";
+            return ev.message === "the expireTimeSecondGap is out of range";
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
 
         // length mismatch
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x10", bSCValidatorSetInstance.address),crypto.randomBytes(32),100, 3,
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x10000", bSCValidatorSetInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
-            return ev.message === "length of relayerReward mismatch";
+            return ev.message === "length of expireTimeSecondGap mismatch";
         });
         truffleAssert.eventNotEmitted(tx, "paramChange")
 
         // address do not exist
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", "0x1110000000000000000000000000000000001004"),crypto.randomBytes(32),100, 4,
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x0000000000000000000000000000000000000000000000000000000000000000", "0x1110000000000000000000000000000000001004"),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
             return ev.message === "the target is not a contract";
         });
 
         // method do no exist
-        tx = await govHubInstance.handlePackage(serialize("0x00","relayerReward", "0x0000000000000000000000000000000000000000000000000000000000000000", systemRewardInstance.address),crypto.randomBytes(32),100, 5,
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("expireTimeSecondGap", "0x0000000000000000000000000000000000000000000000000000000000000000", systemRewardInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "failReasonWithBytes",(ev) => {
             return ev.message === null;
@@ -181,26 +74,24 @@ contract('GovHub others', (accounts) => {
     it('Gov tokenhub', async () => {
         const govHubInstance = await GovHub.deployed();
         const tokenHub =await TokenHub.deployed();
-        let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","minimumRelayFee", "0x0000000000000000000000000000000000000000000000000000000000010000", tokenHub.address),crypto.randomBytes(32),101, 6,
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("syncRelayFee", "0x00000000000000000000000000000000000000000000000000038d7ea4c68000", tokenHub.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === "minimumRelayFee";
+            return ev.key === "syncRelayFee";
         });
 
-        let minimumRelayFee = await tokenHub.minimumRelayFee.call();
-        assert.equal(minimumRelayFee.toNumber(), 65536, "value not equal");
+        let minimumRelayFee = await tokenHub.syncRelayFee.call();
+        assert.equal(minimumRelayFee.toNumber(), 1000000000000000, "value not equal");
     });
 
     it('Gov tendermintLightClient', async () => {
         const govHubInstance = await GovHub.deployed();
         const tendermintLightClient =await TendermintLightClient.deployed();
-        let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","rewardForValidatorSetChange", "0x0000000000000000000000000000000000000000000000000000000000010000", TendermintLightClient.address),crypto.randomBytes(32),101, 7,
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("rewardForValidatorSetChange", "0x0000000000000000000000000000000000000000000000000000000000010000", TendermintLightClient.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === "rewardForValidatorSetChange";
@@ -213,10 +104,9 @@ contract('GovHub others', (accounts) => {
     it('Gov relayerIncentivize', async () => {
         const govHubInstance = await GovHub.deployed();
         const relayerIncentivize =await RelayerIncentivize.deployed();
-        let uselessAddr = web3.eth.accounts.create().address;
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handlePackage(serialize("0x00","moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),crypto.randomBytes(32),101, 8,
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === "moleculeHeaderRelayer";
@@ -225,23 +115,32 @@ contract('GovHub others', (accounts) => {
         let moleculeHeaderRelayer = await relayerIncentivize.moleculeHeaderRelayer.call();
         assert.equal(moleculeHeaderRelayer.toNumber(), 65536, "value not equal");
     });
+
+    it('Gov cross chain contract', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const crossChainInstance =await CrossChain.deployed();
+
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize(0x5700, RelayerIncentivize.address, crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'W\u0000';
+        });
+
+        let appAddr = await crossChainInstance.channelHandlerContractMap.call(0x57);
+        assert.equal(appAddr, RelayerIncentivize.address, "value not equal");
+        let fromSys = await crossChainInstance.isRelayRewardFromSystemReward.call(0x57);
+        assert.equal(fromSys, true, "should from system reward");
+    });
 });
 
-function serialize(msgType, key,value, target, extra) {
-    let arr = [];
-    let keyBytes = web3.utils.hexToBytes(web3.utils.stringToHex(key));
-    let keyLength = keyBytes.length;
-    let valueBytes = web3.utils.hexToBytes(value);
-    let valueLength =  valueBytes.length;
-
-    arr.push(Buffer.from(web3.utils.hexToBytes(msgType)));
-    arr.push(Buffer.from([keyLength]));
-    arr.push(Buffer.from(keyBytes));
-    arr.push(Buffer.from([valueLength]));
-    arr.push(Buffer.from(valueBytes));
-    arr.push(Buffer.from(web3.utils.hexToBytes(target.toString())));
+function serialize(key,value, target,extra) {
+    let pkg = [];
+    pkg.push(key);
+    pkg.push(value);
+    pkg.push(target);
     if(extra != null){
-        arr.push(Buffer.from(web3.utils.hexToBytes(extra)));
+        pkg.push(extra);
     }
-    return Buffer.concat(arr);
+    return RLP.encode(pkg);
 }

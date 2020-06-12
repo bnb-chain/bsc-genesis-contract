@@ -154,7 +154,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return (syncRelayFee, ackRelayFee);
   }
 
-  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload){
+  function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload){
     if (channelId == BIND_CHANNELID) {
       return handleBindSyncPackage(msgBytes);
     } else if (channelId == TRANSFER_IN_CHANNELID) {
