@@ -1,23 +1,14 @@
 pragma solidity 0.6.4;
 
-import "../Seriality/TypesToBytes.sol";
-import "../Seriality/BytesToTypes.sol";
-import "../Seriality/BytesLib.sol";
+import "../rlp/RLPDecode.sol";
 
 
 
 contract BSCValidatorSetTool {
-  // keep consistent with the channel id in BBC;
-  uint8 public constant CHANNEL_ID =  8;
-  // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
-  uint constant  VALIDATOR_BYTES_LENGTH = 68;
-  uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001000200; // last 6 bytes
 
-  uint16 public constant FROM_CHAIN_ID = 0x0001;
-  uint16 public constant TO_CHAIN_ID = 0x0002;
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
 
-  Validator[] public currentValidatorSet;
-  bytes public expectedKey;
+  using RLPDecode for *;
 
   struct Validator{
     address consensusAddress;
@@ -26,60 +17,64 @@ contract BSCValidatorSetTool {
     uint64  votingPower;
   }
 
-
-
-  function verify(bytes calldata key, bytes calldata msgBytes, uint64 packageSequence) external{
-    // verify key value against light client;
-    bytes memory expect = generateKey(packageSequence,CHANNEL_ID);
-    expectedKey = key;
-    require(BytesLib.equal(expect,key), string(expectedKey));
-    parseValidatorSet(msgBytes);
+  struct IbcValidatorSetPackage {
+    uint8  packageType;
+    Validator[] validatorSet;
   }
 
-  /*********************** Internal Functions **************************/
-
-  function parseValidatorSet(bytes memory validatorSetBytes) internal{
-    uint length = validatorSetBytes.length-1;
-    require(length > 0, "the validatorSetBytes should not be empty");
-    require(length % VALIDATOR_BYTES_LENGTH == 0, "the length of validatorSetBytes should be times of 68");
-    uint m = currentValidatorSet.length;
-    for(uint i = 0;i<m;i++){
-      currentValidatorSet.pop();
-    }
-    uint n = length/VALIDATOR_BYTES_LENGTH;
-    for(uint i = 0;i<n;i++){
-      Validator memory v;
-      v.consensusAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+20,validatorSetBytes);
-      v.feeAddress = address(uint160(BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+40,validatorSetBytes)));
-      v.BBCFeeAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
-      v.votingPower = BytesToTypes.bytesToUint64(1+i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
-      currentValidatorSet.push(v);
-    }
+  function init() external {
+    bool valid= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
+    require(valid, "failed to init");
   }
 
+  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (bool) {
+    IbcValidatorSetPackage memory validatorSetPkg;
 
-  // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
-  // | 32 bytes | 1 byte | 2 bytes    | 2 bytes      |  1 bytes  | 8 bytes  |
-  function generateKey(uint64 _sequence, uint8 channelID) public pure returns(bytes memory) {
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while(iter.hasNext()) {
+      if ( idx == 0 ) {
+        validatorSetPkg.packageType = uint8(iter.next().toUint());
+      }else if (idx == 1) {
+        RLPDecode.RLPItem[] memory items = iter.next().toList();
+        validatorSetPkg.validatorSet =new Validator[](items.length);
+        for(uint j = 0;j<items.length;j++){
+          (Validator memory val, bool ok) = decodeValidator(items[j]);
+          if (!ok){
+            return false;
+          }
+          validatorSetPkg.validatorSet[j] = val;
+        }
+        success = true;
+      }else {
+        break;
+      }
+      idx++;
+    }
+    return success;
+  }
 
-    uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix | channelID;
-    bytes memory key = new bytes(14);
-
-    uint256 ptr;
-    assembly {
-      ptr := add(key, 14)
+  function decodeValidator(RLPDecode.RLPItem memory itemValidator) internal pure returns(Validator memory, bool) {
+    Validator memory validator;
+    RLPDecode.Iterator memory iter = itemValidator.iterator();
+    bool success = false;
+    uint256 idx=0;
+    while(iter.hasNext()) {
+      if (idx == 0) {
+        validator.consensusAddress = iter.next().toAddress();
+      }else if (idx == 1) {
+        validator.feeAddress = address(uint160(iter.next().toAddress()));
+      }else if (idx == 2) {
+        validator.BBCFeeAddress = iter.next().toAddress();
+      }else if (idx == 3) {
+        validator.votingPower = uint64(iter.next().toUint());
+        success = true;
+      }else {
+        break;
+      }
+      idx++;
     }
-    assembly {
-      mstore(ptr, _sequence)
-    }
-    ptr -= 8;
-    assembly {
-      mstore(ptr, fullCrossChainKeyPrefix)
-    }
-    ptr -= 6;
-    assembly {
-      mstore(ptr, 14)
-    }
-    return key;
+    return (validator, success);
   }
 }

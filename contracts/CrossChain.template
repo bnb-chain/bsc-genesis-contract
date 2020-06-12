@@ -21,7 +21,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;
 
-  uint16 constant bscChainID = 0x{{bscChainId}};
   uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001{{bscChainId}}00; // last 6 bytes
 
   mapping(uint8 => address) public channelHandlerContractMap;
@@ -102,6 +101,10 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     channelHandlerContractMap[GOV_CHANNELID] = GOV_HUB_ADDR;
     isRelayRewardFromSystemReward[GOV_CHANNELID] = true;
     registeredContractMap[GOV_HUB_ADDR] = true;
+
+    channelHandlerContractMap[SLASH_CHANNELID] = SLASH_CONTRACT_ADDR;
+    isRelayRewardFromSystemReward[SLASH_CHANNELID] = true;
+    registeredContractMap[SLASH_CONTRACT_ADDR] = true;
 
     alreadyInit=true;
   }
@@ -195,7 +198,7 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
     if (packageType == SYNC_PACKAGE) {
       IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, syncRelayFee, isRelayRewardFromSystemReward[channelIdLocal]);
       address handlerContract = channelHandlerContractMap[channelIdLocal];
-      try IApplication(handlerContract).handleSyncPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
+      try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
         emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, ackRelayFee, responsePayload));
       } catch Error(string memory reason) {
         emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, ackRelayFee, msgBytes));
@@ -237,35 +240,23 @@ function encodePayload(uint8 packageType, uint256 syncRelayFee, uint256 ackRelay
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
     bytes memory localKey = bytes(key);
     bytes memory localValue = value;
-    require(localKey.length == 1, "expected key length is 1");
-    // length is 8, used to skip receive sequence
+    // first byte is channel Id, second byte is relayRewardFromSystemReward
+    require(localKey.length == 2, "expected key length is 2");
     // length is 20, used to add or delete channel
-    require(localValue.length == 8 || localValue.length == 20, "expected value length is 8 or 20");
+    require(localValue.length == 20, "expected value length is 20");
 
-    uint256 bytes32Key;
+    uint8 channelId = uint8(localKey[0]);
+    bool fromSystem = uint8(localKey[1]) == 0x00;
+
+    address handlerContract;
     assembly {
-      bytes32Key := mload(add(localKey, 1))
+      handlerContract := mload(add(localValue, 20))
     }
-    uint8 channelId = uint8(bytes32Key);
-
-    if (localValue.length == 8) {
-      uint64 sequence;
-      assembly {
-        sequence := mload(add(localValue, 8))
-      }
-      require(channelReceiveSequenceMap[channelId]<sequence, "can't retreat sequence");
-      channelReceiveSequenceMap[channelId] = sequence;
-    } else {
-      address handlerContract;
-      assembly {
-        handlerContract := mload(add(localValue, 20))
-      }
-      require(isContract(handlerContract), "address is not a contract");
-      channelHandlerContractMap[channelId]=handlerContract;
-      registeredContractMap[handlerContract] = true;
-      emit addChannel(channelId, handlerContract);
-
-    }
+    require(isContract(handlerContract), "address is not a contract");
+    channelHandlerContractMap[channelId]=handlerContract;
+    registeredContractMap[handlerContract] = true;
+    isRelayRewardFromSystemReward[channelId] = fromSystem;
+    emit addChannel(channelId, handlerContract);
     emit paramChange(key, value);
   }
 }

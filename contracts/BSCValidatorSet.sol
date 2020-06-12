@@ -1,9 +1,7 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./Seriality/TypesToBytes.sol";
 import "./Seriality/BytesToTypes.sol";
-import "./Seriality/BytesLib.sol";
 import "./Seriality/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISlashIndicator.sol";
@@ -13,34 +11,42 @@ import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
 import "./lib/SafeMath.sol";
+import "./rlp/RLPDecode.sol";
+import "./rlp/CmnPkg.sol";
 
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
   using SafeMath for uint256;
 
-  // {20 bytes consensusAddress} + {20 bytes feeAddress} + {20 bytes BBCFeeAddress} + {8 bytes voting power}
-  uint constant  VALIDATOR_BYTES_LENGTH = 68;
+  using RLPDecode for *;
+
   // will not transfer value less than 0.1 BNB for validators
   uint256 constant public DUSTY_INCOMING = 1e17;
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
-  uint8 public constant CHANNEL_ID = 0x08;
 
   // the precision of cross chain value transfer.
   uint256 constant PRECISION = 1e10;
   uint256 constant EXPIRE_TIME_SECOND_GAP = 1000;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"009fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7919fb29aac15b9a4b7f17c3385939b007540f4d7910000000000000064";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
 
-  // state of this contract
+  uint32 public constant CODE_OK = 0;
+  uint32 public constant ERROR_FAIL_DECODE = 101;
+  uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 102;
+  uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 103;
+  uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 104;
+  uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 105;
+
+
+  /*********************** state of the contract **************************/
   Validator[] public currentValidatorSet;
-  uint64 public sequence;
-  uint64 public felonySequence;
-  uint256 public totalInComing;
   uint256 public expireTimeSecondGap;
   uint64 public previousDepositHeight;
+  uint256 public totalInComing;
+
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
   mapping(address =>uint256) currentValidatorSetMap;
@@ -50,21 +56,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address payable feeAddress;
     address BBCFeeAddress;
     uint64  votingPower;
+
+    // only in state
     bool jailed;
     uint256 incoming;
   }
 
-  modifier sequenceInOrder(uint64 _sequence) {
-    require(_sequence == sequence, "sequence not in order");
-    _;
-    sequence ++;
+  /*********************** cross chain package **************************/
+  struct IbcValidatorSetPackage {
+    uint8  packageType;
+    Validator[] validatorSet;
   }
 
-  modifier enoughInComing() {
-    require(address(this).balance>=totalInComing, "panic: no enough incoming to distribute");
-    _;
-  }
-
+  /*********************** modifiers **************************/
   modifier noEmptyDeposit() {
     require(msg.value > 0, "deposit value is zero");
     _;
@@ -76,6 +80,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     previousDepositHeight = uint64(block.number);
   }
 
+  /*********************** events **************************/
   event validatorSetUpdated();
   event validatorJailed(address indexed validator);
   event validatorEmptyJailed(address indexed validator);
@@ -88,23 +93,48 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event deprecatedDeposit(address indexed validator, uint256 amount);
   event validatorDeposit(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
-  event validatorFelony(uint64 indexed sequence, address indexed validator, uint256 amount);
+  event validatorFelony(address indexed validator, uint256 amount);
   event failReasonWithStr(string message);
   event paramChange(string key, bytes value);
 
+  /*********************** init **************************/
   function init() external onlyNotInit{
-    (Validator[] memory validatorSet, bool valid, string memory errMsg)= parseValidatorSet(INIT_VALIDATORSET_BYTES);
-    require(valid, errMsg);
-    for(uint i = 0;i<validatorSet.length;i++){
-      currentValidatorSet.push(validatorSet[i]);
-      currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
+    (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
+    require(valid, "failed to parse init validatorSet");
+    for(uint i = 0;i<validatorSetPkg.validatorSet.length;i++){
+      currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
+      currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i+1;
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;
   }
 
-  /*********************** External Functions **************************/
+  /*********************** Cross Chain App Implement **************************/
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
+    (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSyncPackage(msgBytes);
+    require(ok, "fail to parse cross chain package");
+    uint32 resCode;
+    if(validatorSetPackage.packageType == VALIDATORS_UPDATE_MESSAGE_TYPE){
+      resCode = updateValidatorSet(validatorSetPackage.validatorSet);
+    }else if(validatorSetPackage.packageType == JAIL_MESSAGE_TYPE){
+      resCode = jailValidator(validatorSetPackage.validatorSet);
+    }else{
+      resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
+    }
+    return CmnPkg.encodeCommonAckPackage(resCode);
+  }
 
+  function handleAckPackage(uint8, bytes calldata) external override {
+    // should not happen
+    require(false, "receive unexpected ack package");
+  }
+
+  function handleFailAckPackage(uint8, bytes calldata) external override {
+    // should not happen
+    require(false, "receive unexpected fail ack package");
+  }
+
+  /*********************** External Functions **************************/
   function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit onlyDepositOnce{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
@@ -113,54 +143,27 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if(validator.jailed){
         emit deprecatedDeposit(valAddr,value);
       }else{
-        validator.incoming += value;
         totalInComing += value;
+        validator.incoming += value;
         emit validatorDeposit(valAddr,value);
       }
     }else{
       // get incoming from deprecated validator;
-      // will not add it to the `totalInComing`;
       emit deprecatedDeposit(valAddr,value);
     }
   }
 
-  function handleSyncPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
-    uint8 msgType = getMsgType(msgBytes);
-    if(msgType == VALIDATORS_UPDATE_MESSAGE_TYPE){
-      updateValidatorSet(msgBytes);
-    }else if(msgType == JAIL_MESSAGE_TYPE){
-      jailValidator(msgBytes);
-    }else{
-      require(false, "unknown message type");
-    }
-    return new bytes(0);
-  }
-
-  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
-    return;
-  }
-
-  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override {
-    return;
-  }
-
-
-  function jailValidator(bytes memory validatorBytes) internal{
+  function jailValidator(Validator[] memory validatorSet) internal returns (uint32){
     // do deserialize and verify.
-    (Validator[] memory validatorSet, bool valid, string memory errMsg) = parseValidatorSet(validatorBytes);
-    if(!valid){
-      emit failReasonWithStr(errMsg);
-      return;
-    }
     if(validatorSet.length != 1){
       emit failReasonWithStr("length of jail validators must be one");
-      return;
+      return ERROR_LEN_OF_VAL_MISMATCH;
     }
     Validator memory v = validatorSet[0];
     uint256 index = currentValidatorSetMap[v.consensusAddress];
     if (index<=0){
       emit validatorEmptyJailed(v.consensusAddress);
-      return;
+      return CODE_OK;
     }
     bool otherValid = false;
     for(uint i=0;i<currentValidatorSet.length;i++){
@@ -172,32 +175,32 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // will not jail if it is the last valid validator
     if(!otherValid){
       emit validatorEmptyJailed(v.consensusAddress);
-      return;
+      return CODE_OK;
     }
     currentValidatorSet[index-1].jailed = true;
     emit validatorJailed(v.consensusAddress);
-    return;
+    return CODE_OK;
   }
 
-  function updateValidatorSet(bytes memory validatorSetBytes) internal{
-    // do deserialize and verify.
-    (Validator[] memory validatorSet, bool valid, string memory errMsg)= parseValidatorSet(validatorSetBytes);
+  function updateValidatorSet(Validator[] memory validatorSet) internal returns (uint32){
+    // do verify.
+    (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
     if(!valid){
       emit failReasonWithStr(errMsg);
-      return;
+      return ERROR_FAIL_CHECK_VALIDATORS;
     }
 
     //step 1: do calculate distribution, do not make it as an internal function for saving gas.
-    uint n = currentValidatorSet.length;
     uint crossSize;
     uint directSize;
-    for(uint i = 0;i<n;i++){
+    for(uint i = 0;i<currentValidatorSet.length;i++){
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossSize ++;
       }else if (currentValidatorSet[i].incoming > 0){
         directSize ++;
       }
     }
+
     //cross transfer
     address[] memory crossAddrs = new address[](crossSize);
     uint256[] memory crossAmounts = new uint256[](crossSize);
@@ -211,14 +214,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     delete directSize;
     Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
     (uint256 syncRelayFee, uint256 ackRelayFee) = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
-    for(uint i = 0;i<n;i++){
+    if (syncRelayFee.add(ackRelayFee) > DUSTY_INCOMING){
+      emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
+      return ERROR_RELAYFEE_TOO_LARGE;
+    }
+    for(uint i = 0;i<currentValidatorSet.length;i++){
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
         crossAmounts[crossSize] = value.sub(syncRelayFee).sub(ackRelayFee);
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossIndexes[crossSize] = i;
-        crossTotal += value;
+        crossTotal = crossTotal.add(value);
         crossSize ++;
       }else if (currentValidatorSet[i].incoming > 0){
         directAddrs[directSize] = currentValidatorSet[i].feeAddress;
@@ -230,7 +237,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     //step 2: do cross chain transfer
     bool failCross = false;
     if(crossTotal > 0){
-      uint256 relayFee = crossAddrs.length*(syncRelayFee.add(ackRelayFee));
       try ITokenHub(TOKEN_HUB_ADDR).batchTransferOutBNB{value:crossTotal}(crossAddrs, crossAmounts, crossRefundAddrs, uint64(block.timestamp + expireTimeSecondGap)) returns (bool success) {
         if (success) {
            emit batchTransfer(crossTotal);
@@ -258,7 +264,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
-
+    // step 3: direct transfer
     if(directAddrs.length>0){
       for(uint i = 0;i<directAddrs.length;i++){
         bool success = directAddrs[i].send(directAmounts[i]);
@@ -270,21 +276,21 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
-    // do dusk transfer
+    // step 4: do dusk transfer
     if(address(this).balance>0){
       emit systemTransfer(address(this).balance);
-      address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-      systemPayable.transfer(address(this).balance);
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
+    // step 5: do update validator set state
     totalInComing = 0;
-    // do update state
     if(validatorSetTemp.length>0){
       doUpdateState(validatorSetTemp);
     }
 
-    // do claim reward, will reward to account rather than smart contract.
+    // step 6: clean slash contract
     ISlashIndicator(SLASH_CONTRACT_ADDR).clean();
     emit validatorSetUpdated();
+    return CODE_OK;
   }
 
   function getValidators()external view returns(address[] memory) {
@@ -315,7 +321,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** For slash **************************/
-
   function misdemeanor(address validator)external onlySlash override{
     uint256 index = currentValidatorSetMap[validator];
     if(index <= 0){
@@ -357,8 +362,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       currentValidatorSet[index].incoming = 0;
       return;
     }
-    emit validatorFelony(felonySequence,validator,income);
-    felonySequence ++;
+    emit validatorFelony(validator,income);
     delete currentValidatorSetMap[validator];
     // It is ok that the validatorSet is not in order.
     if (index != currentValidatorSet.length-1){
@@ -374,6 +378,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
+
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov{
     if (Memory.compareStrings(key, "expireTimeSecondGap")){
@@ -389,35 +394,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** Internal Functions **************************/
 
-  function getMsgType(bytes memory msgBytes) internal pure returns(uint8){
-    uint8 msgType = 0xff;
-    assembly {
-      msgType := mload(add(msgBytes, 1))
-    }
-    return msgType;
-  }
-
-  function parseValidatorSet(bytes memory validatorSetBytes) private pure returns(Validator[] memory, bool, string memory){
-    uint length = validatorSetBytes.length-1;
-    if(length % VALIDATOR_BYTES_LENGTH != 0){
-      return (new Validator[](0), false, "the length of validatorSetBytes should be times of 68");
-    }
-    uint n = length/VALIDATOR_BYTES_LENGTH;
-    Validator[] memory validatorSet = new Validator[](n);
-    for(uint i = 0;i<n;i++){
-      validatorSet[i].consensusAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+20,validatorSetBytes);
-      validatorSet[i].feeAddress = address(uint160(BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+40,validatorSetBytes)));
-      validatorSet[i].BBCFeeAddress = BytesToTypes.bytesToAddress(1+i*VALIDATOR_BYTES_LENGTH+60,validatorSetBytes);
-      validatorSet[i].votingPower = BytesToTypes.bytesToUint64(1+i*VALIDATOR_BYTES_LENGTH+68,validatorSetBytes);
-    }
-    for(uint i = 0;i<n;i++){
+  function checkValidatorSet(Validator[] memory validatorSet) private pure returns(bool, string memory){
+    for(uint i = 0;i<validatorSet.length;i++){
       for(uint j = 0;j<i;j++){
         if(validatorSet[i].consensusAddress == validatorSet[j].consensusAddress ){
-          return (new Validator[](0), false, "duplicate consensus address of validatorSet");
+          return (false, "duplicate consensus address of validatorSet");
         }
       }
     }
-    return (validatorSet,true,"");
+    return (true,"");
   }
 
   function doUpdateState(Validator[] memory validatorSet) private{
@@ -462,5 +447,57 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool){
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
+  }
+
+  //rlp encode & decode function
+  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+    IbcValidatorSetPackage memory validatorSetPkg;
+
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while(iter.hasNext()) {
+      if ( idx == 0 ) {
+        validatorSetPkg.packageType = uint8(iter.next().toUint());
+      }else if (idx == 1) {
+        RLPDecode.RLPItem[] memory items = iter.next().toList();
+        validatorSetPkg.validatorSet =new Validator[](items.length);
+        for(uint j = 0;j<items.length;j++){
+          (Validator memory val, bool ok) = decodeValidator(items[j]);
+          if (!ok){
+            return (validatorSetPkg, false);
+          }
+          validatorSetPkg.validatorSet[j] = val;
+        }
+        success = true;
+      }else {
+        break;
+      }
+      idx++;
+    }
+    return (validatorSetPkg, success);
+  }
+
+  function decodeValidator(RLPDecode.RLPItem memory itemValidator) internal pure returns(Validator memory, bool) {
+    Validator memory validator;
+    RLPDecode.Iterator memory iter = itemValidator.iterator();
+    bool success = false;
+    uint256 idx=0;
+    while(iter.hasNext()) {
+      if (idx == 0) {
+        validator.consensusAddress = iter.next().toAddress();
+      }else if (idx == 1) {
+        validator.feeAddress = address(uint160(iter.next().toAddress()));
+      }else if (idx == 2) {
+        validator.BBCFeeAddress = iter.next().toAddress();
+      }else if (idx == 3) {
+        validator.votingPower = uint64(iter.next().toUint());
+        success = true;
+      }else {
+        break;
+      }
+      idx++;
+    }
+    return (validator, success);
   }
 }
