@@ -44,7 +44,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   /*********************** state of the contract **************************/
   Validator[] public currentValidatorSet;
   uint256 public expireTimeSecondGap;
-  uint64 public previousDepositHeight;
   uint256 public totalInComing;
 
   // key is the `consensusAddress` of `Validator`,
@@ -72,12 +71,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   modifier noEmptyDeposit() {
     require(msg.value > 0, "deposit value is zero");
     _;
-  }
-
-  modifier onlyDepositOnce() {
-    require(block.number > previousDepositHeight, "can not deposit twice in one block");
-    _;
-    previousDepositHeight = uint64(block.number);
   }
 
   /*********************** events **************************/
@@ -112,7 +105,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   /*********************** Cross Chain App Implement **************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSyncPackage(msgBytes);
-    require(ok, "fail to parse cross chain package");
+    if(!ok){
+      return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
+    }
     uint32 resCode;
     if(validatorSetPackage.packageType == VALIDATORS_UPDATE_MESSAGE_TYPE){
       resCode = updateValidatorSet(validatorSetPackage.validatorSet);
@@ -121,21 +116,25 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }else{
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
     }
-    return CmnPkg.encodeCommonAckPackage(resCode);
+    if(resCode == CODE_OK){
+      return new bytes(0);
+    }else{
+      return CmnPkg.encodeCommonAckPackage(resCode);
+    }
   }
 
-  function handleAckPackage(uint8, bytes calldata) external override {
+  function handleAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
     // should not happen
     require(false, "receive unexpected ack package");
   }
 
-  function handleFailAckPackage(uint8, bytes calldata) external override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
     // should not happen
     require(false, "receive unexpected fail ack package");
   }
 
   /*********************** External Functions **************************/
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit onlyDepositOnce{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
     if (index>0){
@@ -154,7 +153,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function jailValidator(Validator[] memory validatorSet) internal returns (uint32){
-    // do deserialize and verify.
     if(validatorSet.length != 1){
       emit failReasonWithStr("length of jail validators must be one");
       return ERROR_LEN_OF_VAL_MISMATCH;
@@ -214,8 +212,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     delete crossSize;
     delete directSize;
     Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
-    (uint256 syncRelayFee, uint256 ackRelayFee) = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
-    if (syncRelayFee.add(ackRelayFee) > DUSTY_INCOMING){
+    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
+    if(relayFee > DUSTY_INCOMING){
       emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
       return ERROR_RELAYFEE_TOO_LARGE;
     }
@@ -223,7 +221,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if(currentValidatorSet[i].incoming >= DUSTY_INCOMING){
         crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
-        crossAmounts[crossSize] = value.sub(syncRelayFee).sub(ackRelayFee);
+        crossAmounts[crossSize] = value.sub(relayFee);
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossIndexes[crossSize] = i;
         crossTotal = crossTotal.add(value);

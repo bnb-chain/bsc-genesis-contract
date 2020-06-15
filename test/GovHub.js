@@ -76,13 +76,13 @@ contract('GovHub others', (accounts) => {
         const tokenHub =await TokenHub.deployed();
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("syncRelayFee", "0x00000000000000000000000000000000000000000000000000038d7ea4c68000", tokenHub.address),
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("relayFee", "0x00000000000000000000000000000000000000000000000000038d7ea4c68000", tokenHub.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === "syncRelayFee";
+            return ev.key === "relayFee";
         });
 
-        let minimumRelayFee = await tokenHub.syncRelayFee.call();
+        let minimumRelayFee = await tokenHub.relayFee.call();
         assert.equal(minimumRelayFee.toNumber(), 1000000000000000, "value not equal");
     });
 

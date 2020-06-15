@@ -19,6 +19,16 @@ function generateExtradata(validators) {
   return Buffer.concat([extraVanity,validatorsBytes,extraSeal]);
 }
 
+function extraDataSerialize(validators) {
+  let n = validators.length;
+  let arr = [];
+  for(let i = 0;i<n;i++){
+    let validator = validators[i];
+    arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
+  }
+  return Buffer.concat(arr);
+}
+
 function validatorUpdateRlpEncode(validators) {
   let pkg = [];
   pkg.push(0x00);

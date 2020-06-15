@@ -4,5 +4,5 @@ interface ICrossChain {
     /**
      * @dev Send package to Binance Chain
      */
-    function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 syncRelayFee, uint256 ackRelayFee) external returns(bool);
+    function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) external returns(bool);
 }

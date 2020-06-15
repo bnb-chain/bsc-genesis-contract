@@ -12,8 +12,7 @@ const STAKE_CHANNEL_ID = 0x08;
 
 const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
     "0x00" +
-    "000000000000000000000000000000000000000000000000002386F26FC10000" +
-    "0000000000000000000000000000000000000000000000000000000000000000"
+    "000000000000000000000000000000000000000000000000002386F26FC10000"
 ));
 
 contract('BSCValidatorSet', (accounts) => {
@@ -22,9 +21,6 @@ contract('BSCValidatorSet', (accounts) => {
 
     let totalInComing = await validatorSetInstance.totalInComing.call();
     assert.equal(totalInComing,0, "totalInComing should be 0");
-
-    let previousDepositHeight = await validatorSetInstance.previousDepositHeight.call();
-    assert.equal(previousDepositHeight,0, "previousDepositHeight should be 0");
 
     let consensusAddr = await validatorSetInstance.getValidators.call()[0];
     assert.equal(consensusAddr,accounts[9].address, "consensusAddr should be accounts[9]");

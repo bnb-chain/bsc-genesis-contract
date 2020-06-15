@@ -103,13 +103,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  uint256 constant public MAX_GAS_FOR_CALLING_BEP2E={{maxGasForCallingBEP2E}};
+  uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
 
-  uint256 constant public INIT_MINIMUM_SYNC_RELAY_FEE={{syncRelayFee}};
-  uint256 constant public INIT_MINIMUM_ACK_RELAY_FEE={{ackRelayFee}};
+  uint256 constant public INIT_MINIMUM_RELAY_FEE =1e16;
 
-  uint256 public syncRelayFee;
-  uint256 public ackRelayFee;
+  uint256 public relayFee;
 
   mapping(bytes32 => BindSyncPackage) public bindPackageRecord;
   mapping(address => uint256) public bep2eContractDecimals;
@@ -129,14 +127,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   constructor() public {}
   {% if mock %}
   function init() onlyNotInit public payable {
-    syncRelayFee = INIT_MINIMUM_SYNC_RELAY_FEE;
-    ackRelayFee = INIT_MINIMUM_ACK_RELAY_FEE;
+    relayFee = INIT_MINIMUM_RELAY_FEE;
     alreadyInit=true;
   }
   {% else %}
   function init() onlyNotInit external {
-    syncRelayFee = INIT_MINIMUM_SYNC_RELAY_FEE;
-    ackRelayFee = INIT_MINIMUM_ACK_RELAY_FEE;
+    relayFee = INIT_MINIMUM_RELAY_FEE;
     alreadyInit=true;
   }
   {% endif %}
@@ -150,8 +146,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return actualAmount;
   }
 
-  function getRelayFee() external override returns(uint256, uint256) {
-    return (syncRelayFee, ackRelayFee);
+  function getRelayFee() external override returns(uint256) {
+    return relayFee;
   }
 
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload){
@@ -242,7 +238,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(contractAddr==bindSyncPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
     require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
-    require(msg.value == syncRelayFee.add(ackRelayFee), "msg.value doesn't equal to syncRelayFee + ackRelayFee");
+    require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
 
     if (bindSyncPkg.expireTime<block.timestamp) {
       delete bindPackageRecord[bep2TokenSymbol];
@@ -250,7 +246,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         status: BIND_STATUS_TIMEOUT,
         bep2TokenSymbol: bep2TokenSymbol
       });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
       return false;
     }
 
@@ -266,7 +262,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         status: BIND_STATUS_INCORRECT_PARAMETERS,
         bep2TokenSymbol: bep2TokenSymbol
       });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
       return false;
     }
     IBEP2E(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
@@ -279,7 +275,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       status: BIND_STATUS_SUCCESS,
       bep2TokenSymbol: bep2TokenSymbol
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee.div(1e10), ackRelayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
     return true;
   }
 
@@ -289,13 +285,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(contractAddr==bindSyncPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
-    require(msg.value == syncRelayFee.add(ackRelayFee), "msg.value doesn't equal to syncRelayFee + ackRelayFee");
+    require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
       status: BIND_STATUS_REJECTED,
       bep2TokenSymbol: bep2TokenSymbol
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee, ackRelayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
     return true;
   }
 
@@ -304,13 +300,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(bindSyncPkg.expireTime<block.timestamp, "bind request is not expired");
-    require(msg.value == syncRelayFee.add(ackRelayFee), "msg.value doesn't equal to syncRelayFee + ackRelayFee");
+    require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
       status: BIND_STATUS_TIMEOUT,
       bep2TokenSymbol: bep2TokenSymbol
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), syncRelayFee, ackRelayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
     return true;
   }
 
@@ -523,13 +519,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 convertedAmount;
     if (contractAddr==address(0x0)) {
       require(amount%1e10==0, "invalid transfer amount: precision loss in amount conversion");
-      require(msg.value==amount.add(syncRelayFee).add(ackRelayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+      require(msg.value==amount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
       convertedAmount = amount.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
-      require(msg.value==syncRelayFee.add(ackRelayFee), "received BNB amount doesn't equal to relayFee");
+      require(msg.value== relayFee, "received BNB amount doesn't equal to relayFee");
       uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
       require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
@@ -552,7 +548,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     transOutSyncPkg.amounts[0]=convertedAmount;
     transOutSyncPkg.recipients[0]=recipient;
     transOutSyncPkg.refundAddrs[0]=msg.sender;
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), syncRelayFee.div(1e10), ackRelayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), relayFee.div(1e10));
     return true;
   }
 
@@ -571,7 +567,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(amounts[i]%1e10==0, "invalid transfer amount");
       convertedAmounts[i] = amounts[i].div(1e10);
     }
-    require(msg.value==totalAmount.add(syncRelayFee.mul(batchLength)).add(ackRelayFee.mul(batchLength)), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+    require(msg.value==totalAmount.add(relayFee.mul(batchLength)), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
 
     TransferOutSyncPackage memory transOutSyncPkg = TransferOutSyncPackage({
       bep2TokenSymbol: BEP2_TOKEN_SYMBOL_FOR_BNB,
@@ -581,7 +577,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       refundAddrs: refundAddrs,
       expireTime: expireTime
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), syncRelayFee.mul(batchLength).div(1e10), ackRelayFee.mul(batchLength));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), relayFee.mul(batchLength).div(1e10));
     return true;
   }
 
@@ -593,20 +589,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     assembly {
       bytes32Key := mload(add(localKey, 32))
     }
-    if (bytes32Key == bytes32(0x73796e6352656c61794665650000000000000000000000000000000000000000)){ // syncRelayFee
-      uint256 newSyncRelayFee;
+    if (bytes32Key == bytes32(0x72656c6179466565000000000000000000000000000000000000000000000000)){ // relayFee
+      uint256 newRelayFee;
       assembly {
-        newSyncRelayFee := mload(add(localValue, 32))
+        newRelayFee := mload(add(localValue, 32))
       }
-      require(newSyncRelayFee >= 0 && newSyncRelayFee <= 1e18 && newSyncRelayFee%(1e10)==0, "the syncRelayFee out of range");
-      syncRelayFee = newSyncRelayFee;
-    } else if (bytes32Key == bytes32(0x61636b52656c6179466565000000000000000000000000000000000000000000)){ // ackRelayFee
-      uint256 newAckRelayFee;
-      assembly {
-        newAckRelayFee := mload(add(localValue, 32))
-      }
-      require(newAckRelayFee >= 0 && newAckRelayFee <= 1e18, "the ackRelayFee out of range");
-      ackRelayFee = newAckRelayFee;
+      require(newRelayFee >= 0 && newRelayFee <= 1e18 && newRelayFee%(1e10)==0, "the relayFee out of range");
+      relayFee = newRelayFee;
     } else {
       require(false, "unknown param");
     }
