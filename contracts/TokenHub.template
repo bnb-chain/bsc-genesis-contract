@@ -306,7 +306,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       status: BIND_STATUS_TIMEOUT,
       bep2TokenSymbol: bep2TokenSymbol
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
     return true;
   }
 
