@@ -156,6 +156,25 @@
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "msgBytes",
+				"type": "bytes"
+			}
+		],
+		"name": "unexpectedPackage",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
 				"indexed": true,
 				"internalType": "address",
 				"name": "validator",
@@ -379,6 +398,21 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "EXPIRE_TIME_SECOND_GAP",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "GOV_CHANNELID",
 		"outputs": [
 			{
@@ -460,6 +494,21 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "PRECISION",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -633,6 +682,21 @@
 	},
 	{
 		"constant": true,
+		"inputs": [],
+		"name": "bscChainID",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -670,6 +734,27 @@
 			{
 				"internalType": "uint256",
 				"name": "incoming",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "currentValidatorSetMap",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
 				"type": "uint256"
 			}
 		],
@@ -763,12 +848,12 @@
 		"inputs": [
 			{
 				"internalType": "uint8",
-				"name": "",
+				"name": "channelId",
 				"type": "uint8"
 			},
 			{
 				"internalType": "bytes",
-				"name": "",
+				"name": "msgBytes",
 				"type": "bytes"
 			}
 		],
@@ -783,12 +868,12 @@
 		"inputs": [
 			{
 				"internalType": "uint8",
-				"name": "",
+				"name": "channelId",
 				"type": "uint8"
 			},
 			{
 				"internalType": "bytes",
-				"name": "",
+				"name": "msgBytes",
 				"type": "bytes"
 			}
 		],
@@ -846,21 +931,6 @@
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "previousDepositHeight",
-		"outputs": [
-			{
-				"internalType": "uint64",
-				"name": "",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
 		"type": "function"
 	},
 	{

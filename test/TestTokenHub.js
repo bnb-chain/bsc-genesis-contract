@@ -343,7 +343,7 @@ contract('TokenHub', (accounts) => {
         let event;
         truffleAssert.eventEmitted(tx, "crossChainPackage",(ev) => {
             let matched = false;
-            if (ev.sequence.toString() === "0") {
+            if (ev.packageSequence.toString() === "0") {
                 event = ev;
                 matched = true;
             }
@@ -426,6 +426,9 @@ contract('TokenHub', (accounts) => {
             assert.ok(error.toString().includes("received BNB amount doesn't equal to relayFee"));
         }
         let tx = await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
+        truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
+            return ev.amount.eq(web3.utils.toBN(amount)) && ev.bep2eAddr.toString().toLowerCase() === abcToken.address.toLowerCase();
+        });
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         let decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
@@ -483,6 +486,9 @@ contract('TokenHub', (accounts) => {
         const relayFee = web3.utils.toBN(2e16);
 
         let tx = await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN(5e16)});
+        truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
+            return ev.amount.eq(web3.utils.toBN(3e16)) && ev.bep2eAddr.toString().toLowerCase() === "0x0000000000000000000000000000000000000000";
+        });
         assert.equal(tx.receipt.status, true, "failed transaction");
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         let decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 2e6);
