@@ -17,6 +17,7 @@ contract GovHub is System, IApplication{
   uint32 public constant CODE_OK = 0;
   uint32 public constant ERROR_TARGET_NOT_CONTRACT = 101;
   uint32 public constant ERROR_TARGET_CONTRACT_FAIL = 102;
+  uint32 public constant ERROR_FAIL_DECODE = 103;
 
   event failReasonWithStr(string message);
   event failReasonWithBytes(bytes message);
@@ -30,9 +31,15 @@ contract GovHub is System, IApplication{
 
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory responsePayload){
     (ParamChangePackage memory proposal, bool success) = decodeSynPackage(msgBytes);
-    require(success, "fail to parse cross chain package");
-    uint32  resCode = notifyUpdates(proposal);
-    return CmnPkg.encodeCommonAckPackage(resCode);
+    if(!success){
+      return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
+    }
+    uint32 resCode = notifyUpdates(proposal);
+    if(resCode == CODE_OK){
+      return new bytes(0);
+    }else{
+      return CmnPkg.encodeCommonAckPackage(resCode);
+    }
   }
 
   // should not happen

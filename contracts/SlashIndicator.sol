@@ -24,7 +24,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public previousHeight;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
-  uint256 public  bscRelayerReward;
 
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
@@ -49,7 +48,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
-    bscRelayerReward = BSC_RELAYER_REWARD;
     alreadyInit = true;
   }
 
@@ -87,7 +85,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     indicators[validator] = indicator;
     if(indicator.count % felonyThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0, bscRelayerReward);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
     }else if (indicator.count % misdemeanorThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
@@ -116,11 +114,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold > 20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
-    }else if(Memory.compareStrings(key,"bscRelayerReward")){
-      require(value.length == 32, "length of bscRelayerReward mismatch");
-      uint256 newBscRelayerReward = BytesToTypes.bytesToUint256(32, value);
-      require(newBscRelayerReward > 1e18, "the bscRelayerReward out of range");
-      bscRelayerReward = newBscRelayerReward;
     }else{
       require(false, "unknown param");
     }

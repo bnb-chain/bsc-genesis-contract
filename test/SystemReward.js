@@ -55,15 +55,6 @@ contract('SystemReward', (accounts) => {
     }catch (error) {
       assert.ok(error.toString().includes("only operator is available to call the method"));
     }
-
-    try{
-      await systemRewardInstance.claimRewards(newAccount.address, 0, {from: accounts[0]})
-      assert.fail();
-    }catch (error) {
-      assert.ok(error.toString().includes("the claim amount exceed the limit"));
-    }
-    let balance_wei = await web3.eth.getBalance(newAccount.address);
-    assert.equal(balance_wei, 0, "balance not equal");
   });
 });
 
