@@ -9,6 +9,7 @@ import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
 import "./rlp/RLPEncode.sol";
 import "./rlp/RLPDecode.sol";
+import "./rlp/CmnPkg.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
@@ -79,20 +80,24 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint32 status;
   }
 
-  uint8 constant public   BIND_PACKAGE = 0x00;
-  uint8 constant public   UNBIND_PACKAGE = 0x01;
+  uint8 constant public   BIND_PACKAGE = 0;
+  uint8 constant public   UNBIND_PACKAGE = 1;
 
-  uint8 constant public   BIND_STATUS_SUCCESS = 0x00;
-  uint8 constant public   BIND_STATUS_TIMEOUT = 0x01;
-  uint8 constant public   BIND_STATUS_INCORRECT_PARAMETERS = 0x02;
-  uint8 constant public   BIND_STATUS_REJECTED = 0x03;
+  // bind channel error code
+  uint32 constant public   ERROR_BIND_TIMEOUT = 1;
+  uint32 constant public   ERROR_BIND_INCORRECT_PARAMETERS = 2;
+  uint32 constant public   ERROR_BIND_REJECTED = 3;
+  uint32 constant public   ERROR_BIND_UNKNOWN_PACKAGE_TYPE = 4;
 
-  uint8 constant public   TRANSFER_IN_SUCCESS = 0x00;
-  uint8 constant public   TRANSFER_IN_FAILURE_TIMEOUT = 0x01;
-  uint8 constant public   TRANSFER_IN_FAILURE_UNBOUND_TOKEN = 0x02;
-  uint8 constant public   TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE = 0x03;
-  uint8 constant public   TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT = 0x04;
-  uint8 constant public   TRANSFER_IN_FAILURE_UNKNOWN = 0x05;
+  // transfer in channel error code
+  uint32 constant public   ERROR_TRANSFER_IN_TIMEOUT = 1;
+  uint32 constant public   ERROR_TRANSFER_IN_UNBOUND_TOKEN = 2;
+  uint32 constant public   ERROR_TRANSFER_IN_INSUFFICIENT_BALANCE = 3;
+  uint32 constant public   ERROR_TRANSFER_IN_NON_PAYABLE_RECIPIENT = 4;
+  uint32 constant public   ERROR_TRANSFER_IN_UNKNOWN = 5;
+
+  // channel error code
+  uint32 constant public   ERROR_UNKNOWN_CHANNEL_ID = 101;
 
   uint8 constant public   BIND_CHANNEL_ID = 0x01;
   uint8 constant public   TRANSFER_IN_CHANNEL_ID = 0x02;
@@ -118,6 +123,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount);
   event transferOutSuccess();
   event rewardTo(address to, uint256 amount);
+  event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
   event LogUnexpectedRevertInBEP2E(address indexed contractAddr, string reason);
   event LogUnexpectedFailureAssertionInBEP2E(address indexed contractAddr, bytes lowLevelData);
@@ -155,8 +161,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       return handleBindSyncPackage(msgBytes);
     } else if (channelId == TRANSFER_IN_CHANNELID) {
       return handleTransferInSyncPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+      return CmnPkg.encodeCommonAckPackage(ERROR_UNKNOWN_CHANNEL_ID);
     }
-    return new bytes(0);
   }
 
   function handleAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
@@ -164,11 +172,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       handleApproveBindAckPackage(msgBytes);
     } else if (channelId == TRANSFER_OUT_CHANNELID) {
       handleTransferOutAckPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
     }
   }
 
-  function handleFailAckPackage(uint8 /* channelId */, bytes calldata /* msgBytes */) onlyInit onlyCrossChainContract external override {
-    return;
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
+    emit unexpectedPackage(channelId, msgBytes);
   }
 
   function decodeBindSyncPackage(bytes memory msgBytes) internal pure returns(BindSyncPackage memory, bool) {
@@ -202,7 +212,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function handleBindSyncPackage(bytes memory msgBytes) onlyInit internal returns(bytes memory) {
     (BindSyncPackage memory bindSyncPkg, bool success) = decodeBindSyncPackage(msgBytes);
     if (!success) {
-      return msgBytes;
+      return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
     }
     if (bindSyncPkg.packageType == BIND_PACKAGE) {
       bindPackageRecord[bindSyncPkg.bep2TokenSymbol]=bindSyncPkg;
@@ -212,11 +222,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         delete contractAddrToBEP2Symbol[contractAddr];
         delete bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol];
       }
+    } else {
+      return CmnPkg.encodeCommonAckPackage(ERROR_BIND_UNKNOWN_PACKAGE_TYPE);
     }
-    BindAckPackage memory bindAckPackage = BindAckPackage({
-      bep2TokenSymbol: bindSyncPkg.bep2TokenSymbol
-    });
-    return encodeBindAckPackage(bindAckPackage);
+    return new bytes(0);
   }
 
   function handleApproveBindAckPackage(bytes memory msgBytes) onlyInit internal {
@@ -243,7 +252,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     if (bindSyncPkg.expireTime<block.timestamp) {
       delete bindPackageRecord[bep2TokenSymbol];
       ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-        status: BIND_STATUS_TIMEOUT,
+        status: ERROR_BIND_TIMEOUT,
         bep2TokenSymbol: bep2TokenSymbol
       });
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
@@ -259,7 +268,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       decimals!=bindSyncPkg.bep2eDecimals) {
       delete bindPackageRecord[bep2TokenSymbol];
       ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-        status: BIND_STATUS_INCORRECT_PARAMETERS,
+        status: ERROR_BIND_INCORRECT_PARAMETERS,
         bep2TokenSymbol: bep2TokenSymbol
       });
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
@@ -272,7 +281,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_SUCCESS,
+      status: CODE_OK,
       bep2TokenSymbol: bep2TokenSymbol
     });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
@@ -288,7 +297,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_REJECTED,
+      status: ERROR_BIND_REJECTED,
       bep2TokenSymbol: bep2TokenSymbol
     });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
@@ -303,7 +312,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_TIMEOUT,
+      status: ERROR_BIND_TIMEOUT,
       bep2TokenSymbol: bep2TokenSymbol
     });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
@@ -344,16 +353,16 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function handleTransferInSyncPackage(bytes memory msgBytes) internal returns(bytes memory) {
     (TransferInSyncPackage memory transInSyncPkg, bool success) = decodeTransferInSyncPackage(msgBytes);
     if (!success) {
-      return msgBytes;
+      return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
     }
-    uint32 status = doTransferIn(transInSyncPkg);
-    if (status != TRANSFER_IN_SUCCESS) {
+    uint32 resCode = doTransferIn(transInSyncPkg);
+    if (resCode != CODE_OK) {
       uint256 bep2Amount = convertToBep2Amount(transInSyncPkg.amount, bep2eContractDecimals[transInSyncPkg.contractAddr]);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
           bep2TokenSymbol: transInSyncPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
           refundAddr: transInSyncPkg.refundAddr,
-          status: status
+          status: resCode
       });
       return encodeTransferInRefundPackage(transInAckPkg);
     } else {
@@ -364,45 +373,45 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function doTransferIn(TransferInSyncPackage memory transInSyncPkg) internal returns (uint32) {
     if (transInSyncPkg.contractAddr==address(0x0)) {
       if (block.timestamp > transInSyncPkg.expireTime) {
-        return TRANSFER_IN_FAILURE_TIMEOUT;
+        return ERROR_TRANSFER_IN_TIMEOUT;
       }
       if (address(this).balance < transInSyncPkg.amount) {
-        return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
+        return ERROR_TRANSFER_IN_INSUFFICIENT_BALANCE;
       }
       if (!transInSyncPkg.recipient.send(transInSyncPkg.amount)) {
-        return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
+        return ERROR_TRANSFER_IN_NON_PAYABLE_RECIPIENT;
       }
-      return TRANSFER_IN_SUCCESS;
+      return CODE_OK;
     } else {
       if (block.timestamp > transInSyncPkg.expireTime) {
-        return TRANSFER_IN_FAILURE_TIMEOUT;
+        return ERROR_TRANSFER_IN_TIMEOUT;
       }
       if (contractAddrToBEP2Symbol[transInSyncPkg.contractAddr]!= transInSyncPkg.bep2TokenSymbol) {
-        return TRANSFER_IN_FAILURE_UNBOUND_TOKEN;
+        return ERROR_TRANSFER_IN_UNBOUND_TOKEN;
       }
       try IBEP2E(transInSyncPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this)) returns (uint256 actualBalance) {
         if (actualBalance < transInSyncPkg.amount) {
-          return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
+          return ERROR_TRANSFER_IN_INSUFFICIENT_BALANCE;
         }
       } catch Error(string memory reason) {
         emit LogUnexpectedRevertInBEP2E(transInSyncPkg.contractAddr, reason);
-        return TRANSFER_IN_FAILURE_UNKNOWN;
+        return ERROR_TRANSFER_IN_UNKNOWN;
       } catch (bytes memory lowLevelData) {
         emit LogUnexpectedFailureAssertionInBEP2E(transInSyncPkg.contractAddr, lowLevelData);
-        return TRANSFER_IN_FAILURE_UNKNOWN;
+        return ERROR_TRANSFER_IN_UNKNOWN;
       }
       try IBEP2E(transInSyncPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSyncPkg.recipient, transInSyncPkg.amount) returns (bool success) {
         if (success){
-          return TRANSFER_IN_SUCCESS;
+          return CODE_OK;
         } else {
-          return TRANSFER_IN_FAILURE_UNKNOWN;
+          return ERROR_TRANSFER_IN_UNKNOWN;
         }
       } catch Error(string memory reason) {
         emit LogUnexpectedRevertInBEP2E(transInSyncPkg.contractAddr, reason);
-        return TRANSFER_IN_FAILURE_UNKNOWN;
+        return ERROR_TRANSFER_IN_UNKNOWN;
       } catch (bytes memory lowLevelData) {
         emit LogUnexpectedFailureAssertionInBEP2E(transInSyncPkg.contractAddr, lowLevelData);
-        return TRANSFER_IN_FAILURE_UNKNOWN;
+        return ERROR_TRANSFER_IN_UNKNOWN;
       }
     }
   }

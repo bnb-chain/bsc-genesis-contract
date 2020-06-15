@@ -8,6 +8,9 @@ contract System {
 
   bool public alreadyInit;
 
+  uint32 public constant CODE_OK = 0;
+  uint32 public constant ERROR_FAIL_DECODE = 100;
+
   uint8 constant public BIND_CHANNELID = 0x01;
   uint8 constant public TRANSFER_IN_CHANNELID = 0x02;
   uint8 constant public TRANSFER_OUT_CHANNELID = 0x03;
