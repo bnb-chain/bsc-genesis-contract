@@ -6,6 +6,7 @@ const RLPDecode = artifacts.require("rlp/RLPDecode");
 const RLPEncode = artifacts.require("rlp/RLPEncode");
 const BytesToTypes = artifacts.require("rlp/BytesToTypes");
 const Memory = artifacts.require("Seriality/Memory");
+const SafeMath = artifacts.require("lib/SafeMath");
 const BytesLib = artifacts.require("solidity-bytes-utils/contracts/BytesLib");
 
 const MockLightClient = artifacts.require("mock/MockLightClient");
@@ -21,6 +22,7 @@ const CrossChain = artifacts.require("CrossChain");
 const TokenHub = artifacts.require("TokenHub");
 const ABCToken = artifacts.require("test/ABCToken");
 const DEFToken = artifacts.require("test/DEFToken");
+const MiniToken = artifacts.require("test/MiniToken");
 const MaliciousToken = artifacts.require("test/MaliciousToken");
 const BSCValidatorSetTool = artifacts.require("tool/BSCValidatorSetTool");
 
@@ -39,19 +41,13 @@ module.exports = function(deployer, network, accounts) {
     tendermintLightClientInstance=_tendermintLightClientInstance;
     tendermintLightClientInstance.init();
   });
-  let tokenHubInstance;
-  deployer.deploy(TokenHub).then(function(_tokenHubInstance){
-    tokenHubInstance=_tokenHubInstance;
-    tokenHubInstance.init({
-      from: accounts[0],
-      value: 50e18})
-  });
   let crossChainInstance;
   deployer.deploy(CrossChain).then(function (_crossChainInstance) {
     crossChainInstance = _crossChainInstance;
   });
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
+  deployer.deploy(MiniToken);
   deployer.deploy(MaliciousToken);
   deployer.deploy(MockRelayerHub);
   deployer.deploy(BSCValidatorSetTool);
@@ -65,12 +61,15 @@ module.exports = function(deployer, network, accounts) {
     instance.addOperator(RelayerIncentivize.address, {from: accounts[0]});
   });
 
+  let tokenHubInstance;
   let relayerHubInstance;
   // deploy lib
   deployer.deploy(TypesToBytes).then(function() {
     return deployer.deploy(BytesToTypes);
   }).then(function() {
     return deployer.deploy(Memory);
+  }).then(function() {
+    return deployer.deploy(SafeMath);
   }).then(function() {
     return deployer.deploy(BytesLib);
   }).then(function() {
@@ -82,6 +81,16 @@ module.exports = function(deployer, network, accounts) {
   }).then(function() {
     // deploy mock
     return deployer.deploy(MockLightClient);
+  }).then(function() {
+    deployer.deploy(TokenHub).then(function(_tokenHubInstance){
+      deployer.link(RLPEncode, TokenHub);
+      deployer.link(RLPDecode, TokenHub);
+      deployer.link(SafeMath, TokenHub);
+      tokenHubInstance=_tokenHubInstance;
+      tokenHubInstance.init({
+        from: accounts[0],
+        value: 50e18})
+    });
   }).then(function() {
     // deploy mock
     deployer.link(Memory, RelayerHub);
