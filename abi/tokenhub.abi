@@ -9,44 +9,6 @@
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "bytes",
-				"name": "lowLevelData",
-				"type": "bytes"
-			}
-		],
-		"name": "LogUnexpectedFailureAssertionInBEP2E",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "reason",
-				"type": "string"
-			}
-		],
-		"name": "LogUnexpectedRevertInBEP2E",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
 				"indexed": false,
 				"internalType": "string",
 				"name": "key",
@@ -133,8 +95,71 @@
 	},
 	{
 		"anonymous": false,
-		"inputs": [],
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "bep2eAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "refundAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferInSuccess",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "bep2eAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "senderAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
 		"name": "transferOutSuccess",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "msgBytes",
+				"type": "bytes"
+			}
+		],
+		"name": "unexpectedPackage",
 		"type": "event"
 	},
 	{
@@ -275,12 +300,57 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "BIND_STATUS_UNKNOWN_PACKAGE_TYPE",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "CODE_OK",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "CROSS_CHAIN_CONTRACT_ADDR",
 		"outputs": [
 			{
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_FAIL_DECODE",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
 			}
 		],
 		"payable": false,
@@ -335,22 +405,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "INIT_MINIMUM_ACK_RELAY_FEE",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "INIT_MINIMUM_SYNC_RELAY_FEE",
+		"name": "INIT_MINIMUM_RELAY_FEE",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -461,6 +516,21 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SLASH_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
 			}
 		],
 		"payable": false,
@@ -695,21 +765,6 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "ackRelayFee",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
 		"name": "alreadyInit",
 		"outputs": [
 			{
@@ -857,6 +912,21 @@
 		"type": "function"
 	},
 	{
+		"constant": true,
+		"inputs": [],
+		"name": "bscChainID",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"constant": false,
 		"inputs": [
 			{
@@ -954,11 +1024,6 @@
 				"internalType": "uint256",
 				"name": "",
 				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -990,12 +1055,12 @@
 		"inputs": [
 			{
 				"internalType": "uint8",
-				"name": "",
+				"name": "channelId",
 				"type": "uint8"
 			},
 			{
 				"internalType": "bytes",
-				"name": "",
+				"name": "msgBytes",
 				"type": "bytes"
 			}
 		],
@@ -1019,7 +1084,7 @@
 				"type": "bytes"
 			}
 		],
-		"name": "handleSyncPackage",
+		"name": "handleSynPackage",
 		"outputs": [
 			{
 				"internalType": "bytes",
@@ -1069,7 +1134,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "syncRelayFee",
+		"name": "relayFee",
 		"outputs": [
 			{
 				"internalType": "uint256",

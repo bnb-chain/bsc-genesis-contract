@@ -85,7 +85,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     indicators[validator] = indicator;
     if(indicator.count % felonyThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
     }else if (indicator.count % misdemeanorThreshold == 0){
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }

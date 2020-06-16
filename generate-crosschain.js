@@ -20,6 +20,10 @@ program.option("--bscChainId <bscChainId>",
     "bsc chain id",
     "0060");
 
+program.option("--initBatchSizeForOracle <initBatchSizeForOracle>",
+    "init batch size for oracle",
+    "50");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -28,6 +32,7 @@ program.parse(process.argv);
 
 const data = {
   bscChainId: program.bscChainId,
+  initBatchSizeForOracle: program.initBatchSizeForOracle,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

@@ -16,12 +16,8 @@ program.option(
     "./contracts/TokenHub.sol"
 )
 
-program.option("--syncRelayFee <syncRelayFee>",
-    "syncRelayFee",
-    "1e16");
-
-program.option("--ackRelayFee <ackRelayFee>",
-    "ackRelayFee",
+program.option("--initRelayFee <initRelayFee>",
+    "initRelayFee",
     "1e16");
 
 program.option("--maxGasForCallingBEP2E <maxGasForCallingBEP2E>",
@@ -35,8 +31,7 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
-    syncRelayFee: program.syncRelayFee,
-    ackRelayFee: program.ackRelayFee,
+    initRelayFee: program.initRelayFee,
   maxGasForCallingBEP2E: program.maxGasForCallingBEP2E,
   mock: program.mock,
 };
