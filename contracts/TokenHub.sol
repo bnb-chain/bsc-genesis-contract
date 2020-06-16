@@ -505,8 +505,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
       if (isMiniBEP2Token(bep2TokenSymbol)) {
-        uint256 balance = IBEP2E(contractAddr).balanceOf(msg.sender);
-        require(convertedAmount > 1e8 || balance == amount, "For miniToken, the transfer amount must be either large than 1 or equal to its balance");
+        require(convertedAmount > 1e8 , "For miniToken, the transfer amount must be either large than 1");
       }
       require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");

@@ -28,7 +28,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   //state variables
   uint256 public previousTxHeight;
   uint256 public txCounter;
-  uint64 public oracleSequence;
+  int64 public oracleSequence;
   mapping(uint8 => address) public channelHandlerContractMap;
   mapping(address => bool) public registeredContractMap;
   mapping(uint8 => uint64) public channelSendSequenceMap;
@@ -114,7 +114,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     batchSizeForOracle = INIT_BATCH_SIZE;
 
-    oracleSequence = 0;
+    oracleSequence = -1;
     previousTxHeight = 0;
     txCounter = 0;
 
@@ -235,8 +235,6 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
   }
 
   function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal {
-    emit crossChainPackage(bscChainID, oracleSequence, packageSequence, channelId, payload);
-
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
@@ -248,6 +246,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
         txCounter = 0;
       }
     }
+    emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
   function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit registeredContract external override returns(bool) {
