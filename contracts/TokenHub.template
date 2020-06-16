@@ -92,10 +92,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT = 4;
   uint8 constant public   TRANSFER_IN_FAILURE_UNKNOWN = 5;
 
-  uint8 constant public   BIND_CHANNEL_ID = 0x01;
-  uint8 constant public   TRANSFER_IN_CHANNEL_ID = 0x02;
-  uint8 constant public   REFUND_CHANNEL_ID=0x03;
-
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
@@ -220,7 +216,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
-  function approveBind(address contractAddr, string memory bep2Symbol) payable public returns (bool) {
+  function approveBind(address contractAddr, string memory bep2Symbol) payable public onlyInit returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -269,7 +265,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function rejectBind(address contractAddr, string memory bep2Symbol) payable public returns (bool) {
+  function rejectBind(address contractAddr, string memory bep2Symbol) payable public onlyInit returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -285,7 +281,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function expireBind(string memory bep2Symbol) payable public returns (bool) {
+  function expireBind(string memory bep2Symbol) payable public onlyInit returns (bool) {
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -531,7 +527,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) override external payable returns (bool) {
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) override external onlyInit payable returns (bool) {
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
@@ -570,7 +566,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) override external payable returns (bool) {
+  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) override external onlyInit payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
