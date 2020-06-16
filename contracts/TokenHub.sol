@@ -505,7 +505,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
       if (isMiniBEP2Token(bep2TokenSymbol)) {
-        require(convertedAmount > 1e8 , "For miniToken, the transfer amount must be either large than 1");
+        require(convertedAmount >= 1e8 , "For miniToken, the transfer amount must not be less than 1");
       }
       require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
@@ -591,7 +591,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
      assembly {
        mstore(add(symbolBytes, 32), symbol)
      }
-     uint256 symbolLength = symbolBytes.length;
+     uint8 symbolLength = 0;
+     for (uint8 j = 0; j < 32; j++) {
+       if (symbolBytes[j] != 0) {
+         symbolLength++;
+       } else {
+         break;
+       }
+     }
      if (symbolLength < MINIMUM_BEP2E_SYMBOL_LEN + 5) {
        return false;
      }
