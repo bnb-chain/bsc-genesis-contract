@@ -87,9 +87,8 @@ module.exports = function(deployer, network, accounts) {
       deployer.link(RLPDecode, TokenHub);
       deployer.link(SafeMath, TokenHub);
       tokenHubInstance=_tokenHubInstance;
-      tokenHubInstance.init({
-        from: accounts[0],
-        value: 50e18})
+      tokenHubInstance.init();
+      tokenHubInstance.sendTransaction({from:accounts[0],value:50e18});
     });
   }).then(function() {
     // deploy mock

@@ -113,22 +113,22 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
   event refundFailure(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
   event rewardTo(address to, uint256 amount);
+  event receiveDeposit(address from, uint256 amount);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
-
   event paramChange(string key, bytes value);
 
   constructor() public {}
-  {% if mock %}
-  function init() onlyNotInit public payable {
-    relayFee = INIT_MINIMUM_RELAY_FEE;
-    alreadyInit=true;
-  }
-  {% else %}
+
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
     alreadyInit=true;
   }
-  {% endif %}
+
+  receive() external payable{
+    if (msg.value>0){
+      emit receiveDeposit(msg.sender, msg.value);
+    }
+  }
 
   function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;

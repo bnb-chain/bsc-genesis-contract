@@ -24,17 +24,18 @@ contract SystemReward is System, ISystemReward{
     require(operators[msg.sender],"only operator is available to call the method");
     _;
   }
-
-  event NewOperator(address indexed operator);
-  event DeleteOperator(address indexed operator);
-  event RewardTo(address indexed to, uint256 amount);
-  event RewardEmpty();
-  event ReceiveDeposit(address indexed from, uint256 amount);
+  {% if mock %}
+  event newOperator(address indexed operator);
+  event deleteOperator(address indexed operator);
+  {% endif %}
+  event rewardTo(address indexed to, uint256 amount);
+  event rewardEmpty();
+  event receiveDeposit(address indexed from, uint256 amount);
 
 
   receive() external payable{
     if (msg.value>0){
-      emit ReceiveDeposit(msg.sender, msg.value);
+      emit receiveDeposit(msg.sender, msg.value);
     }
   }
 
@@ -52,13 +53,13 @@ contract SystemReward is System, ISystemReward{
   function addOperator(address operator) external doInit onlyOperatorNotExist(operator){
     operators[operator] = true;
     numOperator ++;
-    emit NewOperator(operator);
+    emit newOperator(operator);
   }
 
   function removeOperator(address operator) external doInit onlyOperatorExist(operator){
     delete operators[operator];
     numOperator --;
-    emit DeleteOperator(operator);
+    emit deleteOperator(operator);
   }
   {% endif %}
   function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns(uint256) {
@@ -68,9 +69,9 @@ contract SystemReward is System, ISystemReward{
     }
     if(actualAmount>0){
       to.transfer(actualAmount);
-      emit RewardTo(to, actualAmount);
+      emit rewardTo(to, actualAmount);
     }else{
-      emit RewardEmpty();
+      emit rewardEmpty();
     }
     return actualAmount;
   }
