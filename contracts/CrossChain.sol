@@ -6,6 +6,7 @@ import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/IRelayerHub.sol";
 import "./Seriality/Memory.sol";
+import "./Seriality/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./MerkleProof.sol";
@@ -13,26 +14,32 @@ import "./MerkleProof.sol";
 
 contract CrossChain is System, ICrossChain, IParamSubscriber{
 
-  // the store name of the package
+  // constant variables
   string constant public STORE_NAME = "ibc";
-
+  uint256 constant public CROSS_CHAIN_KEY_PREFIX = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
   uint8 constant public SYN_PACKAGE = 0x00;
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;
+  uint256 constant public INIT_BATCH_SIZE = 50;
 
-  uint256 constant crossChainKeyPrefix = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
+  // governable parameters
+  uint256 public batchSizeForOracle;
 
+  //state variables
+  uint256 public previousTxHeight;
+  uint256 public txCounter;
+  int64 public oracleSequence;
   mapping(uint8 => address) public channelHandlerContractMap;
   mapping(address => bool) public registeredContractMap;
   mapping(uint8 => uint64) public channelSendSequenceMap;
   mapping(uint8 => uint64) public channelReceiveSequenceMap;
   mapping(uint8 => bool) public isRelayRewardFromSystemReward;
 
-  event crossChainPackage(uint16 chainId, uint64 indexed sequence, uint8 indexed channelId, bytes payload);
+  // event
+  event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event unexpectedRevertInPackageHandler(address indexed contractAddr, string reason);
   event unexpectedFailureAssertionInPackageHandler(address indexed contractAddr, bytes lowLevelData);
-
   event paramChange(string key, bytes value);
   event addChannel(uint8 indexed channelId, address indexed contractAddr);
 
@@ -62,7 +69,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
   function generateKey(uint64 _sequence, uint8 _channelID) internal pure returns(bytes memory) {
-    uint256 fullCrossChainKeyPrefix = crossChainKeyPrefix | _channelID;
+    uint256 fullCROSS_CHAIN_KEY_PREFIX = CROSS_CHAIN_KEY_PREFIX | _channelID;
     bytes memory key = new bytes(14);
 
     uint256 ptr;
@@ -74,7 +81,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
     ptr -= 8;
     assembly {
-      mstore(ptr, fullCrossChainKeyPrefix)
+      mstore(ptr, fullCROSS_CHAIN_KEY_PREFIX)
     }
     ptr -= 6;
     assembly {
@@ -104,6 +111,12 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     channelHandlerContractMap[SLASH_CHANNELID] = SLASH_CONTRACT_ADDR;
     isRelayRewardFromSystemReward[SLASH_CHANNELID] = true;
     registeredContractMap[SLASH_CONTRACT_ADDR] = true;
+
+    batchSizeForOracle = INIT_BATCH_SIZE;
+
+    oracleSequence = -1;
+    previousTxHeight = 0;
+    txCounter = 0;
 
     alreadyInit=true;
   }
@@ -189,15 +202,15 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
         if(responsePayload.length!=0){
-          emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, responsePayload));
+          sendPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, responsePayload));
           channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         }
       } catch Error(string memory reason) {
-        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
+        sendPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
         channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         emit unexpectedRevertInPackageHandler(handlerContract, reason);
       } catch (bytes memory lowLevelData) {
-        emit crossChainPackage(bscChainID, channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
+        sendPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(FAIL_ACK_PACKAGE, 0, msgBytes));
         channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         emit unexpectedFailureAssertionInPackageHandler(handlerContract, lowLevelData);
       }
@@ -221,34 +234,60 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit registeredContract external override returns(bool) {
+  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal {
+    if (block.number > previousTxHeight) {
+      oracleSequence++;
+      txCounter = 1;
+      previousTxHeight=block.number;
+    } else {
+      txCounter++;
+      if(txCounter>=batchSizeForOracle) {
+        oracleSequence++;
+        txCounter = 0;
+      }
+    }
+    emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
+  }
+
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit registeredContract external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
-    emit crossChainPackage(bscChainID, sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
+    sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
     return true;
   }
 
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
-    bytes memory localKey = bytes(key);
-    bytes memory localValue = value;
-    // first byte is channel Id, second byte is relayRewardFromSystemReward
-    require(localKey.length == 2, "expected key length is 2");
-    // length is 20, used to add or delete channel
-    require(localValue.length == 20, "expected value length is 20");
+    if (Memory.compareStrings(key, "batchSizeForOracle")){
+      uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
+      require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
+      batchSizeForOracle = newBatchSizeForOracle;
+    } else if (Memory.compareStrings(key, "addChannel")){
+      bytes memory valueLocal = value;
+      require(valueLocal.length == 22, "length of value for addChannel should be 22, channelId:isFromSystem:handlerAddress");
+      uint8 channelId;
+      assembly {
+        channelId := mload(add(valueLocal, 1))
+      }
 
-    uint8 channelId = uint8(localKey[0]);
-    bool fromSystem = uint8(localKey[1]) == 0x00;
+      uint8 isRewardFromSystem;
+      assembly {
+        isRewardFromSystem := mload(add(valueLocal, 2))
+      }
 
-    address handlerContract;
-    assembly {
-      handlerContract := mload(add(localValue, 20))
+      address handlerContract;
+      assembly {
+        handlerContract := mload(add(valueLocal, 22))
+      }
+
+      require(isContract(handlerContract), "address is not a contract");
+      channelHandlerContractMap[channelId]=handlerContract;
+      registeredContractMap[handlerContract] = true;
+      isRelayRewardFromSystemReward[channelId] = (isRewardFromSystem == 0x0);
+      emit addChannel(channelId, handlerContract);
+    } else {
+      require(false, "unknown param");
     }
-    require(isContract(handlerContract), "address is not a contract");
-    channelHandlerContractMap[channelId]=handlerContract;
-    registeredContractMap[handlerContract] = true;
-    isRelayRewardFromSystemReward[channelId] = fromSystem;
-    emit addChannel(channelId, handlerContract);
     emit paramChange(key, value);
   }
 }

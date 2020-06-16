@@ -7,7 +7,9 @@ const TokenHub = artifacts.require("TokenHub");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 const RLP = require('rlp');
+const Web3 = require('web3');
 const GOV_CHANNEL_ID = 0x09;
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 contract('GovHub others', (accounts) => {
     it('Gov others success', async () => {
@@ -121,16 +123,24 @@ contract('GovHub others', (accounts) => {
         const crossChainInstance =await CrossChain.deployed();
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize(0x5700, RelayerIncentivize.address, crossChainInstance.address),
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === 'W\u0000';
+            return ev.key === 'addChannel';
         });
 
         let appAddr = await crossChainInstance.channelHandlerContractMap.call(0x57);
         assert.equal(appAddr, RelayerIncentivize.address, "value not equal");
         let fromSys = await crossChainInstance.isRelayRewardFromSystemReward.call(0x57);
         assert.equal(fromSys, true, "should from system reward");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("batchSizeForOracle", "0x0000000000000000000000000000000000000000000000000000000000000064", crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'batchSizeForOracle';
+        });
+        let batchSizeForOracle = await crossChainInstance.batchSizeForOracle.call();
+        assert.equal(batchSizeForOracle, 100, "value not equal");
     });
 });
 

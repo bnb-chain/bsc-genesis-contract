@@ -30,7 +30,13 @@
 			{
 				"indexed": true,
 				"internalType": "uint64",
-				"name": "sequence",
+				"name": "oracleSequence",
+				"type": "uint64"
+			},
+			{
+				"indexed": true,
+				"internalType": "uint64",
+				"name": "packageSequence",
 				"type": "uint64"
 			},
 			{
@@ -164,12 +170,42 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "CODE_OK",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "CROSS_CHAIN_CONTRACT_ADDR",
 		"outputs": [
 			{
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "ERROR_FAIL_DECODE",
+		"outputs": [
+			{
+				"internalType": "uint32",
+				"name": "",
+				"type": "uint32"
 			}
 		],
 		"payable": false,
@@ -230,6 +266,21 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "INIT_BATCH_SIZE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -329,7 +380,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "SYNC_PACKAGE",
+		"name": "SYN_PACKAGE",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -433,6 +484,36 @@
 	},
 	{
 		"constant": true,
+		"inputs": [],
+		"name": "batchSizeForOracle",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "bscChainID",
+		"outputs": [
+			{
+				"internalType": "uint16",
+				"name": "",
+				"type": "uint16"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint8",
@@ -504,12 +585,7 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "syncRelayFee",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "ackRelayFee",
+				"name": "relayFee",
 				"type": "uint256"
 			},
 			{
@@ -597,6 +673,42 @@
 	},
 	{
 		"constant": true,
+		"inputs": [],
+		"name": "oracleSequence",
+		"outputs": [
+			{
+				"internalType": "uint64",
+				"name": "",
+				"type": "uint64"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "packageCounterForEachHeight",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "address",
@@ -631,16 +743,11 @@
 			},
 			{
 				"internalType": "uint256",
-				"name": "syncRelayFee",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "ackRelayFee",
+				"name": "relayFee",
 				"type": "uint256"
 			}
 		],
-		"name": "sendPackage",
+		"name": "sendSynPackage",
 		"outputs": [
 			{
 				"internalType": "bool",

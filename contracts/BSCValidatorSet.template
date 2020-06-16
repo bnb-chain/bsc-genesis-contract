@@ -33,12 +33,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
-  uint32 public constant CODE_OK = 0;
-  uint32 public constant ERROR_FAIL_DECODE = 101;
-  uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 102;
-  uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 103;
-  uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 104;
-  uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 105;
+  uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
+  uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
+  uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 103;
+  uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 104;
 
 
   /*********************** state of the contract **************************/
@@ -88,6 +86,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(address indexed validator, uint256 amount);
   event failReasonWithStr(string message);
+  event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
 
   /*********************** init **************************/
@@ -123,14 +122,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function handleAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
+  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract override {
     // should not happen
-    require(false, "receive unexpected ack package");
+    emit unexpectedPackage(channelId, msgBytes);
   }
 
-  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract override {
     // should not happen
-    require(false, "receive unexpected fail ack package");
+    emit unexpectedPackage(channelId, msgBytes);
   }
 
   /*********************** External Functions **************************/
