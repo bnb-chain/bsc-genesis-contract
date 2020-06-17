@@ -309,6 +309,9 @@ contract('TokenHub', (accounts) => {
         assert.equal(bep2Symbol, "ABC-9C7", "wrong symbol");
         const contractAddr = await tokenHub.getBoundContract.call("ABC-9C7");
         assert.equal(contractAddr, abcToken.address, "wrong contract addr");
+
+        let tokenManagerBalance = await web3.eth.getBalance(tokenManager.address);
+        assert.equal(tokenManagerBalance, "0", "tokenManager balance should be zero");
     });
     it('Relayer transfer from BC to BSC', async () => {
         const tokenHub = await TokenHub.deployed();

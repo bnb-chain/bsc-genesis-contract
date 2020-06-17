@@ -128,6 +128,7 @@ contract TokenManager is System, IApplication {
         status: BIND_STATUS_TIMEOUT,
         bep2TokenSymbol: bep2TokenSymbol
       });
+      address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
       return false;
     }
@@ -144,6 +145,7 @@ contract TokenManager is System, IApplication {
         status: BIND_STATUS_INCORRECT_PARAMETERS,
         bep2TokenSymbol: bep2TokenSymbol
       });
+      address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
       return false;
     }
@@ -155,6 +157,7 @@ contract TokenManager is System, IApplication {
       status: BIND_STATUS_SUCCESS,
       bep2TokenSymbol: bep2TokenSymbol
     });
+    address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
     return true;
   }
@@ -172,6 +175,7 @@ contract TokenManager is System, IApplication {
       status: BIND_STATUS_REJECTED,
       bep2TokenSymbol: bep2TokenSymbol
     });
+    address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
     return true;
   }
@@ -188,6 +192,7 @@ contract TokenManager is System, IApplication {
       status: BIND_STATUS_TIMEOUT,
       bep2TokenSymbol: bep2TokenSymbol
     });
+    address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
     return true;
   }
