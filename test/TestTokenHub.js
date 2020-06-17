@@ -7,6 +7,7 @@ const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 //const TendermintLightClient = artifacts.require("TendermintLightClient");
 const MockLightClient = artifacts.require("mock/MockLightClient");
 const TokenHub = artifacts.require("TokenHub");
+const TokenManager = artifacts.require("TokenManager");
 const CrossChain = artifacts.require("CrossChain");
 const ABCToken = artifacts.require("ABCToken");
 const DEFToken = artifacts.require("DEFToken");
@@ -138,8 +139,6 @@ contract('TokenHub', (accounts) => {
         const tokenHub = await TokenHub.deployed();
         let balance_wei = await web3.eth.getBalance(tokenHub.address);
         assert.equal(balance_wei, 50e18, "wrong balance");
-        const _lightClientContract = await tokenHub.LIGHT_CLIENT_ADDR.call();
-        assert.equal(_lightClientContract, MockLightClient.address, "wrong tendermint light client contract address");
 
         const relayer = accounts[1];
         const relayerInstance = await RelayerHub.deployed();
@@ -149,58 +148,58 @@ contract('TokenHub', (accounts) => {
     });
     it('Relay expired bind package', async () => {
         const abcToken = await ABCToken.deployed();
-        const tokenHub = await TokenHub.deployed();
+        const tokenManager = await TokenManager.deployed();
         const crossChain = await CrossChain.deployed();
 
         const owner = accounts[0];
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "ABC-9C7", abcToken.address, 1e8, 99e6, 18);
-        let bindSequence = 0;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
-        let bindRequenst = await tokenHub.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
+        let bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
         assert.equal(bindRequenst.totalSupply.eq(new BN('52b7d2dcc80cd2e4000000', 16)), true, "wrong total supply");  // 1e26
         assert.equal(bindRequenst.peggyAmount.eq(new BN('51e410c0f93fe543000000', 16)), true, "wrong peggy amount");  // 99e24
         assert.equal(bindRequenst.contractAddr.toString(), abcToken.address.toString(), "wrong contract address");
         try {
-            await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: relayer});
+            await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("only bep2e owner can approve this bind request"));
         }
 
         try {
-            await tokenHub.approveBind("0x0000000000000000000000000000000000000000", "ABC-9C7", {from: relayer});
+            await tokenManager.approveBind("0x0000000000000000000000000000000000000000", "ABC-9C7", {from: relayer});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("contact address doesn't equal to the contract address in bind request"));
         }
 
         try {
-            await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner});
+            await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("allowance doesn't equal to (totalSupply - peggyAmount)"));
         }
 
-        await abcToken.approve(tokenHub.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)), {from: owner});
+        await abcToken.approve(tokenManager.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)), {from: owner});
         await sleep(5 * 1000);
         // approve expired bind request
-        let tx = await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
+        let tx = await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x01", "bind status should be timeout");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
-        bindRequenst = await tokenHub.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
+        bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Reject bind', async () => {
-        const tokenHub = await TokenHub.deployed();
+        const tokenManager = await TokenManager.deployed();
         const abcToken = await ABCToken.deployed();
         const crossChain = await CrossChain.deployed();
 
@@ -208,18 +207,18 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "ABC-9C7", abcToken.address, 1e8, 99e6, 18);                                                      //expire time
-        let bindSequence = 1;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
         try {
-            await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: relayer, value: 1e16});
+            await tokenManager.rejectBind(abcToken.address, "ABC-9C7", {from: relayer, value: 1e16});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("only bep2e owner can reject"));
         }
 
-        let tx = await tokenHub.rejectBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
+        let tx = await tokenManager.rejectBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
@@ -227,11 +226,11 @@ contract('TokenHub', (accounts) => {
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x03", "bind status should be rejected");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
-        const bindRequenst = await tokenHub.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
+        const bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Expire bind', async () => {
-        const tokenHub = await TokenHub.deployed();
+        const tokenManager = await TokenManager.deployed();
         const abcToken = await ABCToken.deployed();
         const crossChain = await CrossChain.deployed();
 
@@ -239,12 +238,12 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "ABC-9C7", abcToken.address, 1e8, 99e6, 18);
-        let bindSequence = 2;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         let tx = await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
         try {
-            await tokenHub.expireBind("ABC-9C7", {from: accounts[2], value: 1e16});
+            await tokenManager.expireBind("ABC-9C7", {from: accounts[2], value: 1e16});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("bind request is not expired"));
@@ -252,18 +251,18 @@ contract('TokenHub', (accounts) => {
 
         await sleep(5 * 1000);
 
-        tx = await tokenHub.expireBind("ABC-9C7", {from: accounts[2], value: 1e16});
+        tx = await tokenManager.expireBind("ABC-9C7", {from: accounts[2], value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x01", "bind status should be timeout");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
-        bindRequenst = await tokenHub.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
+        bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Mismatched token symbol', async () => {
-        const tokenHub = await TokenHub.deployed();
+        const tokenManager = await TokenManager.deployed();
         const abcToken = await ABCToken.deployed();
         const crossChain = await CrossChain.deployed();
 
@@ -271,22 +270,22 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "DEF-9C7", abcToken.address, 1e8, 99e6, 18);
-        let bindSequence = 3;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         let tx = await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
-        
-        tx = await tokenHub.approveBind(abcToken.address, "DEF-9C7", {from: owner, value: 1e16});
+
+        tx = await tokenManager.approveBind(abcToken.address, "DEF-9C7", {from: owner, value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x02", "bind status should be incorrect parameters");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("DEF-9C7"), "wrong bep2TokenSymbol");
 
-        bindRequenst = await tokenHub.bindPackageRecord.call(toBytes32Bep2Symbol("DEF-9C7")); // symbol: ABC-9C7
+        bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("DEF-9C7")); // symbol: ABC-9C7
         assert.equal(bindRequenst.bep2TokenSymbol.toString(), "0x0000000000000000000000000000000000000000000000000000000000000000", "wrong bep2TokenSymbol");
     });
     it('Success bind', async () => {
-        const tokenHub = await TokenHub.deployed();
+        const tokenManager = await TokenManager.deployed();
         const abcToken = await ABCToken.deployed();
         const crossChain = await CrossChain.deployed();
 
@@ -294,21 +293,25 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "ABC-9C7", abcToken.address, 1e8, 99e6, 18);
-        let bindSequence = 4;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
-        let tx = await tokenHub.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
+        let tx = await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x", "bind status should be successful");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
+        const tokenHub = await TokenHub.deployed();
         const bep2Symbol = await tokenHub.getBoundBep2Symbol.call(abcToken.address);
         assert.equal(bep2Symbol, "ABC-9C7", "wrong symbol");
         const contractAddr = await tokenHub.getBoundContract.call("ABC-9C7");
         assert.equal(contractAddr, abcToken.address, "wrong contract addr");
+
+        let tokenManagerBalance = await web3.eth.getBalance(tokenManager.address);
+        assert.equal(tokenManagerBalance, "0", "tokenManager balance should be zero");
     });
     it('Relayer transfer from BC to BSC', async () => {
         const tokenHub = await TokenHub.deployed();
@@ -318,7 +321,7 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const transferInPackage = buildTransferInPackage("ABC-9C7", abcToken.address, 155e17, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 0;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         let balance = await abcToken.balanceOf.call(accounts[2]);
         assert.equal(balance.toNumber(), 0, "wrong balance");
@@ -336,7 +339,7 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const transferInPackage = buildTransferInPackage("ABC-9C7", abcToken.address, 155e17, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 1;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         await sleep(5 * 1000);
 
@@ -365,7 +368,7 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const transferInPackage = buildTransferInPackage("BNB", "0x0000000000000000000000000000000000000000", 1e18, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 2;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         const initBalance = await web3.eth.getBalance(accounts[2]);
 
@@ -458,7 +461,7 @@ contract('TokenHub', (accounts) => {
             [refundAddr],               //refund address
             1]);                        //status
 
-        let refundSequence = 0;
+        let refundSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_OUT_CHANNELID);
 
         const amount = web3.utils.toBN(1e18);
         let balance = await abcToken.balanceOf.call(refundAddr);
@@ -504,6 +507,7 @@ contract('TokenHub', (accounts) => {
     });
     it('Bind malicious BEP2E token', async () => {
         const maliciousToken = await MaliciousToken.deployed();
+        const tokenManager = await TokenManager.deployed();
         const tokenHub = await TokenHub.deployed();
         const crossChain = await CrossChain.deployed();
 
@@ -511,19 +515,19 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "MALICIOU-A09", maliciousToken.address, 1e8, 99e6, 18);
-        let bindSequence = 5;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         let tx = await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
         assert.equal(tx.receipt.status, true, "failed transaction");
 
-        await maliciousToken.approve(tokenHub.address, web3.utils.toBN('1000000000000000000000000'), {from: owner});
-        await tokenHub.approveBind(maliciousToken.address, "MALICIOU-A09", {from: owner, value: 1e16});
+        await maliciousToken.approve(tokenManager.address, web3.utils.toBN('1000000000000000000000000'), {from: owner});
+        await tokenManager.approveBind(maliciousToken.address, "MALICIOU-A09", {from: owner, value: 1e16});
 
         const bep2Symbol = await tokenHub.getBoundBep2Symbol.call(maliciousToken.address);
         assert.equal(bep2Symbol, "MALICIOU-A09", "wrong symbol");
 
         const transferInPackage = buildTransferInPackage("MALICIOU-A09", maliciousToken.address, 155e17, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 3;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         let balance = await maliciousToken.balanceOf.call(accounts[2]);
         assert.equal(balance.toNumber(), 0, "wrong balance");
@@ -532,7 +536,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(tx.receipt.status, true, "failed transaction");
 
         let newTransferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
-        assert.equal(newTransferInSequence, transferInSequence+1, "wrong transferIn sequence");
+        assert.equal(newTransferInSequence.toNumber(), transferInSequence.toNumber()+1, "wrong transferIn sequence");
 
         packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
             "0x01" +
@@ -544,13 +548,13 @@ contract('TokenHub', (accounts) => {
             ["0x000000000000000000000000000000000000000000000000000000174876E800"], //amount
             ["0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48"],                         //refund address
             1]);                                                                    //refund address
-        let refundSequence = 1;
+        let refundSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_OUT_CHANNELID);
 
         tx = await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), proof, merkleHeight, refundSequence, TRANSFER_OUT_CHANNELID, {from: relayer});
         assert.equal(tx.receipt.status, true, "failed transaction");
 
         let newRefundSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_OUT_CHANNELID);
-        assert.equal(newRefundSequence, refundSequence+1, "wrong transferIn sequence");
+        assert.equal(newRefundSequence.toNumber(), refundSequence.toNumber()+1, "wrong transferIn sequence");
     });
     it('Uint256 overflow in transferOut and batchTransferOutBNB', async () => {
         const tokenHub = await TokenHub.deployed();
@@ -605,7 +609,7 @@ contract('TokenHub', (accounts) => {
             [accounts[3], accounts[4]],
             Math.floor(Date.now() / 1000)
         ]);
-        let refundSequence = 2;
+        let refundSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_OUT_CHANNELID);
 
         await crossChain.handlePackage(Buffer.concat([packageBytesPrefix, packageBytes]), proof, merkleHeight, refundSequence, TRANSFER_OUT_CHANNELID, {from: relayer});
 
@@ -623,7 +627,7 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(1, "ABC-9C7", abcToken.address, 0, 0, 0);
-        let bindSequence = 6;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         let tx = await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
         assert.equal(tx.receipt.status, true, "failed transaction");
@@ -635,7 +639,7 @@ contract('TokenHub', (accounts) => {
 
 
         const transferInPackage = buildTransferInPackage("ABC-9C7", abcToken.address, 1e18, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 4;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         tx = await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});
         assert.equal(tx.receipt.status, true, "failed transaction");
@@ -652,7 +656,7 @@ contract('TokenHub', (accounts) => {
             [refundAddr],                                                           //refund address
             1]);                                                                    //refund address
 
-        let refundSequence = 3;
+        let refundSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_OUT_CHANNELID);
 
         let beforeRefundBalance = await abcToken.balanceOf.call(refundAddr);
 
@@ -681,6 +685,7 @@ contract('TokenHub', (accounts) => {
         }
     });
     it('bind and transfer miniToken', async () => {
+        const tokenManager = await TokenManager.deployed();
         const tokenHub = await TokenHub.deployed();
         const miniToken = await MiniToken.deployed();
         const crossChain = await CrossChain.deployed();
@@ -689,12 +694,12 @@ contract('TokenHub', (accounts) => {
         const relayer = accounts[1];
 
         const bindPackage = buildBindPackage(0, "XYZ-9C7M", miniToken.address, 1e4, 5e3, 18);
-        let bindSequence = 7;
+        let bindSequence = await crossChain.channelReceiveSequenceMap.call(BIND_CHANNEL_ID);
 
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
-        await miniToken.approve(tokenHub.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(5e3)), {from: owner});
-        let tx = await tokenHub.approveBind(miniToken.address, "XYZ-9C7M", {from: owner, value: 1e16});
+        await miniToken.approve(tokenManager.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(5e3)), {from: owner});
+        let tx = await tokenManager.approveBind(miniToken.address, "XYZ-9C7M", {from: owner, value: 1e16});
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
@@ -729,7 +734,7 @@ contract('TokenHub', (accounts) => {
 
         amount = web3.utils.toBN(1e18);
         const transferInPackage = buildTransferInPackage("XYZ-9C7M", miniToken.address, amount, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
-        let transferInSequence = 5;
+        let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
 
         const initBalance = await miniToken.balanceOf.call(accounts[2]);
         await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});

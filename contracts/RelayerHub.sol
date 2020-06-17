@@ -1,7 +1,7 @@
 pragma solidity 0.6.4;
 
-import "./Seriality/BytesToTypes.sol";
-import "./Seriality/Memory.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";

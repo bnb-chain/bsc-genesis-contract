@@ -9,7 +9,7 @@ contract('SystemReward', (accounts) => {
     let tx = await systemRewardInstance.send(1e8, {from: accounts[3]});
     let balance_wei = await web3.eth.getBalance(systemRewardInstance.address);
     assert.equal(balance_wei, 1e8, "balance not equal");
-    truffleAssert.eventEmitted(tx, "ReceiveDeposit",(ev) => {
+    truffleAssert.eventEmitted(tx, "receiveDeposit",(ev) => {
       return ev.amount.toNumber() === 1e8 && ev.from === accounts[3];
     });
   });
@@ -36,7 +36,7 @@ contract('SystemReward', (accounts) => {
     await systemRewardInstance.send(1e8, {from: accounts[3]});
     let tx = await systemRewardInstance.claimRewards(newAccount.address, 1e7, {from: accounts[0]})
 
-    truffleAssert.eventEmitted(tx, "RewardTo",(ev) => {
+    truffleAssert.eventEmitted(tx, "rewardTo",(ev) => {
       return ev.amount.toNumber() === 1e7 && ev.to === newAccount.address;
     });
 
@@ -64,7 +64,7 @@ contract('SystemReward', (accounts) => {
     const systemRewardInstance = await SystemReward.deployed();
     let newAccount = web3.eth.accounts.create();
     let tx = await systemRewardInstance.claimRewards(newAccount.address, 1e7, {from: accounts[0]})
-    truffleAssert.eventEmitted(tx, "RewardEmpty");
+    truffleAssert.eventEmitted(tx, "rewardEmpty");
     let balance_wei = await web3.eth.getBalance(newAccount.address);
     assert.equal(balance_wei, 0, "balance not equal");
   });

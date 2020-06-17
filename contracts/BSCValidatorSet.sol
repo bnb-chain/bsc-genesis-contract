@@ -1,8 +1,8 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./Seriality/BytesToTypes.sol";
-import "./Seriality/Memory.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
@@ -11,8 +11,8 @@ import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
 import "./lib/SafeMath.sol";
-import "./rlp/RLPDecode.sol";
-import "./rlp/CmnPkg.sol";
+import "./lib/RLPDecode.sol";
+import "./lib/CmnPkg.sol";
 
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
@@ -91,7 +91,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** init **************************/
   function init() external onlyNotInit{
-    (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
+    (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
     for(uint i = 0;i<validatorSetPkg.validatorSet.length;i++){
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
@@ -103,7 +103,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** Cross Chain App Implement **************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
-    (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSyncPackage(msgBytes);
+    (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
     if(!ok){
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
     }
@@ -450,7 +450,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   //rlp encode & decode function
-  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
