@@ -1,8 +1,8 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./Seriality/BytesToTypes.sol";
-import "./Seriality/Memory.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/ITokenHub.sol";
@@ -11,8 +11,8 @@ import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
 import "./lib/SafeMath.sol";
-import "./rlp/RLPDecode.sol";
-import "./rlp/CmnPkg.sol";
+import "./lib/RLPDecode.sol";
+import "./lib/CmnPkg.sol";
 
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {

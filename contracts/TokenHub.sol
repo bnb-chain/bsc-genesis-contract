@@ -7,8 +7,8 @@ import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
-import "./rlp/RLPEncode.sol";
-import "./rlp/RLPDecode.sol";
+import "./lib/RLPEncode.sol";
+import "./lib/RLPDecode.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {

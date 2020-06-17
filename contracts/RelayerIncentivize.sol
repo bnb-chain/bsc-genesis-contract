@@ -3,8 +3,8 @@ pragma solidity 0.6.4;
 import "./interface/IRelayerIncentivize.sol";
 import "./System.sol";
 import "./lib/SafeMath.sol";
-import "./Seriality/Memory.sol";
-import "./Seriality/BytesToTypes.sol";
+import "./lib/Memory.sol";
+import "./lib/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ISystemReward.sol";
 
