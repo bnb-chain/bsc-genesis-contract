@@ -23,11 +23,11 @@ contract BSCValidatorSetTool {
   }
 
   function init() external {
-    bool valid= decodeValidatorSetSyncPackage(INIT_VALIDATORSET_BYTES);
+    bool valid= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to init");
   }
 
-  function decodeValidatorSetSyncPackage(bytes memory msgBytes) internal pure returns (bool) {
+  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();

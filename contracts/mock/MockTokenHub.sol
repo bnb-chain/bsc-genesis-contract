@@ -18,11 +18,9 @@ contract MockTokenHub is ITokenHub {
     return bytes32(0x0);
   }
 
-  function setBindMapping(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub){}
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub){}
 
-  function unsetBindMapping(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub){}
-
-  function setContractAddrDecimals(address contractAddr, uint256 decimals) external override(ITokenHub){}
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub){}
 
   function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {

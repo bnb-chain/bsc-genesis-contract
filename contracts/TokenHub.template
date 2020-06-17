@@ -22,7 +22,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   using RLPDecode for RLPDecode.Iterator;
 
   // BSC to BC
-  struct TransferOutSyncPackage {
+  struct TransferOutSynPackage {
     bytes32 bep2TokenSymbol;
     address contractAddr;
     uint256[] amounts;
@@ -40,7 +40,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   // BC to BSC
-  struct TransferInSyncPackage {
+  struct TransferInSynPackage {
     bytes32 bep2TokenSymbol;
     address contractAddr;
     uint256 amount;
@@ -117,10 +117,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory){
     if (channelId == TRANSFER_IN_CHANNELID) {
-      return handleTransferInSyncPackage(msgBytes);
+      return handleTransferInSynPackage(msgBytes);
     } else {
       // should not happen
-      require(false, "unrecognized sync package");
+      require(false, "unrecognized syn package");
       return new bytes(0);
     }
   }
@@ -141,26 +141,26 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
-  function decodeTransferInSyncPackage(bytes memory msgBytes) internal pure returns (TransferInSyncPackage memory, bool) {
-    TransferInSyncPackage memory transInSyncPkg;
+  function decodeTransferInSynPackage(bytes memory msgBytes) internal pure returns (TransferInSynPackage memory, bool) {
+    TransferInSynPackage memory transInSynPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
     while(iter.hasNext()) {
-      if ( idx == 0 ) transInSyncPkg.bep2TokenSymbol       = bytes32(iter.next().toUint());
-      else if ( idx == 1 ) transInSyncPkg.contractAddr     = iter.next().toAddress();
-      else if ( idx == 2 ) transInSyncPkg.amount           = iter.next().toUint();
-      else if ( idx == 3 ) transInSyncPkg.recipient        = ((iter.next().toAddress()));
-      else if ( idx == 4 ) transInSyncPkg.refundAddr       = iter.next().toAddress();
+      if ( idx == 0 ) transInSynPkg.bep2TokenSymbol       = bytes32(iter.next().toUint());
+      else if ( idx == 1 ) transInSynPkg.contractAddr     = iter.next().toAddress();
+      else if ( idx == 2 ) transInSynPkg.amount           = iter.next().toUint();
+      else if ( idx == 3 ) transInSynPkg.recipient        = ((iter.next().toAddress()));
+      else if ( idx == 4 ) transInSynPkg.refundAddr       = iter.next().toAddress();
       else if ( idx == 5 ) {
-        transInSyncPkg.expireTime       = uint64(iter.next().toUint());
+        transInSynPkg.expireTime       = uint64(iter.next().toUint());
         success = true;
       }
       else break;
       idx++;
     }
-    return (transInSyncPkg, success);
+    return (transInSynPkg, success);
   }
 
   function encodeTransferInRefundPackage(TransferInRefundPackage memory transInAckPkg) internal pure returns (bytes memory) {
@@ -172,16 +172,16 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
-  function handleTransferInSyncPackage(bytes memory msgBytes) internal returns(bytes memory) {
-    (TransferInSyncPackage memory transInSyncPkg, bool success) = decodeTransferInSyncPackage(msgBytes);
+  function handleTransferInSynPackage(bytes memory msgBytes) internal returns(bytes memory) {
+    (TransferInSynPackage memory transInSynPkg, bool success) = decodeTransferInSynPackage(msgBytes);
     require(success, "unrecognized transferIn package");
-    uint32 resCode = doTransferIn(transInSyncPkg);
+    uint32 resCode = doTransferIn(transInSynPkg);
     if (resCode != TRANSFER_IN_SUCCESS) {
-      uint256 bep2Amount = convertToBep2Amount(transInSyncPkg.amount, bep2eContractDecimals[transInSyncPkg.contractAddr]);
+      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep2eContractDecimals[transInSynPkg.contractAddr]);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
-          bep2TokenSymbol: transInSyncPkg.bep2TokenSymbol,
+          bep2TokenSymbol: transInSynPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
-          refundAddr: transInSyncPkg.refundAddr,
+          refundAddr: transInSynPkg.refundAddr,
           status: resCode
       });
       return encodeTransferInRefundPackage(transInAckPkg);
@@ -190,33 +190,33 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
-  function doTransferIn(TransferInSyncPackage memory transInSyncPkg) internal returns (uint32) {
-    if (transInSyncPkg.contractAddr==address(0x0)) {
-      if (block.timestamp > transInSyncPkg.expireTime) {
+  function doTransferIn(TransferInSynPackage memory transInSynPkg) internal returns (uint32) {
+    if (transInSynPkg.contractAddr==address(0x0)) {
+      if (block.timestamp > transInSynPkg.expireTime) {
         return TRANSFER_IN_FAILURE_TIMEOUT;
       }
-      if (address(this).balance < transInSyncPkg.amount) {
+      if (address(this).balance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      if (!address(uint160(transInSyncPkg.recipient)).send(transInSyncPkg.amount)) {
+      if (!address(uint160(transInSynPkg.recipient)).send(transInSynPkg.amount)) {
         return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
       }
-      emit transferInSuccess(transInSyncPkg.contractAddr, transInSyncPkg.recipient, transInSyncPkg.amount);
+      emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
       return TRANSFER_IN_SUCCESS;
     } else {
-      if (block.timestamp > transInSyncPkg.expireTime) {
+      if (block.timestamp > transInSynPkg.expireTime) {
         return TRANSFER_IN_FAILURE_TIMEOUT;
       }
-      if (contractAddrToBEP2Symbol[transInSyncPkg.contractAddr]!= transInSyncPkg.bep2TokenSymbol) {
+      if (contractAddrToBEP2Symbol[transInSynPkg.contractAddr]!= transInSynPkg.bep2TokenSymbol) {
         return TRANSFER_IN_FAILURE_UNBOUND_TOKEN;
       }
-      uint256 actualBalance = IBEP2E(transInSyncPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this));
-      if (actualBalance < transInSyncPkg.amount) {
+      uint256 actualBalance = IBEP2E(transInSynPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this));
+      if (actualBalance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      bool success = IBEP2E(transInSyncPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSyncPkg.recipient, transInSyncPkg.amount);
+      bool success = IBEP2E(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSynPkg.recipient, transInSynPkg.amount);
       if (success){
-        emit transferInSuccess(transInSyncPkg.contractAddr, transInSyncPkg.recipient, transInSyncPkg.amount);
+        emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
         return TRANSFER_IN_SUCCESS;
       } else {
         return TRANSFER_IN_FAILURE_UNKNOWN;
@@ -287,88 +287,88 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
-  function decodeTransferOutSyncPackage(bytes memory msgBytes) internal pure returns (TransferOutSyncPackage memory, bool) {
-    TransferOutSyncPackage memory transOutSyncPkg;
+  function decodeTransferOutSynPackage(bytes memory msgBytes) internal pure returns (TransferOutSynPackage memory, bool) {
+    TransferOutSynPackage memory transOutSynPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
     while(iter.hasNext()) {
       if ( idx == 0 ) {
-        transOutSyncPkg.bep2TokenSymbol = bytes32(iter.next().toUint());
+        transOutSynPkg.bep2TokenSymbol = bytes32(iter.next().toUint());
       } else if(idx == 1 ) {
-        transOutSyncPkg.contractAddr = iter.next().toAddress();
+        transOutSynPkg.contractAddr = iter.next().toAddress();
       } else if(idx == 2 ) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
-        transOutSyncPkg.amounts = new uint256[](list.length);
+        transOutSynPkg.amounts = new uint256[](list.length);
         for(uint256 index=0; index<list.length; index++ ) {
-          transOutSyncPkg.amounts[index] = list[index].toUint();
+          transOutSynPkg.amounts[index] = list[index].toUint();
         }
       } else if(idx == 3 ) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
-        transOutSyncPkg.recipients = new address[](list.length);
+        transOutSynPkg.recipients = new address[](list.length);
         for(uint256 index=0; index<list.length; index++ ) {
-          transOutSyncPkg.recipients[index] = list[index].toAddress();
+          transOutSynPkg.recipients[index] = list[index].toAddress();
         }
       } else if(idx == 4 ) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
-        transOutSyncPkg.refundAddrs = new address[](list.length);
+        transOutSynPkg.refundAddrs = new address[](list.length);
         for(uint256 index=0; index<list.length; index++ ) {
-          transOutSyncPkg.refundAddrs[index] = list[index].toAddress();
+          transOutSynPkg.refundAddrs[index] = list[index].toAddress();
         }
       } else if(idx == 5 ) {
-        transOutSyncPkg.expireTime = uint64(iter.next().toUint());
+        transOutSynPkg.expireTime = uint64(iter.next().toUint());
         success = true;
       } else {
         break;
       }
       idx++;
     }
-    return (transOutSyncPkg, true);
+    return (transOutSynPkg, true);
   }
 
   function handleTransferOutFailAckPackage(bytes memory msgBytes) internal {
-    (TransferOutSyncPackage memory transOutSyncPkg, bool decodeSuccess) = decodeTransferOutSyncPackage(msgBytes);
-    require(decodeSuccess, "unrecognized transferOut sync package");
+    (TransferOutSynPackage memory transOutSynPkg, bool decodeSuccess) = decodeTransferOutSynPackage(msgBytes);
+    require(decodeSuccess, "unrecognized transferOut syn package");
     TransferOutAckPackage memory transOutAckPkg;
-    transOutAckPkg.contractAddr = transOutSyncPkg.contractAddr;
-    transOutAckPkg.refundAmounts = transOutSyncPkg.amounts;
-    uint256 bep2eTokenDecimals = bep2eContractDecimals[transOutSyncPkg.contractAddr];
-    for (uint idx=0;idx<transOutSyncPkg.amounts.length;idx++) {
-      transOutSyncPkg.amounts[idx] = convertFromBep2Amount(transOutSyncPkg.amounts[idx], bep2eTokenDecimals);
+    transOutAckPkg.contractAddr = transOutSynPkg.contractAddr;
+    transOutAckPkg.refundAmounts = transOutSynPkg.amounts;
+    uint256 bep2eTokenDecimals = bep2eContractDecimals[transOutSynPkg.contractAddr];
+    for (uint idx=0;idx<transOutSynPkg.amounts.length;idx++) {
+      transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep2eTokenDecimals);
     }
-    transOutAckPkg.refundAddrs = transOutSyncPkg.refundAddrs;
+    transOutAckPkg.refundAddrs = transOutSynPkg.refundAddrs;
     transOutAckPkg.status = TRANSFER_IN_FAILURE_UNKNOWN;
     doRefund(transOutAckPkg);
   }
 
-  function encodeTransferOutSyncPackage(TransferOutSyncPackage memory transOutSyncPkg) internal pure returns (bytes memory) {
+  function encodeTransferOutSynPackage(TransferOutSynPackage memory transOutSynPkg) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](6);
 
-    elements[0] = uint256(transOutSyncPkg.bep2TokenSymbol).encodeUint();
-    elements[1] = transOutSyncPkg.contractAddr.encodeAddress();
+    elements[0] = uint256(transOutSynPkg.bep2TokenSymbol).encodeUint();
+    elements[1] = transOutSynPkg.contractAddr.encodeAddress();
 
-    uint256 batchLength = transOutSyncPkg.amounts.length;
+    uint256 batchLength = transOutSynPkg.amounts.length;
 
     bytes[] memory amountsElements = new bytes[](batchLength);
     for(uint256 index; index< batchLength; index++) {
-      amountsElements[index] = transOutSyncPkg.amounts[index].encodeUint();
+      amountsElements[index] = transOutSynPkg.amounts[index].encodeUint();
     }
     elements[2] = amountsElements.encodeList();
 
     bytes[] memory recipientsElements = new bytes[](batchLength);
     for(uint256 index; index< batchLength; index++) {
-       recipientsElements[index] = transOutSyncPkg.recipients[index].encodeAddress();
+       recipientsElements[index] = transOutSynPkg.recipients[index].encodeAddress();
     }
     elements[3] = recipientsElements.encodeList();
 
     bytes[] memory refundAddrsElements = new bytes[](batchLength);
     for(uint256 index; index< batchLength; index++) {
-       refundAddrsElements[index] = transOutSyncPkg.refundAddrs[index].encodeAddress();
+       refundAddrsElements[index] = transOutSynPkg.refundAddrs[index].encodeAddress();
     }
     elements[4] = refundAddrsElements.encodeList();
 
-    elements[5] = uint256(transOutSyncPkg.expireTime).encodeUint();
+    elements[5] = uint256(transOutSynPkg.expireTime).encodeUint();
     return elements.encodeList();
   }
 
@@ -395,7 +395,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
       require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
     }
-    TransferOutSyncPackage memory transOutSyncPkg = TransferOutSyncPackage({
+    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
       bep2TokenSymbol: bep2TokenSymbol,
       contractAddr: contractAddr,
       amounts: new uint256[](1),
@@ -403,10 +403,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       refundAddrs: new address[](1),
       expireTime: expireTime
     });
-    transOutSyncPkg.amounts[0]=convertedAmount;
-    transOutSyncPkg.recipients[0]=recipient;
-    transOutSyncPkg.refundAddrs[0]=msg.sender;
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), relayFee.div(1e10));
+    transOutSynPkg.amounts[0]=convertedAmount;
+    transOutSynPkg.recipients[0]=recipient;
+    transOutSynPkg.refundAddrs[0]=msg.sender;
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), relayFee.div(1e10));
     emit transferOutSuccess(contractAddr, msg.sender, amount);
     return true;
   }
@@ -428,7 +428,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
     require(msg.value==totalAmount.add(relayFee.mul(batchLength)), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
 
-    TransferOutSyncPackage memory transOutSyncPkg = TransferOutSyncPackage({
+    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
       bep2TokenSymbol: BEP2_TOKEN_SYMBOL_FOR_BNB,
       contractAddr: address(0x00),
       amounts: convertedAmounts,
@@ -436,7 +436,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       refundAddrs: refundAddrs,
       expireTime: expireTime
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSyncPackage(transOutSyncPkg), relayFee.mul(batchLength).div(1e10));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), relayFee.mul(batchLength).div(1e10));
     emit transferOutSuccess(address(0x0), msg.sender, totalAmount);
     return true;
   }
@@ -470,18 +470,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return contractAddrToBEP2Symbol[contractAddr];
   }
 
-  function setBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override onlyTokenManager {
     bep2SymbolToContractAddr[bep2Symbol] = contractAddr;
     contractAddrToBEP2Symbol[contractAddr] = bep2Symbol;
+    bep2eContractDecimals[contractAddr] = decimals;
   }
 
-  function unsetBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
     delete bep2SymbolToContractAddr[bep2Symbol];
     delete contractAddrToBEP2Symbol[contractAddr];
-  }
-
-  function setContractAddrDecimals(address contractAddr, uint256 decimals) external override onlyTokenManager {
-    bep2eContractDecimals[contractAddr] = decimals;
   }
 
   function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
@@ -508,8 +505,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
      }
      return true;
   }
-
-
 
   function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
