@@ -1,9 +1,5 @@
 pragma solidity 0.6.4;
 
-/**
- * @title A simple RLP encoding library
- * @author Bakaoh
- */
 library RLPEncode {
 
     uint8 constant STRING_OFFSET = 0x80;
@@ -74,8 +70,11 @@ library RLPEncode {
      * @return The RLP encoded list of items in bytes
      */
     function encodeList(bytes[] memory self) internal pure returns (bytes memory) {
-        bytes memory payload = new bytes(0);
-        for (uint i = 0; i < self.length; i++) {
+        if (self.length == 0 ){
+            return new bytes(0);
+        }
+        bytes memory payload = self[0];
+        for (uint i = 1; i < self.length; i++) {
             payload = mergeBytes(payload, self[i]);
         }
         return mergeBytes(encodeLength(payload.length, LIST_OFFSET), payload);
@@ -83,25 +82,86 @@ library RLPEncode {
 
     /**
      * @notice Concat two bytes arrays
-     * @dev This should be optimize with assembly to save gas costs
-     * @param param1 The first bytes array
-     * @param param2 The second bytes array
+     * @param _preBytes The first bytes array
+     * @param _postBytes The second bytes array
      * @return The merged bytes array
      */
-    function mergeBytes(bytes memory param1, bytes memory param2) internal pure returns (bytes memory) {
-        bytes memory merged = new bytes(param1.length + param2.length);
-        uint k = 0;
-        uint i;
-        for (i = 0; i < param1.length; i++) {
-            merged[k] = param1[i];
-            k++;
+    function mergeBytes(
+        bytes memory _preBytes,
+        bytes memory _postBytes
+    )
+    internal
+    pure
+    returns (bytes memory)
+    {
+        bytes memory tempBytes;
+
+        assembly {
+        // Get a location of some free memory and store it in tempBytes as
+        // Solidity does for memory variables.
+            tempBytes := mload(0x40)
+
+        // Store the length of the first bytes array at the beginning of
+        // the memory for tempBytes.
+            let length := mload(_preBytes)
+            mstore(tempBytes, length)
+
+        // Maintain a memory counter for the current write location in the
+        // temp bytes array by adding the 32 bytes for the array length to
+        // the starting location.
+            let mc := add(tempBytes, 0x20)
+        // Stop copying when the memory counter reaches the length of the
+        // first bytes array.
+            let end := add(mc, length)
+
+            for {
+            // Initialize a copy counter to the start of the _preBytes data,
+            // 32 bytes into its memory.
+                let cc := add(_preBytes, 0x20)
+            } lt(mc, end) {
+            // Increase both counters by 32 bytes each iteration.
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+            // Write the _preBytes data into the tempBytes memory 32 bytes
+            // at a time.
+                mstore(mc, mload(cc))
+            }
+
+        // Add the length of _postBytes to the current length of tempBytes
+        // and store it as the new length in the first 32 bytes of the
+        // tempBytes memory.
+            length := mload(_postBytes)
+            mstore(tempBytes, add(length, mload(tempBytes)))
+
+        // Move the memory counter back from a multiple of 0x20 to the
+        // actual end of the _preBytes data.
+            mc := end
+        // Stop copying when the memory counter reaches the new combined
+        // length of the arrays.
+            end := add(mc, length)
+
+            for {
+                let cc := add(_postBytes, 0x20)
+            } lt(mc, end) {
+                mc := add(mc, 0x20)
+                cc := add(cc, 0x20)
+            } {
+                mstore(mc, mload(cc))
+            }
+
+        // Update the free-memory pointer by padding our last write location
+        // to 32 bytes: add 31 bytes to the end of tempBytes to move to the
+        // next 32 byte block, then round down to the nearest multiple of
+        // 32. If the sum of the length of the two arrays is zero then add
+        // one before rounding down to leave a blank 32 bytes (the length block with 0).
+            mstore(0x40, and(
+            add(add(end, iszero(add(length, mload(_preBytes)))), 31),
+            not(31) // Round down to the nearest 32 bytes.
+            ))
         }
 
-        for (i = 0; i < param2.length; i++) {
-            merged[k] = param2[i];
-            k++;
-        }
-        return merged;
+        return tempBytes;
     }
 
     /**
@@ -124,24 +184,32 @@ library RLPEncode {
 
     /**
      * @notice Encode integer in big endian binary form with no leading zeroes
-     * @dev This should be optimize with assembly to save gas costs
      * @param x The integer to encode
      * @return RLP encoded bytes
      */
     function toBinary(uint x) internal pure returns (bytes memory) {
-        uint i;
         bytes memory b = new bytes(32);
         assembly {
             mstore(add(b, 32), x)
         }
-        for (i = 0; i < 32; i++) {
+        uint i;
+        if (x & 0xffffffffffffffffffffffffffffffffffffffffffffffff0000000000000000 == 0) {
+            i = 24;
+        } else if (x & 0xffffffffffffffffffffffffffffffff00000000000000000000000000000000 == 0) {
+            i = 16;
+        } else {
+            i = 0;
+        }
+        for (; i < 32; i++) {
             if (b[i] != 0) {
                 break;
             }
         }
-        bytes memory rs = new bytes(32 - i);
-        for (uint j = 0; j < rs.length; j++) {
-            rs[j] = b[i++];
+        uint length = 32 - i;
+        bytes memory rs = new bytes(length);
+        assembly {
+            mstore(add(rs, length), x)
+            mstore(rs, length)
         }
         return rs;
     }
