@@ -1,14 +1,14 @@
 pragma solidity 0.6.4;
 import "./System.sol";
-import "./Seriality/BytesToTypes.sol";
-import "./Seriality/Memory.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IApplication.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ICrossChain.sol";
-import "./rlp/CmnPkg.sol";
-import "./rlp/RLPEncode.sol";
+import "./lib/CmnPkg.sol";
+import "./lib/RLPEncode.sol";
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
   using RLPEncode for *;
