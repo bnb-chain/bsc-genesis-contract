@@ -1,7 +1,7 @@
 pragma solidity 0.6.4;
 
 import "../lib/RLPDecode.sol";
-
+import "../lib/Memory.sol";
 
 
 contract BSCValidatorSetTool {
@@ -76,5 +76,37 @@ contract BSCValidatorSetTool {
       idx++;
     }
     return (validator, success);
+  }
+
+  // | type   | relayFee   |package  |
+  // | 1 byte | 32 bytes   | bytes    |
+  function decodePayloadHeader(bytes memory payload) public pure returns(bool, uint8, uint256, bytes memory) {
+    if (payload.length < 33) {
+      return (false, 0, 0, new bytes(0));
+    }
+
+    uint256 ptr;
+    assembly {
+      ptr := payload
+    }
+
+    uint8 packageType;
+    ptr+=1;
+    assembly {
+      packageType := mload(ptr)
+    }
+
+    uint256 relayFee;
+    ptr+=32;
+    assembly {
+      relayFee := mload(ptr)
+    }
+
+    ptr+=32;
+    bytes memory msgBytes = new bytes(payload.length-33);
+    (uint256 dst, ) = Memory.fromBytes(msgBytes);
+    Memory.copy(ptr, dst, payload.length-33);
+
+    return (true, packageType, relayFee, msgBytes);
   }
 }
