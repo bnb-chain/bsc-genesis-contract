@@ -21,23 +21,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   using RLPDecode for RLPDecode.RLPItem;
   using RLPDecode for RLPDecode.Iterator;
 
-  // BC to BSC
-  struct BindSyncPackage {
-    uint8   packageType;
-    bytes32 bep2TokenSymbol;
-    address contractAddr;
-    uint256 totalSupply;
-    uint256 peggyAmount;
-    uint8   bep2eDecimals;
-    uint64  expireTime;
-  }
-
-  // BSC to BC
-  struct ApproveBindSyncPackage {
-    uint32 status;
-    bytes32 bep2TokenSymbol;
-  }
-
   // BSC to BC
   struct TransferOutSyncPackage {
     bytes32 bep2TokenSymbol;
@@ -74,16 +57,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint32 status;
   }
 
-  uint8 constant public   BIND_PACKAGE = 0;
-  uint8 constant public   UNBIND_PACKAGE = 1;
-
-  // bind status
-  uint8 constant public   BIND_STATUS_SUCCESS = 0;
-  uint8 constant public   BIND_STATUS_TIMEOUT = 1;
-  uint8 constant public   BIND_STATUS_INCORRECT_PARAMETERS = 2;
-  uint8 constant public   BIND_STATUS_REJECTED = 3;
-  uint8 constant public   BIND_STATUS_UNKNOWN_PACKAGE_TYPE = 4;
-
   // transfer in channel
   uint8 constant public   TRANSFER_IN_SUCCESS = 0;
   uint8 constant public   TRANSFER_IN_FAILURE_TIMEOUT = 1;
@@ -103,7 +76,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   uint256 public relayFee;
 
-  mapping(bytes32 => BindSyncPackage) public bindPackageRecord;
   mapping(address => uint256) public bep2eContractDecimals;
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
@@ -144,13 +116,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory){
-    if (channelId == BIND_CHANNELID) {
-      return handleBindSyncPackage(msgBytes);
-    } else if (channelId == TRANSFER_IN_CHANNELID) {
+    if (channelId == TRANSFER_IN_CHANNELID) {
       return handleTransferInSyncPackage(msgBytes);
     } else {
       // should not happen
       require(false, "unrecognized sync package");
+      return new bytes(0);
     }
   }
 
@@ -168,132 +139,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     } else {
       emit unexpectedPackage(channelId, msgBytes);
     }
-  }
-
-  function decodeBindSyncPackage(bytes memory msgBytes) internal pure returns(BindSyncPackage memory, bool) {
-    BindSyncPackage memory bindSyncPkg;
-    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
-    bool success = false;
-    uint256 idx=0;
-    while(iter.hasNext()) {
-        if ( idx == 0 )      bindSyncPkg.packageType      = uint8(iter.next().toUint());
-        else if ( idx == 1 ) bindSyncPkg.bep2TokenSymbol  = bytes32(iter.next().toUint());
-        else if ( idx == 2 ) bindSyncPkg.contractAddr     = iter.next().toAddress();
-        else if ( idx == 3 ) bindSyncPkg.totalSupply      = iter.next().toUint();
-        else if ( idx == 4 ) bindSyncPkg.peggyAmount      = iter.next().toUint();
-        else if ( idx == 5 ) bindSyncPkg.bep2eDecimals    = uint8(iter.next().toUint());
-        else if ( idx == 6 ) {
-          bindSyncPkg.expireTime       = uint64(iter.next().toUint());
-          success = true;
-        }
-        else break;
-        idx++;
-    }
-    return (bindSyncPkg, success);
-  }
-
-  function handleBindSyncPackage(bytes memory msgBytes) internal returns(bytes memory) {
-    (BindSyncPackage memory bindSyncPkg, bool success) = decodeBindSyncPackage(msgBytes);
-    require(success, "unrecognized transferIn package");
-    if (bindSyncPkg.packageType == BIND_PACKAGE) {
-      bindPackageRecord[bindSyncPkg.bep2TokenSymbol]=bindSyncPkg;
-    } else if (bindSyncPkg.packageType == UNBIND_PACKAGE) {
-      address contractAddr = bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol];
-      if (contractAddr!=address(0x00)) {
-        delete contractAddrToBEP2Symbol[contractAddr];
-        delete bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol];
-      }
-    } else {
-      require(false, "unrecognized bind package");
-    }
-    return new bytes(0);
-  }
-
-  function encodeApproveBindSyncPackage(ApproveBindSyncPackage memory approveBindSyncPackage) internal pure returns (bytes memory) {
-    bytes[] memory elements = new bytes[](2);
-    elements[0] = approveBindSyncPackage.status.encodeUint();
-    elements[1] = uint256(approveBindSyncPackage.bep2TokenSymbol).encodeUint();
-    return elements.encodeList();
-  }
-
-  function approveBind(address contractAddr, string memory bep2Symbol) payable public onlyInit returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
-    require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    uint256 lockedAmount = bindSyncPkg.totalSupply.sub(bindSyncPkg.peggyAmount);
-    require(contractAddr==bindSyncPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
-    require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
-    require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
-
-    if (bindSyncPkg.expireTime<block.timestamp) {
-      delete bindPackageRecord[bep2TokenSymbol];
-      ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-        status: BIND_STATUS_TIMEOUT,
-        bep2TokenSymbol: bep2TokenSymbol
-      });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
-      return false;
-    }
-
-    uint256 decimals = IBEP2E(contractAddr).decimals();
-    string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-    if (!checkSymbol(bep2eSymbol, bep2TokenSymbol) ||
-      bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol]!=address(0x00)||
-      contractAddrToBEP2Symbol[bindSyncPkg.contractAddr]!=bytes32(0x00)||
-      IBEP2E(bindSyncPkg.contractAddr).totalSupply()!=bindSyncPkg.totalSupply||
-      decimals!=bindSyncPkg.bep2eDecimals) {
-      delete bindPackageRecord[bep2TokenSymbol];
-      ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-        status: BIND_STATUS_INCORRECT_PARAMETERS,
-        bep2TokenSymbol: bep2TokenSymbol
-      });
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
-      return false;
-    }
-    IBEP2E(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
-    contractAddrToBEP2Symbol[bindSyncPkg.contractAddr] = bindSyncPkg.bep2TokenSymbol;
-    bep2eContractDecimals[bindSyncPkg.contractAddr] = bindSyncPkg.bep2eDecimals;
-    bep2SymbolToContractAddr[bindSyncPkg.bep2TokenSymbol] = bindSyncPkg.contractAddr;
-
-    delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_SUCCESS,
-      bep2TokenSymbol: bep2TokenSymbol
-    });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
-    return true;
-  }
-
-  function rejectBind(address contractAddr, string memory bep2Symbol) payable public onlyInit returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
-    require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    require(contractAddr==bindSyncPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
-    require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
-    delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_REJECTED,
-      bep2TokenSymbol: bep2TokenSymbol
-    });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
-    return true;
-  }
-
-  function expireBind(string memory bep2Symbol) payable public onlyInit returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindSyncPackage memory bindSyncPkg = bindPackageRecord[bep2TokenSymbol];
-    require(bindSyncPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    require(bindSyncPkg.expireTime<block.timestamp, "bind request is not expired");
-    require(msg.value == relayFee, "msg.value doesn't equal to syncRelayFee");
-    delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
-      status: BIND_STATUS_TIMEOUT,
-      bep2TokenSymbol: bep2TokenSymbol
-    });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSyncPackage(approveBindSyncPackage), relayFee.div(1e10));
-    return true;
   }
 
   function decodeTransferInSyncPackage(bytes memory msgBytes) internal pure returns (TransferInSyncPackage memory, bool) {
@@ -527,7 +372,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) override external onlyInit payable returns (bool) {
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
@@ -566,7 +411,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
-  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) override external onlyInit payable returns (bool) {
+  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
@@ -617,12 +462,26 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     emit paramChange(key, value);
   }
 
-  function bep2TokenSymbolConvert(string memory symbol) internal pure returns(bytes32) {
-    bytes32 result;
-    assembly {
-      result := mload(add(symbol, 32))
-    }
-    return result;
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external override returns(address) {
+    return bep2SymbolToContractAddr[bep2Symbol];
+  }
+
+  function getBep2SymbolByContractAddr(address contractAddr) external override returns(bytes32) {
+    return contractAddrToBEP2Symbol[contractAddr];
+  }
+
+  function setBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+    bep2SymbolToContractAddr[bep2Symbol] = contractAddr;
+    contractAddrToBEP2Symbol[contractAddr] = bep2Symbol;
+  }
+
+  function unsetBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+    delete bep2SymbolToContractAddr[bep2Symbol];
+    delete contractAddrToBEP2Symbol[contractAddr];
+  }
+
+  function setContractAddrDecimals(address contractAddr, uint256 decimals) external override onlyTokenManager {
+    bep2eContractDecimals[contractAddr] = decimals;
   }
 
   function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
@@ -650,28 +509,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
      return true;
   }
 
-  function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
-    bytes memory bep2eSymbolBytes = bytes(bep2eSymbol);
-    if (bep2eSymbolBytes.length > MAXIMUM_BEP2E_SYMBOL_LEN || bep2eSymbolBytes.length < MINIMUM_BEP2E_SYMBOL_LEN) {
-      return false;
-    }
 
-    bytes memory bep2TokenSymbolBytes = new bytes(32);
-    assembly {
-      mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
-    }
-    if (bep2TokenSymbolBytes[bep2eSymbolBytes.length] != 0x2d) { // '-'
-      return false;
-    }
-    bool symbolMatch = true;
-    for(uint256 index=0; index < bep2eSymbolBytes.length; index++) {
-      if (bep2eSymbolBytes[index] != bep2TokenSymbolBytes[index]) {
-        symbolMatch = false;
-        break;
-      }
-    }
-    return symbolMatch;
-  }
 
   function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
@@ -688,7 +526,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   function getBoundContract(string memory bep2Symbol) public view returns (address) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
+    bytes32 bep2TokenSymbol;
+    assembly {
+      bep2TokenSymbol := mload(add(bep2Symbol, 32))
+    }
     return bep2SymbolToContractAddr[bep2TokenSymbol];
   }
 

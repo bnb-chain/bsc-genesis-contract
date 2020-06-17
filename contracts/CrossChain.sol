@@ -91,8 +91,10 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   }
 
   function init() public onlyNotInit {
-    channelHandlerContractMap[BIND_CHANNELID] = TOKEN_HUB_ADDR;
+    channelHandlerContractMap[BIND_CHANNELID] = TOKEN_MANAGER_ADDR;
     isRelayRewardFromSystemReward[BIND_CHANNELID] = false;
+    registeredContractMap[TOKEN_MANAGER_ADDR] = true;
+
     channelHandlerContractMap[TRANSFER_IN_CHANNELID] = TOKEN_HUB_ADDR;
     isRelayRewardFromSystemReward[TRANSFER_IN_CHANNELID] = false;
     channelHandlerContractMap[TRANSFER_OUT_CHANNELID] = TOKEN_HUB_ADDR;
