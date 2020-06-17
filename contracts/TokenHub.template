@@ -111,7 +111,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return actualAmount;
   }
 
-  function getRelayFee() external override returns(uint256) {
+  function getRelayFee() external view override returns(uint256) {
     return relayFee;
   }
 
@@ -462,11 +462,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     emit paramChange(key, value);
   }
 
-  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external override returns(address) {
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override returns(address) {
     return bep2SymbolToContractAddr[bep2Symbol];
   }
 
-  function getBep2SymbolByContractAddr(address contractAddr) external override returns(bytes32) {
+  function getBep2SymbolByContractAddr(address contractAddr) external view override returns(bytes32) {
     return contractAddrToBEP2Symbol[contractAddr];
   }
 
