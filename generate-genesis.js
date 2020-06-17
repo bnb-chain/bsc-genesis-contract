@@ -108,6 +108,11 @@ Promise.all([
       "GovHub"
   ),
   compileContract(
+      "tokenManager",
+      "contracts/TokenManager.sol",
+      "TokenManager"
+  ),
+  compileContract(
       "crossChain",
       "contracts/CrossChain.sol",
       "CrossChain"

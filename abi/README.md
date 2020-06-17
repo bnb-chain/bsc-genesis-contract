@@ -9,4 +9,6 @@
 | TokenHub              |0x0000000000000000000000000000000000001004 | [tokenhub](tokenhub.abi)                           |
 | RelayerIncentivize    |0x0000000000000000000000000000000000001005 | [relayerincentivize](relayerincentivize.abi)       |
 | RelayerHub            |0x0000000000000000000000000000000000001006 | [relayerhub](relayerhub.abi)                       |
+| GovHub                |0x0000000000000000000000000000000000001007 | [govhub](govhub.abi)                               |
+| TokenManager          |0x0000000000000000000000000000000000001008 | [tokenmanager](tokenmanager.abi)                   |
 | CrossChain            |0x0000000000000000000000000000000000002000 | [crosschain](crosschain.abi)                       |

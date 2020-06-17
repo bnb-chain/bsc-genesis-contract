@@ -27,6 +27,7 @@ contract System {
   address public constant INCENTIVIZE_ADDR=0x0000000000000000000000000000000000001005;
   address public constant RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
   address public constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
+  address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
 
 
@@ -77,6 +78,11 @@ contract System {
 
   modifier onlyRelayer() {
     require(IRelayerHub(RELAYERHUB_CONTRACT_ADDR).isRelayer(msg.sender), "the msg sender is not a relayer");
+    _;
+  }
+
+  modifier onlyTokenManager() {
+    require(msg.sender == TOKEN_MANAGER_ADDR, "the msg sender must be tokenManager");
     _;
   }
 
