@@ -30,6 +30,25 @@
 			{
 				"indexed": false,
 				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "receiveDeposit",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
 				"name": "bep2eAddr",
 				"type": "address"
 			},
@@ -44,6 +63,12 @@
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "status",
+				"type": "uint32"
 			}
 		],
 		"name": "refundFailure",
@@ -69,6 +94,12 @@
 				"internalType": "uint256",
 				"name": "amount",
 				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "status",
+				"type": "uint32"
 			}
 		],
 		"name": "refundSuccess",
@@ -163,6 +194,11 @@
 		"type": "event"
 	},
 	{
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "fallback"
+	},
+	{
 		"constant": true,
 		"inputs": [],
 		"name": "BEP2_TOKEN_DECIMALS",
@@ -196,111 +232,6 @@
 		"constant": true,
 		"inputs": [],
 		"name": "BIND_CHANNELID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_CHANNEL_ID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_PACKAGE",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_STATUS_INCORRECT_PARAMETERS",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_STATUS_REJECTED",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_STATUS_SUCCESS",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_STATUS_TIMEOUT",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "BIND_STATUS_UNKNOWN_PACKAGE_TYPE",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -495,21 +426,6 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "REFUND_CHANNEL_ID",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
 		"name": "RELAYERHUB_CONTRACT_ADDR",
 		"outputs": [
 			{
@@ -570,6 +486,21 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "SYSTEM_ADDRESS",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "SYSTEM_REWARD_ADDR",
 		"outputs": [
 			{
@@ -600,12 +531,12 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "TRANSFER_IN_CHANNELID",
+		"name": "TOKEN_MANAGER_ADDR",
 		"outputs": [
 			{
-				"internalType": "uint8",
+				"internalType": "address",
 				"name": "",
-				"type": "uint8"
+				"type": "address"
 			}
 		],
 		"payable": false,
@@ -615,7 +546,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "TRANSFER_IN_CHANNEL_ID",
+		"name": "TRANSFER_IN_CHANNELID",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -735,21 +666,6 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "UNBIND_PACKAGE",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
 		"name": "VALIDATOR_CONTRACT_ADDR",
 		"outputs": [
 			{
@@ -775,32 +691,6 @@
 		],
 		"payable": false,
 		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "string",
-				"name": "bep2Symbol",
-				"type": "string"
-			}
-		],
-		"name": "approveBind",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"payable": true,
-		"stateMutability": "payable",
 		"type": "function"
 	},
 	{
@@ -862,57 +752,6 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "bytes32",
-				"name": "",
-				"type": "bytes32"
-			}
-		],
-		"name": "bindPackageRecord",
-		"outputs": [
-			{
-				"internalType": "uint8",
-				"name": "packageType",
-				"type": "uint8"
-			},
-			{
-				"internalType": "bytes32",
-				"name": "bep2TokenSymbol",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "totalSupply",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "peggyAmount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint8",
-				"name": "bep2eDecimals",
-				"type": "uint8"
-			},
-			{
-				"internalType": "uint64",
-				"name": "expireTime",
-				"type": "uint64"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
 		"inputs": [],
 		"name": "bscChainID",
 		"outputs": [
@@ -956,21 +795,21 @@
 		"constant": false,
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "bep2Symbol",
-				"type": "string"
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
 			}
 		],
-		"name": "expireBind",
+		"name": "getBep2SymbolByContractAddr",
 		"outputs": [
 			{
-				"internalType": "bool",
+				"internalType": "bytes32",
 				"name": "",
-				"type": "bool"
+				"type": "bytes32"
 			}
 		],
-		"payable": true,
-		"stateMutability": "payable",
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -1013,6 +852,27 @@
 		],
 		"payable": false,
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bep2Symbol",
+				"type": "bytes32"
+			}
+		],
+		"name": "getContractAddrByBEP2Symbol",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -1088,7 +948,7 @@
 		"outputs": [
 			{
 				"internalType": "bytes",
-				"name": "responsePayload",
+				"name": "",
 				"type": "bytes"
 			}
 		],
@@ -1106,32 +966,6 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "string",
-				"name": "bep2Symbol",
-				"type": "string"
-			}
-		],
-		"name": "rejectBind",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"payable": true,
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
 		"constant": true,
 		"inputs": [],
 		"name": "relayFee",
@@ -1144,6 +978,46 @@
 		],
 		"payable": false,
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bep2Symbol",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			}
+		],
+		"name": "setBindMapping",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "decimals",
+				"type": "uint256"
+			}
+		],
+		"name": "setContractAddrDecimals",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -1180,6 +1054,86 @@
 		],
 		"payable": true,
 		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bep2Symbol",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			}
+		],
+		"name": "unsetBindMapping",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "valAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "slashAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "rewardAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "lightAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "tokenHubAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "incentivizeAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "relayerHubAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "govHub",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "tokenManagerAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "crossChain",
+				"type": "address"
+			}
+		],
+		"name": "updateContractAddr",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
