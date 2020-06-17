@@ -470,18 +470,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return contractAddrToBEP2Symbol[contractAddr];
   }
 
-  function setBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override onlyTokenManager {
     bep2SymbolToContractAddr[bep2Symbol] = contractAddr;
     contractAddrToBEP2Symbol[contractAddr] = bep2Symbol;
+    bep2eContractDecimals[contractAddr] = decimals;
   }
 
-  function unsetBindMapping(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
     delete bep2SymbolToContractAddr[bep2Symbol];
     delete contractAddrToBEP2Symbol[contractAddr];
-  }
-
-  function setContractAddrDecimals(address contractAddr, uint256 decimals) external override onlyTokenManager {
-    bep2eContractDecimals[contractAddr] = decimals;
   }
 
   function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
@@ -508,8 +505,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
      }
      return true;
   }
-
-
 
   function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {

@@ -8,11 +8,9 @@ interface ITokenHub {
 
   function getBep2SymbolByContractAddr(address contractAddr) external returns(bytes32);
 
-  function setBindMapping(bytes32 bep2Symbol, address contractAddr) external;
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external;
 
-  function unsetBindMapping(bytes32 bep2Symbol, address contractAddr) external;
-
-  function setContractAddrDecimals(address contractAddr, uint256 decimals) external;
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external;
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
     external payable returns (bool);

@@ -102,7 +102,7 @@ contract TokenManager is System, IApplication {
     } else if (bindSyncPkg.packageType == UNBIND_PACKAGE) {
       address contractAddr = ITokenHub(TOKEN_HUB_ADDR).getContractAddrByBEP2Symbol(bindSyncPkg.bep2TokenSymbol);
       if (contractAddr!=address(0x00)) {
-        ITokenHub(TOKEN_HUB_ADDR).unsetBindMapping(bindSyncPkg.bep2TokenSymbol, contractAddr);
+        ITokenHub(TOKEN_HUB_ADDR).unbindToken(bindSyncPkg.bep2TokenSymbol, contractAddr);
       }
     } else {
       require(false, "unrecognized bind package");
@@ -154,8 +154,7 @@ contract TokenManager is System, IApplication {
       return false;
     }
     IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount);
-    ITokenHub(TOKEN_HUB_ADDR).setBindMapping(bindSyncPkg.bep2TokenSymbol, bindSyncPkg.contractAddr);
-    ITokenHub(TOKEN_HUB_ADDR).setContractAddrDecimals(bindSyncPkg.contractAddr, bindSyncPkg.bep2eDecimals);
+    ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSyncPkg.bep2TokenSymbol, bindSyncPkg.contractAddr, bindSyncPkg.bep2eDecimals);
 
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSyncPackage memory approveBindSyncPackage = ApproveBindSyncPackage({
