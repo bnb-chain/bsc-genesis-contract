@@ -5,32 +5,6 @@
 			{
 				"indexed": true,
 				"internalType": "address",
-				"name": "operator",
-				"type": "address"
-			}
-		],
-		"name": "DeleteOperator",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "operator",
-				"type": "address"
-			}
-		],
-		"name": "NewOperator",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
 				"name": "from",
 				"type": "address"
 			},
@@ -41,13 +15,13 @@
 				"type": "uint256"
 			}
 		],
-		"name": "ReceiveDeposit",
+		"name": "receiveDeposit",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [],
-		"name": "RewardEmpty",
+		"name": "rewardEmpty",
 		"type": "event"
 	},
 	{
@@ -66,7 +40,7 @@
 				"type": "uint256"
 			}
 		],
-		"name": "RewardTo",
+		"name": "rewardTo",
 		"type": "event"
 	},
 	{
@@ -288,6 +262,21 @@
 		"constant": true,
 		"inputs": [],
 		"name": "TOKEN_HUB_ADDR",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "TOKEN_MANAGER_ADDR",
 		"outputs": [
 			{
 				"internalType": "address",

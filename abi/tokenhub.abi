@@ -486,21 +486,6 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "SYSTEM_ADDRESS",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
 		"name": "SYSTEM_REWARD_ADDR",
 		"outputs": [
 			{
@@ -751,6 +736,31 @@
 		"type": "function"
 	},
 	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "bytes32",
+				"name": "bep2Symbol",
+				"type": "bytes32"
+			},
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "decimals",
+				"type": "uint256"
+			}
+		],
+		"name": "bindToken",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
 		"constant": true,
 		"inputs": [],
 		"name": "bscChainID",
@@ -792,7 +802,7 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "address",
@@ -809,7 +819,7 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -855,7 +865,7 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [
 			{
 				"internalType": "bytes32",
@@ -872,11 +882,11 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"constant": false,
+		"constant": true,
 		"inputs": [],
 		"name": "getRelayFee",
 		"outputs": [
@@ -887,7 +897,7 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -984,46 +994,6 @@
 		"constant": false,
 		"inputs": [
 			{
-				"internalType": "bytes32",
-				"name": "bep2Symbol",
-				"type": "bytes32"
-			},
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			}
-		],
-		"name": "setBindMapping",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "contractAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "decimals",
-				"type": "uint256"
-			}
-		],
-		"name": "setContractAddrDecimals",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
 				"internalType": "address",
 				"name": "contractAddr",
 				"type": "address"
@@ -1070,67 +1040,7 @@
 				"type": "address"
 			}
 		],
-		"name": "unsetBindMapping",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "valAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "slashAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "rewardAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "lightAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "tokenHubAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "incentivizeAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "relayerHubAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "govHub",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "tokenManagerAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "crossChain",
-				"type": "address"
-			}
-		],
-		"name": "updateContractAddr",
+		"name": "unbindToken",
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",

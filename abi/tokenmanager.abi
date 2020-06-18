@@ -57,7 +57,22 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "BIND_STATUS_INCORRECT_PARAMETERS",
+		"name": "BIND_STATUS_ALREADY_BOUND_TOKEN",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "BIND_STATUS_DECIMALS_MISMATCH",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -102,7 +117,37 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "BIND_STATUS_SYMBOL_MISMATCH",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "BIND_STATUS_TIMEOUT",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "BIND_STATUS_TOTAL_SUPPLY_MISMATCH",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -303,21 +348,6 @@
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "SYSTEM_ADDRESS",
-		"outputs": [
-			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
 			}
 		],
 		"payable": false,
@@ -602,7 +632,7 @@
 		"inputs": [
 			{
 				"internalType": "uint8",
-				"name": "channelId",
+				"name": "",
 				"type": "uint8"
 			},
 			{
@@ -647,66 +677,6 @@
 		],
 		"payable": true,
 		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "valAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "slashAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "rewardAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "lightAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "tokenHubAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "incentivizeAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "relayerHubAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "govHub",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "tokenManagerAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address",
-				"name": "crossChain",
-				"type": "address"
-			}
-		],
-		"name": "updateContractAddr",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]
