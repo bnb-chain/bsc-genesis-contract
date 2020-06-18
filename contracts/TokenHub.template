@@ -177,7 +177,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(success, "unrecognized transferIn package");
     uint32 resCode = doTransferIn(transInSynPkg);
     if (resCode != TRANSFER_IN_SUCCESS) {
-      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep2eContractDecimals[transInSynPkg.contractAddr]);
+      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, 18);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
           bep2TokenSymbol: transInSynPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
