@@ -182,7 +182,7 @@ contract('TokenHub', (accounts) => {
             await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("allowance doesn't equal to (totalSupply - peggyAmount)"));
+            assert.ok(error.toString().includes("allowance is not enough"));
         }
 
         await abcToken.approve(tokenManager.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)), {from: owner});

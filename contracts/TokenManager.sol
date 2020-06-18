@@ -121,13 +121,14 @@ contract TokenManager is System, IApplication {
     uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
     require(contractAddr==bindSynPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
-    require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
+    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    require(IBEP2E(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
     require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
 
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
     if (verifyCode == BIND_STATUS_SUCCESS) {
-      IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount);
+      IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
       ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
     }
     delete bindPackageRecord[bep2TokenSymbol];

@@ -93,6 +93,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
+    bep2eContractDecimals[address(0x0)] = 18; // BNB decimals is 18
     alreadyInit=true;
   }
 
@@ -177,7 +178,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(success, "unrecognized transferIn package");
     uint32 resCode = doTransferIn(transInSynPkg);
     if (resCode != TRANSFER_IN_SUCCESS) {
-      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, 18);
+      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep2eContractDecimals[transInSynPkg.contractAddr]);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
           bep2TokenSymbol: transInSynPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
