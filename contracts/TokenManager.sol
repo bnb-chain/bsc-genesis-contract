@@ -43,10 +43,11 @@ contract TokenManager is System, IApplication {
   uint8 constant public   BIND_STATUS_SUCCESS = 0;
   uint8 constant public   BIND_STATUS_TIMEOUT = 1;
   uint8 constant public   BIND_STATUS_SYMBOL_MISMATCH = 2;
-  uint8 constant public   BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 3;
-  uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 4;
-  uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 5;
-  uint8 constant public   BIND_STATUS_REJECTED = 6;
+  uint8 constant public   BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE = 3;
+  uint8 constant public   BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 4;
+  uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 5;
+  uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 6;
+  uint8 constant public   BIND_STATUS_REJECTED = 7;
 
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
@@ -187,14 +188,18 @@ contract TokenManager is System, IApplication {
   function verifyBindParameters(BindSynPackage memory bindSynPkg, address contractAddr) internal view returns(uint32) {
     uint256 decimals = IBEP2E(contractAddr).decimals();
     string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-
+    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
     if (bindSynPkg.expireTime<block.timestamp) {
       return BIND_STATUS_TIMEOUT;
     }
     if (!checkSymbol(bep2eSymbol, bindSynPkg.bep2TokenSymbol)) {
       return BIND_STATUS_SYMBOL_MISMATCH;
     }
-    if (IBEP2E(bindSynPkg.contractAddr).totalSupply()!=bindSynPkg.totalSupply) {
+    if (tokenHubBalance > lockedAmount) {
+      return BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE;
+    }
+    if (IBEP2E(bindSynPkg.contractAddr).totalSupply() != bindSynPkg.totalSupply) {
       return BIND_STATUS_TOTAL_SUPPLY_MISMATCH;
     }
     if (decimals!=bindSynPkg.bep2eDecimals) {
