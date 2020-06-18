@@ -93,6 +93,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
+    bep2eContractDecimals[address(0x0)] = 18; // BNB decimals is 18
     alreadyInit=true;
   }
 
