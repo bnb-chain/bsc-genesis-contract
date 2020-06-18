@@ -223,7 +223,7 @@ contract('TokenHub', (accounts) => {
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
 
-        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x03", "bind status should be rejected");
+        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x06", "bind status should be rejected");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
         const bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
@@ -278,7 +278,7 @@ contract('TokenHub', (accounts) => {
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
-        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x02", "bind status should be incorrect parameters");
+        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x02", "bind status should be symbol mismatch");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("DEF-9C7"), "wrong bep2TokenSymbol");
 
         bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("DEF-9C7")); // symbol: ABC-9C7

@@ -2,11 +2,11 @@ pragma solidity 0.6.4;
 
 interface ITokenHub {
 
-  function getRelayFee() external returns(uint256);
+  function getRelayFee() external view returns(uint256);
 
-  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external returns(address);
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view returns(address);
 
-  function getBep2SymbolByContractAddr(address contractAddr) external returns(bytes32);
+  function getBep2SymbolByContractAddr(address contractAddr) external view returns(bytes32);
 
   function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external;
 

@@ -42,8 +42,11 @@ contract TokenManager is System, IApplication {
   // bind status
   uint8 constant public   BIND_STATUS_SUCCESS = 0;
   uint8 constant public   BIND_STATUS_TIMEOUT = 1;
-  uint8 constant public   BIND_STATUS_INCORRECT_PARAMETERS = 2;
-  uint8 constant public   BIND_STATUS_REJECTED = 3;
+  uint8 constant public   BIND_STATUS_SYMBOL_MISMATCH = 2;
+  uint8 constant public   BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 3;
+  uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 4;
+  uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 5;
+  uint8 constant public   BIND_STATUS_REJECTED = 6;
 
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
@@ -133,16 +136,11 @@ contract TokenManager is System, IApplication {
       return false;
     }
 
-    uint256 decimals = IBEP2E(contractAddr).decimals();
-    string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-    if (!checkSymbol(bep2eSymbol, bep2TokenSymbol) ||
-      ITokenHub(TOKEN_HUB_ADDR).getContractAddrByBEP2Symbol(bindSynPkg.bep2TokenSymbol)!=address(0x00)||
-      ITokenHub(TOKEN_HUB_ADDR).getBep2SymbolByContractAddr(bindSynPkg.contractAddr)!=bytes32(0x00)||
-      IBEP2E(bindSynPkg.contractAddr).totalSupply()!=bindSynPkg.totalSupply||
-      decimals!=bindSynPkg.bep2eDecimals) {
+    uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
+    if (verifyCode != BIND_STATUS_SUCCESS) {
       delete bindPackageRecord[bep2TokenSymbol];
       ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
-        status: BIND_STATUS_INCORRECT_PARAMETERS,
+        status: verifyCode,
         bep2TokenSymbol: bep2TokenSymbol
       });
       address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
@@ -203,6 +201,26 @@ contract TokenManager is System, IApplication {
       result := mload(add(symbol, 32))
     }
     return result;
+  }
+
+  function verifyBindParameters(BindSynPackage memory bindSynPkg, address contractAddr) internal view returns(uint32) {
+    uint256 decimals = IBEP2E(contractAddr).decimals();
+    string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
+
+    if (!checkSymbol(bep2eSymbol, bindSynPkg.bep2TokenSymbol)) {
+      return BIND_STATUS_SYMBOL_MISMATCH;
+    }
+    if (IBEP2E(bindSynPkg.contractAddr).totalSupply()!=bindSynPkg.totalSupply) {
+      return BIND_STATUS_TOTAL_SUPPLY_MISMATCH;
+    }
+    if (decimals!=bindSynPkg.bep2eDecimals) {
+      return BIND_STATUS_DECIMALS_MISMATCH;
+    }
+    if (ITokenHub(TOKEN_HUB_ADDR).getContractAddrByBEP2Symbol(bindSynPkg.bep2TokenSymbol)!=address(0x00)||
+    ITokenHub(TOKEN_HUB_ADDR).getBep2SymbolByContractAddr(bindSynPkg.contractAddr)!=bytes32(0x00)) {
+      return BIND_STATUS_ALREADY_BOUND_TOKEN;
+    }
+    return BIND_STATUS_SUCCESS;
   }
 
   function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {

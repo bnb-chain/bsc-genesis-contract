@@ -6,15 +6,15 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
-  function getRelayFee() external override(ITokenHub) returns (uint256) {
+  function getRelayFee() external view override(ITokenHub) returns (uint256) {
     return (1e16);
   }
 
-  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external override(ITokenHub) returns(address){
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override(ITokenHub) returns(address){
     return address(0x0);
   }
 
-  function getBep2SymbolByContractAddr(address contractAddr) external override(ITokenHub) returns(bytes32){
+  function getBep2SymbolByContractAddr(address contractAddr) external view override(ITokenHub) returns(bytes32){
     return bytes32(0x0);
   }
 
