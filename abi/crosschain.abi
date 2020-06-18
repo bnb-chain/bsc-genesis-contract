@@ -200,6 +200,21 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "CROSS_CHAIN_KEY_PREFIX",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "ERROR_FAIL_DECODE",
 		"outputs": [
 			{
@@ -411,6 +426,21 @@
 		"constant": true,
 		"inputs": [],
 		"name": "TOKEN_HUB_ADDR",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "TOKEN_MANAGER_ADDR",
 		"outputs": [
 			{
 				"internalType": "address",
@@ -677,9 +707,9 @@
 		"name": "oracleSequence",
 		"outputs": [
 			{
-				"internalType": "uint64",
+				"internalType": "int64",
 				"name": "",
-				"type": "uint64"
+				"type": "int64"
 			}
 		],
 		"payable": false,
@@ -688,14 +718,8 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "packageCounterForEachHeight",
+		"inputs": [],
+		"name": "previousTxHeight",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -757,6 +781,21 @@
 		],
 		"payable": false,
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "txCounter",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
