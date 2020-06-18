@@ -43,10 +43,11 @@ contract TokenManager is System, IApplication {
   uint8 constant public   BIND_STATUS_SUCCESS = 0;
   uint8 constant public   BIND_STATUS_TIMEOUT = 1;
   uint8 constant public   BIND_STATUS_SYMBOL_MISMATCH = 2;
-  uint8 constant public   BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 3;
-  uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 4;
-  uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 5;
-  uint8 constant public   BIND_STATUS_REJECTED = 6;
+  uint8 constant public   BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE = 3;
+  uint8 constant public   BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 4;
+  uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 5;
+  uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 6;
+  uint8 constant public   BIND_STATUS_REJECTED = 7;
 
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
@@ -121,38 +122,19 @@ contract TokenManager is System, IApplication {
     uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
     require(contractAddr==bindSynPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
-    require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
+    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    require(IBEP2E(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
     require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
 
-    if (bindSynPkg.expireTime<block.timestamp) {
-      delete bindPackageRecord[bep2TokenSymbol];
-      ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
-        status: BIND_STATUS_TIMEOUT,
-        bep2TokenSymbol: bep2TokenSymbol
-      });
-      address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
-      return false;
-    }
-
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
-    if (verifyCode != BIND_STATUS_SUCCESS) {
-      delete bindPackageRecord[bep2TokenSymbol];
-      ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
-        status: verifyCode,
-        bep2TokenSymbol: bep2TokenSymbol
-      });
-      address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
-      return false;
+    if (verifyCode == BIND_STATUS_SUCCESS) {
+      IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
+      ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
     }
-    IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount);
-    ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
-
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
-      status: BIND_STATUS_SUCCESS,
+      status: verifyCode,
       bep2TokenSymbol: bep2TokenSymbol
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
@@ -206,11 +188,18 @@ contract TokenManager is System, IApplication {
   function verifyBindParameters(BindSynPackage memory bindSynPkg, address contractAddr) internal view returns(uint32) {
     uint256 decimals = IBEP2E(contractAddr).decimals();
     string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-
+    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
+    if (bindSynPkg.expireTime<block.timestamp) {
+      return BIND_STATUS_TIMEOUT;
+    }
     if (!checkSymbol(bep2eSymbol, bindSynPkg.bep2TokenSymbol)) {
       return BIND_STATUS_SYMBOL_MISMATCH;
     }
-    if (IBEP2E(bindSynPkg.contractAddr).totalSupply()!=bindSynPkg.totalSupply) {
+    if (tokenHubBalance > lockedAmount) {
+      return BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE;
+    }
+    if (IBEP2E(bindSynPkg.contractAddr).totalSupply() != bindSynPkg.totalSupply) {
       return BIND_STATUS_TOTAL_SUPPLY_MISMATCH;
     }
     if (decimals!=bindSynPkg.bep2eDecimals) {

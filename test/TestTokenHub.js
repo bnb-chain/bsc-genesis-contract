@@ -4,7 +4,7 @@ const RLP = require('rlp');
 
 const SystemReward = artifacts.require("SystemReward");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
-//const TendermintLightClient = artifacts.require("TendermintLightClient");
+const TendermintLightClient = artifacts.require("TendermintLightClient");
 const MockLightClient = artifacts.require("mock/MockLightClient");
 const TokenHub = artifacts.require("TokenHub");
 const TokenManager = artifacts.require("TokenManager");
@@ -182,7 +182,7 @@ contract('TokenHub', (accounts) => {
             await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("allowance doesn't equal to (totalSupply - peggyAmount)"));
+            assert.ok(error.toString().includes("allowance is not enough"));
         }
 
         await abcToken.approve(tokenManager.address, web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)), {from: owner});
@@ -223,7 +223,7 @@ contract('TokenHub', (accounts) => {
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
 
-        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x06", "bind status should be rejected");
+        assert.equal(web3.utils.bytesToHex(decoded[0]), "0x07", "bind status should be rejected");
         assert.equal(web3.utils.bytesToHex(decoded[1]), toBytes32Bep2Symbol("ABC-9C7"), "wrong bep2TokenSymbol");
 
         const bindRequenst = await tokenManager.bindPackageRecord.call(toBytes32Bep2Symbol("ABC-9C7")); // symbol: ABC-9C7
@@ -377,6 +377,29 @@ contract('TokenHub', (accounts) => {
         const newBalance = await web3.eth.getBalance(accounts[2]);
 
         assert.equal(web3.utils.toBN(newBalance).sub(web3.utils.toBN(initBalance)).eq(web3.utils.toBN(1e18)), true, "wrong balance");
+    });
+    it('BNB transfer to non-payable address', async () => {
+        const crossChain = await CrossChain.deployed();
+        const relayer = accounts[1];
+
+        const tendermintLightClient = await TendermintLightClient.deployed();
+        const transferInPackage = buildTransferInPackage("BNB", "0x0000000000000000000000000000000000000000", 1e18, tendermintLightClient.address, "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
+        const transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
+        const tx = await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});
+        let event;
+        truffleAssert.eventEmitted(tx, "crossChainPackage",(ev) => {
+            let matched = false;
+            if (ev.packageSequence.toString() === "1") {
+                event = ev;
+                matched = true;
+            }
+            return matched;
+        });
+        let decoded = verifyPrefixAndExtractAckPackage(event.payload);
+        assert.equal(web3.utils.bytesToHex(decoded[0]), toBytes32Bep2Symbol("BNB"), "response should be empty");
+        assert.ok(web3.utils.bytesToHex(decoded[1]), web3.utils.toBN(1e8).toString(16), "response should be empty");
+        assert.equal(web3.utils.bytesToHex(decoded[2]), "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48", "response should be empty");
+        assert.equal(web3.utils.bytesToHex(decoded[3]), "0x04", "refund status should be non-payable recipient address");
     });
     it('Transfer from BSC to BC', async () => {
         const crossChain = await CrossChain.deployed();
