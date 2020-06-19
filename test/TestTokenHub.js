@@ -298,7 +298,9 @@ contract('TokenHub', (accounts) => {
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
         let tx = await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
-
+        truffleAssert.eventEmitted(tx, "bindSuccess",(ev) => {
+            return ev.contractAddr.toLowerCase() === abcToken.address.toLowerCase() && ev.bep2Symbol === "ABC-9C7";
+        });
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x", "bind status should be successful");

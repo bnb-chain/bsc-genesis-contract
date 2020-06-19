@@ -54,6 +54,8 @@ contract TokenManager is System, IApplication {
 
   mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
+  event bindSuccess(address indexed contractAddr, string bep2Symbol);
+  event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
   constructor() public {}
@@ -131,6 +133,9 @@ contract TokenManager is System, IApplication {
     if (verifyCode == BIND_STATUS_SUCCESS) {
       IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
       ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
+      emit bindSuccess(contractAddr, bep2Symbol);
+    } else {
+      emit bindFailure(contractAddr, bep2Symbol, verifyCode);
     }
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
@@ -157,6 +162,7 @@ contract TokenManager is System, IApplication {
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
+    emit bindFailure(contractAddr, bep2Symbol, BIND_STATUS_REJECTED);
     return true;
   }
 
@@ -174,6 +180,7 @@ contract TokenManager is System, IApplication {
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
+    emit bindFailure(bindSynPkg.contractAddr, bep2Symbol, BIND_STATUS_TIMEOUT);
     return true;
   }
 
