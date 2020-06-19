@@ -25,11 +25,11 @@ library CmnPkg {
 
         bool success = false;
         uint256 idx=0;
-        while(iter.hasNext()) {
-            if ( idx == 0 ) {
+        while (iter.hasNext()) {
+            if (idx == 0) {
                 ackPkg.code = uint32(iter.next().toUint());
                 success = true;
-            }else {
+            } else {
                 break;
             }
             idx++;
