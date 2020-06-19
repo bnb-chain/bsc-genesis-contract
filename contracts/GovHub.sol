@@ -35,7 +35,7 @@ contract GovHub is System, IApplication{
     uint32 resCode = notifyUpdates(proposal);
     if (resCode == CODE_OK) {
       return new bytes(0);
-    } else{
+    } else {
       return CmnPkg.encodeCommonAckPackage(resCode);
     }
   }

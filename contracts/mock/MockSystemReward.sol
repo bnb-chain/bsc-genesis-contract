@@ -14,7 +14,7 @@ contract MockSystemReward {
     if (actualAmount>0) {
       to.transfer(actualAmount);
       emit RewardTo(to, actualAmount);
-    } else{
+    } else {
       emit RewardEmpty();
     }
   }

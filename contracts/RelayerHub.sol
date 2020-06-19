@@ -78,7 +78,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
       uint256 newDues = BytesToTypes.bytesToUint256(32, value);
       require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
-    } else{
+    } else {
       require(false, "unknown param");
     }
     emit paramChange(key, value);

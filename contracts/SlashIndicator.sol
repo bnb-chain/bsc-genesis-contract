@@ -60,7 +60,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
     if (ok) {
       emit knownResponse(response.code);
-    } else{
+    } else {
       emit unKnownResponse(response.code);
     }
     return;
@@ -76,7 +76,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
       indicator.count++;
-    } else{
+    } else {
       indicator.exist = true;
       indicator.count = 1;
       validators.push(validator);
@@ -114,7 +114,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold > 20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
-    } else{
+    } else {
       require(false, "unknown param");
     }
     emit paramChange(key,value);
