@@ -226,7 +226,7 @@ contract TokenManager is System, IApplication {
       return false;
     }
     bool symbolMatch = true;
-    for(uint256 index=0; index < bep2eSymbolBytes.length; index++) {
+    for (uint256 index=0; index < bep2eSymbolBytes.length; index++) {
       if (bep2eSymbolBytes[index] != bep2TokenSymbolBytes[index]) {
         symbolMatch = false;
         break;
