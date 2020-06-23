@@ -32,7 +32,7 @@ library Memory {
     }
 
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))) );
+        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
     // Allocates 'numBytes' bytes in memory. This will prevent the Solidity compiler
     // from using this area of memory. It will also initialize the area by setting

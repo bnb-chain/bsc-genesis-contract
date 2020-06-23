@@ -19,7 +19,7 @@ contract DEFToken is Context, IBEP2E, Ownable {
 
   constructor() public {
     _name = "DEF token";
-    _symbol = "def";
+    _symbol = "DEF";
     _decimals = 18;
     _totalSupply = 100000000000000000000000000;
     _balances[msg.sender] = _totalSupply;

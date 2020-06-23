@@ -410,7 +410,7 @@ library BytesLib {
                 for {
                     let cc := add(_postBytes, 0x20)
                 // the next line is the loop condition:
-                // while(uint(mc < end) + cb == 2)
+                // while (uint(mc < end) + cb == 2)
                 } eq(add(lt(mc, end), cb), 2) {
                     mc := add(mc, 0x20)
                     cc := add(cc, 0x20)
@@ -481,7 +481,7 @@ library BytesLib {
                         let end := add(mc, mlength)
 
                     // the next line is the loop condition:
-                    // while(uint(mc < end) + cb == 2)
+                    // while (uint(mc < end) + cb == 2)
                         for {} eq(add(lt(mc, end), cb), 2) {
                             sc := add(sc, 1)
                             mc := add(mc, 0x20)

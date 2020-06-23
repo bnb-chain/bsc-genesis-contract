@@ -1,14 +1,19 @@
 const BSCValidatorSetTool = artifacts.require("tool/BSCValidatorSetTool");
 const Web3 = require('web3');
-const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
 contract('Tool', (accounts) => {
   it('tool test', async () => {
     const toolInstance = await BSCValidatorSetTool.deployed();
-    await toolInstance.verify(Buffer.from(web3.utils.hexToBytes("0x0000010002080000000000000000")),Buffer.from(web3.utils.hexToBytes("0x00a50381a86cd38ca23f6136556fc604329a054a855d2287739da12be1f3e3b1aeaf14f888e9d6379521d3edbf1bcfe239a7b47c756cdb0913a3079897000000e8d4a51000a5f6a270f60c83624dd1849038ee7c9e8a3e55fcc9ff491fd30c1026b24b975274cf3d4286d36fa1d98dbab2ddc67935996c0e51bd7e6f596485da24000000e8d4a510000dd11a413972d8b1e1367c4b9196f75348424e70c9c121c762d1e349dc3e38324d1c108c0b08abf9f2be3d724bf1bc39d86319c188af5158b3b9ccd4000000e8d4a51000")), 0);
-    let k = await toolInstance.expectedKey.call();
-    console.log(k)
+    await toolInstance.init();
   });
+  
+  it('decode payload header', async () => {
+    let payload = "0x00000000000000000000000000000000000000000000000000002386f26fc10000f85580a04142432d304237000000000000000000000000000000000000000000000000009450ee0de39df3b9c2bc8f8e33d9e4cd03dba9210c8b52b7d2dcc80cd2e40000008b31a17e847807b1bc00000012845f5efcc1"
+    const toolInstance = await BSCValidatorSetTool.deployed();
+    let x = await toolInstance.decodePayloadHeader.call(web3.utils.hexToBytes(payload));
+    assert.equal(x[2].toString(), "10000000000000000");
+  });
+  
 });
 

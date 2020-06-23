@@ -6,15 +6,23 @@ const nunjucks = require("nunjucks");
 program.version("0.0.1");
 program.option(
     "-t, --template <template>",
-    "validatorSet template file",
-    "./contracts/GovHub.template"
+    "CrossChain template file",
+    "./contracts/CrossChain.template"
 );
 
 program.option(
     "-o, --output <output-file>",
-    "BSCValidatorSet.sol",
-    "./contracts/GovHub.sol"
+    "TokenHub.sol",
+    "./contracts/CrossChain.sol"
 )
+
+program.option("--bscChainId <bscChainId>",
+    "bsc chain id",
+    "0060");
+
+program.option("--initBatchSizeForOracle <initBatchSizeForOracle>",
+    "init batch size for oracle",
+    "50");
 
 program.option("--mock <mock>",
     "if use mock",
@@ -23,9 +31,11 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const data = {
+  bscChainId: program.bscChainId,
+  initBatchSizeForOracle: program.initBatchSizeForOracle,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
-console.log("Govhub file updated.");
+console.log("CrossChain file updated.");
