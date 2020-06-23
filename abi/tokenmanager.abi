@@ -9,6 +9,50 @@
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "bep2Symbol",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint32",
+				"name": "failedReason",
+				"type": "uint32"
+			}
+		],
+		"name": "bindFailure",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "bep2Symbol",
+				"type": "string"
+			}
+		],
+		"name": "bindSuccess",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
 				"indexed": false,
 				"internalType": "uint8",
 				"name": "channelId",
@@ -133,6 +177,21 @@
 		"constant": true,
 		"inputs": [],
 		"name": "BIND_STATUS_TIMEOUT",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE",
 		"outputs": [
 			{
 				"internalType": "uint8",
