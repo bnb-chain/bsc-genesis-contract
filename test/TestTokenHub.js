@@ -298,7 +298,9 @@ contract('TokenHub', (accounts) => {
         await crossChain.handlePackage(bindPackage, proof, merkleHeight, bindSequence, BIND_CHANNEL_ID, {from: relayer});
 
         let tx = await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
-
+        truffleAssert.eventEmitted(tx, "bindSuccess",(ev) => {
+            return ev.contractAddr.toLowerCase() === abcToken.address.toLowerCase() && ev.bep2Symbol === "ABC-9C7";
+        });
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
         decoded = verifyPrefixAndExtractSyncPackage(nestedEventValues.payload, 1e6);
         assert.equal(web3.utils.bytesToHex(decoded[0]), "0x", "bind status should be successful");
@@ -412,8 +414,8 @@ contract('TokenHub', (accounts) => {
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let expireTime = timestamp + 150; // expire at two minutes later
         const recipient = "0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60";
-        const amount = web3.utils.toBN(1e18);
-        const relayFee = web3.utils.toBN(1e16);
+        let amount = web3.utils.toBN(1e18);
+        let relayFee = web3.utils.toBN(1e16);
 
         try {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
@@ -431,13 +433,22 @@ contract('TokenHub', (accounts) => {
         }
 
         try {
-            const relayFee = web3.utils.toBN(1e16).add(web3.utils.toBN(1));
+            relayFee = web3.utils.toBN(1e16).add(web3.utils.toBN(1));
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("received BNB amount doesn't equal to relayFee"));
+            assert.ok(error.toString().includes("invalid received BNB amount: precision loss in amount conversion"));
         }
 
+        try {
+            relayFee = web3.utils.toBN(1e15);
+            await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("received BNB amount should be no less than the minimum relayFee"));
+        }
+
+        relayFee = web3.utils.toBN(1e16);
         try {
             await tokenHub.transferOut(defToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
             assert.fail();
@@ -445,12 +456,21 @@ contract('TokenHub', (accounts) => {
             assert.ok(error.toString().includes("the contract has not been bound to any bep2 token"));
         }
 
+        try {
+            amount = web3.utils.toBN(1e8);
+            await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("invalid transfer amount: precision loss in amount conversion"));
+        }
+
+        amount = web3.utils.toBN(1e18);
         await abcToken.approve(tokenHub.address, amount, {from: sender});
         try {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("received BNB amount doesn't equal to relayFee"));
+            assert.ok(error.toString().includes("received BNB amount should be no less than the minimum relayFee"));
         }
         let tx = await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
@@ -505,13 +525,20 @@ contract('TokenHub', (accounts) => {
         const sender = accounts[0];
 
         const recipientAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
-        let amounts = [web3.utils.toBN(1e16), web3.utils.toBN(2e16)];
+        let amounts = [web3.utils.toBN(5e9), web3.utils.toBN(5e9)];
         const refundAddrs = ["0x37b8516a0f88e65d677229b402ec6c1e0e333004", "0xfa5e36a04eef3152092099f352ddbe88953bb540"];
 
         let timestamp = Math.floor(Date.now() / 1000);
         let expireTime = (timestamp + 150);
-        const relayFee = web3.utils.toBN(2e16);
 
+        try {
+            await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN(2000002e10)});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("invalid transfer amount: precision loss in amount conversion"));
+        }
+
+        amounts = [web3.utils.toBN(1e16), web3.utils.toBN(2e16)];
         let tx = await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN(5e16)});
         truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
             return ev.amount.eq(web3.utils.toBN(3e16)) && ev.bep2eAddr.toString().toLowerCase() === "0x0000000000000000000000000000000000000000";
@@ -587,10 +614,10 @@ contract('TokenHub', (accounts) => {
         let timestamp = Math.floor(Date.now() / 1000); // counted by second
         let expireTime = timestamp + 150; // expire at two minutes later
         let recipient = "0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60";
-        let amount = web3.utils.toBN("115792089237316195423570985008687907853269984665640564039457584007910000000000");
+        let amount = web3.utils.toBN("115792089237316195423570985008687907853269984665640564039457584007903129639936");
 
         try {
-            await tokenHub.transferOut("0x0000000000000000000000000000000000000000", recipient, amount, expireTime, {from: sender, value: web3.utils.toBN("9999996870360064")});
+            await tokenHub.transferOut("0x0000000000000000000000000000000000000000", recipient, amount, expireTime, {from: sender, value: web3.utils.toBN("9999990000000000")});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));
@@ -604,7 +631,7 @@ contract('TokenHub', (accounts) => {
         expireTime = (timestamp + 150);
 
         try {
-            await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN("39999996870360064")});
+            await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN("9999990000000000")});
             assert.fail();
         } catch (error) {
             assert.ok(error.toString().includes("SafeMath: addition overflow"));

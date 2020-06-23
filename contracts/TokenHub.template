@@ -81,7 +81,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
   event transferInSuccess(address bep2eAddr, address refundAddr, uint256 amount);
-  event transferOutSuccess(address bep2eAddr, address senderAddr, uint256 amount);
+  event transferOutSuccess(address bep2eAddr, address senderAddr, uint256 amount, uint256 relayFee);
   event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
   event refundFailure(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
   event rewardTo(address to, uint256 amount);
@@ -375,17 +375,21 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
+    require(msg.value%1e10==0, "invalid received BNB amount: precision loss in amount conversion");
     bytes32 bep2TokenSymbol;
     uint256 convertedAmount;
+    uint256 rewardForRelayer;
     if (contractAddr==address(0x0)) {
+      require(msg.value>=amount.add(relayFee), "received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee");
       require(amount%1e10==0, "invalid transfer amount: precision loss in amount conversion");
-      require(msg.value==amount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+      rewardForRelayer=msg.value.sub(amount);
       convertedAmount = amount.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
       bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
     } else {
       bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
-      require(msg.value== relayFee, "received BNB amount doesn't equal to relayFee");
+      require(msg.value>=relayFee, "received BNB amount should be no less than the minimum relayFee");
+      rewardForRelayer=msg.value;
       uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
       require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
       convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
@@ -407,8 +411,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     transOutSynPkg.amounts[0]=convertedAmount;
     transOutSynPkg.recipients[0]=recipient;
     transOutSynPkg.refundAddrs[0]=msg.sender;
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), relayFee.div(1e10));
-    emit transferOutSuccess(contractAddr, msg.sender, amount);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(1e10));
+    emit transferOutSuccess(contractAddr, msg.sender, amount, rewardForRelayer);
     return true;
   }
 
@@ -416,18 +420,18 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
+    require(msg.value%1e10==0, "invalid received BNB amount: precision loss in amount conversion");
     uint256 batchLength = amounts.length;
     uint256 totalAmount = 0;
-    for (uint i = 0; i < batchLength; i++) {
-      totalAmount = totalAmount.add(amounts[i]);
-    }
+    uint256 rewardForRelayer;
     uint256[] memory convertedAmounts = new uint256[](batchLength);
-
-    for (uint8 i = 0; i < batchLength; i++) {
-      require(amounts[i]%1e10==0, "invalid transfer amount");
+    for (uint i = 0; i < batchLength; i++) {
+      require(amounts[i]%1e10==0, "invalid transfer amount: precision loss in amount conversion");
+      totalAmount = totalAmount.add(amounts[i]);
       convertedAmounts[i] = amounts[i].div(1e10);
     }
-    require(msg.value==totalAmount.add(relayFee.mul(batchLength)), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
+    require(msg.value>=totalAmount.add(relayFee.mul(batchLength)), "received BNB amount should be no less than the sum of transfer BNB amount and relayFee");
+    rewardForRelayer = msg.value.sub(totalAmount);
 
     TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
       bep2TokenSymbol: BEP2_TOKEN_SYMBOL_FOR_BNB,
@@ -437,8 +441,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       refundAddrs: refundAddrs,
       expireTime: expireTime
     });
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), relayFee.mul(batchLength).div(1e10));
-    emit transferOutSuccess(address(0x0), msg.sender, totalAmount);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(1e10));
+    emit transferOutSuccess(address(0x0), msg.sender, totalAmount, rewardForRelayer);
     return true;
   }
 
