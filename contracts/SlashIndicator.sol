@@ -52,15 +52,15 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract override returns(bytes memory){
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract override returns(bytes memory) {
     require(false, "receive unexpected syn package");
   }
 
   function handleAckPackage(uint8, bytes calldata msgBytes) external override {
     (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
-    if(ok){
+    if (ok) {
       emit knownResponse(response.code);
-    }else{
+    } else {
       emit unKnownResponse(response.code);
     }
     return;
@@ -74,19 +74,19 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   /*********************** External func ********************************/
   function slash(address validator) external onlyCoinbase onlyInit onlyOnce{
     Indicator memory indicator = indicators[validator];
-    if (indicator.exist){
+    if (indicator.exist) {
       indicator.count++;
-    }else{
+    } else {
       indicator.exist = true;
       indicator.count = 1;
       validators.push(validator);
     }
     indicator.height = block.number;
     indicators[validator] = indicator;
-    if(indicator.count % felonyThreshold == 0){
+    if (indicator.count % felonyThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
-    }else if (indicator.count % misdemeanorThreshold == 0){
+    } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
     emit validatorSlashed(validator);
@@ -94,7 +94,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
     uint n = validators.length;
-    for(uint i = 0; i < n; i++){
+    for (uint i = 0; i < n; i++) {
       delete indicators[validators[n-i-1]];
       validators.pop();
     }
@@ -104,24 +104,24 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
-    if (Memory.compareStrings(key,"misdemeanorThreshold")){
+    if (Memory.compareStrings(key,"misdemeanorThreshold")) {
       require(value.length == 32, "length of misdemeanorThreshold mismatch");
       uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newMisdemeanorThreshold >= 10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
       misdemeanorThreshold = newMisdemeanorThreshold;
-    }else if(Memory.compareStrings(key,"felonyThreshold")){
+    } else if (Memory.compareStrings(key,"felonyThreshold")) {
       require(value.length == 32, "length of felonyThreshold mismatch");
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold > 20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
-    }else{
+    } else {
       require(false, "unknown param");
     }
     emit paramChange(key,value);
   }
 
   /*********************** query api ********************************/
-  function getSlashIndicator(address validator) external view returns (uint256,uint256){
+  function getSlashIndicator(address validator) external view returns (uint256,uint256) {
     Indicator memory indicator = indicators[validator];
     return (indicator.height, indicator.count);
   }

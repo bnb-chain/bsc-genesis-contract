@@ -98,14 +98,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   receive() external payable{
-    if (msg.value>0){
+    if (msg.value>0) {
       emit receiveDeposit(msg.sender, msg.value);
     }
   }
 
   function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
-    if(actualAmount>0){
+    if (actualAmount>0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
     }
@@ -116,7 +116,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return relayFee;
   }
 
-  function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory){
+  function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory) {
     if (channelId == TRANSFER_IN_CHANNELID) {
       return handleTransferInSynPackage(msgBytes);
     } else {
@@ -148,13 +148,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-      if ( idx == 0 ) transInSynPkg.bep2TokenSymbol       = bytes32(iter.next().toUint());
-      else if ( idx == 1 ) transInSynPkg.contractAddr     = iter.next().toAddress();
-      else if ( idx == 2 ) transInSynPkg.amount           = iter.next().toUint();
-      else if ( idx == 3 ) transInSynPkg.recipient        = ((iter.next().toAddress()));
-      else if ( idx == 4 ) transInSynPkg.refundAddr       = iter.next().toAddress();
-      else if ( idx == 5 ) {
+    while (iter.hasNext()) {
+      if (idx == 0) transInSynPkg.bep2TokenSymbol       = bytes32(iter.next().toUint());
+      else if (idx == 1) transInSynPkg.contractAddr     = iter.next().toAddress();
+      else if (idx == 2) transInSynPkg.amount           = iter.next().toUint();
+      else if (idx == 3) transInSynPkg.recipient        = ((iter.next().toAddress()));
+      else if (idx == 4) transInSynPkg.refundAddr       = iter.next().toAddress();
+      else if (idx == 5) {
         transInSynPkg.expireTime       = uint64(iter.next().toUint());
         success = true;
       }
@@ -216,7 +216,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
       bool success = IBEP2E(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSynPkg.recipient, transInSynPkg.amount);
-      if (success){
+      if (success) {
         emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
         return TRANSFER_IN_SUCCESS;
       } else {
@@ -231,25 +231,25 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-        if ( idx == 0 ) {
+    while (iter.hasNext()) {
+        if (idx == 0) {
           transOutAckPkg.contractAddr = iter.next().toAddress();
         }
-        else if ( idx == 1 ) {
+        else if (idx == 1) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAmounts = new uint256[](list.length);
-          for(uint256 index=0; index<list.length; index++ ) {
+          for (uint256 index=0; index<list.length; index++) {
             transOutAckPkg.refundAmounts[index] = list[index].toUint();
           }
         }
-        else if ( idx == 2 ) {
+        else if (idx == 2) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAddrs = new address[](list.length);
-          for(uint256 index=0; index<list.length; index++ ) {
+          for (uint256 index=0; index<list.length; index++) {
             transOutAckPkg.refundAddrs[index] = list[index].toAddress();
           }
         }
-        else if ( idx == 3 ) {
+        else if (idx == 3) {
           transOutAckPkg.status = uint32(iter.next().toUint());
           success = true;
         }
@@ -269,8 +269,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function doRefund(TransferOutAckPackage memory transOutAckPkg) internal {
     if (transOutAckPkg.contractAddr==address(0x0)) {
-      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++ ) {
-        if (!address(uint160(transOutAckPkg.refundAddrs[index])).send(transOutAckPkg.refundAmounts[index])){
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+        if (!address(uint160(transOutAckPkg.refundAddrs[index])).send(transOutAckPkg.refundAmounts[index])) {
           emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
         } else {
           emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
@@ -294,30 +294,30 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-      if ( idx == 0 ) {
+    while (iter.hasNext()) {
+      if (idx == 0) {
         transOutSynPkg.bep2TokenSymbol = bytes32(iter.next().toUint());
-      } else if(idx == 1 ) {
+      } else if (idx == 1) {
         transOutSynPkg.contractAddr = iter.next().toAddress();
-      } else if(idx == 2 ) {
+      } else if (idx == 2) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.amounts = new uint256[](list.length);
-        for(uint256 index=0; index<list.length; index++ ) {
+        for (uint256 index=0; index<list.length; index++) {
           transOutSynPkg.amounts[index] = list[index].toUint();
         }
-      } else if(idx == 3 ) {
+      } else if (idx == 3) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.recipients = new address[](list.length);
-        for(uint256 index=0; index<list.length; index++ ) {
+        for (uint256 index=0; index<list.length; index++) {
           transOutSynPkg.recipients[index] = list[index].toAddress();
         }
-      } else if(idx == 4 ) {
+      } else if (idx == 4) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.refundAddrs = new address[](list.length);
-        for(uint256 index=0; index<list.length; index++ ) {
+        for (uint256 index=0; index<list.length; index++) {
           transOutSynPkg.refundAddrs[index] = list[index].toAddress();
         }
-      } else if(idx == 5 ) {
+      } else if (idx == 5) {
         transOutSynPkg.expireTime = uint64(iter.next().toUint());
         success = true;
       } else {
@@ -352,19 +352,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 batchLength = transOutSynPkg.amounts.length;
 
     bytes[] memory amountsElements = new bytes[](batchLength);
-    for(uint256 index; index< batchLength; index++) {
+    for (uint256 index; index< batchLength; index++) {
       amountsElements[index] = transOutSynPkg.amounts[index].encodeUint();
     }
     elements[2] = amountsElements.encodeList();
 
     bytes[] memory recipientsElements = new bytes[](batchLength);
-    for(uint256 index; index< batchLength; index++) {
+    for (uint256 index; index< batchLength; index++) {
        recipientsElements[index] = transOutSynPkg.recipients[index].encodeAddress();
     }
     elements[3] = recipientsElements.encodeList();
 
     bytes[] memory refundAddrsElements = new bytes[](batchLength);
-    for(uint256 index; index< batchLength; index++) {
+    for (uint256 index; index< batchLength; index++) {
        refundAddrsElements[index] = transOutSynPkg.refundAddrs[index].encodeAddress();
     }
     elements[4] = refundAddrsElements.encodeList();
@@ -454,7 +454,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     assembly {
       bytes32Key := mload(add(localKey, 32))
     }
-    if (bytes32Key == bytes32(0x72656c6179466565000000000000000000000000000000000000000000000000)){ // relayFee
+    if (bytes32Key == bytes32(0x72656c6179466565000000000000000000000000000000000000000000000000)) { // relayFee
       uint256 newRelayFee;
       assembly {
         newRelayFee := mload(add(localValue, 32))

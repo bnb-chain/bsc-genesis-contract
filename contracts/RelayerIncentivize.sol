@@ -68,17 +68,17 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     collectedRewardForHeaderRelayer = collectedRewardForHeaderRelayer.add(reward);
     collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(actualAmount).sub(reward);
 
-    if (headerRelayersSubmitCount[headerRelayerAddr]==0){
+    if (headerRelayersSubmitCount[headerRelayerAddr]==0) {
       headerRelayerAddressRecord.push(headerRelayerAddr);
     }
     headerRelayersSubmitCount[headerRelayerAddr]++;
 
-    if (transferRelayersSubmitCount[packageRelayer]==0){
+    if (transferRelayersSubmitCount[packageRelayer]==0) {
       transferRelayerAddressRecord.push(packageRelayer);
     }
     transferRelayersSubmitCount[packageRelayer]++;
 
-    if (countInRound==ROUND_SIZE){
+    if (countInRound==ROUND_SIZE) {
       emit LogDistributeCollectedReward(roundSequence, collectedRewardForHeaderRelayer, collectedRewardForTransferRelayer);
 
       distributeHeaderRelayerReward(packageRelayer);
@@ -103,7 +103,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 totalWeight=0;
     address payable[] memory relayers = headerRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
-    for(uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; index++) {
       address relayer = relayers[index];
       uint256 weight = calculateHeaderRelayerWeight(headerRelayersSubmitCount[relayer]);
       relayerWeight[index] = weight;
@@ -113,7 +113,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominatorCallerCompensation);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
-    for(uint256 index = 1; index < relayers.length; index++) {
+    for (uint256 index = 1; index < relayers.length; index++) {
       uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayers[index].send(reward);
       remainReward = remainReward.sub(reward);
@@ -122,7 +122,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     packageRelayer.send(callerReward);
 
     collectedRewardForHeaderRelayer = 0;
-    for (uint256 index = 0; index < relayers.length; index++){
+    for (uint256 index = 0; index < relayers.length; index++) {
       delete headerRelayersSubmitCount[relayers[index]];
     }
     delete headerRelayerAddressRecord;
@@ -134,7 +134,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 totalWeight=0;
     address payable[] memory relayers = transferRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
-    for(uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; index++) {
       address relayer = relayers[index];
       uint256 weight = calculateTransferRelayerWeight(transferRelayersSubmitCount[relayer]);
       relayerWeight[index] = weight;
@@ -144,7 +144,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominatorCallerCompensation);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
-    for(uint256 index = 1; index < relayers.length; index++) {
+    for (uint256 index = 1; index < relayers.length; index++) {
       uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayers[index].send(reward);
       remainReward = remainReward.sub(reward);
@@ -153,7 +153,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     packageRelayer.send(callerReward);
 
     collectedRewardForTransferRelayer = 0;
-    for (uint256 index = 0; index < relayers.length; index++){
+    for (uint256 index = 0; index < relayers.length; index++) {
       delete transferRelayersSubmitCount[relayers[index]];
     }
     delete transferRelayerAddressRecord;
@@ -164,7 +164,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       return count;
     } else if (MAXIMUM_WEIGHT < count && count <= 2*MAXIMUM_WEIGHT) {
       return MAXIMUM_WEIGHT;
-    } else if (2*MAXIMUM_WEIGHT < count && count <= (2*MAXIMUM_WEIGHT + 3*MAXIMUM_WEIGHT/4 )) {
+    } else if (2*MAXIMUM_WEIGHT < count && count <= (2*MAXIMUM_WEIGHT + 3*MAXIMUM_WEIGHT/4)) {
       return 3*MAXIMUM_WEIGHT - count;
     } else {
       return count/4;
@@ -181,25 +181,25 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   function updateParam(string calldata key, bytes calldata value) override external onlyGov{
     require(alreadyInit, "contract has not been initialized");
-    if (Memory.compareStrings(key,"moleculeHeaderRelayer")){
+    if (Memory.compareStrings(key,"moleculeHeaderRelayer")) {
       require(value.length == 32, "length of moleculeHeaderRelayer mismatch");
       uint256 newMoleculeHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
       moleculeHeaderRelayer = newMoleculeHeaderRelayer;
-    } else if (Memory.compareStrings(key,"denominatorHeaderRelayer")){
+    } else if (Memory.compareStrings(key,"denominatorHeaderRelayer")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newDenominatorHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
       require(newDenominatorHeaderRelayer != 0, "the newDenominatorHeaderRelayer must not be zero");
       denominatorHeaderRelayer = newDenominatorHeaderRelayer;
-    }else if (Memory.compareStrings(key,"moleculeCallerCompensation")){
+    } else if (Memory.compareStrings(key,"moleculeCallerCompensation")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newMoleculeCallerCompensation = BytesToTypes.bytesToUint256(32, value);
       moleculeCallerCompensation = newMoleculeCallerCompensation;
-    } else if (Memory.compareStrings(key,"denominatorCallerCompensation")){
+    } else if (Memory.compareStrings(key,"denominatorCallerCompensation")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newDenominatorCallerCompensation = BytesToTypes.bytesToUint256(32, value);
       require(newDenominatorCallerCompensation != 0, "the newDenominatorCallerCompensation must not be zero");
       denominatorCallerCompensation = newDenominatorCallerCompensation;
-    }else{
+    } else {
       require(false, "unknown param");
     }
     emit paramChange(key, value);

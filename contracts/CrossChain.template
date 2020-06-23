@@ -204,7 +204,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     if (packageType == SYN_PACKAGE) {
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
-        if(responsePayload.length!=0){
+        if (responsePayload.length!=0) {
           sendPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, responsePayload));
           channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         }
@@ -244,7 +244,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       previousTxHeight=block.number;
     } else {
       txCounter++;
-      if(txCounter>=batchSizeForOracle) {
+      if (txCounter>=batchSizeForOracle) {
         oracleSequence++;
         txCounter = 0;
       }
@@ -261,11 +261,11 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
   }
 
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
-    if (Memory.compareStrings(key, "batchSizeForOracle")){
+    if (Memory.compareStrings(key, "batchSizeForOracle")) {
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
       require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
       batchSizeForOracle = newBatchSizeForOracle;
-    } else if (Memory.compareStrings(key, "addChannel")){
+    } else if (Memory.compareStrings(key, "addChannel")) {
       bytes memory valueLocal = value;
       require(valueLocal.length == 22, "length of value for addChannel should be 22, channelId:isFromSystem:handlerAddress");
       uint8 channelId;

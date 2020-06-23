@@ -10,7 +10,7 @@ contract BSCValidatorSetTool {
 
   using RLPDecode for *;
 
-  struct Validator{
+  struct Validator {
     address consensusAddress;
     address payable feeAddress;
     address BBCFeeAddress;
@@ -33,21 +33,21 @@ contract BSCValidatorSetTool {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-      if ( idx == 0 ) {
+    while (iter.hasNext()) {
+      if (idx == 0) {
         validatorSetPkg.packageType = uint8(iter.next().toUint());
-      }else if (idx == 1) {
+      } else if (idx == 1) {
         RLPDecode.RLPItem[] memory items = iter.next().toList();
         validatorSetPkg.validatorSet =new Validator[](items.length);
-        for(uint j = 0;j<items.length;j++){
+        for (uint j = 0;j<items.length;j++) {
           (Validator memory val, bool ok) = decodeValidator(items[j]);
-          if (!ok){
+          if (!ok) {
             return false;
           }
           validatorSetPkg.validatorSet[j] = val;
         }
         success = true;
-      }else {
+      } else {
         break;
       }
       idx++;
@@ -60,17 +60,17 @@ contract BSCValidatorSetTool {
     RLPDecode.Iterator memory iter = itemValidator.iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
+    while (iter.hasNext()) {
       if (idx == 0) {
         validator.consensusAddress = iter.next().toAddress();
-      }else if (idx == 1) {
+      } else if (idx == 1) {
         validator.feeAddress = address(uint160(iter.next().toAddress()));
-      }else if (idx == 2) {
+      } else if (idx == 2) {
         validator.BBCFeeAddress = iter.next().toAddress();
-      }else if (idx == 3) {
+      } else if (idx == 3) {
         validator.votingPower = uint64(iter.next().toUint());
         success = true;
-      }else {
+      } else {
         break;
       }
       idx++;

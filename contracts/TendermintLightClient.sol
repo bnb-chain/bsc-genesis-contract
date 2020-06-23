@@ -63,7 +63,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     uint64 preValidatorSetChangeHeight = latestHeight;
     ConsensusState memory cs = lightClientConsensusStates[preValidatorSetChangeHeight];
-    for(; preValidatorSetChangeHeight >= initialHeight;) {
+    for (; preValidatorSetChangeHeight >= initialHeight;) {
       if (preValidatorSetChangeHeight < height) {
         // find nearest previous height
         break;
@@ -259,12 +259,12 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   }
 
   function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
-    if (Memory.compareStrings(key,"rewardForValidatorSetChange")){
+    if (Memory.compareStrings(key,"rewardForValidatorSetChange")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newRewardForValidatorSetChange = BytesToTypes.bytesToUint256(32, value);
       require(newRewardForValidatorSetChange > 0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
       rewardForValidatorSetChange = newRewardForValidatorSetChange;
-    }else{
+    } else {
       require(false, "unknown param");
     }
     emit paramChange(key, value);

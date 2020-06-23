@@ -27,15 +27,15 @@ contract GovHub is System, IApplication{
     address  target;
   }
 
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory responsePayload){
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory responsePayload) {
     (ParamChangePackage memory proposal, bool success) = decodeSynPackage(msgBytes);
-    if(!success){
+    if (!success) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
     }
     uint32 resCode = notifyUpdates(proposal);
-    if(resCode == CODE_OK){
+    if (resCode == CODE_OK) {
       return new bytes(0);
-    }else{
+    } else {
       return CmnPkg.encodeCommonAckPackage(resCode);
     }
   }
@@ -52,11 +52,11 @@ contract GovHub is System, IApplication{
 
   function notifyUpdates(ParamChangePackage memory proposal) internal returns(uint32) {
 
-    if (!isContract(proposal.target)){
+    if (!isContract(proposal.target)) {
       emit failReasonWithStr("the target is not a contract");
       return ERROR_TARGET_NOT_CONTRACT;
     }
-    try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value){
+    try IParamSubscriber(proposal.target).updateParam(proposal.key, proposal.value) {
     }catch Error(string memory reason) {
       emit failReasonWithStr(reason);
       return ERROR_TARGET_CONTRACT_FAIL;
@@ -74,12 +74,12 @@ contract GovHub is System, IApplication{
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-      if ( idx == 0 ) {
+    while (iter.hasNext()) {
+      if (idx == 0) {
         pkg.key = string(iter.next().toBytes());
-      }else if (idx == 1) {
+      } else if (idx == 1) {
         pkg.value = iter.next().toBytes();
-      }else if (idx == 2){
+      } else if (idx == 2) {
         pkg.target = iter.next().toAddress();
         success = true;
       } else {
