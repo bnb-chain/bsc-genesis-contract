@@ -23,7 +23,7 @@ function generateExtradata(validators) {
 function extraDataSerialize(validators) {
   let n = validators.length;
   let arr = [];
-  for(let i = 0;i<n;i++){
+  for (let i = 0;i<n;i++) {
     let validator = validators[i];
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
   }
@@ -33,7 +33,7 @@ function extraDataSerialize(validators) {
 function validatorUpdateRlpEncode(validators) {
   let n = validators.length;
   let vals = [];
-  for(let i = 0;i<n;i++) {
+  for (let i = 0;i<n;i++) {
     vals.push([
       validators[i].consensusAddr,
       validators[i].feeAddr,

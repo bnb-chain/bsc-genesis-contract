@@ -70,7 +70,7 @@ library RLPEncode {
      * @return The RLP encoded list of items in bytes
      */
     function encodeList(bytes[] memory self) internal pure returns (bytes memory) {
-        if (self.length == 0 ){
+        if (self.length == 0) {
             return new bytes(0);
         }
         bytes memory payload = self[0];

@@ -60,7 +60,7 @@ contract TokenManager is System, IApplication {
 
   constructor() public {}
 
-  function handleSynPackage(uint8 /* channelId */, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory){
+  function handleSynPackage(uint8 /* channelId */, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory) {
     return handleBindSynPackage(msgBytes);
   }
 
@@ -77,14 +77,14 @@ contract TokenManager is System, IApplication {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     bool success = false;
     uint256 idx=0;
-    while(iter.hasNext()) {
-        if ( idx == 0 )      bindSynPkg.packageType      = uint8(iter.next().toUint());
-        else if ( idx == 1 ) bindSynPkg.bep2TokenSymbol  = bytes32(iter.next().toUint());
-        else if ( idx == 2 ) bindSynPkg.contractAddr     = iter.next().toAddress();
-        else if ( idx == 3 ) bindSynPkg.totalSupply      = iter.next().toUint();
-        else if ( idx == 4 ) bindSynPkg.peggyAmount      = iter.next().toUint();
-        else if ( idx == 5 ) bindSynPkg.bep2eDecimals    = uint8(iter.next().toUint());
-        else if ( idx == 6 ) {
+    while (iter.hasNext()) {
+        if (idx == 0)      bindSynPkg.packageType      = uint8(iter.next().toUint());
+        else if (idx == 1) bindSynPkg.bep2TokenSymbol  = bytes32(iter.next().toUint());
+        else if (idx == 2) bindSynPkg.contractAddr     = iter.next().toAddress();
+        else if (idx == 3) bindSynPkg.totalSupply      = iter.next().toUint();
+        else if (idx == 4) bindSynPkg.peggyAmount      = iter.next().toUint();
+        else if (idx == 5) bindSynPkg.bep2eDecimals    = uint8(iter.next().toUint());
+        else if (idx == 6) {
           bindSynPkg.expireTime       = uint64(iter.next().toUint());
           success = true;
         }
@@ -233,7 +233,7 @@ contract TokenManager is System, IApplication {
       return false;
     }
     bool symbolMatch = true;
-    for(uint256 index=0; index < bep2eSymbolBytes.length; index++) {
+    for (uint256 index=0; index < bep2eSymbolBytes.length; index++) {
       if (bep2eSymbolBytes[index] != bep2TokenSymbolBytes[index]) {
         symbolMatch = false;
         break;

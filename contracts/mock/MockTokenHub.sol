@@ -10,17 +10,17 @@ contract MockTokenHub is ITokenHub {
     return (1e16);
   }
 
-  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override(ITokenHub) returns(address){
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override(ITokenHub) returns(address) {
     return address(0x0);
   }
 
-  function getBep2SymbolByContractAddr(address contractAddr) external view override(ITokenHub) returns(bytes32){
+  function getBep2SymbolByContractAddr(address contractAddr) external view override(ITokenHub) returns(bytes32) {
     return bytes32(0x0);
   }
 
-  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub){}
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub) {}
 
-  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub){}
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
 
   function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {

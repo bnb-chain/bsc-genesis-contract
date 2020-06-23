@@ -10,7 +10,7 @@ contract SystemReward is System, ISystemReward{
 
 
   modifier doInit() {
-    if(!alreadyInit){
+    if (!alreadyInit) {
       operators[LIGHT_CLIENT_ADDR] = true;
       operators[INCENTIVIZE_ADDR] = true;
       numOperator = 2;
@@ -31,7 +31,7 @@ contract SystemReward is System, ISystemReward{
 
 
   receive() external payable{
-    if (msg.value>0){
+    if (msg.value>0) {
       emit receiveDeposit(msg.sender, msg.value);
     }
   }
@@ -39,19 +39,19 @@ contract SystemReward is System, ISystemReward{
   
   function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
-    if(actualAmount > MAX_REWARDS){
+    if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
     }
-    if(actualAmount>0){
+    if (actualAmount>0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
-    }else{
+    } else {
       emit rewardEmpty();
     }
     return actualAmount;
   }
 
-  function isOperator(address addr) external view returns (bool){
+  function isOperator(address addr) external view returns (bool) {
     return operators[addr];
   }
 }
