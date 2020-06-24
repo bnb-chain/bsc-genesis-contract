@@ -245,9 +245,9 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       previousTxHeight=block.number;
     } else {
       txCounter++;
-      if (txCounter>=batchSizeForOracle) {
+      if (txCounter>batchSizeForOracle) {
         oracleSequence++;
-        txCounter = 0;
+        txCounter = 1;
       }
     }
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
