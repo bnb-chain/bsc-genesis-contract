@@ -54,7 +54,7 @@ contract TokenManager is System, IApplication {
 
   mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
-  event bindSuccess(address indexed contractAddr, string bep2Symbol);
+  event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
   event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
@@ -133,7 +133,7 @@ contract TokenManager is System, IApplication {
     if (verifyCode == BIND_STATUS_SUCCESS) {
       IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
       ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
-      emit bindSuccess(contractAddr, bep2Symbol);
+      emit bindSuccess(contractAddr, bep2Symbol, bindSynPkg.totalSupply, lockedAmount);
     } else {
       emit bindFailure(contractAddr, bep2Symbol, verifyCode);
     }
