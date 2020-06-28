@@ -129,6 +129,18 @@ contract('GovHub others', (accounts) => {
             return ev.key === 'addChannel';
         });
 
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00"))])), crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'enableOrDisableChannel';
+        });
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x01"))])), crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'enableOrDisableChannel';
+        });
+
         let appAddr = await crossChainInstance.channelHandlerContractMap.call(0x57);
         assert.equal(appAddr, RelayerIncentivize.address, "value not equal");
         let fromSys = await crossChainInstance.isRelayRewardFromSystemReward.call(0x57);

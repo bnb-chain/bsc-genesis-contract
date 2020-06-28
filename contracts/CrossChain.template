@@ -42,6 +42,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   event unexpectedRevertInPackageHandler(address indexed contractAddr, string reason);
   event unexpectedFailureAssertionInPackageHandler(address indexed contractAddr, bytes lowLevelData);
   event paramChange(string key, bytes value);
+  event enableOrDisableChannel(uint8 indexed channelId, bool isEnable);
   event addChannel(uint8 indexed channelId, address indexed contractAddr);
 
   modifier sequenceInOrder(uint64 _sequence, uint8 _channelID) {
@@ -244,9 +245,9 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       previousTxHeight=block.number;
     } else {
       txCounter++;
-      if (txCounter>=batchSizeForOracle) {
+      if (txCounter>batchSizeForOracle) {
         oracleSequence++;
-        txCounter = 0;
+        txCounter = 1;
       }
     }
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
@@ -288,6 +289,25 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       registeredContractMap[handlerContract] = true;
       isRelayRewardFromSystemReward[channelId] = (isRewardFromSystem == 0x0);
       emit addChannel(channelId, handlerContract);
+    } else if (Memory.compareStrings(key, "enableOrDisableChannel")) {
+      bytes memory valueLocal = value;
+      require(valueLocal.length == 2, "length of value for enableOrDisableChannel should be 2, channelId:isEnable");
+
+      uint8 channelId;
+      assembly {
+        channelId := mload(add(valueLocal, 1))
+      }
+      uint8 status;
+      assembly {
+        status := mload(add(valueLocal, 2))
+      }
+      bool isEnable = (status == 1);
+
+      address handlerContract = channelHandlerContractMap[channelId];
+      if (handlerContract != address(0x00)) { //channel existing
+        registeredContractMap[handlerContract] = isEnable;
+        emit enableOrDisableChannel(channelId, isEnable);
+      }
     } else {
       require(false, "unknown param");
     }
