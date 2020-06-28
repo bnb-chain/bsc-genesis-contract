@@ -446,6 +446,57 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
+  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint64 expireTime) external onlyInit payable returns (bool) {
+    require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
+    require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
+    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
+    require(msg.value%1e10==0, "invalid received BNB amount: precision loss in amount conversion");
+
+    uint256 batchLength = amounts.length;
+    uint256 totalAmount = 0;
+    for (uint i = 0; i < batchLength; i++) {
+      totalAmount = totalAmount.add(amounts[i]);
+    }
+    uint256[] memory convertedAmounts = new uint256[](amounts.length);
+    bytes32 bep2TokenSymbol;
+    uint256 rewardForRelayer;
+    if (contractAddr==address(0x0)) {
+      for (uint8 i = 0; i < batchLength; i++) {
+        require(amounts[i]%1e10==0, "invalid transfer amount");
+        convertedAmounts[i] = amounts[i].div(1e10);
+      }
+      require(msg.value>=totalAmount.add(relayFee.mul(batchLength)), "received BNB amount should be no less than the sum of transfer BNB amount and relayFee");
+      rewardForRelayer = msg.value.sub(totalAmount);
+      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
+    } else {
+      uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
+      for (uint i = 0; i < batchLength; i++) {
+        require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amounts[i].mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
+        uint256 convertedAmount = convertToBep2Amount(amounts[i], bep2eTokenDecimals);// convert to bep2 amount
+        require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amounts[i]), "amount is too large, uint256 overflow");
+        require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+        convertedAmounts[i] = convertedAmount;
+      }
+      require(msg.value>=relayFee.mul(batchLength), "received BNB amount should be no less than the relayFee*batchLength");
+      rewardForRelayer = msg.value;
+      bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
+      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
+      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
+    }
+    address[] memory recipientAddrsLocal = recipientAddrs; //fix CompilerError: Stack too deep, try removing local variables.
+    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
+      bep2TokenSymbol: bep2TokenSymbol,
+      contractAddr: contractAddr,
+      amounts: convertedAmounts,
+      recipients: recipientAddrsLocal,
+      refundAddrs: refundAddrs,
+      expireTime: expireTime
+    });
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(1e10));
+    emit transferOutSuccess(contractAddr, msg.sender, totalAmount, rewardForRelayer);
+    return true;
+  }
+
   function updateParam(string calldata key, bytes calldata value) override external onlyGov{
     require(value.length == 32, "expected value length is 32");
     string memory localKey = key;
@@ -552,5 +603,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         bep2Symbol[j] = bep2SymbolBytes[j];
     }
     return string(bep2Symbol);
+  }
+  function getBep2eContractDecimals(address contractAddr) public view returns (uint256) {
+    return bep2eContractDecimals[contractAddr];
   }
 }
