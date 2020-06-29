@@ -44,6 +44,18 @@
 				"internalType": "string",
 				"name": "bep2Symbol",
 				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "totalSupply",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "peggyAmount",
+				"type": "uint256"
 			}
 		],
 		"name": "bindSuccess",
