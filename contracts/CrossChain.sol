@@ -30,7 +30,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint256 public txCounter;
   int64 public oracleSequence;
   mapping(uint8 => address) public channelHandlerContractMap;
-  mapping(address => bool) public registeredContractMap;
+  mapping(address => mapping(uint8 => bool))public registeredContractChannelMap;
   mapping(uint8 => uint64) public channelSendSequenceMap;
   mapping(uint8 => uint64) public channelReceiveSequenceMap;
   mapping(uint8 => bool) public isRelayRewardFromSystemReward;
@@ -62,8 +62,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     _;
   }
 
-  modifier registeredContract() {
-    require(registeredContractMap[msg.sender], "handle contract has not been registered");
+  modifier onlyRegisteredContractChannel(uint8 channleId) {
+    require(registeredContractChannelMap[msg.sender][channleId], "the contract and channel have not been registered");
     _;
   }
 
@@ -94,26 +94,28 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   function init() public onlyNotInit {
     channelHandlerContractMap[BIND_CHANNELID] = TOKEN_MANAGER_ADDR;
     isRelayRewardFromSystemReward[BIND_CHANNELID] = false;
-    registeredContractMap[TOKEN_MANAGER_ADDR] = true;
+    registeredContractChannelMap[TOKEN_MANAGER_ADDR][BIND_CHANNELID] = true;
 
     channelHandlerContractMap[TRANSFER_IN_CHANNELID] = TOKEN_HUB_ADDR;
     isRelayRewardFromSystemReward[TRANSFER_IN_CHANNELID] = false;
+    registeredContractChannelMap[TOKEN_HUB_ADDR][TRANSFER_IN_CHANNELID] = true;
+
     channelHandlerContractMap[TRANSFER_OUT_CHANNELID] = TOKEN_HUB_ADDR;
     isRelayRewardFromSystemReward[TRANSFER_OUT_CHANNELID] = false;
-    registeredContractMap[TOKEN_HUB_ADDR] = true;
+    registeredContractChannelMap[TOKEN_HUB_ADDR][TRANSFER_OUT_CHANNELID] = true;
 
 
     channelHandlerContractMap[STAKING_CHANNELID] = VALIDATOR_CONTRACT_ADDR;
     isRelayRewardFromSystemReward[STAKING_CHANNELID] = true;
-    registeredContractMap[VALIDATOR_CONTRACT_ADDR] = true;
+    registeredContractChannelMap[VALIDATOR_CONTRACT_ADDR][STAKING_CHANNELID] = true;
 
     channelHandlerContractMap[GOV_CHANNELID] = GOV_HUB_ADDR;
     isRelayRewardFromSystemReward[GOV_CHANNELID] = true;
-    registeredContractMap[GOV_HUB_ADDR] = true;
+    registeredContractChannelMap[GOV_HUB_ADDR][GOV_CHANNELID] = true;
 
     channelHandlerContractMap[SLASH_CHANNELID] = SLASH_CONTRACT_ADDR;
     isRelayRewardFromSystemReward[SLASH_CHANNELID] = true;
-    registeredContractMap[SLASH_CONTRACT_ADDR] = true;
+    registeredContractChannelMap[SLASH_CONTRACT_ADDR][SLASH_CHANNELID] = true;
 
     batchSizeForOracle = INIT_BATCH_SIZE;
 
@@ -252,7 +254,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
-  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit registeredContract external override returns(bool) {
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override returns(bool) {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
@@ -285,7 +287,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
 
       require(isContract(handlerContract), "address is not a contract");
       channelHandlerContractMap[channelId]=handlerContract;
-      registeredContractMap[handlerContract] = true;
+      registeredContractChannelMap[handlerContract][channelId] = true;
       isRelayRewardFromSystemReward[channelId] = (isRewardFromSystem == 0x0);
       emit addChannel(channelId, handlerContract);
     } else if (Memory.compareStrings(key, "enableOrDisableChannel")) {
@@ -304,7 +306,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
 
       address handlerContract = channelHandlerContractMap[channelId];
       if (handlerContract != address(0x00)) { //channel existing
-        registeredContractMap[handlerContract] = isEnable;
+        registeredContractChannelMap[handlerContract][channelId] = isEnable;
         emit enableOrDisableChannel(channelId, isEnable);
       }
     } else {
