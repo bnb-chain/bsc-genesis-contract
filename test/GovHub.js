@@ -129,17 +129,37 @@ contract('GovHub others', (accounts) => {
             return ev.key === 'addChannel';
         });
 
+        await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x58")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'addChannel';
+        });
+
         tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00"))])), crossChainInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === 'enableOrDisableChannel';
         });
 
+        let isChannelEnable = await crossChainInstance.registeredContractChannelMap.call(RelayerIncentivize.address, "0x57");
+        assert.equal(isChannelEnable, false, "channel should be disabled");
+        isChannelEnable = await crossChainInstance.registeredContractChannelMap.call(RelayerIncentivize.address, "0x58");
+        assert.equal(isChannelEnable, true, "channel should be enabled");
+
         tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x01"))])), crossChainInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
             return ev.key === 'enableOrDisableChannel';
         });
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x58")), Buffer.from(web3.utils.hexToBytes("0x00"))])), crossChainInstance.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === 'enableOrDisableChannel';
+        });
+        isChannelEnable = await crossChainInstance.registeredContractChannelMap.call(RelayerIncentivize.address, "0x57");
+        assert.equal(isChannelEnable, true, "channel should be enabled");
+        isChannelEnable = await crossChainInstance.registeredContractChannelMap.call(RelayerIncentivize.address, "0x58");
+        assert.equal(isChannelEnable, false, "channel should be disabled");
 
         let appAddr = await crossChainInstance.channelHandlerContractMap.call(0x57);
         assert.equal(appAddr, RelayerIncentivize.address, "value not equal");
