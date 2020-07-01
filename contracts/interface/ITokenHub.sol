@@ -2,7 +2,7 @@ pragma solidity 0.6.4;
 
 interface ITokenHub {
 
-  function getRelayFee() external view returns(uint256);
+  function getMiniRelayFee() external view returns(uint256);
 
   function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view returns(address);
 

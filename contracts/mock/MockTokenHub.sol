@@ -6,7 +6,7 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
-  function getRelayFee() external view override(ITokenHub) returns (uint256) {
+  function getMiniRelayFee() external view override(ITokenHub) returns (uint256) {
     return (1e16);
   }
 

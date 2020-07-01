@@ -888,7 +888,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "getRelayFee",
+		"name": "getMiniRelayFee",
 		"outputs": [
 			{
 				"internalType": "uint256",
