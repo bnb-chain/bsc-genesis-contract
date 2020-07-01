@@ -126,8 +126,9 @@ contract TokenManager is System, IApplication {
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
     uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
     require(IBEP2E(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
-    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
-    require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
+    uint256 relayFee = msg.value;
+    uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
+    require(relayFee >= miniRelayFee && relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
 
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
     if (verifyCode == BIND_STATUS_SUCCESS) {
@@ -153,8 +154,9 @@ contract TokenManager is System, IApplication {
     require(bindSynPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(contractAddr==bindSynPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
-    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
-    require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
+    uint256 relayFee = msg.value;
+    uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
+    require(relayFee >= miniRelayFee && relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
       status: BIND_STATUS_REJECTED,
@@ -171,8 +173,9 @@ contract TokenManager is System, IApplication {
     BindSynPackage memory bindSynPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSynPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(bindSynPkg.expireTime<block.timestamp, "bind request is not expired");
-    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
-    require(msg.value == relayFee, "msg.value doesn't equal to relayFee");
+    uint256 relayFee = msg.value;
+    uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
+    require(relayFee >= miniRelayFee &&relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
     ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
       status: BIND_STATUS_TIMEOUT,
