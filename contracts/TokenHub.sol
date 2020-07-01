@@ -112,7 +112,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return actualAmount;
   }
 
-  function getRelayFee() external view override returns(uint256) {
+  function getMiniRelayFee() external view override returns(uint256) {
     return relayFee;
   }
 

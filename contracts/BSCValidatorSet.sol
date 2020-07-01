@@ -211,7 +211,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     delete crossSize;
     delete directSize;
     Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
-    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getRelayFee();
+    uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     if (relayFee > DUSTY_INCOMING) {
       emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
       return ERROR_RELAYFEE_TOO_LARGE;
