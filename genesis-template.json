@@ -54,6 +54,18 @@
     "0x0000000000000000000000000000000000001006": {
       "balance": "0x0",
       "code": "0x{{relayerHub}}"
+    },
+    "0x0000000000000000000000000000000000001007": {
+      "balance": "0x0",
+      "code": "0x{{govHub}}"
+    },
+    "0x0000000000000000000000000000000000001008": {
+      "balance": "0x0",
+      "code": "0x{{tokenManager}}"
+    },
+    "0x0000000000000000000000000000000000002000": {
+      "balance": "0x0",
+      "code": "0x{{crossChain}}"
     }{% for v in initHolders %},
     "{{ v.address.replace('0x', '') }}": {
       "balance": "0x{{ v.balance }}"

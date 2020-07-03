@@ -6,7 +6,7 @@ contract MockLightClient is ILightClient{
   bool blockNotSynced;
   bool stateNotVerified;
 
-  function isHeaderSynced(uint64) external override(ILightClient) view returns (bool){
+  function isHeaderSynced(uint64) external override(ILightClient) view returns (bool) {
     return !blockNotSynced;
   }
 

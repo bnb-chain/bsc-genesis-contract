@@ -1,50 +1,70 @@
 pragma solidity 0.6.4;
 
 import "./interface/IBEP2E.sol";
-import "./interface/ILightClient.sol";
-import "./interface/IRelayerIncentivize.sol";
-import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
-import "./interface/IRelayerHub.sol";
-import "./System.sol";
+import "./interface/IParamSubscriber.sol";
+import "./interface/IApplication.sol";
+import "./interface/ICrossChain.sol";
+import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
-import "./MerkleProof.sol";
+import "./lib/RLPEncode.sol";
+import "./lib/RLPDecode.sol";
+import "./System.sol";
 
-
-contract TokenHub is ITokenHub, System{
+contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
 
   using SafeMath for uint256;
 
-  struct BindPackage {
+  using RLPEncode for *;
+  using RLPDecode for *;
+
+  using RLPDecode for RLPDecode.RLPItem;
+  using RLPDecode for RLPDecode.Iterator;
+
+  // BSC to BC
+  struct TransferOutSynPackage {
     bytes32 bep2TokenSymbol;
     address contractAddr;
-    uint256 totalSupply;
-    uint256 peggyAmount;
-    uint8   bep2eDecimals;
+    uint256[] amounts;
+    address[] recipients;
+    address[] refundAddrs;
     uint64  expireTime;
-    uint256 relayFee;
   }
 
-  struct RefundPackage {
-    uint256 refundAmount;
+  // BC to BSC
+  struct TransferOutAckPackage {
     address contractAddr;
-    address payable refundAddr;
-    uint16  reason;
+    uint256[] refundAmounts;
+    address[] refundAddrs;
+    uint32 status;
   }
 
-  struct TransferInPackage {
+  // BC to BSC
+  struct TransferInSynPackage {
     bytes32 bep2TokenSymbol;
     address contractAddr;
-    address refundAddr;
-    address payable recipient;
     uint256 amount;
+    address recipient;
+    address refundAddr;
     uint64  expireTime;
-    uint256 relayFee;
   }
 
-  uint8 constant public   BIND_CHANNEL_ID = 0x01;
-  uint8 constant public   TRANSFER_IN_CHANNEL_ID = 0x02;
-  uint8 constant public   REFUND_CHANNEL_ID=0x03;
+  // BSC to BC
+  struct TransferInRefundPackage {
+    bytes32 bep2TokenSymbol;
+    uint256 refundAmount;
+    address refundAddr;
+    uint32 status;
+  }
+
+  // transfer in channel
+  uint8 constant public   TRANSFER_IN_SUCCESS = 0;
+  uint8 constant public   TRANSFER_IN_FAILURE_TIMEOUT = 1;
+  uint8 constant public   TRANSFER_IN_FAILURE_UNBOUND_TOKEN = 2;
+  uint8 constant public   TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE = 3;
+  uint8 constant public   TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT = 4;
+  uint8 constant public   TRANSFER_IN_FAILURE_UNKNOWN = 5;
+
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
@@ -52,525 +72,485 @@ contract TokenHub is ITokenHub, System{
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
 
-  //TODO  Add governance later
-  uint256 constant public minimumRelayFee=1e16;
-  uint256 constant public refundRelayReward=1e16;
-  uint256 constant public moleculeHeaderRelayerSystemReward = 1;
-  uint256 constant public denominaroeHeaderRelayerSystemReward = 5;
+  uint256 constant public INIT_MINIMUM_RELAY_FEE =1e16;
 
-  mapping(bytes32 => BindPackage) public _bindPackageRecord;
-  mapping(address => bytes32) public _contractAddrToBEP2Symbol;
-  mapping(address => uint256) public _bep2eContractDecimals;
-  mapping(bytes32 => address) public _bep2SymbolToContractAddr;
+  uint256 public relayFee;
 
-  uint64 public _bindChannelSequence=0;
-  uint64 public _transferInChannelSequence=0;
-  uint64 public _refundChannelSequence=0;
+  mapping(address => uint256) public bep2eContractDecimals;
+  mapping(address => bytes32) private contractAddrToBEP2Symbol;
+  mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
-  uint64 public _transferOutChannelSequence=0;
-  uint64 public _bindResponseChannelSequence=0;
-  uint64 public _transferInFailureChannelSequence=0;
-
-  event LogBindRequest(address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount);
-  event LogBindSuccess(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol, uint256 totalSupply, uint256 peggyAmount, uint256 decimals);
-  event LogBindRejected(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
-  event LogBindTimeout(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
-  event LogBindInvalidParameter(uint256 sequence, address contractAddr, bytes32 bep2TokenSymbol);
-
-  event LogTransferOut(uint256 sequence, address refundAddr, address recipient, uint256 amount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
-  event LogBatchTransferOut(uint256 sequence, uint256[] amounts, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime, uint256 relayFee);
-  event LogBatchTransferOutAddrs(uint256 sequence, address[] recipientAddrs, address[] refundAddrs);
-
-  event LogTransferInSuccess(uint256 sequence, address recipient, uint256 amount, address contractAddr);
-  event LogTransferInFailureTimeout(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 expireTime);
-  event LogTransferInFailureInsufficientBalance(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol, uint256 actualBalance);
-  event LogTransferInFailureUnboundToken(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
-  event LogTransferInFailureUnknownReason(uint256 sequence, address refundAddr, address recipient, uint256 bep2TokenAmount, address contractAddr, bytes32 bep2TokenSymbol);
-
-  event LogRefundSuccess(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
-  event LogRefundFailureInsufficientBalance(address contractAddr, address refundAddr, uint256 amount, uint16 reason, uint256 actualBalance);
-  event LogRefundFailureUnboundToken(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
-  event LogRefundFailureUnknownReason(address contractAddr, address refundAddr, uint256 amount, uint16 reason);
-
-  event LogUnexpectedRevertInBEP2E(address contractAddr, string reason);
-  event LogUnexpectedFailureAssertionInBEP2E(address contractAddr, bytes lowLevelData);
+  event transferInSuccess(address bep2eAddr, address refundAddr, uint256 amount);
+  event transferOutSuccess(address bep2eAddr, address senderAddr, uint256 amount, uint256 relayFee);
+  event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
+  event refundFailure(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
+  event rewardTo(address to, uint256 amount);
+  event receiveDeposit(address from, uint256 amount);
+  event unexpectedPackage(uint8 channelId, bytes msgBytes);
+  event paramChange(string key, bytes value);
 
   constructor() public {}
-  
-  
 
-  function bep2TokenSymbolConvert(string memory symbol) public pure returns(bytes32) {
-    bytes32 result;
-    assembly {
-      result := mload(add(symbol, 32))
-    }
-    return result;
+  function init() onlyNotInit external {
+    relayFee = INIT_MINIMUM_RELAY_FEE;
+    bep2eContractDecimals[address(0x0)] = 18; // BNB decimals is 18
+    alreadyInit=true;
   }
 
-  // | length   | bep2TokenSymbol | contractAddr | totalSupply | peggyAmount | decimals | expireTime | relayFee |
-  // | 32 bytes | 32 bytes        | 20 bytes     |  32 bytes   | 32 bytes    | 1 byte   | 8 bytes    | 32 bytes |
-  function decodeBindPackage(bytes memory value) internal pure returns(BindPackage memory) {
-    BindPackage memory bindPackage;
-
-    uint256 ptr;
-    assembly {
-      ptr := value
+  receive() external payable{
+    if (msg.value>0) {
+      emit receiveDeposit(msg.sender, msg.value);
     }
+  }
 
+  function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
+    uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
+    if (actualAmount>0) {
+      to.transfer(actualAmount);
+      emit rewardTo(to, actualAmount);
+    }
+    return actualAmount;
+  }
+
+  function getMiniRelayFee() external view override returns(uint256) {
+    return relayFee;
+  }
+
+  function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory) {
+    if (channelId == TRANSFER_IN_CHANNELID) {
+      return handleTransferInSynPackage(msgBytes);
+    } else {
+      // should not happen
+      require(false, "unrecognized syn package");
+      return new bytes(0);
+    }
+  }
+
+  function handleAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
+    if (channelId == TRANSFER_OUT_CHANNELID) {
+      handleTransferOutAckPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+    }
+  }
+
+  function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
+    if (channelId == TRANSFER_OUT_CHANNELID) {
+      handleTransferOutFailAckPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+    }
+  }
+
+  function decodeTransferInSynPackage(bytes memory msgBytes) internal pure returns (TransferInSynPackage memory, bool) {
+    TransferInSynPackage memory transInSynPkg;
+
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0) transInSynPkg.bep2TokenSymbol       = bytes32(iter.next().toUint());
+      else if (idx == 1) transInSynPkg.contractAddr     = iter.next().toAddress();
+      else if (idx == 2) transInSynPkg.amount           = iter.next().toUint();
+      else if (idx == 3) transInSynPkg.recipient        = ((iter.next().toAddress()));
+      else if (idx == 4) transInSynPkg.refundAddr       = iter.next().toAddress();
+      else if (idx == 5) {
+        transInSynPkg.expireTime       = uint64(iter.next().toUint());
+        success = true;
+      }
+      else break;
+      idx++;
+    }
+    return (transInSynPkg, success);
+  }
+
+  function encodeTransferInRefundPackage(TransferInRefundPackage memory transInAckPkg) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](4);
+    elements[0] = uint256(transInAckPkg.bep2TokenSymbol).encodeUint();
+    elements[1] = transInAckPkg.refundAmount.encodeUint();
+    elements[2] = transInAckPkg.refundAddr.encodeAddress();
+    elements[3] = uint256(transInAckPkg.status).encodeUint();
+    return elements.encodeList();
+  }
+
+  function handleTransferInSynPackage(bytes memory msgBytes) internal returns(bytes memory) {
+    (TransferInSynPackage memory transInSynPkg, bool success) = decodeTransferInSynPackage(msgBytes);
+    require(success, "unrecognized transferIn package");
+    uint32 resCode = doTransferIn(transInSynPkg);
+    if (resCode != TRANSFER_IN_SUCCESS) {
+      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep2eContractDecimals[transInSynPkg.contractAddr]);
+      TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
+          bep2TokenSymbol: transInSynPkg.bep2TokenSymbol,
+          refundAmount: bep2Amount,
+          refundAddr: transInSynPkg.refundAddr,
+          status: resCode
+      });
+      return encodeTransferInRefundPackage(transInAckPkg);
+    } else {
+      return new bytes(0);
+    }
+  }
+
+  function doTransferIn(TransferInSynPackage memory transInSynPkg) internal returns (uint32) {
+    if (transInSynPkg.contractAddr==address(0x0)) {
+      if (block.timestamp > transInSynPkg.expireTime) {
+        return TRANSFER_IN_FAILURE_TIMEOUT;
+      }
+      if (address(this).balance < transInSynPkg.amount) {
+        return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
+      }
+      if (!address(uint160(transInSynPkg.recipient)).send(transInSynPkg.amount)) {
+        return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
+      }
+      emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
+      return TRANSFER_IN_SUCCESS;
+    } else {
+      if (block.timestamp > transInSynPkg.expireTime) {
+        return TRANSFER_IN_FAILURE_TIMEOUT;
+      }
+      if (contractAddrToBEP2Symbol[transInSynPkg.contractAddr]!= transInSynPkg.bep2TokenSymbol) {
+        return TRANSFER_IN_FAILURE_UNBOUND_TOKEN;
+      }
+      uint256 actualBalance = IBEP2E(transInSynPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this));
+      if (actualBalance < transInSynPkg.amount) {
+        return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
+      }
+      bool success = IBEP2E(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSynPkg.recipient, transInSynPkg.amount);
+      if (success) {
+        emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
+        return TRANSFER_IN_SUCCESS;
+      } else {
+        return TRANSFER_IN_FAILURE_UNKNOWN;
+      }
+    }
+  }
+
+  function decodeTransferOutAckPackage(bytes memory msgBytes) internal pure returns(TransferOutAckPackage memory, bool) {
+    TransferOutAckPackage memory transOutAckPkg;
+
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+        if (idx == 0) {
+          transOutAckPkg.contractAddr = iter.next().toAddress();
+        }
+        else if (idx == 1) {
+          RLPDecode.RLPItem[] memory list = iter.next().toList();
+          transOutAckPkg.refundAmounts = new uint256[](list.length);
+          for (uint256 index=0; index<list.length; index++) {
+            transOutAckPkg.refundAmounts[index] = list[index].toUint();
+          }
+        }
+        else if (idx == 2) {
+          RLPDecode.RLPItem[] memory list = iter.next().toList();
+          transOutAckPkg.refundAddrs = new address[](list.length);
+          for (uint256 index=0; index<list.length; index++) {
+            transOutAckPkg.refundAddrs[index] = list[index].toAddress();
+          }
+        }
+        else if (idx == 3) {
+          transOutAckPkg.status = uint32(iter.next().toUint());
+          success = true;
+        }
+        else {
+          break;
+        }
+        idx++;
+    }
+    return (transOutAckPkg, success);
+  }
+
+  function handleTransferOutAckPackage(bytes memory msgBytes) internal {
+    (TransferOutAckPackage memory transOutAckPkg, bool decodeSuccess) = decodeTransferOutAckPackage(msgBytes);
+    require(decodeSuccess, "unrecognized transferOut ack package");
+    doRefund(transOutAckPkg);
+  }
+
+  function doRefund(TransferOutAckPackage memory transOutAckPkg) internal {
+    if (transOutAckPkg.contractAddr==address(0x0)) {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+        if (!address(uint160(transOutAckPkg.refundAddrs[index])).send(transOutAckPkg.refundAmounts[index])) {
+          emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
+        } else {
+          emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
+        }
+      }
+    } else {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+        bool success = IBEP2E(transOutAckPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index]);
+        if (success) {
+          emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
+        } else {
+          emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
+        }
+      }
+    }
+  }
+
+  function decodeTransferOutSynPackage(bytes memory msgBytes) internal pure returns (TransferOutSynPackage memory, bool) {
+    TransferOutSynPackage memory transOutSynPkg;
+
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        transOutSynPkg.bep2TokenSymbol = bytes32(iter.next().toUint());
+      } else if (idx == 1) {
+        transOutSynPkg.contractAddr = iter.next().toAddress();
+      } else if (idx == 2) {
+        RLPDecode.RLPItem[] memory list = iter.next().toList();
+        transOutSynPkg.amounts = new uint256[](list.length);
+        for (uint256 index=0; index<list.length; index++) {
+          transOutSynPkg.amounts[index] = list[index].toUint();
+        }
+      } else if (idx == 3) {
+        RLPDecode.RLPItem[] memory list = iter.next().toList();
+        transOutSynPkg.recipients = new address[](list.length);
+        for (uint256 index=0; index<list.length; index++) {
+          transOutSynPkg.recipients[index] = list[index].toAddress();
+        }
+      } else if (idx == 4) {
+        RLPDecode.RLPItem[] memory list = iter.next().toList();
+        transOutSynPkg.refundAddrs = new address[](list.length);
+        for (uint256 index=0; index<list.length; index++) {
+          transOutSynPkg.refundAddrs[index] = list[index].toAddress();
+        }
+      } else if (idx == 5) {
+        transOutSynPkg.expireTime = uint64(iter.next().toUint());
+        success = true;
+      } else {
+        break;
+      }
+      idx++;
+    }
+    return (transOutSynPkg, true);
+  }
+
+  function handleTransferOutFailAckPackage(bytes memory msgBytes) internal {
+    (TransferOutSynPackage memory transOutSynPkg, bool decodeSuccess) = decodeTransferOutSynPackage(msgBytes);
+    require(decodeSuccess, "unrecognized transferOut syn package");
+    TransferOutAckPackage memory transOutAckPkg;
+    transOutAckPkg.contractAddr = transOutSynPkg.contractAddr;
+    transOutAckPkg.refundAmounts = transOutSynPkg.amounts;
+    uint256 bep2eTokenDecimals = bep2eContractDecimals[transOutSynPkg.contractAddr];
+    for (uint idx=0;idx<transOutSynPkg.amounts.length;idx++) {
+      transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep2eTokenDecimals);
+    }
+    transOutAckPkg.refundAddrs = transOutSynPkg.refundAddrs;
+    transOutAckPkg.status = TRANSFER_IN_FAILURE_UNKNOWN;
+    doRefund(transOutAckPkg);
+  }
+
+  function encodeTransferOutSynPackage(TransferOutSynPackage memory transOutSynPkg) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](6);
+
+    elements[0] = uint256(transOutSynPkg.bep2TokenSymbol).encodeUint();
+    elements[1] = transOutSynPkg.contractAddr.encodeAddress();
+
+    uint256 batchLength = transOutSynPkg.amounts.length;
+
+    bytes[] memory amountsElements = new bytes[](batchLength);
+    for (uint256 index; index< batchLength; index++) {
+      amountsElements[index] = transOutSynPkg.amounts[index].encodeUint();
+    }
+    elements[2] = amountsElements.encodeList();
+
+    bytes[] memory recipientsElements = new bytes[](batchLength);
+    for (uint256 index; index< batchLength; index++) {
+       recipientsElements[index] = transOutSynPkg.recipients[index].encodeAddress();
+    }
+    elements[3] = recipientsElements.encodeList();
+
+    bytes[] memory refundAddrsElements = new bytes[](batchLength);
+    for (uint256 index; index< batchLength; index++) {
+       refundAddrsElements[index] = transOutSynPkg.refundAddrs[index].encodeAddress();
+    }
+    elements[4] = refundAddrsElements.encodeList();
+
+    elements[5] = uint256(transOutSynPkg.expireTime).encodeUint();
+    return elements.encodeList();
+  }
+
+  function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
+    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
+    require(msg.value%1e10==0, "invalid received BNB amount: precision loss in amount conversion");
     bytes32 bep2TokenSymbol;
-    ptr+=32;
-    assembly {
-      bep2TokenSymbol := mload(ptr)
+    uint256 convertedAmount;
+    uint256 rewardForRelayer;
+    if (contractAddr==address(0x0)) {
+      require(msg.value>=amount.add(relayFee), "received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee");
+      require(amount%1e10==0, "invalid transfer amount: precision loss in amount conversion");
+      rewardForRelayer=msg.value.sub(amount);
+      convertedAmount = amount.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
+      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
+    } else {
+      bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
+      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
+      require(msg.value>=relayFee, "received BNB amount should be no less than the minimum relayFee");
+      rewardForRelayer=msg.value;
+      uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
+      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
+      convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
+      if (isMiniBEP2Token(bep2TokenSymbol)) {
+        require(convertedAmount >= 1e8 , "For miniToken, the transfer amount must not be less than 1");
+      }
+      require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
+      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
     }
-    bindPackage.bep2TokenSymbol = bep2TokenSymbol;
-
-    address addr;
-
-    ptr+=20;
-    assembly {
-      addr := mload(ptr)
-    }
-    bindPackage.contractAddr = addr;
-
-    uint256 tempValue;
-    ptr+=32;
-    assembly {
-      tempValue := mload(ptr)
-    }
-    bindPackage.totalSupply = tempValue;
-
-    ptr+=32;
-    assembly {
-      tempValue := mload(ptr)
-    }
-    bindPackage.peggyAmount = tempValue;
-
-    ptr+=1;
-    uint8 decimals;
-    assembly {
-      decimals := mload(ptr)
-    }
-    bindPackage.bep2eDecimals = decimals;
-
-    ptr+=8;
-    uint64 expireTime;
-    assembly {
-      expireTime := mload(ptr)
-    }
-    bindPackage.expireTime = expireTime;
-
-    ptr+=32;
-    assembly {
-      tempValue := mload(ptr)
-    }
-    bindPackage.relayFee = tempValue;
-
-    return bindPackage;
-  }
-
-  function handleBindPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_bindChannelSequence, "wrong bind sequence");
-    require(msgBytes.length==157, "wrong bind package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_bindChannelSequence, BIND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    _bindChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    BindPackage memory bindPackage = decodeBindPackage(msgBytes);
-    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: bindPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
-
-    _bindPackageRecord[bindPackage.bep2TokenSymbol]=bindPackage;
-    emit LogBindRequest(bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount);
+    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
+      bep2TokenSymbol: bep2TokenSymbol,
+      contractAddr: contractAddr,
+      amounts: new uint256[](1),
+      recipients: new address[](1),
+      refundAddrs: new address[](1),
+      expireTime: expireTime
+    });
+    transOutSynPkg.amounts[0]=convertedAmount;
+    transOutSynPkg.recipients[0]=recipient;
+    transOutSynPkg.refundAddrs[0]=msg.sender;
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(1e10));
+    emit transferOutSuccess(contractAddr, msg.sender, amount, rewardForRelayer);
     return true;
   }
 
-  function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) public pure returns(bool) {
-    bytes memory bep2eSymbolBytes = bytes(bep2eSymbol);
-    if (bep2eSymbolBytes.length > MAXIMUM_BEP2E_SYMBOL_LEN || bep2eSymbolBytes.length < MINIMUM_BEP2E_SYMBOL_LEN) {
-      return false;
+  function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) external override onlyInit payable returns (bool) {
+    require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
+    require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
+    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
+    require(msg.value%1e10==0, "invalid received BNB amount: precision loss in amount conversion");
+    uint256 batchLength = amounts.length;
+    uint256 totalAmount = 0;
+    uint256 rewardForRelayer;
+    uint256[] memory convertedAmounts = new uint256[](batchLength);
+    for (uint i = 0; i < batchLength; i++) {
+      require(amounts[i]%1e10==0, "invalid transfer amount: precision loss in amount conversion");
+      totalAmount = totalAmount.add(amounts[i]);
+      convertedAmounts[i] = amounts[i].div(1e10);
     }
-    //Upper case string
-    for (uint i = 0; i < bep2eSymbolBytes.length; i++) {
-      if (0x61 <= uint8(bep2eSymbolBytes[i]) && uint8(bep2eSymbolBytes[i]) <= 0x7A) {
-        bep2eSymbolBytes[i] = byte(uint8(bep2eSymbolBytes[i]) - 0x20);
-      }
-    }
+    require(msg.value>=totalAmount.add(relayFee.mul(batchLength)), "received BNB amount should be no less than the sum of transfer BNB amount and relayFee");
+    rewardForRelayer = msg.value.sub(totalAmount);
 
-    bytes memory bep2TokenSymbolBytes = new bytes(32);
-    assembly {
-      mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
-    }
-    if (bep2TokenSymbolBytes[bep2eSymbolBytes.length] != 0x2d) { // '-'
-      return false;
-    }
-    bool symbolMatch = true;
-    for(uint256 index=0; index < bep2eSymbolBytes.length; index++) {
-      if (bep2eSymbolBytes[index] != bep2TokenSymbolBytes[index]) {
-        symbolMatch = false;
-        break;
-      }
-    }
-    return symbolMatch;
+    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
+      bep2TokenSymbol: BEP2_TOKEN_SYMBOL_FOR_BNB,
+      contractAddr: address(0x00),
+      amounts: convertedAmounts,
+      recipients: recipientAddrs,
+      refundAddrs: refundAddrs,
+      expireTime: expireTime
+    });
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(1e10));
+    emit transferOutSuccess(address(0x0), msg.sender, totalAmount, rewardForRelayer);
+    return true;
   }
 
-  function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) public pure returns (uint256) {
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+    require(value.length == 32, "expected value length is 32");
+    string memory localKey = key;
+    bytes memory localValue = value;
+    bytes32 bytes32Key;
+    assembly {
+      bytes32Key := mload(add(localKey, 32))
+    }
+    if (bytes32Key == bytes32(0x72656c6179466565000000000000000000000000000000000000000000000000)) { // relayFee
+      uint256 newRelayFee;
+      assembly {
+        newRelayFee := mload(add(localValue, 32))
+      }
+      require(newRelayFee >= 0 && newRelayFee <= 1e18 && newRelayFee%(1e10)==0, "the relayFee out of range");
+      relayFee = newRelayFee;
+    } else {
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
+  }
+
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override returns(address) {
+    return bep2SymbolToContractAddr[bep2Symbol];
+  }
+
+  function getBep2SymbolByContractAddr(address contractAddr) external view override returns(bytes32) {
+    return contractAddrToBEP2Symbol[contractAddr];
+  }
+
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override onlyTokenManager {
+    bep2SymbolToContractAddr[bep2Symbol] = contractAddr;
+    contractAddrToBEP2Symbol[contractAddr] = bep2Symbol;
+    bep2eContractDecimals[contractAddr] = decimals;
+  }
+
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
+    delete bep2SymbolToContractAddr[bep2Symbol];
+    delete contractAddrToBEP2Symbol[contractAddr];
+  }
+
+  function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
+     bytes memory symbolBytes = new bytes(32);
+     assembly {
+       mstore(add(symbolBytes, 32), symbol)
+     }
+     uint8 symbolLength = 0;
+     for (uint8 j = 0; j < 32; j++) {
+       if (symbolBytes[j] != 0) {
+         symbolLength++;
+       } else {
+         break;
+       }
+     }
+     if (symbolLength < MINIMUM_BEP2E_SYMBOL_LEN + 5) {
+       return false;
+     }
+     if (symbolBytes[symbolLength-5] != 0x2d) { // '-'
+       return false;
+     }
+     if (symbolBytes[symbolLength-1] != 'M') { // ABC-XXXM
+       return false;
+     }
+     return true;
+  }
+
+  function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
     if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
       return amount.div(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
     }
     return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
   }
 
-  function approveBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
-    require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    uint256 lockedAmount = bindPackage.totalSupply.sub(bindPackage.peggyAmount);
-    require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
-    require(IBEP2E(contractAddr).allowance(msg.sender, address(this))==lockedAmount, "allowance doesn't equal to (totalSupply - peggyAmount)");
-
-    if (bindPackage.expireTime<block.timestamp) {
-      emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
-      delete _bindPackageRecord[bep2TokenSymbol];
-      return false;
+  function convertFromBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
+    if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
+      return amount.mul(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
     }
-
-    uint256 decimals = IBEP2E(contractAddr).decimals();
-    string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-    if (!checkSymbol(bep2eSymbol, bep2TokenSymbol) ||
-      _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol]!=address(0x00)||
-      _contractAddrToBEP2Symbol[bindPackage.contractAddr]!=bytes32(0x00)||
-      IBEP2E(bindPackage.contractAddr).totalSupply()!=bindPackage.totalSupply||
-      decimals!=bindPackage.bep2eDecimals) {
-      delete _bindPackageRecord[bep2TokenSymbol];
-      emit LogBindInvalidParameter(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
-      return false;
-    }
-    IBEP2E(contractAddr).transferFrom(msg.sender, address(this), lockedAmount);
-    _contractAddrToBEP2Symbol[bindPackage.contractAddr] = bindPackage.bep2TokenSymbol;
-    _bep2eContractDecimals[bindPackage.contractAddr] = bindPackage.bep2eDecimals;
-    _bep2SymbolToContractAddr[bindPackage.bep2TokenSymbol] = bindPackage.contractAddr;
-
-    delete _bindPackageRecord[bep2TokenSymbol];
-    emit LogBindSuccess(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol, bindPackage.totalSupply, bindPackage.peggyAmount, decimals);
-    return true;
+    return amount.div(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
   }
 
-  function rejectBind(address contractAddr, string memory bep2Symbol) public returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
-    require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    require(contractAddr==bindPackage.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
-    delete _bindPackageRecord[bep2TokenSymbol];
-    emit LogBindRejected(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
-    return true;
-  }
-
-  function expireBind(string memory bep2Symbol) public returns (bool) {
-    bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
-    BindPackage memory bindPackage = _bindPackageRecord[bep2TokenSymbol];
-    require(bindPackage.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
-    require(bindPackage.expireTime<block.timestamp, "bind request is not expired");
-    delete _bindPackageRecord[bep2TokenSymbol];
-    emit LogBindTimeout(_bindResponseChannelSequence++, bindPackage.contractAddr, bindPackage.bep2TokenSymbol);
-    return true;
-  }
-
-  // | length   | bep2TokenSymbol | contractAddr | sender   | recipient | amount   | expireTime | relayFee |
-  // | 32 bytes | 32 bytes    | 20 bytes   | 20 bytes | 20 bytes  | 32 bytes | 8 bytes  | 32 bytes  |
-  function decodeTransferInPackage(bytes memory value) internal pure returns (TransferInPackage memory) {
-    TransferInPackage memory transferInPackage;
-
-    uint256 ptr;
-    assembly {
-      ptr := value
-    }
-
-    uint256 tempValue;
-    address payable recipient;
-    address addr;
-
-    ptr+=32;
+  function getBoundContract(string memory bep2Symbol) public view returns (address) {
     bytes32 bep2TokenSymbol;
     assembly {
-      bep2TokenSymbol := mload(ptr)
+      bep2TokenSymbol := mload(add(bep2Symbol, 32))
     }
-    transferInPackage.bep2TokenSymbol = bep2TokenSymbol;
-
-    ptr+=20;
-    assembly {
-      addr := mload(ptr)
-    }
-    transferInPackage.contractAddr = addr;
-
-    ptr+=20;
-    assembly {
-      addr := mload(ptr)
-    }
-    transferInPackage.refundAddr = addr;
-
-    ptr+=20;
-    assembly {
-      recipient := mload(ptr)
-    }
-    transferInPackage.recipient = recipient;
-
-    ptr+=32;
-    assembly {
-      tempValue := mload(ptr)
-    }
-    transferInPackage.amount = tempValue;
-
-    ptr+=8;
-    uint64 expireTime;
-    assembly {
-      expireTime := mload(ptr)
-    }
-    transferInPackage.expireTime = expireTime;
-
-    ptr+=32;
-    assembly {
-      tempValue := mload(ptr)
-    }
-    transferInPackage.relayFee = tempValue;
-
-    return transferInPackage;
+    return bep2SymbolToContractAddr[bep2TokenSymbol];
   }
 
-  function handleTransferInPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_transferInChannelSequence, "wrong transfer sequence");
-    require(msgBytes.length==164, "wrong transfer package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_transferInChannelSequence, TRANSFER_IN_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    _transferInChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    TransferInPackage memory transferInPackage = decodeTransferInPackage(msgBytes);
-    IRelayerIncentivize(INCENTIVIZE_ADDR).addReward{value: transferInPackage.relayFee}(tendermintHeaderSubmitter, msg.sender);
-
-    if (transferInPackage.contractAddr==address(0x0) && transferInPackage.bep2TokenSymbol==BEP2_TOKEN_SYMBOL_FOR_BNB) {
-      if (block.timestamp > transferInPackage.expireTime) {
-        emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
-        return false;
-      }
-      if (address(this).balance < transferInPackage.amount) {
-        emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, address(this).balance);
-        return false;
-      }
-      if (!transferInPackage.recipient.send(transferInPackage.amount)) {
-        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, transferInPackage.amount/1e10, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-        return false;
-      }
-      emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
-      return true;
-    } else {
-      uint256 bep2Amount = convertToBep2Amount(transferInPackage.amount, _bep2eContractDecimals[transferInPackage.contractAddr]);
-      if (_contractAddrToBEP2Symbol[transferInPackage.contractAddr]!= transferInPackage.bep2TokenSymbol) {
-        emit LogTransferInFailureUnboundToken(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-        return false;
-      }
-      if (block.timestamp > transferInPackage.expireTime) {
-        emit LogTransferInFailureTimeout(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, transferInPackage.expireTime);
-        return false;
-      }
-      try IBEP2E(transferInPackage.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transferInPackage.recipient, transferInPackage.amount) returns (bool success) {
-        if (success) {
-          emit LogTransferInSuccess(_transferInChannelSequence-1, transferInPackage.recipient, transferInPackage.amount, transferInPackage.contractAddr);
-          return true;
-        } else {
-          try IBEP2E(transferInPackage.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this)) returns (uint256 actualBalance) {
-            emit LogTransferInFailureInsufficientBalance(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol, actualBalance);
-            return false;
-          } catch Error(string memory reason) {
-            emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-            emit LogUnexpectedRevertInBEP2E(transferInPackage.contractAddr, reason);
-            return false;
-          } catch (bytes memory lowLevelData) {
-            emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-            emit LogUnexpectedFailureAssertionInBEP2E(transferInPackage.contractAddr, lowLevelData);
-            return false;
-          }
-        }
-      } catch Error(string memory reason) {
-        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-        emit LogUnexpectedRevertInBEP2E(transferInPackage.contractAddr, reason);
-        return false;
-      } catch (bytes memory lowLevelData) {
-        emit LogTransferInFailureUnknownReason(_transferInFailureChannelSequence++, transferInPackage.refundAddr, transferInPackage.recipient, bep2Amount, transferInPackage.contractAddr, transferInPackage.bep2TokenSymbol);
-        emit LogUnexpectedFailureAssertionInBEP2E(transferInPackage.contractAddr, lowLevelData);
-        return false;
-      }
-    }
-  }
-
-  // | length   | refundAmount | contractAddr | refundAddr | failureReason |
-  // | 32 bytes | 32 bytes   | 20 bytes   | 20 bytes   | 2 bytes     |
-  function decodeRefundPackage(bytes memory value) internal pure returns(RefundPackage memory) {
-    RefundPackage memory refundPackage;
-
-    uint256 ptr;
+  function getBoundBep2Symbol(address contractAddr) public view returns (string memory) {
+    bytes32 bep2SymbolBytes32 = contractAddrToBEP2Symbol[contractAddr];
+    bytes memory bep2SymbolBytes = new bytes(32);
     assembly {
-      ptr := value
+      mstore(add(bep2SymbolBytes,32), bep2SymbolBytes32)
     }
-
-    ptr+=32;
-    uint256 refundAmount;
-    assembly {
-      refundAmount := mload(ptr)
-    }
-    refundPackage.refundAmount = refundAmount;
-
-    ptr+=20;
-    address contractAddr;
-    assembly {
-      contractAddr := mload(ptr)
-    }
-    refundPackage.contractAddr = contractAddr;
-
-    ptr+=20;
-    address payable refundAddr;
-    assembly {
-      refundAddr := mload(ptr)
-    }
-    refundPackage.refundAddr = refundAddr;
-
-    ptr+=2;
-    uint16 reason;
-    assembly {
-      reason := mload(ptr)
-    }
-    refundPackage.reason = reason;
-
-
-    return refundPackage;
-  }
-
-  function handleRefundPackage(bytes calldata msgBytes, bytes calldata proof, uint64 height, uint64 packageSequence) blockSynced(height) onlyRelayer override external returns (bool) {
-    require(packageSequence==_refundChannelSequence, "wrong refund sequence");
-    require(msgBytes.length==74, "wrong refund package size");
-    bytes32 appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    require(MerkleProof.validateMerkleProof(appHash, STORE_NAME, generateKey(_refundChannelSequence,REFUND_CHANNEL_ID), msgBytes, proof), "invalid merkle proof");
-    _refundChannelSequence++;
-
-    address payable tendermintHeaderSubmitter = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
-    uint256 reward = refundRelayReward.mul(moleculeHeaderRelayerSystemReward).div(denominaroeHeaderRelayerSystemReward);
-    //TODO ensure reward is in (0, 1e18)
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(tendermintHeaderSubmitter, reward);
-    reward = refundRelayReward.sub(reward);
-    //TODO ensure reward is in (0, 1e18)
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, reward);
-
-    RefundPackage memory refundPackage = decodeRefundPackage(msgBytes);
-    if (refundPackage.contractAddr==address(0x0)) {
-      uint256 actualBalance = address(this).balance;
-      if (actualBalance < refundPackage.refundAmount) {
-        emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
-        return false;
-      }
-      if (!refundPackage.refundAddr.send(refundPackage.refundAmount)){
-        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-        return false;
-      }
-      emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-      return true;
-    } else {
-      if (_contractAddrToBEP2Symbol[refundPackage.contractAddr]==bytes32(0x00)) {
-        emit LogRefundFailureUnboundToken(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-        return false;
-      }
-      try IBEP2E(refundPackage.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(refundPackage.refundAddr, refundPackage.refundAmount) returns (bool success) {
-        if (success) {
-          emit LogRefundSuccess(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-          return true;
-        } else {
-          try IBEP2E(refundPackage.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this)) returns (uint256 actualBalance) {
-            emit LogRefundFailureInsufficientBalance(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason, actualBalance);
-            return false;
-          } catch Error(string memory reason) {
-            emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-            emit LogUnexpectedRevertInBEP2E(refundPackage.contractAddr, reason);
-            return false;
-          } catch (bytes memory lowLevelData) {
-            emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-            emit LogUnexpectedFailureAssertionInBEP2E(refundPackage.contractAddr, lowLevelData);
-            return false;
-          }
-        }
-      } catch Error(string memory reason) {
-        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-        emit LogUnexpectedRevertInBEP2E(refundPackage.contractAddr, reason);
-        return false;
-      } catch (bytes memory lowLevelData) {
-        emit LogRefundFailureUnknownReason(refundPackage.contractAddr, refundPackage.refundAddr, refundPackage.refundAmount, refundPackage.reason);
-        emit LogUnexpectedFailureAssertionInBEP2E(refundPackage.contractAddr, lowLevelData);
-        return false;
+    uint8 bep2SymbolLength = 0;
+    for (uint8 j = 0; j < 32; j++) {
+      if (bep2SymbolBytes[j] != 0) {
+        bep2SymbolLength++;
+      } else {
+        break;
       }
     }
-  }
-
-  function transferOut(address contractAddr, address recipient, uint256 amount, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
-    require(relayFee%(1e10)==0, "relayFee is must be N*1e10");
-    require(relayFee>=minimumRelayFee, "relayFee is too little");
-    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    uint256 convertedRelayFee = relayFee.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    bytes32 bep2TokenSymbol;
-    uint256 convertedAmount;
-    if (contractAddr==address(0x0)) {
-      require(amount%1e10==0, "invalid transfer amount: precision loss in amount conversion");
-      require(msg.value==amount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-      convertedAmount = amount.div(1e10); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
-    } else {
-      bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
-      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
-      require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
-      uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
-      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
-      convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
-      require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
-      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
-      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
+    bytes memory bep2Symbol = new bytes(bep2SymbolLength);
+    for (uint8 j = 0; j < bep2SymbolLength; j++) {
+        bep2Symbol[j] = bep2SymbolBytes[j];
     }
-    emit LogTransferOut(_transferOutChannelSequence++, msg.sender, recipient, convertedAmount, contractAddr, bep2TokenSymbol, expireTime, convertedRelayFee);
-    return true;
-  }
-
-  function batchTransferOut(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, address contractAddr, uint256 expireTime, uint256 relayFee) override external payable returns (bool) {
-    require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
-    require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
-    require(relayFee.div(amounts.length)>=minimumRelayFee, "relayFee is too little");
-    require(relayFee%(1e10)==0, "relayFee must be N*1e10");
-    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    uint256 totalAmount = 0;
-    for (uint i = 0; i < amounts.length; i++) {
-      totalAmount = totalAmount.add(amounts[i]);
-    }
-    uint256[] memory convertedAmounts = new uint256[](amounts.length);
-    bytes32 bep2TokenSymbol;
-    if (contractAddr==address(0x0)) {
-      for (uint8 i = 0; i < amounts.length; i++) {
-        require(amounts[i]%1e10==0, "invalid transfer amount");
-        convertedAmounts[i] = amounts[i].div(1e10);
-      }
-      require(msg.value==totalAmount.add(relayFee), "received BNB amount doesn't equal to the sum of transfer amount and relayFee");
-      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
-    } else {
-      uint256 bep2eTokenDecimals=_bep2eContractDecimals[contractAddr];
-      for (uint i = 0; i < amounts.length; i++) {
-        require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amounts[i].mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
-        uint256 convertedAmount = convertToBep2Amount(amounts[i], bep2eTokenDecimals);// convert to bep2 amount
-        require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amounts[i]), "amount is too large, uint256 overflow");
-        require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
-        convertedAmounts[i] = convertedAmount;
-      }
-      bep2TokenSymbol = _contractAddrToBEP2Symbol[contractAddr];
-      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bind to any bep2 token");
-      require(msg.value==relayFee, "received BNB amount doesn't equal to relayFee");
-      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), totalAmount));
-    }
-    emit LogBatchTransferOut(_transferOutChannelSequence, convertedAmounts, contractAddr, bep2TokenSymbol, expireTime, relayFee.div(1e10));
-    emit LogBatchTransferOutAddrs(_transferOutChannelSequence++, recipientAddrs, refundAddrs);
-    return true;
+    return string(bep2Symbol);
   }
 }

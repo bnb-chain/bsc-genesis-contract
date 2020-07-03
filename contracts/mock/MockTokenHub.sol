@@ -6,29 +6,30 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
-  function handleBindPackage(bytes calldata, bytes calldata, uint64, uint64)
-  external override(ITokenHub) returns (bool) {
-    return true;
+  function getMiniRelayFee() external view override(ITokenHub) returns (uint256) {
+    return (1e16);
   }
 
-  function handleTransferInPackage( bytes calldata, bytes calldata, uint64, uint64)
-  external override(ITokenHub) returns (bool) {
-    return true;
+  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override(ITokenHub) returns(address) {
+    return address(0x0);
   }
 
-  function handleRefundPackage( bytes calldata, bytes calldata, uint64, uint64)
-  external override(ITokenHub) returns (bool) {
-    return true;
+  function getBep2SymbolByContractAddr(address contractAddr) external view override(ITokenHub) returns(bytes32) {
+    return bytes32(0x0);
   }
 
-  function transferOut(address, address, uint256, uint256, uint256)
+  function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub) {}
+
+  function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
+
+  function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {
     return true;
   }
 
   /* solium-disable-next-line */
-  function batchTransferOut(address[] calldata, uint256[] calldata, address[] calldata,
-    address, uint256, uint256) external override(ITokenHub) payable returns (bool) {
+  function batchTransferOutBNB(address[] calldata, uint256[] calldata, address[] calldata,
+    uint64) external override(ITokenHub) payable returns (bool) {
     require(!panicBatchTransferOut, "panic in batchTransferOut");
     return true;
   }

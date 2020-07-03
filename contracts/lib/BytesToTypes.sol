@@ -26,7 +26,7 @@ library BytesToTypes {
         x==0 ? _output = false : _output = true;
     }   
         
-    function getStringSize(uint _offst, bytes memory _input) internal pure returns(uint size){
+    function getStringSize(uint _offst, bytes memory _input) internal pure returns(uint size) {
         
         assembly{
             
@@ -55,7 +55,7 @@ library BytesToTypes {
                 chunk_count := add(chunk_count,1)  // chunk_count++
             }
                
-            for { let index:= 0 }  lt(index , chunk_count){ index := add(index,1) } {
+            for { let index:= 0 }  lt(index , chunk_count) { index := add(index,1) } {
                 mstore(add(_output,mul(index,32)),mload(add(_input,_offst)))
                 _offst := sub(_offst,32)           // _offst -= 32
             }

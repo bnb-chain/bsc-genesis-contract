@@ -11,10 +11,10 @@ contract MockSystemReward {
 
   function claimRewards(address payable to, uint256 amount) public payable {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
-    if(actualAmount>0){
+    if (actualAmount>0) {
       to.transfer(actualAmount);
       emit RewardTo(to, actualAmount);
-    }else{
+    } else {
       emit RewardEmpty();
     }
   }

@@ -5,7 +5,7 @@ import "openzeppelin-solidity/contracts/GSN/Context.sol";
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 
-contract ABCToken is Context, IBEP2E, Ownable {
+contract MiniToken is Context, IBEP2E, Ownable {
   using SafeMath for uint256;
 
   mapping (address => uint256) private _balances;
@@ -18,10 +18,10 @@ contract ABCToken is Context, IBEP2E, Ownable {
   string public _name;
 
   constructor() public {
-    _name = "ABC token";
-    _symbol = "ABC";
+    _name = "XYZ token";
+    _symbol = "XYZ";
     _decimals = 18;
-    _totalSupply = 100000000000000000000000000;
+    _totalSupply = 10000000000000000000000;
     _balances[msg.sender] = _totalSupply;
 
     emit Transfer(address(0), msg.sender, _totalSupply);

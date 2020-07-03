@@ -9,11 +9,11 @@ const init_holders = require("./init_holders")
 
 require("./generate-system");
 require("./generate-systemReward");
-require("./generate-govhub");
 require("./generate-validatorset");
 require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
+require("./generate-crosschain");
 
 program.version("0.0.1")
 program.option("-c, --chainid <chainid>", "chain id", "714")
@@ -101,6 +101,21 @@ Promise.all([
       "relayerIncentivize",
       "contracts/RelayerIncentivize.sol",
       "RelayerIncentivize"
+  ),
+  compileContract(
+      "govHub",
+      "contracts/GovHub.sol",
+      "GovHub"
+  ),
+  compileContract(
+      "tokenManager",
+      "contracts/TokenManager.sol",
+      "TokenManager"
+  ),
+  compileContract(
+      "crossChain",
+      "contracts/CrossChain.sol",
+      "CrossChain"
   )
 ]).then(result => {
 

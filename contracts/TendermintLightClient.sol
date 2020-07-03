@@ -1,11 +1,13 @@
 pragma solidity 0.6.4;
 
-import "./Seriality/Memory.sol";
+import "./lib/Memory.sol";
+import "./lib/BytesToTypes.sol";
 import "./interface/ILightClient.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 
-contract TendermintLightClient is ILightClient, System{
+contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
   struct ConsensusState {
     uint64  preValidatorSetChangeHeight;
@@ -14,65 +16,64 @@ contract TendermintLightClient is ILightClient, System{
     bytes   nextValidatorSet;
   }
 
-  mapping(uint64 => ConsensusState) public _BBCLightClientConsensusState;
-  mapping(uint64 => address payable) public _submitters;
-  uint64 public _initialHeight;
-  uint64 public _latestHeight;
-  bool public _alreadyInit;
-  bytes32 public _chainID;
+  mapping(uint64 => ConsensusState) public lightClientConsensusStates;
+  mapping(uint64 => address payable) public submitters;
+  uint64 public initialHeight;
+  uint64 public latestHeight;
+  bytes32 public chainID;
 
   bytes constant public INIT_CONSENSUS_STATE_BYTES = hex"42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000";
-  //TODO add governance later
-  uint256 constant public rewardForValidatorSetChange = 1e16;
+  uint256 constant public INIT_REWARD_FOR_VALIDATOR_SER_CHANGE  = 1e16;
+  uint256 public rewardForValidatorSetChange;
 
-  event InitConsensusState(uint64 initHeight, bytes32 appHash);
-  event SyncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
+  event initConsensusState(uint64 initHeight, bytes32 appHash);
+  event syncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
+  event paramChange(string key, bytes value);
 
   /* solium-disable-next-line */
   constructor() public {}
 
-  function init() public {
-    require(!_alreadyInit, "already initialized");
-
+  function init() public onlyNotInit {
     uint256 pointer;
     uint256 length;
     (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
 
     /* solium-disable-next-line */
     assembly {
-      sstore(_chainID_slot, mload(pointer))
+      sstore(chainID_slot, mload(pointer))
     }
 
     ConsensusState memory cs;
     uint64 height;
     (cs, height) = decodeConsensusState(pointer, length, false);
     cs.preValidatorSetChangeHeight = 0;
-    _BBCLightClientConsensusState[height] = cs;
+    lightClientConsensusStates[height] = cs;
 
-    _initialHeight = height;
-    _latestHeight = height;
-    _alreadyInit = true;
+    initialHeight = height;
+    latestHeight = height;
+    alreadyInit = true;
+    rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
 
-    emit InitConsensusState(_initialHeight, cs.appHash);
+    emit initConsensusState(initialHeight, cs.appHash);
   }
 
   function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
-    require(_submitters[height] == address(0x0), "can't sync duplicated header");
-    require(height > _initialHeight, "can't sync header before _initialHeight");
+    require(submitters[height] == address(0x0), "can't sync duplicated header");
+    require(height > initialHeight, "can't sync header before initialHeight");
 
-    uint64 preValidatorSetChangeHeight = _latestHeight;
-    ConsensusState memory cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
-    for(; preValidatorSetChangeHeight >= _initialHeight;) {
+    uint64 preValidatorSetChangeHeight = latestHeight;
+    ConsensusState memory cs = lightClientConsensusStates[preValidatorSetChangeHeight];
+    for (; preValidatorSetChangeHeight >= initialHeight;) {
       if (preValidatorSetChangeHeight < height) {
         // find nearest previous height
         break;
       }
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
-      cs = _BBCLightClientConsensusState[preValidatorSetChangeHeight];
+      cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     }
     if (cs.nextValidatorSet.length == 0) {
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
-      cs.nextValidatorSet = _BBCLightClientConsensusState[preValidatorSetChangeHeight].nextValidatorSet;
+      cs.nextValidatorSet = lightClientConsensusStates[preValidatorSetChangeHeight].nextValidatorSet;
       require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
     }
 
@@ -108,7 +109,6 @@ contract TendermintLightClient is ILightClient, System{
     bool validatorChanged = false;
     if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
       validatorChanged = true;
-      //TODO ensure reward is in (0, 1e18)
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
     length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
@@ -122,54 +122,54 @@ contract TendermintLightClient is ILightClient, System{
     (cs, actualHeaderHeight) = decodeConsensusState(ptr, length, !validatorChanged);
     require(actualHeaderHeight == height, "header height doesn't equal to the specified height");
 
-    _submitters[height] = msg.sender;
+    submitters[height] = msg.sender;
     cs.preValidatorSetChangeHeight = preValidatorSetChangeHeight;
-    _BBCLightClientConsensusState[height] = cs;
-    if (height > _latestHeight) {
-      _latestHeight = height;
+    lightClientConsensusStates[height] = cs;
+    if (height > latestHeight) {
+      latestHeight = height;
     }
 
-    emit SyncConsensusState(height, preValidatorSetChangeHeight, cs.appHash, validatorChanged);
+    emit syncConsensusState(height, preValidatorSetChangeHeight, cs.appHash, validatorChanged);
 
     return true;
   }
 
   function isHeaderSynced(uint64 height) external override view returns (bool) {
-    return _submitters[height] != address(0x0) || height == _initialHeight;
+    return submitters[height] != address(0x0) || height == initialHeight;
   }
 
   function getAppHash(uint64 height) external override view returns (bytes32) {
-    return _BBCLightClientConsensusState[height].appHash;
+    return lightClientConsensusStates[height].appHash;
   }
 
   function getSubmitter(uint64 height) external override view returns (address payable) {
-    return _submitters[height];
+    return submitters[height];
   }
 
   function getChainID() external view returns (string memory) {
     bytes memory chainIDBytes = new bytes(32);
     assembly {
-      mstore(add(chainIDBytes,32), sload(_chainID_slot))
+      mstore(add(chainIDBytes,32), sload(chainID_slot))
     }
 
     uint8 chainIDLength = 0;
     for (uint8 j = 0; j < 32; j++) {
       if (chainIDBytes[j] != 0) {
-          chainIDLength++;
+        chainIDLength++;
       } else {
         break;
       }
     }
 
-    bytes memory chainID = new bytes(chainIDLength);
+    bytes memory chainIDStr = new bytes(chainIDLength);
     for (uint8 j = 0; j < chainIDLength; j++) {
-        chainID[j] = chainIDBytes[j];
+      chainIDStr[j] = chainIDBytes[j];
     }
 
-    return string(chainID);
+    return string(chainIDStr);
   }
 
-  // | length   | _chainID   | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
+  // | length   | chainID   | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
   // | 32 bytes | 32 bytes   | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
   /* solium-disable-next-line */
   function encodeConsensusState(ConsensusState memory cs, uint64 height, uint256 outputPtr, uint256 size) internal view returns (bool) {
@@ -203,7 +203,7 @@ contract TendermintLightClient is ILightClient, System{
 
     /* solium-disable-next-line */
     assembly {
-      mstore(outputPtr, sload(_chainID_slot))
+      mstore(outputPtr, sload(chainID_slot))
     }
     outputPtr = outputPtr-32;
 
@@ -217,7 +217,7 @@ contract TendermintLightClient is ILightClient, System{
     return true;
   }
 
-  // | _chainID  | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
+  // | chainID  | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
   // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
   /* solium-disable-next-line */
   function decodeConsensusState(uint256 ptr, uint256 size, bool leaveOutValidatorSet) internal pure returns(ConsensusState memory, uint64) {
@@ -256,5 +256,17 @@ contract TendermintLightClient is ILightClient, System{
     }
 
     return (cs, height);
+  }
+
+  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
+    if (Memory.compareStrings(key,"rewardForValidatorSetChange")) {
+      require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
+      uint256 newRewardForValidatorSetChange = BytesToTypes.bytesToUint256(32, value);
+      require(newRewardForValidatorSetChange > 0 && newRewardForValidatorSetChange <= 1e18, "the newRewardForValidatorSetChange out of range");
+      rewardForValidatorSetChange = newRewardForValidatorSetChange;
+    } else {
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 }
