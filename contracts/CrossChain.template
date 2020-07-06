@@ -38,6 +38,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // event
   event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
+  event receivedPackage(uint8 packageType, uint64 indexed packageSequence, uint8 indexed channelId);
   event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event unexpectedRevertInPackageHandler(address indexed contractAddr, string reason);
   event unexpectedFailureAssertionInPackageHandler(address indexed contractAddr, bytes lowLevelData);
@@ -200,10 +201,10 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
     (bool success, uint8 packageType, uint256 relayFee, bytes memory msgBytes) = decodePayloadHeader(payloadLocal);
     if (!success) {
-      emit unsupportedPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, payloadLocal);
+      emit unsupportedPackage(packageSequence, channelIdLocal, payloadLocal);
       return;
     }
-
+    emit receivedPackage(packageType, packageSequence, channelIdLocal);
     if (packageType == SYN_PACKAGE) {
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
