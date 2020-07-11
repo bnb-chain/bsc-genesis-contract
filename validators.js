@@ -35,8 +35,8 @@ function validatorUpdateRlpEncode(validators) {
   for(let i = 0;i<n;i++) {
     vals.push([
       validators[i].consensusAddr,
-      validators[i].feeAddr,
       validators[i].bscFeeAddr,
+      validators[i].feeAddr,
       validators[i].votingPower,
     ]);
   }
