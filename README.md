@@ -2,19 +2,19 @@
 
 This repo hold all the genesis contracts on Binance Smart chain. More details in [doc-site](https://github.com/binance-chain/docs-site/blob/add-bsc/docs/smart-chain/guides/concepts/system-contract.md).
 
-#### Disclaimer
+## Disclaimer
 **The software and related documentation are under active development, 
 all subject to potential future change without notification and not ready for production use. 
 The code and security audit have not been fully completed and not ready for any bug bounty.**
 
-#### Prepare
+## Prepare
 
 Install dependency:
 ```shell script
 npm install
 ``` 
 
-#### unit test
+## unit test
 
 Generate contracts for testing:
 ```shell script
@@ -23,6 +23,7 @@ node generate-system.js --mock true
 node generate-systemReward.js --mock true
 node generate-validatorset.js --mock true
 node generate-system.js --mock true
+node generate-slash.js --mock true
 node generate-crosschain.js --mock true
 node generate-tokenhub.js --mock true
 node generate-tendermintlightclient.js --mock true
@@ -46,7 +47,7 @@ Flatten all system contracts:
 npm run flatten
 ```
 
-#### how to generate genesis file.
+## how to generate genesis file.
  
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
 2. Edit `validators.js` file to alloc the initial validator set.
@@ -55,7 +56,7 @@ npm run flatten
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
 
-#### License
+## License
 
 The library is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0),
 also included in our repository in the [LICENSE](LICENSE) file.
