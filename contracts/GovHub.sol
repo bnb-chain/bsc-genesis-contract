@@ -41,12 +41,12 @@ contract GovHub is System, IApplication{
   }
 
   // should not happen
-  function handleAckPackage(uint8, bytes calldata) external override {
+  function handleAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
     require(false, "receive unexpected ack package");
   }
 
   // should not happen
-  function handleFailAckPackage(uint8, bytes calldata) external override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
     require(false, "receive unexpected fail ack package");
   }
 
