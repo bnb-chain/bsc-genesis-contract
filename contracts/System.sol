@@ -86,6 +86,7 @@ contract System {
     _;
   }
 
+  // Not reliable, do not use when need strong verify
   function isContract(address addr) internal view returns (bool) {
     uint size;
     assembly { size := extcodesize(addr) }

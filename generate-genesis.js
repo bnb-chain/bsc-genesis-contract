@@ -14,6 +14,7 @@ require("./generate-tokenhub");
 require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
 require("./generate-crosschain");
+require("./generate-slash");
 
 program.version("0.0.1")
 program.option("-c, --chainid <chainid>", "chain id", "714")

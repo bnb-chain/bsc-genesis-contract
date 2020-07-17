@@ -28,6 +28,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     _;
   }
 
+  modifier noProxy() {
+    require(msg.sender == tx.origin, "no proxy is allowed");
+    _;
+  }
+
   modifier noExist() {
     require(!relayersExistMap[msg.sender], "relayer already exist");
     _;
@@ -49,7 +54,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     alreadyInit = true;
   }
 
-  function register() external payable noExist onlyInit notContract{
+  function register() external payable noExist onlyInit notContract noProxy{
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
     relayers[msg.sender] = relayer(requiredDeposit, dues);
     relayersExistMap[msg.sender] = true;

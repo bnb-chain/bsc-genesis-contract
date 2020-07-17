@@ -46,9 +46,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   modifier onlyZeroPrice() {
-    
+    {% if mock %}
+    require(true, "gasprice is not zero");
+    {% else %}
     require(tx.gasprice == 0 , "gasprice is not zero");
-    
+    {% endif %}
     _;
   }
 
