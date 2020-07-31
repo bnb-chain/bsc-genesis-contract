@@ -30,6 +30,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // the precision of cross chain value transfer.
   uint256 public constant PRECISION = 1e10;
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
+  uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
@@ -404,6 +405,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   /*********************** Internal Functions **************************/
 
   function checkValidatorSet(Validator[] memory validatorSet) private pure returns(bool, string memory) {
+    if (validatorSet.length > MAX_NUM_OF_VALIDATORS){
+      return (false, "the number of validators exceed the limit");
+    }
     for (uint i = 0;i<validatorSet.length;i++) {
       for (uint j = 0;j<i;j++) {
         if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
