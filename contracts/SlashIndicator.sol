@@ -59,11 +59,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract override returns(bytes memory) {
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns(bytes memory) {
     require(false, "receive unexpected syn package");
   }
 
-  function handleAckPackage(uint8, bytes calldata msgBytes) external override {
+  function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
     (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
     if (ok) {
       emit knownResponse(response.code);
@@ -73,7 +73,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return;
   }
 
-  function handleFailAckPackage(uint8, bytes calldata) external override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override {
     emit crashResponse();
     return;
   }
