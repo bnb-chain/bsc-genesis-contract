@@ -15,15 +15,15 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   uint256 public constant ROUND_SIZE=100;
   uint256 public constant MAXIMUM_WEIGHT=40;
 
-  uint256 public constant MOLECULE_HEADER_RELAYER = 1;
-  uint256 public constant DENOMINATOR_HEADER_RELAYER = 5;
-  uint256 public constant MOLECULE_CALLER_COMPENSATION = 1;
-  uint256 public constant DENOMINATOR_CALLER_COMPENSATION = 80;
+  uint256 public constant HEADER_RELAYER_REWARD_RATE_MOLECULE = 1;
+  uint256 public constant HEADER_RELAYER_REWARD_RATE_DENOMINATOR = 5;
+  uint256 public constant CALLER_COMPENSATION_MOLECULE = 1;
+  uint256 public constant CALLER_COMPENSATION_DENOMINATOR = 80;
 
-  uint256 public moleculeHeaderRelayer;
-  uint256 public denominatorHeaderRelayer;
-  uint256 public moleculeCallerCompensation;
-  uint256 public denominatorCallerCompensation;
+  uint256 public headerRelayerRewardRateMolecule;
+  uint256 public headerRelayerRewardRateDenominator;
+  uint256 public callerCompensationMolecule;
+  uint256 public callerCompensationDenominator;
 
   mapping(address => uint256) public headerRelayersSubmitCount;
   address payable[] public headerRelayerAddressRecord;
@@ -45,10 +45,10 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   function init() onlyNotInit public {
     require(!alreadyInit, "already initialized");
-    moleculeHeaderRelayer=MOLECULE_HEADER_RELAYER;
-    denominatorHeaderRelayer=DENOMINATOR_HEADER_RELAYER;
-    moleculeCallerCompensation=MOLECULE_CALLER_COMPENSATION;
-    denominatorCallerCompensation=DENOMINATOR_CALLER_COMPENSATION;
+    headerRelayerRewardRateMolecule=HEADER_RELAYER_REWARD_RATE_MOLECULE;
+    headerRelayerRewardRateDenominator=HEADER_RELAYER_REWARD_RATE_DENOMINATOR;
+    callerCompensationMolecule=CALLER_COMPENSATION_MOLECULE;
+    callerCompensationDenominator=CALLER_COMPENSATION_DENOMINATOR;
     alreadyInit = true;
   }
 
@@ -110,7 +110,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   }
 
   function calculateRewardForHeaderRelayer(uint256 reward) internal view returns (uint256) {
-    return reward.mul(moleculeHeaderRelayer).div(denominatorHeaderRelayer);
+    return reward.mul(headerRelayerRewardRateMolecule).div(headerRelayerRewardRateDenominator);
   }
 
   function distributeHeaderRelayerReward() internal returns (uint256) {
@@ -126,7 +126,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       totalWeight = totalWeight.add(weight);
     }
 
-    uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominatorCallerCompensation);
+    uint256 callerReward = totalReward.mul(callerCompensationMolecule).div(callerCompensationDenominator);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
     for (uint256 index = 1; index < relayers.length; index++) {
@@ -157,7 +157,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       totalWeight = totalWeight + weight;
     }
 
-    uint256 callerReward = totalReward.mul(moleculeCallerCompensation).div(denominatorCallerCompensation);
+    uint256 callerReward = totalReward.mul(callerCompensationMolecule).div(callerCompensationDenominator);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
     for (uint256 index = 1; index < relayers.length; index++) {
@@ -197,24 +197,26 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   function updateParam(string calldata key, bytes calldata value) override external onlyGov{
     require(alreadyInit, "contract has not been initialized");
-    if (Memory.compareStrings(key,"moleculeHeaderRelayer")) {
-      require(value.length == 32, "length of moleculeHeaderRelayer mismatch");
-      uint256 newMoleculeHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
-      moleculeHeaderRelayer = newMoleculeHeaderRelayer;
-    } else if (Memory.compareStrings(key,"denominatorHeaderRelayer")) {
+    if (Memory.compareStrings(key,"headerRelayerRewardRateMolecule")) {
+      require(value.length == 32, "length of headerRelayerRewardRateMolecule mismatch");
+      uint256 newHeaderRelayerRewardRateMolecule = BytesToTypes.bytesToUint256(32, value);
+      require(newHeaderRelayerRewardRateMolecule <= headerRelayerRewardRateDenominator, "new headerRelayerRewardRateMolecule shouldn't be greater than headerRelayerRewardRateDenominator");
+      headerRelayerRewardRateMolecule = newHeaderRelayerRewardRateMolecule;
+    } else if (Memory.compareStrings(key,"headerRelayerRewardRateDenominator")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
-      uint256 newDenominatorHeaderRelayer = BytesToTypes.bytesToUint256(32, value);
-      require(newDenominatorHeaderRelayer != 0, "the newDenominatorHeaderRelayer must not be zero");
-      denominatorHeaderRelayer = newDenominatorHeaderRelayer;
-    } else if (Memory.compareStrings(key,"moleculeCallerCompensation")) {
+      uint256 newHeaderRelayerRewardRateDenominator = BytesToTypes.bytesToUint256(32, value);
+      require(newHeaderRelayerRewardRateDenominator != 0 && newHeaderRelayerRewardRateDenominator >= headerRelayerRewardRateMolecule, "the new headerRelayerRewardRateDenominator must not be zero and no less than headerRelayerRewardRateMolecule");
+      headerRelayerRewardRateDenominator = newHeaderRelayerRewardRateDenominator;
+    } else if (Memory.compareStrings(key,"callerCompensationMolecule")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
-      uint256 newMoleculeCallerCompensation = BytesToTypes.bytesToUint256(32, value);
-      moleculeCallerCompensation = newMoleculeCallerCompensation;
-    } else if (Memory.compareStrings(key,"denominatorCallerCompensation")) {
+      uint256 newCallerCompensationMolecule = BytesToTypes.bytesToUint256(32, value);
+      require(newCallerCompensationMolecule <= callerCompensationDenominator, "new callerCompensationMolecule shouldn't be greater than callerCompensationDenominator");
+      callerCompensationMolecule = newCallerCompensationMolecule;
+    } else if (Memory.compareStrings(key,"callerCompensationDenominator")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
-      uint256 newDenominatorCallerCompensation = BytesToTypes.bytesToUint256(32, value);
-      require(newDenominatorCallerCompensation != 0, "the newDenominatorCallerCompensation must not be zero");
-      denominatorCallerCompensation = newDenominatorCallerCompensation;
+      uint256 newCallerCompensationDenominator = BytesToTypes.bytesToUint256(32, value);
+      require(newCallerCompensationDenominator != 0 && newCallerCompensationDenominator >= callerCompensationMolecule, "the newCallerCompensationDenominator must not be zero and no less than callerCompensationMolecule");
+      callerCompensationDenominator = newCallerCompensationDenominator;
     } else {
       require(false, "unknown param");
     }
