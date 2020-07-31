@@ -7,6 +7,7 @@ const TokenHub = artifacts.require("TokenHub");
 const RelayerHub = artifacts.require("RelayerHub");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
+const SlashIndicator =  artifacts.require("SlashIndicator");
 const RLP = require('rlp');
 const Web3 = require('web3');
 const GOV_CHANNEL_ID = 0x09;
@@ -237,6 +238,53 @@ contract('GovHub others', (accounts) => {
         });
         let batchSizeForOracle = await crossChainInstance.batchSizeForOracle.call();
         assert.equal(batchSizeForOracle, 100, "value not equal");
+    });
+
+
+    it('Gov SlashIndicator', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const slashIndicator =await SlashIndicator.deployed();
+
+        const relayerAccount = accounts[8];
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("felonyThreshold", "0x0000000000000000000000000000000000000000000000000000000000000100", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "felonyThreshold";
+        });
+        let felonyThreshold = await slashIndicator.felonyThreshold.call();
+        assert.equal(felonyThreshold.toNumber(), 256, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("felonyThreshold", "0x0000000000000000000000000000000000000000000000000000000000010000", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "the felonyThreshold out of range";
+        });
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("felonyThreshold", "0x0000000000000000000000000000000000000000000000000000000000000010", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "the felonyThreshold out of range";
+        });
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("misdemeanorThreshold", "0x00000000000000000000000000000000000000000000000000000000000000f0", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "misdemeanorThreshold";
+        });
+        let misdemeanorThreshold = await slashIndicator.misdemeanorThreshold.call();
+        assert.equal(misdemeanorThreshold.toNumber(), 240, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("misdemeanorThreshold", "0x0000000000000000000000000000000000000000000000000000000000000000", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "the misdemeanorThreshold out of range";
+        });
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("misdemeanorThreshold", "0x0000000000000000000000000000000000000000000000000000000000010001", slashIndicator.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
+            return ev.message === "the misdemeanorThreshold out of range";
+        });
     });
 });
 
