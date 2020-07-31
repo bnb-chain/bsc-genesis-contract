@@ -172,14 +172,77 @@ contract('GovHub others', (accounts) => {
         const relayerIncentivize =await RelayerIncentivize.deployed();
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("moleculeHeaderRelayer", "0x0000000000000000000000000000000000000000000000000000000000010000", RelayerIncentivize.address),
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("headerRelayerRewardRateMolecule", "0x000000000000000000000000000000000000000000000000000000000000000f", RelayerIncentivize.address),
             {from: relayerAccount});
-        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === "moleculeHeaderRelayer";
+        truffleAssert.eventNotEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "headerRelayerRewardRateMolecule";
         });
 
-        let moleculeHeaderRelayer = await relayerIncentivize.moleculeHeaderRelayer.call();
-        assert.equal(moleculeHeaderRelayer.toNumber(), 65536, "value not equal");
+        let headerRelayerRewardRateMolecule = await relayerIncentivize.headerRelayerRewardRateMolecule.call();
+        assert.equal(headerRelayerRewardRateMolecule.toNumber(), 1, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("headerRelayerRewardRateMolecule", "0x0000000000000000000000000000000000000000000000000000000000000002", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "headerRelayerRewardRateMolecule";
+        });
+
+        headerRelayerRewardRateMolecule = await relayerIncentivize.headerRelayerRewardRateMolecule.call();
+        assert.equal(headerRelayerRewardRateMolecule.toNumber(), 2, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("headerRelayerRewardRateDenominator", "0x0000000000000000000000000000000000000000000000000000000000000001", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventNotEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "headerRelayerRewardRateDenominator";
+        });
+
+        let headerRelayerRewardRateDenominator = await relayerIncentivize.headerRelayerRewardRateDenominator.call();
+        assert.equal(headerRelayerRewardRateDenominator.toNumber(), 5, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("headerRelayerRewardRateDenominator", "0x0000000000000000000000000000000000000000000000000000000000000004", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "headerRelayerRewardRateDenominator";
+        });
+
+        headerRelayerRewardRateDenominator = await relayerIncentivize.headerRelayerRewardRateDenominator.call();
+        assert.equal(headerRelayerRewardRateDenominator.toNumber(), 4, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("callerCompensationMolecule", "0x0000000000000000000000000000000000000000000000000000000000000064", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventNotEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "callerCompensationMolecule";
+        });
+
+        let callerCompensationMolecule = await relayerIncentivize.callerCompensationMolecule.call();
+        assert.equal(callerCompensationMolecule.toNumber(), 1, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("callerCompensationMolecule", "0x0000000000000000000000000000000000000000000000000000000000000010", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "callerCompensationMolecule";
+        });
+
+        callerCompensationMolecule = await relayerIncentivize.callerCompensationMolecule.call();
+        assert.equal(callerCompensationMolecule.toNumber(), 16, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("callerCompensationDenominator", "0x000000000000000000000000000000000000000000000000000000000000000f", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventNotEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "callerCompensationDenominator";
+        });
+
+        let callerCompensationDenominator = await relayerIncentivize.callerCompensationDenominator.call();
+        assert.equal(callerCompensationDenominator.toNumber(), 80, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("callerCompensationDenominator", "0x0000000000000000000000000000000000000000000000000000000000000020", RelayerIncentivize.address),
+            {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "callerCompensationDenominator";
+        });
+
+        callerCompensationDenominator = await relayerIncentivize.callerCompensationDenominator.call();
+        assert.equal(callerCompensationDenominator.toNumber(), 32, "value not equal");
     });
 
     it('Gov cross chain contract', async () => {
