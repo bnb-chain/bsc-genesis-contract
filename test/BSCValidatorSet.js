@@ -96,7 +96,7 @@ contract('BSCValidatorSet', (accounts) => {
       await validatorSetInstance.deposit(validator, {from: systemAccount, value: web3.utils.toBN(1e18) });
       await validatorSetInstance.deposit(tmpAccount.address, {from: systemAccount, value: web3.utils.toBN(1e18) });
     }
-    
+
     let newValidator = web3.eth.accounts.create();
     let relayerAccount = accounts[8];
 
@@ -132,6 +132,43 @@ contract('BSCValidatorSet', (accounts) => {
     assert.equal(totalInComing.toNumber(), 0, "totalInComing is not correct");
     assert.equal(totalBalance, 0, "totalbalance is not correct");
 
+  });
+
+});
+
+contract('BSCValidatorSet', (accounts) => {
+  it('test distribute algorithm with 41 validators', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const systemRewardInstance = await SystemReward.deployed();
+
+    let systemAccount = accounts[0];
+    let relayerAccount = accounts[8];
+
+    // enough reward in system reward pool
+    await systemRewardInstance.send(web3.utils.toBN(1e18), {from: accounts[1]});
+
+    let newValidators = [];
+    for(let i =0;i <41; i++) {
+      newValidators.push(web3.eth.accounts.create().address)
+    }
+    let packageBytes = validatorUpdateRlpEncode(newValidators,
+        newValidators,newValidators);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+
+    // do deposit
+    for(let i =0;i <41; i++){
+      await validatorSetInstance.deposit(newValidators[i], {from: systemAccount, value: 1e18 });
+    }
+
+    // do update
+    let updateValidators = [];
+    for(let i =0;i <41; i++) {
+      updateValidators.push(web3.eth.accounts.create().address)
+    }
+    packageBytes = validatorUpdateRlpEncode(updateValidators,
+        updateValidators,updateValidators);
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+    console.log("The total gasUsd is", tx.receipt.gasUsed)
   });
 
 });
