@@ -12,8 +12,8 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   using SafeMath for uint256;
 
-  uint256 public constant ROUND_SIZE=1000;
-  uint256 public constant MAXIMUM_WEIGHT=400;
+  uint256 public constant ROUND_SIZE=100;
+  uint256 public constant MAXIMUM_WEIGHT=40;
 
   uint256 public constant MOLECULE_HEADER_RELAYER = 1;
   uint256 public constant DENOMINATOR_HEADER_RELAYER = 5;
