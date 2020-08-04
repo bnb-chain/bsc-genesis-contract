@@ -111,7 +111,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (validatorSetPackage.packageType == VALIDATORS_UPDATE_MESSAGE_TYPE) {
       resCode = updateValidatorSet(validatorSetPackage.validatorSet);
     } else if (validatorSetPackage.packageType == JAIL_MESSAGE_TYPE) {
-      resCode = jailValidator(validatorSetPackage.validatorSet);
+      if (validatorSetPackage.validatorSet.length != 1) {
+        emit failReasonWithStr("length of jail validators must be one");
+        resCode = ERROR_LEN_OF_VAL_MISMATCH;
+      } else {
+        resCode = jailValidator(validatorSetPackage.validatorSet[0]);
+      }
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
     }
@@ -141,8 +146,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (validator.jailed) {
         emit deprecatedDeposit(valAddr,value);
       } else {
-        totalInComing += value;
-        validator.incoming += value;
+        totalInComing = totalInComing.add(value);
+        validator.incoming = validator.incoming.add(value);
         emit validatorDeposit(valAddr,value);
       }
     } else {
@@ -151,14 +156,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function jailValidator(Validator[] memory validatorSet) internal returns (uint32) {
-    if (validatorSet.length != 1) {
-      emit failReasonWithStr("length of jail validators must be one");
-      return ERROR_LEN_OF_VAL_MISMATCH;
-    }
-    Validator memory v = validatorSet[0];
+  function jailValidator(Validator memory v) internal returns (uint32) {
     uint256 index = currentValidatorSetMap[v.consensusAddress];
-    if (index<=0) {
+    if (index==0) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }

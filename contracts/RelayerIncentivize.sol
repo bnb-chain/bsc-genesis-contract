@@ -43,7 +43,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   event paramChange(string key, bytes value);
   event rewardToRelayer(address relayer, uint256 amount);
 
-  function init() onlyNotInit public {
+  function init() onlyNotInit external {
     require(!alreadyInit, "already initialized");
     headerRelayerRewardRateMolecule=HEADER_RELAYER_REWARD_RATE_MOLECULE;
     headerRelayerRewardRateDenominator=HEADER_RELAYER_REWARD_RATE_DENOMINATOR;
@@ -87,7 +87,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       uint256 callerPackageReward = distributePackageRelayerReward();
 
       relayerRewardVault[packageRelayer] = relayerRewardVault[packageRelayer].add(callerHeaderReward).add(callerPackageReward);
-
 
       roundSequence++;
       countInRound = 0;

@@ -92,7 +92,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return key;
   }
 
-  function init() public onlyNotInit {
+  function init() external onlyNotInit {
     channelHandlerContractMap[BIND_CHANNELID] = TOKEN_MANAGER_ADDR;
     isRelayRewardFromSystemReward[BIND_CHANNELID] = false;
     registeredContractChannelMap[TOKEN_MANAGER_ADDR][BIND_CHANNELID] = true;
@@ -255,12 +255,11 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
-  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override returns(bool) {
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
-    return true;
   }
 
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
