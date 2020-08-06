@@ -47,6 +47,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
   mapping(address =>uint256) public currentValidatorSetMap;
+  uint256 public numOfJailed;
 
   struct Validator{
     address consensusAddress;
@@ -162,20 +163,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
-    bool otherValid = false;
     uint n = currentValidatorSet.length;
-    for (uint i=0;i<n;i++) {
-      if (!currentValidatorSet[i].jailed && currentValidatorSet[i].consensusAddress != v.consensusAddress) {
-        otherValid = true;
-        break;
-      }
-    }
+    bool shouldKeep = (numOfJailed >= n-1 && !currentValidatorSet[index-1].jailed);
     // will not jail if it is the last valid validator
-    if (!otherValid) {
+    if (shouldKeep) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
-    currentValidatorSet[index-1].jailed = true;
+    if(currentValidatorSet[index-1].jailed == false){
+      numOfJailed ++;
+      currentValidatorSet[index-1].jailed = true;
+    }
     emit validatorJailed(v.consensusAddress);
     return CODE_OK;
   }
@@ -208,8 +206,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // direct transfer
     address payable[] memory directAddrs = new address payable[](directSize);
     uint256[] memory directAmounts = new uint256[](directSize);
-    delete crossSize;
-    delete directSize;
+    crossSize = 0;
+    directSize = 0;
     Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     if (relayFee > DUSTY_INCOMING) {
@@ -281,6 +279,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     // step 5: do update validator set state
     totalInComing = 0;
+    numOfJailed = 0;
     if (validatorSetTemp.length>0) {
       doUpdateState(validatorSetTemp);
     }
@@ -300,7 +299,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
     address[] memory consensusAddrs = new address[](valid);
-    delete valid;
+    valid = 0;
     for (uint i = 0;i<n;i++) {
       if (!currentValidatorSet[i].jailed) {
         consensusAddrs[valid] = currentValidatorSet[i].consensusAddress;
