@@ -41,7 +41,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   event distributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
   event paramChange(string key, bytes value);
-  event rewardToDistributionTrigger(address distributionTrigger, uint256 amount);
   event rewardToRelayer(address relayer, uint256 amount);
 
   function init() onlyNotInit public {
@@ -87,12 +86,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       uint256 callerHeaderReward = distributeHeaderRelayerReward();
       uint256 callerPackageReward = distributePackageRelayerReward();
 
-      uint256 totalRewardForDistributionTrigger = callerHeaderReward.add(callerPackageReward);
-      if (!packageRelayer.send(totalRewardForDistributionTrigger)){
-        address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-        systemPayable.transfer(totalRewardForDistributionTrigger);
-      }
-      emit rewardToDistributionTrigger(packageRelayer, totalRewardForDistributionTrigger);
+      relayerRewardVault[packageRelayer] = relayerRewardVault[packageRelayer].add(callerHeaderReward).add(callerPackageReward);
 
 
       roundSequence++;
