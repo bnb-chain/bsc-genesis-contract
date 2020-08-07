@@ -16,7 +16,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // constant variables
   string constant public STORE_NAME = "ibc";
-  uint256 constant public CROSS_CHAIN_KEY_PREFIX = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
+  uint256 constant public CROSS_CHAIN_KEY_PREFIX = 0x01006000; // last 6 bytes
   uint8 constant public SYN_PACKAGE = 0x00;
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;

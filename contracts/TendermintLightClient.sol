@@ -107,11 +107,11 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
       length := mload(add(result, 0))
     }
     bool validatorChanged = false;
-    if ((length&0x0100000000000000000000000000000000000000000000000000000000000000)!=0x00) {
+    if ((length&(0x01<<248))!=0x00) {
       validatorChanged = true;
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
-    length = length&0x000000000000000000000000000000000000000000000000ffffffffffffffff;
+    length = length&0xffffffffffffffff;
 
     /* solium-disable-next-line */
     assembly {
