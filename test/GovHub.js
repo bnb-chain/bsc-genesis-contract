@@ -251,16 +251,16 @@ contract('GovHub others', (accounts) => {
         const crossChainInstance =await CrossChain.deployed();
 
         const relayerAccount = accounts[8];
-        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addOrUpdateChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === 'addChannel';
+            return ev.key === 'addOrUpdateChannel';
         });
 
-        await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x58")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
+        await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("addOrUpdateChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x58")), Buffer.from(web3.utils.hexToBytes("0x00")), Buffer.from(web3.utils.hexToBytes(RelayerIncentivize.address))])), crossChainInstance.address),
             {from: relayerAccount});
         truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
-            return ev.key === 'addChannel';
+            return ev.key === 'addOrUpdateChannel';
         });
 
         tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("enableOrDisableChannel", web3.utils.bytesToHex(Buffer.concat([Buffer.from(web3.utils.hexToBytes("0x57")), Buffer.from(web3.utils.hexToBytes("0x00"))])), crossChainInstance.address),
