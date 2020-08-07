@@ -267,9 +267,9 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
       require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
       batchSizeForOracle = newBatchSizeForOracle;
-    } else if (Memory.compareStrings(key, "addChannel")) {
+    } else if (Memory.compareStrings(key, "addOrUpdateChannel")) {
       bytes memory valueLocal = value;
-      require(valueLocal.length == 22, "length of value for addChannel should be 22, channelId:isFromSystem:handlerAddress");
+      require(valueLocal.length == 22, "length of value for addOrUpdateChannel should be 22, channelId:isFromSystem:handlerAddress");
       uint8 channelId;
       assembly {
         channelId := mload(add(valueLocal, 1))
