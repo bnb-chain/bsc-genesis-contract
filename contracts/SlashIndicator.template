@@ -91,13 +91,14 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       validators.push(validator);
     }
     indicator.height = block.number;
-    indicators[validator] = indicator;
     if (indicator.count % felonyThreshold == 0) {
+      indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
+    indicators[validator] = indicator;
     emit validatorSlashed(validator);
   }
 

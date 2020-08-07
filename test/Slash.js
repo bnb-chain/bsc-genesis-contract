@@ -167,7 +167,7 @@ contract('SlashIndicator', (accounts) => {
     }
 
     let res= (await slashInstance.getSlashIndicator.call(validator));
-    assert.equal(res[1].toNumber(),150);
+    assert.equal(res[1].toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(validator);
     assert.equal(amount.toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
@@ -191,7 +191,7 @@ contract('SlashIndicator', (accounts) => {
     }
 
     res= (await slashInstance.getSlashIndicator.call(secondValidator));
-    assert.equal(res[1].toNumber(),150);
+    assert.equal(res[1].toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
     assert.equal(amount.toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(validator);
@@ -215,7 +215,7 @@ contract('SlashIndicator', (accounts) => {
     }
 
     res= (await slashInstance.getSlashIndicator.call(thirdValidator));
-    assert.equal(res[1].toNumber(),150);
+    assert.equal(res[1].toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toNumber(),0);
     amount = await validatorSetInstance.getIncoming.call(validator);
