@@ -123,6 +123,7 @@ library RLPDecode {
         require(item.len > 0 && item.len <= 33);
 
         uint offset = _payloadOffset(item.memPtr);
+        require(item.len >= offset, "length is less than offset");
         uint len = item.len - offset;
 
         uint result;
@@ -197,14 +198,16 @@ library RLPDecode {
             itemLen = byte0 - STRING_SHORT_START + 1;
 
         else if (byte0 < LIST_SHORT_START) {
+            uint dataLen;
             assembly {
                 let byteLen := sub(byte0, 0xb7) // # of bytes the actual length is
                 memPtr := add(memPtr, 1) // skip over the first byte
 
-            /* 32 byte word size */
-                let dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to get the len
+                /* 32 byte word size */
+                dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to get the len
                 itemLen := add(dataLen, add(byteLen, 1))
             }
+            require(itemLen >= dataLen, "addition overflow");
         }
 
         else if (byte0 < LIST_LONG_START) {
@@ -212,13 +215,15 @@ library RLPDecode {
         }
 
         else {
+            uint dataLen;
             assembly {
                 let byteLen := sub(byte0, 0xf7)
                 memPtr := add(memPtr, 1)
 
-                let dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to the correct length
+                dataLen := div(mload(memPtr), exp(256, sub(32, byteLen))) // right shifting to the correct length
                 itemLen := add(dataLen, add(byteLen, 1))
             }
+            require(itemLen >= dataLen, "addition overflow");
         }
 
         return itemLen;
