@@ -533,6 +533,25 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
+contract('BSCValidatorSet', (accounts) => {
+  it('test distribute algorithm with more than 41 validators', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let relayerAccount = accounts[8];
+
+    let newValidators = [];
+    for (let i = 0; i < 42; i++) {
+      newValidators.push(web3.eth.accounts.create().address)
+    }
+    let packageBytes = validatorUpdateRlpEncode(newValidators,
+        newValidators, newValidators);
+    let tx = await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
+    
+    truffleAssert.eventEmitted(tx, "failReasonWithStr", (ev) => {
+      return ev.message === "the number of validators exceed the limit";
+    });
+  });
+});
+
 
 function jailRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let pkg = [];
