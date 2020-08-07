@@ -276,10 +276,11 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
         channelId := mload(add(valueLocal, 1))
       }
 
-      uint8 isRewardFromSystem;
+      uint8 rewardConfig;
       assembly {
-        isRewardFromSystem := mload(add(valueLocal, 2))
+        rewardConfig := mload(add(valueLocal, 2))
       }
+      bool isRewardFromSystem = (rewardConfig == 0x0);
 
       address handlerContract;
       assembly {
@@ -289,7 +290,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       require(isContract(handlerContract), "address is not a contract");
       channelHandlerContractMap[channelId]=handlerContract;
       registeredContractChannelMap[handlerContract][channelId] = true;
-      isRelayRewardFromSystemReward[channelId] = (isRewardFromSystem == 0x0);
+      isRelayRewardFromSystemReward[channelId] = isRewardFromSystem;
       emit addChannel(channelId, handlerContract);
     } else if (Memory.compareStrings(key, "enableOrDisableChannel")) {
       bytes memory valueLocal = value;
