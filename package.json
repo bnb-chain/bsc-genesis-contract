@@ -30,6 +30,10 @@
     "web3": "1.2.6",
     "await-sleep": "0.0.1",
     "ethereum-input-data-decoder": "0.3.0",
-    "rlp": "2.2.5"
+    "rlp": "2.2.5",
+    "elliptic": ">=6.5.3",
+    "minimist": ">=1.2.3",
+    "mem": ">=4.0.0",
+    "lodash": ">=4.17.19"
   }
 }
