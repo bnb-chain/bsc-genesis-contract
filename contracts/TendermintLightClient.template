@@ -33,7 +33,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   /* solium-disable-next-line */
   constructor() public {}
 
-  function init() public onlyNotInit {
+  function init() external onlyNotInit {
     uint256 pointer;
     uint256 length;
     (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
@@ -63,11 +63,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     uint64 preValidatorSetChangeHeight = latestHeight;
     ConsensusState memory cs = lightClientConsensusStates[preValidatorSetChangeHeight];
-    for (; preValidatorSetChangeHeight >= initialHeight;) {
-      if (preValidatorSetChangeHeight < height) {
-        // find nearest previous height
-        break;
-      }
+    for (; preValidatorSetChangeHeight < height && preValidatorSetChangeHeight >= initialHeight;) {
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
       cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     }

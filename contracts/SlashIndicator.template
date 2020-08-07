@@ -39,13 +39,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     bool exist;
   }
 
-  modifier onlyOnce() {
+  modifier oncePerBlock() {
     require(block.number > previousHeight, "can not slash twice in one block");
     _;
     previousHeight = block.number;
   }
 
-  modifier onlyZeroPrice() {
+  modifier onlyZeroGasPrice() {
     {% if mock %}
     require(true, "gasprice is not zero");
     {% else %}
@@ -81,7 +81,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** External func ********************************/
-  function slash(address validator) external onlyCoinbase onlyInit onlyOnce onlyZeroPrice{
+  function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
       indicator.count++;

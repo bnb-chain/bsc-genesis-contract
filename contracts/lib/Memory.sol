@@ -34,22 +34,6 @@ library Memory {
     function compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
-    // Allocates 'numBytes' bytes in memory. This will prevent the Solidity compiler
-    // from using this area of memory. It will also initialize the area by setting
-    // each byte to '0'.
-    function allocate(uint numBytes) internal pure returns (uint addr) {
-        // Take the current value of the free memory pointer, and update.
-        assembly {
-            addr := mload(/*FREE_MEM_PTR*/0x40)
-            mstore(/*FREE_MEM_PTR*/0x40, add(addr, numBytes))
-        }
-        uint words = (numBytes + WORD_SIZE - 1) / WORD_SIZE;
-        for (uint i = 0; i < words; i++) {
-            assembly {
-                mstore(add(addr, mul(i, /*WORD_SIZE*/32)), 0)
-            }
-        }
-    }
 
     // Copy 'len' bytes from memory address 'src', to address 'dest'.
     // This function does not check the or destination, it only copies
@@ -121,16 +105,4 @@ library Memory {
             bts := mload(addr)
         }
     }
-
-    /*
-    // Get the byte stored at memory address 'addr' as a 'byte'.
-    function toByte(uint addr, uint8 index) internal pure returns (byte b) {
-        require(index < WORD_SIZE);
-        uint8 n;
-        assembly {
-            n := byte(index, mload(addr))
-        }
-        b = byte(n);
-    }
-    */
 }

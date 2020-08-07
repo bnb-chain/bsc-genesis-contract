@@ -31,7 +31,7 @@ contract TokenManager is System, IApplication {
   }
 
   // BSC to BC
-  struct ApproveBindSynPackage {
+  struct ReactBindSynPackage {
     uint32 status;
     bytes32 bep2TokenSymbol;
   }
@@ -51,6 +51,8 @@ contract TokenManager is System, IApplication {
 
   uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
+
+  uint256 constant public  TEN_DECIMALS = 1e10;
 
   mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
@@ -110,10 +112,10 @@ contract TokenManager is System, IApplication {
     return new bytes(0);
   }
 
-  function encodeApproveBindSynPackage(ApproveBindSynPackage memory approveBindSynPackage) internal pure returns (bytes memory) {
+  function encodeReactBindSynPackage(ReactBindSynPackage memory reactBindSynPackage) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](2);
-    elements[0] = approveBindSynPackage.status.encodeUint();
-    elements[1] = uint256(approveBindSynPackage.bep2TokenSymbol).encodeUint();
+    elements[0] = reactBindSynPackage.status.encodeUint();
+    elements[1] = uint256(reactBindSynPackage.bep2TokenSymbol).encodeUint();
     return elements.encodeList();
   }
 
@@ -128,7 +130,7 @@ contract TokenManager is System, IApplication {
     require(IBEP2E(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
     uint256 relayFee = msg.value;
     uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
-    require(relayFee >= miniRelayFee && relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
+    require(relayFee >= miniRelayFee && relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
 
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
     if (verifyCode == BIND_STATUS_SUCCESS) {
@@ -139,12 +141,12 @@ contract TokenManager is System, IApplication {
       emit bindFailure(contractAddr, bep2Symbol, verifyCode);
     }
     delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
+    ReactBindSynPackage memory reactBindSynPackage = ReactBindSynPackage({
       status: verifyCode,
       bep2TokenSymbol: bep2TokenSymbol
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeReactBindSynPackage(reactBindSynPackage), relayFee.div(TEN_DECIMALS));
     return true;
   }
 
@@ -156,14 +158,14 @@ contract TokenManager is System, IApplication {
     require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
     uint256 relayFee = msg.value;
     uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
-    require(relayFee >= miniRelayFee && relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
+    require(relayFee >= miniRelayFee && relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
+    ReactBindSynPackage memory reactBindSynPackage = ReactBindSynPackage({
       status: BIND_STATUS_REJECTED,
       bep2TokenSymbol: bep2TokenSymbol
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeReactBindSynPackage(reactBindSynPackage), relayFee.div(TEN_DECIMALS));
     emit bindFailure(contractAddr, bep2Symbol, BIND_STATUS_REJECTED);
     return true;
   }
@@ -175,14 +177,14 @@ contract TokenManager is System, IApplication {
     require(bindSynPkg.expireTime<block.timestamp, "bind request is not expired");
     uint256 relayFee = msg.value;
     uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
-    require(relayFee >= miniRelayFee &&relayFee%1e10 == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
+    require(relayFee >= miniRelayFee &&relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
     delete bindPackageRecord[bep2TokenSymbol];
-    ApproveBindSynPackage memory approveBindSynPackage = ApproveBindSynPackage({
+    ReactBindSynPackage memory reactBindSynPackage = ReactBindSynPackage({
       status: BIND_STATUS_TIMEOUT,
       bep2TokenSymbol: bep2TokenSymbol
     });
     address(uint160(TOKEN_HUB_ADDR)).transfer(relayFee);
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeApproveBindSynPackage(approveBindSynPackage), relayFee.div(1e10));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeReactBindSynPackage(reactBindSynPackage), relayFee.div(TEN_DECIMALS));
     emit bindFailure(bindSynPkg.contractAddr, bep2Symbol, BIND_STATUS_TIMEOUT);
     return true;
   }
