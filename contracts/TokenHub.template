@@ -73,6 +73,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E={{maxGasForCallingBEP2E}};
 
   uint256 constant public INIT_MINIMUM_RELAY_FEE ={{initRelayFee}};
+  uint256 constant public REWARD_UPPER_LIMIT ={{rewardUpperLimit}};
 
   uint256 public relayFee;
 
@@ -105,6 +106,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
+    if (actualAmount > REWARD_UPPER_LIMIT) {
+      return 0;
+    }
     if (actualAmount>0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
