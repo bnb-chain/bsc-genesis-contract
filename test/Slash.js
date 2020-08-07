@@ -102,7 +102,7 @@ contract('SlashIndicator', (accounts) => {
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
     assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
-    for (let i =1; i<=50; i++){
+    for (let i =1; i<=4; i++){
       await slashInstance.slash(validator, { from: systemAccount });
     }
     let res= (await slashInstance.getSlashIndicator.call(validator));
@@ -145,7 +145,9 @@ contract('SlashIndicator', (accounts) => {
 
   });
 
+});
 
+contract('felony SlashIndicator', (accounts) => {
   it('trigger felony ', async () => {
     const slashInstance = await SlashIndicator.deployed();
     const validatorSetInstance = await BSCValidatorSet.deployed();
@@ -226,6 +228,105 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(consensusAddres.length,2);
     assert.equal(consensusAddres[0],validator);
     assert.equal(consensusAddres[1],secondValidator);
+
+  });
+});
+
+contract('Clean SlashIndicator', (accounts) => {
+  it('test slash clean', async () => {
+    const slashInstance = await SlashIndicator.deployed();
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let newValidator = web3.eth.accounts.create();
+    let relayerAccount = accounts[8];
+    const accountOne = accounts[0];
+
+    // case 1: all clean.
+    let validators = [];
+    for(let i =0;i <20; i++){
+      validators.push(web3.eth.accounts.create().address);
+    }
+    for(let i =0;i <20;i++){
+      await slashInstance.slash(validators[i], { from: accountOne });
+    }
+    // doclean
+    let packageBytes = validatorUpdateRlpEncode([newValidator.address],
+        [newValidator.address],[newValidator.address]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+
+    let res= (await slashInstance.getSlashValidators.call());
+    assert.equal(res.length, 0);
+
+    for(let i =0;i <20;i++){
+      let res = await slashInstance.getSlashIndicator.call(validators[i]);
+      let count =res[1].toNumber();
+      let height = res[0].toNumber();
+      assert.equal(count, 0);
+      assert.equal(height, 0);
+    }
+
+    // case 2: all stay.
+    for(let i =0;i <20;i++){
+      for(let j=0;j<5;j++){
+        await slashInstance.slash(validators[i], { from: accountOne });
+      }
+    }
+    // doclean
+    packageBytes = validatorUpdateRlpEncode([newValidator.address],
+        [newValidator.address],[newValidator.address]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+    res= (await slashInstance.getSlashValidators.call());
+    assert.equal(res.length, 20);
+    for(let i =0;i <20;i++){
+      let res = await slashInstance.getSlashIndicator.call(validators[i]);
+      let count =res[1].toNumber();
+      assert.equal(count, 1);
+    }
+
+    // case 3: partial stay.
+    for(let i =0;i <10;i++){
+      for(let j=0;j<5;j++){
+        await slashInstance.slash(validators[2*i], { from: accountOne });
+      }
+      await slashInstance.slash(validators[2*i+1], { from: accountOne });
+    }
+    // doclean
+    packageBytes = validatorUpdateRlpEncode([newValidator.address],
+        [newValidator.address],[newValidator.address]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+    res= (await slashInstance.getSlashValidators.call());
+    assert.equal(res.length, 10);
+    for(let i =0;i <20;i++){
+      let res = await slashInstance.getSlashIndicator.call(validators[i]);
+      let count =res[1].toNumber();
+      if(i%2==0){
+        assert.equal(count, 2);
+      }else{
+        assert.equal(count, 0);
+      }
+    }
+
+    // case 4: partial stay.
+    for(let i =0;i <10;i++){
+      for(let j=0;j<5;j++){
+        await slashInstance.slash(validators[2*i+1], { from: accountOne });
+      }
+      await slashInstance.slash(validators[2*i], { from: accountOne });
+    }
+    // doclean
+    packageBytes = validatorUpdateRlpEncode([newValidator.address],
+        [newValidator.address],[newValidator.address]);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+    res= (await slashInstance.getSlashValidators.call());
+    assert.equal(res.length, 10);
+    for(let i =0;i <20;i++){
+      let res = await slashInstance.getSlashIndicator.call(validators[i]);
+      let count =res[1].toNumber();
+      if(i%2==0){
+        assert.equal(count, 0);
+      }else{
+        assert.equal(count, 1);
+      }
+    }
 
   });
 });

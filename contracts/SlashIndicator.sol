@@ -16,11 +16,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
   uint256 public constant FELONY_THRESHOLD = 150;
   uint256 public constant BSC_RELAYER_REWARD = 1e16;
-
+  uint256 public constant DECREASE_RATE = 4;
 
   // State of the contract
-  address[] validators;
-  mapping(address => Indicator) indicators;
+  address[] public validators;
+  mapping(address => Indicator) public indicators;
   uint256 public previousHeight;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
@@ -51,7 +51,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     
     _;
   }
-
+  
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
@@ -100,11 +100,57 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit validatorSlashed(validator);
   }
 
+
+  // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
+  // Clean is an effective implement to reorganize "validators" and "indicators".
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
-    uint n = validators.length;
-    for (uint i = 0; i < n; i++) {
-      delete indicators[validators[n-i-1]];
-      validators.pop();
+    if(validators.length == 0){
+      return;
+    }
+    uint i = 0;
+    uint j = validators.length-1;
+    for (;i <= j;) {
+      bool findLeft = false;
+      bool findRight = false;
+      for(;i<j;i++){
+        Indicator memory leftIndicator = indicators[validators[i]];
+        if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
+          leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
+          indicators[validators[i]] = leftIndicator;
+        }else{
+          findLeft = true;
+          break;
+        }
+      }
+      for(;i<=j;j--){
+        Indicator memory rightIndicator = indicators[validators[j]];
+        if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
+          rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;
+          indicators[validators[j]] = rightIndicator;
+          findRight = true;
+          break;
+        }else{
+          delete indicators[validators[j]];
+          validators.pop();
+        }
+        // avoid underflow
+        if(j==0){
+          break;
+        }
+      }
+      // swap element in array
+      if (findLeft && findRight){
+        delete indicators[validators[i]];
+        validators[i] = validators[j];
+        validators.pop();
+      }
+      // avoid underflow
+      if(j==0){
+        break;
+      }
+      // move to next
+      i++;
+      j--;
     }
     emit indicatorCleaned();
   }
