@@ -187,6 +187,9 @@ contract('TokenHub', (accounts) => {
         assert.equal(bindRequenst.totalSupply.eq(new BN('52b7d2dcc80cd2e4000000', 16)), true, "wrong total supply");  // 1e26
         assert.equal(bindRequenst.peggyAmount.eq(new BN('51e410c0f93fe543000000', 16)), true, "wrong peggy amount");  // 99e24
         assert.equal(bindRequenst.contractAddr.toString(), abcToken.address.toString(), "wrong contract address");
+
+        let lockAmount = await tokenManager.queryRequiredLockAmountForBind( "ABC-9C7");
+        assert.equal(web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)).eq(lockAmount), true, "wrong lock amount");
         try {
             await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();

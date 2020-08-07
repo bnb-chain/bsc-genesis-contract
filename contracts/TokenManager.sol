@@ -197,6 +197,20 @@ contract TokenManager is System, IApplication {
     return result;
   }
 
+  function queryRequiredLockAmountForBind(string memory symbol) public view returns(uint256) {
+    bytes32 bep2Symbol;
+    assembly {
+      bep2Symbol := mload(add(symbol, 32))
+    }
+    BindSynPackage memory bindRequest = bindPackageRecord[bep2Symbol];
+    if (bindRequest.contractAddr==address(0x00)) {
+      return 0;
+    }
+    uint256 tokenHubBalance = IBEP2E(bindRequest.contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    uint256 requiredBalance = bindRequest.totalSupply.sub(bindRequest.peggyAmount);
+    return requiredBalance.sub(tokenHubBalance);
+  }
+
   function verifyBindParameters(BindSynPackage memory bindSynPkg, address contractAddr) internal view returns(uint32) {
     uint256 decimals = IBEP2E(contractAddr).decimals();
     string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
