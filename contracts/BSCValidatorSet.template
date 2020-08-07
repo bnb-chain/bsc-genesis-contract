@@ -160,21 +160,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function jailValidator(Validator memory v) internal returns (uint32) {
     uint256 index = currentValidatorSetMap[v.consensusAddress];
-    if (index==0) {
+    if (index==0 || currentValidatorSet[index-1].jailed) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
     uint n = currentValidatorSet.length;
-    bool shouldKeep = (numOfJailed >= n-1 && !currentValidatorSet[index-1].jailed);
+    bool shouldKeep = (numOfJailed >= n-1);
     // will not jail if it is the last valid validator
     if (shouldKeep) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
-    if(currentValidatorSet[index-1].jailed == false){
-      numOfJailed ++;
-      currentValidatorSet[index-1].jailed = true;
-    }
+    numOfJailed ++;
+    currentValidatorSet[index-1].jailed = true;
     emit validatorJailed(v.consensusAddress);
     return CODE_OK;
   }
