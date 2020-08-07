@@ -71,6 +71,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
+  uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
 
   uint256 constant public INIT_MINIMUM_RELAY_FEE =1e16;
   uint256 constant public REWARD_UPPER_LIMIT =1e18;
@@ -203,7 +204,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       if (address(this).balance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      if (!address(uint160(transInSynPkg.recipient)).send(transInSynPkg.amount)) {
+      (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
+      if (!success) {
         return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
       }
       emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
@@ -274,7 +276,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function doRefund(TransferOutAckPackage memory transOutAckPkg) internal {
     if (transOutAckPkg.contractAddr==address(0x0)) {
       for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
-        if (!address(uint160(transOutAckPkg.refundAddrs[index])).send(transOutAckPkg.refundAmounts[index])) {
+        (bool success, ) = transOutAckPkg.refundAddrs[index].call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transOutAckPkg.refundAmounts[index]}("");
+        if (!success) {
           emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
         } else {
           emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);

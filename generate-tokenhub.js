@@ -28,6 +28,10 @@ program.option("--maxGasForCallingBEP2E <maxGasForCallingBEP2E>",
     "maxGasForCallingBEP2E",
     "50000");
 
+program.option("--maxGasForTransferringBNB <maxGasForTransferringBNB>",
+    "maxGasForTransferringBNB",
+    "10000");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -38,6 +42,7 @@ const data = {
     initRelayFee: program.initRelayFee,
     rewardUpperLimit: program.rewardUpperLimit,
     maxGasForCallingBEP2E: program.maxGasForCallingBEP2E,
+    maxGasForTransferringBNB: program.maxGasForTransferringBNB,
     mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
