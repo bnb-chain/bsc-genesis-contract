@@ -21,7 +21,7 @@
 				"type": "uint256"
 			}
 		],
-		"name": "LogDistributeCollectedReward",
+		"name": "distributeCollectedReward",
 		"type": "event"
 	},
 	{
@@ -44,6 +44,25 @@
 		"type": "event"
 	},
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "address",
+				"name": "relayer",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "rewardToRelayer",
+		"type": "event"
+	},
+	{
 		"payable": true,
 		"stateMutability": "payable",
 		"type": "fallback"
@@ -57,6 +76,36 @@
 				"internalType": "uint8",
 				"name": "",
 				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "CALLER_COMPENSATION_DENOMINATOR",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "CALLER_COMPENSATION_MOLECULE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -87,36 +136,6 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "DENOMINATOR_CALLER_COMPENSATION",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "DENOMINATOR_HEADER_RELAYER",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -171,6 +190,36 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "HEADER_RELAYER_REWARD_RATE_DENOMINATOR",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "HEADER_RELAYER_REWARD_RATE_MOLECULE",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "INCENTIVIZE_ADDR",
 		"outputs": [
 			{
@@ -202,36 +251,6 @@
 		"constant": true,
 		"inputs": [],
 		"name": "MAXIMUM_WEIGHT",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "MOLECULE_CALLER_COMPENSATION",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "MOLECULE_HEADER_RELAYER",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -409,42 +428,6 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "address payable",
-				"name": "headerRelayerAddr",
-				"type": "address"
-			},
-			{
-				"internalType": "address payable",
-				"name": "packageRelayer",
-				"type": "address"
-			},
-			{
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "bool",
-				"name": "fromSystemReward",
-				"type": "bool"
-			}
-		],
-		"name": "addReward",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
 		"constant": true,
 		"inputs": [],
 		"name": "alreadyInit",
@@ -476,14 +459,8 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "count",
-				"type": "uint256"
-			}
-		],
-		"name": "calculateHeaderRelayerWeight",
+		"inputs": [],
+		"name": "callerCompensationDenominator",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -492,19 +469,13 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "pure",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "count",
-				"type": "uint256"
-			}
-		],
-		"name": "calculateTransferRelayerWeight",
+		"inputs": [],
+		"name": "callerCompensationMolecule",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -513,7 +484,7 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "pure",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -563,36 +534,6 @@
 	},
 	{
 		"constant": true,
-		"inputs": [],
-		"name": "denominatorCallerCompensation",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "denominatorHeaderRelayer",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"constant": true,
 		"inputs": [
 			{
 				"internalType": "uint256",
@@ -606,6 +547,36 @@
 				"internalType": "address payable",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "headerRelayerRewardRateDenominator",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "headerRelayerRewardRateMolecule",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -634,18 +605,36 @@
 		"type": "function"
 	},
 	{
-		"constant": false,
-		"inputs": [],
-		"name": "init",
-		"outputs": [],
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "packageRelayerAddressRecord",
+		"outputs": [
+			{
+				"internalType": "address payable",
+				"name": "",
+				"type": "address"
+			}
+		],
 		"payable": false,
-		"stateMutability": "nonpayable",
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
 		"constant": true,
-		"inputs": [],
-		"name": "moleculeCallerCompensation",
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "packageRelayersSubmitCount",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -659,8 +648,14 @@
 	},
 	{
 		"constant": true,
-		"inputs": [],
-		"name": "moleculeHeaderRelayer",
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "relayerRewardVault",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -688,36 +683,75 @@
 		"type": "function"
 	},
 	{
-		"constant": true,
+		"constant": false,
+		"inputs": [],
+		"name": "init",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
 		"inputs": [
 			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "transferRelayerAddressRecord",
-		"outputs": [
+				"internalType": "address payable",
+				"name": "headerRelayerAddr",
+				"type": "address"
+			},
 			{
 				"internalType": "address payable",
-				"name": "",
+				"name": "packageRelayer",
 				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "fromSystemReward",
+				"type": "bool"
+			}
+		],
+		"name": "addReward",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
 			}
 		],
 		"payable": false,
-		"stateMutability": "view",
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "relayerAddr",
+				"type": "address"
+			}
+		],
+		"name": "claimRelayerReward",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
 		"constant": true,
 		"inputs": [
 			{
-				"internalType": "address",
-				"name": "",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "count",
+				"type": "uint256"
 			}
 		],
-		"name": "transferRelayersSubmitCount",
+		"name": "calculateTransferRelayerWeight",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -726,7 +760,28 @@
 			}
 		],
 		"payable": false,
-		"stateMutability": "view",
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "count",
+				"type": "uint256"
+			}
+		],
+		"name": "calculateHeaderRelayerWeight",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
 		"type": "function"
 	},
 	{

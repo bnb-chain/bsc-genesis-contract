@@ -399,6 +399,32 @@
 			},
 			{
 				"internalType": "bytes",
+				"name": "msgBytes",
+				"type": "bytes"
+			}
+		],
+		"name": "handleSynPackage",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "responsePayload",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes",
 				"name": "",
 				"type": "bytes"
 			}
@@ -425,32 +451,6 @@
 		],
 		"name": "handleFailAckPackage",
 		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			},
-			{
-				"internalType": "bytes",
-				"name": "msgBytes",
-				"type": "bytes"
-			}
-		],
-		"name": "handleSynPackage",
-		"outputs": [
-			{
-				"internalType": "bytes",
-				"name": "responsePayload",
-				"type": "bytes"
-			}
-		],
 		"payable": false,
 		"stateMutability": "nonpayable",
 		"type": "function"
