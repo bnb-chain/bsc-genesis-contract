@@ -63,7 +63,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
     uint64 preValidatorSetChangeHeight = latestHeight;
     ConsensusState memory cs = lightClientConsensusStates[preValidatorSetChangeHeight];
-    for (; preValidatorSetChangeHeight < height && preValidatorSetChangeHeight >= initialHeight;) {
+    for (; preValidatorSetChangeHeight >= height && preValidatorSetChangeHeight >= initialHeight;) {
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
       cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     }
