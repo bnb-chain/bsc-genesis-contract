@@ -80,7 +80,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     }
     packageRelayersSubmitCount[packageRelayer]++;
 
-    if (countInRound==ROUND_SIZE) {
+    if (countInRound>=ROUND_SIZE) {
       emit distributeCollectedReward(roundSequence, collectedRewardForHeaderRelayer, collectedRewardForTransferRelayer);
 
       uint256 callerHeaderReward = distributeHeaderRelayerReward();
