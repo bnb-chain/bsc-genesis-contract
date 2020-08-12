@@ -83,12 +83,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
-  event transferInSuccess(address bep2eAddr, address refundAddr, uint256 amount);
-  event transferOutSuccess(address bep2eAddr, address senderAddr, uint256 amount, uint256 relayFee);
-  event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
-  event refundFailure(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
-  event rewardTo(address to, uint256 amount);
-  event receiveDeposit(address from, uint256 amount);
+  event transferInSuccess(address indexed bep2eAddr, address indexed refundAddr, uint256 amount);
+  event transferOutSuccess(address indexed bep2eAddr, address indexed senderAddr, uint256 amount, uint256 relayFee);
+  event refundSuccess(address indexed bep2eAddr, address indexed refundAddr, uint256 amount, uint32 status);
+  event refundFailure(address indexed bep2eAddr, address indexed refundAddr, uint256 amount, uint32 status);
+  event rewardTo(address indexed to, uint256 amount);
+  event receiveDeposit(address indexed from, uint256 amount);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
 
