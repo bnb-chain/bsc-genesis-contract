@@ -21,7 +21,7 @@ contract SystemReward is System, ISystemReward{
 
 
   modifier onlyOperator() {
-    require(operators[msg.sender],"only operator is available to call the method");
+    require(operators[msg.sender],"only operator is allowed to call the method");
     _;
   }
   {% if mock %}

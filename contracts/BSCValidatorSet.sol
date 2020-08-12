@@ -30,6 +30,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // the precision of cross chain value transfer.
   uint256 public constant PRECISION = 1e10;
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
+  uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
 
@@ -47,6 +48,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
   mapping(address =>uint256) public currentValidatorSetMap;
+  uint256 public numOfJailed;
 
   struct Validator{
     address consensusAddress;
@@ -111,7 +113,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (validatorSetPackage.packageType == VALIDATORS_UPDATE_MESSAGE_TYPE) {
       resCode = updateValidatorSet(validatorSetPackage.validatorSet);
     } else if (validatorSetPackage.packageType == JAIL_MESSAGE_TYPE) {
-      resCode = jailValidator(validatorSetPackage.validatorSet);
+      if (validatorSetPackage.validatorSet.length != 1) {
+        emit failReasonWithStr("length of jail validators must be one");
+        resCode = ERROR_LEN_OF_VAL_MISMATCH;
+      } else {
+        resCode = jailValidator(validatorSetPackage.validatorSet[0]);
+      }
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
     }
@@ -141,8 +148,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (validator.jailed) {
         emit deprecatedDeposit(valAddr,value);
       } else {
-        totalInComing += value;
-        validator.incoming += value;
+        totalInComing = totalInComing.add(value);
+        validator.incoming = validator.incoming.add(value);
         emit validatorDeposit(valAddr,value);
       }
     } else {
@@ -151,30 +158,20 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function jailValidator(Validator[] memory validatorSet) internal returns (uint32) {
-    if (validatorSet.length != 1) {
-      emit failReasonWithStr("length of jail validators must be one");
-      return ERROR_LEN_OF_VAL_MISMATCH;
-    }
-    Validator memory v = validatorSet[0];
+  function jailValidator(Validator memory v) internal returns (uint32) {
     uint256 index = currentValidatorSetMap[v.consensusAddress];
-    if (index<=0) {
+    if (index==0 || currentValidatorSet[index-1].jailed) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
-    bool otherValid = false;
     uint n = currentValidatorSet.length;
-    for (uint i=0;i<n;i++) {
-      if (!currentValidatorSet[i].jailed && currentValidatorSet[i].consensusAddress != v.consensusAddress) {
-        otherValid = true;
-        break;
-      }
-    }
+    bool shouldKeep = (numOfJailed >= n-1);
     // will not jail if it is the last valid validator
-    if (!otherValid) {
+    if (shouldKeep) {
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
+    numOfJailed ++;
     currentValidatorSet[index-1].jailed = true;
     emit validatorJailed(v.consensusAddress);
     return CODE_OK;
@@ -208,8 +205,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // direct transfer
     address payable[] memory directAddrs = new address payable[](directSize);
     uint256[] memory directAmounts = new uint256[](directSize);
-    delete crossSize;
-    delete directSize;
+    crossSize = 0;
+    directSize = 0;
     Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     if (relayFee > DUSTY_INCOMING) {
@@ -281,6 +278,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     // step 5: do update validator set state
     totalInComing = 0;
+    numOfJailed = 0;
     if (validatorSetTemp.length>0) {
       doUpdateState(validatorSetTemp);
     }
@@ -300,7 +298,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
     address[] memory consensusAddrs = new address[](valid);
-    delete valid;
+    valid = 0;
     for (uint i = 0;i<n;i++) {
       if (!currentValidatorSet[i].jailed) {
         consensusAddrs[valid] = currentValidatorSet[i].consensusAddress;
@@ -395,6 +393,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   /*********************** Internal Functions **************************/
 
   function checkValidatorSet(Validator[] memory validatorSet) private pure returns(bool, string memory) {
+    if (validatorSet.length > MAX_NUM_OF_VALIDATORS){
+      return (false, "the number of validators exceed the limit");
+    }
     for (uint i = 0;i<validatorSet.length;i++) {
       for (uint j = 0;j<i;j++) {
         if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {

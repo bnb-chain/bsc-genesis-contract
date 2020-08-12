@@ -16,7 +16,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // constant variables
   string constant public STORE_NAME = "ibc";
-  uint256 constant public CROSS_CHAIN_KEY_PREFIX = 0x0000000000000000000000000000000000000000000000000000000001006000; // last 6 bytes
+  uint256 constant public CROSS_CHAIN_KEY_PREFIX = 0x01006000; // last 6 bytes
   uint8 constant public SYN_PACKAGE = 0x00;
   uint8 constant public ACK_PACKAGE = 0x01;
   uint8 constant public FAIL_ACK_PACKAGE = 0x02;
@@ -92,7 +92,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return key;
   }
 
-  function init() public onlyNotInit {
+  function init() external onlyNotInit {
     channelHandlerContractMap[BIND_CHANNELID] = TOKEN_MANAGER_ADDR;
     isRelayRewardFromSystemReward[BIND_CHANNELID] = false;
     registeredContractChannelMap[TOKEN_MANAGER_ADDR][BIND_CHANNELID] = true;
@@ -255,12 +255,11 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
-  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override returns(bool) {
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
-    return true;
   }
 
   function updateParam(string calldata key, bytes calldata value) onlyGov external override {
@@ -268,18 +267,19 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
       require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
       batchSizeForOracle = newBatchSizeForOracle;
-    } else if (Memory.compareStrings(key, "addChannel")) {
+    } else if (Memory.compareStrings(key, "addOrUpdateChannel")) {
       bytes memory valueLocal = value;
-      require(valueLocal.length == 22, "length of value for addChannel should be 22, channelId:isFromSystem:handlerAddress");
+      require(valueLocal.length == 22, "length of value for addOrUpdateChannel should be 22, channelId:isFromSystem:handlerAddress");
       uint8 channelId;
       assembly {
         channelId := mload(add(valueLocal, 1))
       }
 
-      uint8 isRewardFromSystem;
+      uint8 rewardConfig;
       assembly {
-        isRewardFromSystem := mload(add(valueLocal, 2))
+        rewardConfig := mload(add(valueLocal, 2))
       }
+      bool isRewardFromSystem = (rewardConfig == 0x0);
 
       address handlerContract;
       assembly {
@@ -289,7 +289,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       require(isContract(handlerContract), "address is not a contract");
       channelHandlerContractMap[channelId]=handlerContract;
       registeredContractChannelMap[handlerContract][channelId] = true;
-      isRelayRewardFromSystemReward[channelId] = (isRewardFromSystem == 0x0);
+      isRelayRewardFromSystemReward[channelId] = isRewardFromSystem;
       emit addChannel(channelId, handlerContract);
     } else if (Memory.compareStrings(key, "enableOrDisableChannel")) {
       bytes memory valueLocal = value;

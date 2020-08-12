@@ -5,9 +5,11 @@ import "./lib/Memory.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";
+import "./lib/SafeMath.sol";
 
 
 contract RelayerHub is IRelayerHub, System, IParamSubscriber{
+  using SafeMath for uint256;
 
   uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
   uint256 public constant INIT_DUES =  1e17;
@@ -63,7 +65,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   function  unregister() external exist onlyInit{
     relayer memory r = relayers[msg.sender];
-    msg.sender.transfer(r.deposit-r.dues);
+    msg.sender.transfer(r.deposit.sub(r.dues));
     address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
     systemPayable.transfer(r.dues);
     delete relayersExistMap[msg.sender];
@@ -76,7 +78,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     if (Memory.compareStrings(key,"requiredDeposit")) {
       require(value.length == 32, "length of requiredDeposit mismatch");
       uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
-      require(newRequiredDeposit >= 1 && newRequiredDeposit <= 1e21, "the requiredDeposit out of range");
+      require(newRequiredDeposit > 1 && newRequiredDeposit <= 1e21 && newRequiredDeposit > dues, "the requiredDeposit out of range");
       requiredDeposit = newRequiredDeposit;
     } else if (Memory.compareStrings(key,"dues")) {
       require(value.length == 32, "length of dues mismatch");

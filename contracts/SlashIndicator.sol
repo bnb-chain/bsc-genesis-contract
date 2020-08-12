@@ -16,11 +16,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public constant MISDEMEANOR_THRESHOLD = 50;
   uint256 public constant FELONY_THRESHOLD = 150;
   uint256 public constant BSC_RELAYER_REWARD = 1e16;
-
+  uint256 public constant DECREASE_RATE = 4;
 
   // State of the contract
-  address[] validators;
-  mapping(address => Indicator) indicators;
+  address[] public validators;
+  mapping(address => Indicator) public indicators;
   uint256 public previousHeight;
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
@@ -39,19 +39,19 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     bool exist;
   }
 
-  modifier onlyOnce() {
+  modifier oncePerBlock() {
     require(block.number > previousHeight, "can not slash twice in one block");
     _;
     previousHeight = block.number;
   }
 
-  modifier onlyZeroPrice() {
+  modifier onlyZeroGasPrice() {
     
     require(tx.gasprice == 0 , "gasprice is not zero");
     
     _;
   }
-
+  
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
@@ -59,11 +59,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract override returns(bytes memory) {
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns(bytes memory) {
     require(false, "receive unexpected syn package");
   }
 
-  function handleAckPackage(uint8, bytes calldata msgBytes) external override {
+  function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
     (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
     if (ok) {
       emit knownResponse(response.code);
@@ -73,13 +73,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return;
   }
 
-  function handleFailAckPackage(uint8, bytes calldata) external override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override {
     emit crashResponse();
     return;
   }
 
   /*********************** External func ********************************/
-  function slash(address validator) external onlyCoinbase onlyInit onlyOnce onlyZeroPrice{
+  function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
       indicator.count++;
@@ -89,21 +89,68 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       validators.push(validator);
     }
     indicator.height = block.number;
-    indicators[validator] = indicator;
     if (indicator.count % felonyThreshold == 0) {
+      indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
       ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
+    indicators[validator] = indicator;
     emit validatorSlashed(validator);
   }
 
+
+  // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
+  // Clean is an effective implement to reorganize "validators" and "indicators".
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
-    uint n = validators.length;
-    for (uint i = 0; i < n; i++) {
-      delete indicators[validators[n-i-1]];
-      validators.pop();
+    if(validators.length == 0){
+      return;
+    }
+    uint i = 0;
+    uint j = validators.length-1;
+    for (;i <= j;) {
+      bool findLeft = false;
+      bool findRight = false;
+      for(;i<j;i++){
+        Indicator memory leftIndicator = indicators[validators[i]];
+        if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
+          leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
+          indicators[validators[i]] = leftIndicator;
+        }else{
+          findLeft = true;
+          break;
+        }
+      }
+      for(;i<=j;j--){
+        Indicator memory rightIndicator = indicators[validators[j]];
+        if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
+          rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;
+          indicators[validators[j]] = rightIndicator;
+          findRight = true;
+          break;
+        }else{
+          delete indicators[validators[j]];
+          validators.pop();
+        }
+        // avoid underflow
+        if(j==0){
+          break;
+        }
+      }
+      // swap element in array
+      if (findLeft && findRight){
+        delete indicators[validators[i]];
+        validators[i] = validators[j];
+        validators.pop();
+      }
+      // avoid underflow
+      if(j==0){
+        break;
+      }
+      // move to next
+      i++;
+      j--;
     }
     emit indicatorCleaned();
   }
@@ -114,12 +161,12 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (Memory.compareStrings(key,"misdemeanorThreshold")) {
       require(value.length == 32, "length of misdemeanorThreshold mismatch");
       uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newMisdemeanorThreshold >= 10 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
+      require(newMisdemeanorThreshold >= 1 && newMisdemeanorThreshold < felonyThreshold, "the misdemeanorThreshold out of range");
       misdemeanorThreshold = newMisdemeanorThreshold;
     } else if (Memory.compareStrings(key,"felonyThreshold")) {
       require(value.length == 32, "length of felonyThreshold mismatch");
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
-      require(newFelonyThreshold > 20 && newFelonyThreshold <= 1000, "the felonyThreshold out of range");
+      require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
     } else {
       require(false, "unknown param");

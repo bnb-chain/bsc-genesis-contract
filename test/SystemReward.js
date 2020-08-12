@@ -53,7 +53,7 @@ contract('SystemReward', (accounts) => {
       await systemRewardInstance.claimRewards(newAccount.address, 1e7, {from: accounts[3]})
       assert.fail();
     }catch (error) {
-      assert.ok(error.toString().includes("only operator is available to call the method"));
+      assert.ok(error.toString().includes("only operator is allowed to call the method"));
     }
   });
 });

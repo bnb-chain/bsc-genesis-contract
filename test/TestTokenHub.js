@@ -75,7 +75,7 @@ function buildBindPackage(bindType, bep2TokenSymbol, bep2eAddr, totalSupply, peg
     }
     expireTimeStr = "0x" + expireTimeStr;
 
-    const packageBytesPrefix = buildSyncPackagePrefix(1e16, 1e6);
+    const packageBytesPrefix = buildSyncPackagePrefix(1e16);
 
     const packageBytes = RLP.encode([
         bindType,
@@ -99,7 +99,30 @@ function buildTransferInPackage(bep2TokenSymbol, bep2eAddr, amount, recipient, r
     }
     expireTimeStr = "0x" + expireTimeStr;
 
-    const packageBytesPrefix = buildSyncPackagePrefix(1e16, 1e6);
+    const packageBytesPrefix = buildSyncPackagePrefix(1e16);
+
+    const packageBytes = RLP.encode([
+        toBytes32Bep2Symbol(bep2TokenSymbol),
+        bep2eAddr,
+        amount,
+        recipient,
+        refundAddr,
+        expireTimeStr]);
+
+    return Buffer.concat([packageBytesPrefix, packageBytes]);
+}
+
+function buildTransferInPackageWithRelayFee(bep2TokenSymbol, bep2eAddr, amount, recipient, refundAddr, syncRelayFee) {
+    let timestamp = Math.floor(Date.now() / 1000); // counted by second
+    let initialExpireTimeStr = (timestamp + 3).toString(16); // expire at 5 second later
+    const initialExpireTimeStrLength = initialExpireTimeStr.length;
+    let expireTimeStr = initialExpireTimeStr;
+    for (var i = 0; i < 16 - initialExpireTimeStrLength; i++) {
+        expireTimeStr = '0' + expireTimeStr;
+    }
+    expireTimeStr = "0x" + expireTimeStr;
+
+    const packageBytesPrefix = buildSyncPackagePrefix(syncRelayFee);
 
     const packageBytes = RLP.encode([
         toBytes32Bep2Symbol(bep2TokenSymbol),
@@ -164,6 +187,9 @@ contract('TokenHub', (accounts) => {
         assert.equal(bindRequenst.totalSupply.eq(new BN('52b7d2dcc80cd2e4000000', 16)), true, "wrong total supply");  // 1e26
         assert.equal(bindRequenst.peggyAmount.eq(new BN('51e410c0f93fe543000000', 16)), true, "wrong peggy amount");  // 99e24
         assert.equal(bindRequenst.contractAddr.toString(), abcToken.address.toString(), "wrong contract address");
+
+        let lockAmount = await tokenManager.queryRequiredLockAmountForBind( "ABC-9C7");
+        assert.equal(web3.utils.toBN(1e18).mul(web3.utils.toBN(1e6)).eq(lockAmount), true, "wrong lock amount");
         try {
             await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();
@@ -369,16 +395,22 @@ contract('TokenHub', (accounts) => {
         const crossChain = await CrossChain.deployed();
         const relayer = accounts[1];
 
-        const transferInPackage = buildTransferInPackage("BNB", "0x0000000000000000000000000000000000000000", 1e18, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
+        let transferInPackage = buildTransferInPackage("BNB", "0x0000000000000000000000000000000000000000", 1e18, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48");
         let transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
-
-        const initBalance = await web3.eth.getBalance(accounts[2]);
-
-        await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});
-
-        const newBalance = await web3.eth.getBalance(accounts[2]);
-
+        let initBalance = await web3.eth.getBalance(accounts[2]);
+        let tx = await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});
+        let nestedEvents = (await truffleAssert.createTransactionResult(tokenHub, tx.tx)).logs;
+        assert.equal(nestedEvents.length, 2, "wrong event number");
+        assert.equal(nestedEvents[1].args.amount.eq(web3.utils.toBN(1e16)), true, "wrong relayer amount");
+        let newBalance = await web3.eth.getBalance(accounts[2]);
         assert.equal(web3.utils.toBN(newBalance).sub(web3.utils.toBN(initBalance)).eq(web3.utils.toBN(1e18)), true, "wrong balance");
+
+        //try a very large relayer fee: 2e18
+        transferInPackage = buildTransferInPackageWithRelayFee("BNB", "0x0000000000000000000000000000000000000000", 1e18, accounts[2], "0x35d9d41a13d6c2e01c9b1e242baf2df98e7e8c48", 2e18);
+        transferInSequence = await crossChain.channelReceiveSequenceMap.call(TRANSFER_IN_CHANNELID);
+        tx = await crossChain.handlePackage(transferInPackage, proof, merkleHeight, transferInSequence, TRANSFER_IN_CHANNELID, {from: relayer});
+        nestedEvents = (await truffleAssert.createTransactionResult(tokenHub, tx.tx)).logs;
+        assert.equal(nestedEvents.length, 1, "wrong event number");
     });
     it('BNB transfer to non-payable address', async () => {
         const crossChain = await CrossChain.deployed();

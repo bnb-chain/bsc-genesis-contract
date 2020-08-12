@@ -22,7 +22,7 @@ contract BSCValidatorSetTool {
     Validator[] validatorSet;
   }
 
-  function init() external {
+  function init() external pure{
     bool valid= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to init");
   }
