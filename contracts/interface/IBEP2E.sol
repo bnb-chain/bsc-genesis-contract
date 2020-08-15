@@ -12,9 +12,14 @@ interface IBEP2E {
     function decimals() external view returns (uint256);
 
     /**
-     * @dev Returns the contract owner.
+     * @dev Returns the token symbol.
      */
     function symbol() external view returns (string memory);
+
+    /**
+     * @dev Returns the token name.
+     */
+    function name() external view returns (string memory);
 
     /**
      * @dev Returns the bep token owner.
