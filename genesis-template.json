@@ -11,6 +11,8 @@
     "petersburgBlock": 0,
     "istanbulBlock": 0,
     "muirGlacierBlock": 0,
+    "ramanujanBlock": 0,
+    "nielsBlock": 0,
     "parlia": {
       "period": 3,
       "epoch": 200
