@@ -122,7 +122,7 @@ Promise.all([
 
 program.option("--initLockedBNBOnTokenHub <initLockedBNBOnTokenHub>",
     "initLockedBNBOnTokenHub",
-    "180000000000000000000000000");
+    "176406060900000000000000000");
 
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
