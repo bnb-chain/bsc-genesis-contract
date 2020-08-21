@@ -18,7 +18,7 @@ program.option(
 
 program.option("--initRelayFee <initRelayFee>",
     "initRelayFee",
-    "1e16");
+    "1e15");
 
 program.option("--rewardUpperLimit <rewardUpperLimit>",
     "rewardUpperLimit",
