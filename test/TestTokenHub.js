@@ -473,7 +473,7 @@ contract('TokenHub', (accounts) => {
         }
 
         try {
-            relayFee = web3.utils.toBN(1e15);
+            relayFee = web3.utils.toBN(1e14);
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
