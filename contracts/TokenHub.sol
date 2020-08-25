@@ -73,7 +73,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public MAX_GAS_FOR_CALLING_BEP2E=50000;
   uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
 
-  uint256 constant public INIT_MINIMUM_RELAY_FEE =1e16;
+  uint256 constant public INIT_MINIMUM_RELAY_FEE =1e15;
   uint256 constant public REWARD_UPPER_LIMIT =1e18;
   uint256 constant public TEN_DECIMALS = 1e10;
 
