@@ -51,7 +51,7 @@ contract MiniToken is Context, IBEP2E, Ownable {
   /**
   * @dev Returns the token name.
   */
-  function name() external view returns (string memory) {
+  function name() external override view returns (string memory) {
     return _name;
   }
 
