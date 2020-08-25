@@ -1,6 +1,6 @@
 pragma solidity 0.6.4;
 
-import "./interface/IBEP2E.sol";
+import "./interface/IBEP20.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IApplication.sol";
@@ -66,11 +66,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   TRANSFER_IN_FAILURE_UNKNOWN = 5;
 
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
-  uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
-  uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
+  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
+  uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  uint256 constant public MAX_GAS_FOR_CALLING_BEP2E={{maxGasForCallingBEP2E}};
+  uint256 constant public MAX_GAS_FOR_CALLING_BEP20={{maxGasForCallingBEP20}};
   uint256 constant public MAX_GAS_FOR_TRANSFER_BNB={{maxGasForTransferringBNB}};
 
   uint256 constant public INIT_MINIMUM_RELAY_FEE ={{initRelayFee}};
@@ -79,14 +79,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   uint256 public relayFee;
 
-  mapping(address => uint256) public bep2eContractDecimals;
+  mapping(address => uint256) public bep20ContractDecimals;
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
-  event transferInSuccess(address bep2eAddr, address refundAddr, uint256 amount);
-  event transferOutSuccess(address bep2eAddr, address senderAddr, uint256 amount, uint256 relayFee);
-  event refundSuccess(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
-  event refundFailure(address bep2eAddr, address refundAddr, uint256 amount, uint32 status);
+  event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);
+  event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
+  event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
+  event refundFailure(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
   event rewardTo(address to, uint256 amount);
   event receiveDeposit(address from, uint256 amount);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
@@ -96,7 +96,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
-    bep2eContractDecimals[address(0x0)] = 18; // BNB decimals is 18
+    bep20ContractDecimals[address(0x0)] = 18; // BNB decimals is 18
     alreadyInit=true;
   }
 
@@ -184,7 +184,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(success, "unrecognized transferIn package");
     uint32 resCode = doTransferIn(transInSynPkg);
     if (resCode != TRANSFER_IN_SUCCESS) {
-      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep2eContractDecimals[transInSynPkg.contractAddr]);
+      uint256 bep2Amount = convertToBep2Amount(transInSynPkg.amount, bep20ContractDecimals[transInSynPkg.contractAddr]);
       TransferInRefundPackage memory transInAckPkg = TransferInRefundPackage({
           bep2TokenSymbol: transInSynPkg.bep2TokenSymbol,
           refundAmount: bep2Amount,
@@ -218,11 +218,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       if (contractAddrToBEP2Symbol[transInSynPkg.contractAddr]!= transInSynPkg.bep2TokenSymbol) {
         return TRANSFER_IN_FAILURE_UNBOUND_TOKEN;
       }
-      uint256 actualBalance = IBEP2E(transInSynPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP2E}(address(this));
+      uint256 actualBalance = IBEP20(transInSynPkg.contractAddr).balanceOf{gas: MAX_GAS_FOR_CALLING_BEP20}(address(this));
       if (actualBalance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      bool success = IBEP2E(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transInSynPkg.recipient, transInSynPkg.amount);
+      bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
       if (success) {
         emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
         return TRANSFER_IN_SUCCESS;
@@ -286,7 +286,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       }
     } else {
       for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
-        bool success = IBEP2E(transOutAckPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP2E}(transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index]);
+        bool success = IBEP20(transOutAckPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index]);
         if (success) {
           emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
         } else {
@@ -342,9 +342,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     TransferOutAckPackage memory transOutAckPkg;
     transOutAckPkg.contractAddr = transOutSynPkg.contractAddr;
     transOutAckPkg.refundAmounts = transOutSynPkg.amounts;
-    uint256 bep2eTokenDecimals = bep2eContractDecimals[transOutSynPkg.contractAddr];
+    uint256 bep20TokenDecimals = bep20ContractDecimals[transOutSynPkg.contractAddr];
     for (uint idx=0;idx<transOutSynPkg.amounts.length;idx++) {
-      transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep2eTokenDecimals);
+      transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep20TokenDecimals);
     }
     transOutAckPkg.refundAddrs = transOutSynPkg.refundAddrs;
     transOutAckPkg.status = TRANSFER_IN_FAILURE_UNKNOWN;
@@ -398,15 +398,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
       require(msg.value>=relayFee, "received BNB amount should be no less than the minimum relayFee");
       rewardForRelayer=msg.value;
-      uint256 bep2eTokenDecimals=bep2eContractDecimals[contractAddr];
-      require(bep2eTokenDecimals<=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
-      convertedAmount = convertToBep2Amount(amount, bep2eTokenDecimals);// convert to bep2 amount
+      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
+      require(bep20TokenDecimals<=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
+      convertedAmount = convertToBep2Amount(amount, bep20TokenDecimals);// convert to bep2 amount
       if (isMiniBEP2Token(bep2TokenSymbol)) {
         require(convertedAmount >= 1e8 , "For miniToken, the transfer amount must not be less than 1");
       }
-      require(bep2eTokenDecimals>=BEP2_TOKEN_DECIMALS || (bep2eTokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
+      require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
-      require(IBEP2E(contractAddr).transferFrom(msg.sender, address(this), amount));
+      require(IBEP20(contractAddr).transferFrom(msg.sender, address(this), amount));
     }
     TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
       bep2TokenSymbol: bep2TokenSymbol,
@@ -486,7 +486,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override onlyTokenManager {
     bep2SymbolToContractAddr[bep2Symbol] = contractAddr;
     contractAddrToBEP2Symbol[contractAddr] = bep2Symbol;
-    bep2eContractDecimals[contractAddr] = decimals;
+    bep20ContractDecimals[contractAddr] = decimals;
   }
 
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
@@ -507,7 +507,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
          break;
        }
      }
-     if (symbolLength < MINIMUM_BEP2E_SYMBOL_LEN + 5) {
+     if (symbolLength < MINIMUM_BEP20_SYMBOL_LEN + 5) {
        return false;
      }
      if (symbolBytes[symbolLength-5] != 0x2d) { // '-'
@@ -519,18 +519,18 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
      return true;
   }
 
-  function convertToBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
-    if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
-      return amount.div(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
+  function convertToBep2Amount(uint256 amount, uint256 bep20TokenDecimals) internal pure returns (uint256) {
+    if (bep20TokenDecimals > BEP2_TOKEN_DECIMALS) {
+      return amount.div(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS));
     }
-    return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
+    return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep20TokenDecimals));
   }
 
-  function convertFromBep2Amount(uint256 amount, uint256 bep2eTokenDecimals) internal pure returns (uint256) {
-    if (bep2eTokenDecimals > BEP2_TOKEN_DECIMALS) {
-      return amount.mul(10**(bep2eTokenDecimals-BEP2_TOKEN_DECIMALS));
+  function convertFromBep2Amount(uint256 amount, uint256 bep20TokenDecimals) internal pure returns (uint256) {
+    if (bep20TokenDecimals > BEP2_TOKEN_DECIMALS) {
+      return amount.mul(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS));
     }
-    return amount.div(10**(BEP2_TOKEN_DECIMALS-bep2eTokenDecimals));
+    return amount.div(10**(BEP2_TOKEN_DECIMALS-bep20TokenDecimals));
   }
 
   function getBoundContract(string memory bep2Symbol) public view returns (address) {

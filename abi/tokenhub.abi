@@ -49,7 +49,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "bep2eAddr",
+				"name": "bep20Addr",
 				"type": "address"
 			},
 			{
@@ -80,7 +80,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "bep2eAddr",
+				"name": "bep20Addr",
 				"type": "address"
 			},
 			{
@@ -130,7 +130,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "bep2eAddr",
+				"name": "bep20Addr",
 				"type": "address"
 			},
 			{
@@ -155,7 +155,7 @@
 			{
 				"indexed": false,
 				"internalType": "address",
-				"name": "bep2eAddr",
+				"name": "bep20Addr",
 				"type": "address"
 			},
 			{
@@ -372,7 +372,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "MAXIMUM_BEP2E_SYMBOL_LEN",
+		"name": "MAXIMUM_BEP20_SYMBOL_LEN",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -402,7 +402,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "MAX_GAS_FOR_CALLING_BEP2E",
+		"name": "MAX_GAS_FOR_CALLING_BEP20",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -432,7 +432,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "MINIMUM_BEP2E_SYMBOL_LEN",
+		"name": "MINIMUM_BEP20_SYMBOL_LEN",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -738,7 +738,7 @@
 				"type": "address"
 			}
 		],
-		"name": "bep2eContractDecimals",
+		"name": "bep20ContractDecimals",
 		"outputs": [
 			{
 				"internalType": "uint256",

@@ -338,7 +338,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "MAXIMUM_BEP2E_SYMBOL_LEN",
+		"name": "MAXIMUM_BEP20_SYMBOL_LEN",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -353,7 +353,7 @@
 	{
 		"constant": true,
 		"inputs": [],
-		"name": "MINIMUM_BEP2E_SYMBOL_LEN",
+		"name": "MINIMUM_BEP20_SYMBOL_LEN",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -598,7 +598,7 @@
 			},
 			{
 				"internalType": "uint8",
-				"name": "bep2eDecimals",
+				"name": "bep20Decimals",
 				"type": "uint8"
 			},
 			{

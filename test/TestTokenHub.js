@@ -65,7 +65,7 @@ function buildAckPackagePrefix() {
     ));
 }
 
-function buildBindPackage(bindType, bep2TokenSymbol, bep2eAddr, totalSupply, peggyAmount, decimals) {
+function buildBindPackage(bindType, bep2TokenSymbol, bep20Addr, totalSupply, peggyAmount, decimals) {
     let timestamp = Math.floor(Date.now() / 1000); // counted by second
     let initialExpireTimeStr = (timestamp + 3).toString(16); // expire at 5 second later
     const initialExpireTimeStrLength = initialExpireTimeStr.length;
@@ -80,7 +80,7 @@ function buildBindPackage(bindType, bep2TokenSymbol, bep2eAddr, totalSupply, peg
     const packageBytes = RLP.encode([
         bindType,
         toBytes32Bep2Symbol(bep2TokenSymbol),
-        bep2eAddr,
+        bep20Addr,
         web3.utils.toBN(totalSupply).mul(web3.utils.toBN(10).pow(web3.utils.toBN(decimals))),
         web3.utils.toBN(peggyAmount).mul(web3.utils.toBN(10).pow(web3.utils.toBN(decimals))),
         decimals,
@@ -89,7 +89,7 @@ function buildBindPackage(bindType, bep2TokenSymbol, bep2eAddr, totalSupply, peg
     return Buffer.concat([packageBytesPrefix, packageBytes]);
 }
 
-function buildTransferInPackage(bep2TokenSymbol, bep2eAddr, amount, recipient, refundAddr) {
+function buildTransferInPackage(bep2TokenSymbol, bep20Addr, amount, recipient, refundAddr) {
     let timestamp = Math.floor(Date.now() / 1000); // counted by second
     let initialExpireTimeStr = (timestamp + 3).toString(16); // expire at 5 second later
     const initialExpireTimeStrLength = initialExpireTimeStr.length;
@@ -103,7 +103,7 @@ function buildTransferInPackage(bep2TokenSymbol, bep2eAddr, amount, recipient, r
 
     const packageBytes = RLP.encode([
         toBytes32Bep2Symbol(bep2TokenSymbol),
-        bep2eAddr,
+        bep20Addr,
         amount,
         recipient,
         refundAddr,
@@ -112,7 +112,7 @@ function buildTransferInPackage(bep2TokenSymbol, bep2eAddr, amount, recipient, r
     return Buffer.concat([packageBytesPrefix, packageBytes]);
 }
 
-function buildTransferInPackageWithRelayFee(bep2TokenSymbol, bep2eAddr, amount, recipient, refundAddr, syncRelayFee) {
+function buildTransferInPackageWithRelayFee(bep2TokenSymbol, bep20Addr, amount, recipient, refundAddr, syncRelayFee) {
     let timestamp = Math.floor(Date.now() / 1000); // counted by second
     let initialExpireTimeStr = (timestamp + 3).toString(16); // expire at 5 second later
     const initialExpireTimeStrLength = initialExpireTimeStr.length;
@@ -126,7 +126,7 @@ function buildTransferInPackageWithRelayFee(bep2TokenSymbol, bep2eAddr, amount, 
 
     const packageBytes = RLP.encode([
         toBytes32Bep2Symbol(bep2TokenSymbol),
-        bep2eAddr,
+        bep20Addr,
         amount,
         recipient,
         refundAddr,
@@ -194,7 +194,7 @@ contract('TokenHub', (accounts) => {
             await tokenManager.approveBind(abcToken.address, "ABC-9C7", {from: relayer});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("only bep2e owner can approve this bind request"));
+            assert.ok(error.toString().includes("only bep20 owner can approve this bind request"));
         }
 
         try {
@@ -241,7 +241,7 @@ contract('TokenHub', (accounts) => {
             await tokenManager.rejectBind(abcToken.address, "ABC-9C7", {from: relayer, value: 1e16});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("only bep2e owner can reject"));
+            assert.ok(error.toString().includes("only bep20 owner can reject"));
         }
 
         let tx = await tokenManager.rejectBind(abcToken.address, "ABC-9C7", {from: owner, value: 1e16});
@@ -453,7 +453,7 @@ contract('TokenHub', (accounts) => {
             await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("BEP2E: transfer amount exceeds allowance"));
+            assert.ok(error.toString().includes("BEP20: transfer amount exceeds allowance"));
         }
 
         try {
@@ -506,7 +506,7 @@ contract('TokenHub', (accounts) => {
         }
         let tx = await tokenHub.transferOut(abcToken.address, recipient, amount, expireTime, {from: sender, value: relayFee});
         truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
-            return ev.amount.eq(web3.utils.toBN(amount)) && ev.bep2eAddr.toString().toLowerCase() === abcToken.address.toLowerCase();
+            return ev.amount.eq(web3.utils.toBN(amount)) && ev.bep20Addr.toString().toLowerCase() === abcToken.address.toLowerCase();
         });
 
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
@@ -531,7 +531,7 @@ contract('TokenHub', (accounts) => {
         const packageBytesPrefix = buildAckPackagePrefix(1e16);
 
         const packageBytes = RLP.encode([
-            abcToken.address,           //bep2e contract address
+            abcToken.address,           //bep20 contract address
             [1e18],                    //amount
             [refundAddr],               //refund address
             1]);                        //status
@@ -573,7 +573,7 @@ contract('TokenHub', (accounts) => {
         amounts = [web3.utils.toBN(1e16), web3.utils.toBN(2e16)];
         let tx = await tokenHub.batchTransferOutBNB(recipientAddrs, amounts, refundAddrs, expireTime, {from: sender, value: web3.utils.toBN(5e16)});
         truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
-            return ev.amount.eq(web3.utils.toBN(3e16)) && ev.bep2eAddr.toString().toLowerCase() === "0x0000000000000000000000000000000000000000";
+            return ev.amount.eq(web3.utils.toBN(3e16)) && ev.bep20Addr.toString().toLowerCase() === "0x0000000000000000000000000000000000000000";
         });
         assert.equal(tx.receipt.status, true, "failed transaction");
         let nestedEventValues = (await truffleAssert.createTransactionResult(crossChain, tx.tx)).logs[0].args;
@@ -587,7 +587,7 @@ contract('TokenHub', (accounts) => {
         assert.equal(web3.utils.bytesToHex(decoded[4][0]), refundAddrs[0].toLowerCase(), "wrong refund address");
         assert.equal(web3.utils.bytesToHex(decoded[4][1]), refundAddrs[1].toLowerCase(), "wrong refund address");
     });
-    it('Bind malicious BEP2E token', async () => {
+    it('Bind malicious BEP20 token', async () => {
         const maliciousToken = await MaliciousToken.deployed();
         const tokenManager = await TokenManager.deployed();
         const tokenHub = await TokenHub.deployed();
@@ -801,7 +801,7 @@ contract('TokenHub', (accounts) => {
         const relayFee = web3.utils.toBN(1e16);
         tx = await tokenHub.transferOut(miniToken.address, recipient, amount, expireTime, {from: owner, value: relayFee});
         truffleAssert.eventEmitted(tx, "transferOutSuccess",(ev) => {
-            return ev.amount.eq(web3.utils.toBN(amount)) && ev.bep2eAddr.toString().toLowerCase() === miniToken.address.toLowerCase();
+            return ev.amount.eq(web3.utils.toBN(amount)) && ev.bep20Addr.toString().toLowerCase() === miniToken.address.toLowerCase();
         });
         amount = web3.utils.toBN(5e17);
         await miniToken.approve(tokenHub.address, amount, {from: owner});
