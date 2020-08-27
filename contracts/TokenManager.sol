@@ -1,6 +1,6 @@
 pragma solidity 0.6.4;
 
-import "./interface/IBEP2E.sol";
+import "./interface/IBEP20.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
@@ -26,7 +26,7 @@ contract TokenManager is System, IApplication {
     address contractAddr;
     uint256 totalSupply;
     uint256 peggyAmount;
-    uint8   bep2eDecimals;
+    uint8   bep20Decimals;
     uint64  expireTime;
   }
 
@@ -49,8 +49,8 @@ contract TokenManager is System, IApplication {
   uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 6;
   uint8 constant public   BIND_STATUS_REJECTED = 7;
 
-  uint8 constant public   MINIMUM_BEP2E_SYMBOL_LEN = 3;
-  uint8 constant public   MAXIMUM_BEP2E_SYMBOL_LEN = 8;
+  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
+  uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
 
   uint256 constant public  TEN_DECIMALS = 1e10;
 
@@ -85,7 +85,7 @@ contract TokenManager is System, IApplication {
         else if (idx == 2) bindSynPkg.contractAddr     = iter.next().toAddress();
         else if (idx == 3) bindSynPkg.totalSupply      = iter.next().toUint();
         else if (idx == 4) bindSynPkg.peggyAmount      = iter.next().toUint();
-        else if (idx == 5) bindSynPkg.bep2eDecimals    = uint8(iter.next().toUint());
+        else if (idx == 5) bindSynPkg.bep20Decimals    = uint8(iter.next().toUint());
         else if (idx == 6) {
           bindSynPkg.expireTime       = uint64(iter.next().toUint());
           success = true;
@@ -125,17 +125,17 @@ contract TokenManager is System, IApplication {
     require(bindSynPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
     require(contractAddr==bindSynPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can approve this bind request");
-    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
-    require(IBEP2E(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
+    require(IBEP20(contractAddr).getOwner()==msg.sender, "only bep20 owner can approve this bind request");
+    uint256 tokenHubBalance = IBEP20(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    require(IBEP20(contractAddr).allowance(msg.sender, address(this)).add(tokenHubBalance)>=lockedAmount, "allowance is not enough");
     uint256 relayFee = msg.value;
     uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     require(relayFee >= miniRelayFee && relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
 
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
     if (verifyCode == BIND_STATUS_SUCCESS) {
-      IBEP2E(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
-      ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep2eDecimals);
+      IBEP20(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
+      ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep20Decimals);
       emit bindSuccess(contractAddr, bep2Symbol, bindSynPkg.totalSupply, lockedAmount);
     } else {
       emit bindFailure(contractAddr, bep2Symbol, verifyCode);
@@ -155,7 +155,7 @@ contract TokenManager is System, IApplication {
     BindSynPackage memory bindSynPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSynPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
     require(contractAddr==bindSynPkg.contractAddr, "contact address doesn't equal to the contract address in bind request");
-    require(IBEP2E(contractAddr).getOwner()==msg.sender, "only bep2e owner can reject");
+    require(IBEP20(contractAddr).getOwner()==msg.sender, "only bep20 owner can reject");
     uint256 relayFee = msg.value;
     uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     require(relayFee >= miniRelayFee && relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
@@ -206,29 +206,29 @@ contract TokenManager is System, IApplication {
     if (bindRequest.contractAddr==address(0x00)) {
       return 0;
     }
-    uint256 tokenHubBalance = IBEP2E(bindRequest.contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    uint256 tokenHubBalance = IBEP20(bindRequest.contractAddr).balanceOf(TOKEN_HUB_ADDR);
     uint256 requiredBalance = bindRequest.totalSupply.sub(bindRequest.peggyAmount);
     return requiredBalance.sub(tokenHubBalance);
   }
 
   function verifyBindParameters(BindSynPackage memory bindSynPkg, address contractAddr) internal view returns(uint32) {
-    uint256 decimals = IBEP2E(contractAddr).decimals();
-    string memory bep2eSymbol = IBEP2E(contractAddr).symbol();
-    uint256 tokenHubBalance = IBEP2E(contractAddr).balanceOf(TOKEN_HUB_ADDR);
+    uint256 decimals = IBEP20(contractAddr).decimals();
+    string memory bep20Symbol = IBEP20(contractAddr).symbol();
+    uint256 tokenHubBalance = IBEP20(contractAddr).balanceOf(TOKEN_HUB_ADDR);
     uint256 lockedAmount = bindSynPkg.totalSupply.sub(bindSynPkg.peggyAmount);
     if (bindSynPkg.expireTime<block.timestamp) {
       return BIND_STATUS_TIMEOUT;
     }
-    if (!checkSymbol(bep2eSymbol, bindSynPkg.bep2TokenSymbol)) {
+    if (!checkSymbol(bep20Symbol, bindSynPkg.bep2TokenSymbol)) {
       return BIND_STATUS_SYMBOL_MISMATCH;
     }
     if (tokenHubBalance > lockedAmount) {
       return BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE;
     }
-    if (IBEP2E(bindSynPkg.contractAddr).totalSupply() != bindSynPkg.totalSupply) {
+    if (IBEP20(bindSynPkg.contractAddr).totalSupply() != bindSynPkg.totalSupply) {
       return BIND_STATUS_TOTAL_SUPPLY_MISMATCH;
     }
-    if (decimals!=bindSynPkg.bep2eDecimals) {
+    if (decimals!=bindSynPkg.bep20Decimals) {
       return BIND_STATUS_DECIMALS_MISMATCH;
     }
     if (ITokenHub(TOKEN_HUB_ADDR).getContractAddrByBEP2Symbol(bindSynPkg.bep2TokenSymbol)!=address(0x00)||
@@ -238,9 +238,9 @@ contract TokenManager is System, IApplication {
     return BIND_STATUS_SUCCESS;
   }
 
-  function checkSymbol(string memory bep2eSymbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
-    bytes memory bep2eSymbolBytes = bytes(bep2eSymbol);
-    if (bep2eSymbolBytes.length > MAXIMUM_BEP2E_SYMBOL_LEN || bep2eSymbolBytes.length < MINIMUM_BEP2E_SYMBOL_LEN) {
+  function checkSymbol(string memory bep20Symbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
+    bytes memory bep20SymbolBytes = bytes(bep20Symbol);
+    if (bep20SymbolBytes.length > MAXIMUM_BEP20_SYMBOL_LEN || bep20SymbolBytes.length < MINIMUM_BEP20_SYMBOL_LEN) {
       return false;
     }
 
@@ -248,12 +248,12 @@ contract TokenManager is System, IApplication {
     assembly {
       mstore(add(bep2TokenSymbolBytes, 32), bep2TokenSymbol)
     }
-    if (bep2TokenSymbolBytes[bep2eSymbolBytes.length] != 0x2d) { // '-'
+    if (bep2TokenSymbolBytes[bep20SymbolBytes.length] != 0x2d) { // '-'
       return false;
     }
     bool symbolMatch = true;
-    for (uint256 index=0; index < bep2eSymbolBytes.length; index++) {
-      if (bep2eSymbolBytes[index] != bep2TokenSymbolBytes[index]) {
+    for (uint256 index=0; index < bep20SymbolBytes.length; index++) {
+      if (bep20SymbolBytes[index] != bep2TokenSymbolBytes[index]) {
         symbolMatch = false;
         break;
       }
