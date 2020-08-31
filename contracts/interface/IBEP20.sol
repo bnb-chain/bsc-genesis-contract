@@ -9,7 +9,7 @@ interface IBEP20 {
     /**
      * @dev Returns the token decimals.
      */
-    function decimals() external view returns (uint256);
+    function decimals() external view returns (uint8);
 
     /**
      * @dev Returns the token symbol.

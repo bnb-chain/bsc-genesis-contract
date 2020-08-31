@@ -37,7 +37,7 @@ contract MiniToken is Context, IBEP20, Ownable {
   /**
    * @dev Returns the token decimals.
    */
-  function decimals() external override view returns (uint256) {
+  function decimals() external override view returns (uint8) {
     return _decimals;
   }
 
