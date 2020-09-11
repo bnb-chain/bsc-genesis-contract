@@ -344,9 +344,9 @@ contract BEP20Token is Context, IBEP20, Ownable {
   mapping (address => mapping (address => uint256)) private _allowances;
 
   uint256 private _totalSupply;
-  uint8 public _decimals;
-  string public _symbol;
-  string public _name;
+  uint8 private _decimals;
+  string private _symbol;
+  string private _name;
 
   constructor() public {
     _name = {{TOKEN_NAME}};
