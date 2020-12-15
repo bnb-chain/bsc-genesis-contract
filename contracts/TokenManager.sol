@@ -36,6 +36,44 @@ contract TokenManager is System, IApplication {
     bytes32 bep2TokenSymbol;
   }
 
+  // BSC to BC
+  struct MirrorSynPackage {
+    address mirrorSender;
+    address bep20Addr;
+    bytes32 bep20Symbol;
+    uint256 bep20Supply;
+    uint8   bep20Decimals;
+    uint256 mirrorFee;
+    uint64  expireTime;
+  }
+
+  // BC to BSC
+  struct MirrorAckPackage {
+    address mirrorSender;
+    address bep20Addr;
+    uint8  bep20Decimals;
+    bytes32 bep2Symbol;
+    uint256 refundAmount;
+    uint8   errorCode;
+  }
+
+  // BSC to BC
+  struct SyncSynPackage {
+    address syncSender;
+    address bep20Addr;
+    uint256 bep20Supply;
+    uint256 syncFee;
+    uint64  expireTime;
+  }
+
+  // BC to BSC
+  struct SyncAckPackage {
+    address syncSender;
+    address bep20Addr;
+    uint256 refundAmount;
+    uint8   errorCode;
+  }
+
   uint8 constant public   BIND_PACKAGE = 0;
   uint8 constant public   UNBIND_PACKAGE = 1;
 
@@ -187,6 +225,110 @@ contract TokenManager is System, IApplication {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(BIND_CHANNELID, encodeReactBindSynPackage(reactBindSynPackage), relayFee.div(TEN_DECIMALS));
     emit bindFailure(bindSynPkg.contractAddr, bep2Symbol, BIND_STATUS_TIMEOUT);
     return true;
+  }
+
+  function encodeMirrorSynPackage(MirrorSynPackage memory mirrorSynPackage) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](7);
+    elements[0] = mirrorSynPackage.mirrorSender.encodeAddress();
+    elements[1] = mirrorSynPackage.bep20Addr.encodeAddress();
+    elements[2] = uint256(mirrorSynPackage.bep20Symbol).encodeUint();
+    elements[3] = mirrorSynPackage.bep20Supply.encodeUint();
+    elements[4] = uint256(mirrorSynPackage.bep20Decimals).encodeUint();
+    elements[5] = mirrorSynPackage.mirrorFee.encodeUint();
+    elements[6] = uint256(mirrorSynPackage.expireTime).encodeUint();
+    return elements.encodeList();
+  }
+
+  function decodeMirrorSynPackage(bytes memory msgBytes) internal pure returns(MirrorSynPackage memory, bool) {
+    MirrorSynPackage memory mirrorSynPackage;
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0)      mirrorSynPackage.mirrorSender  = iter.next().toAddress();
+      else if (idx == 1) mirrorSynPackage.bep20Addr     = iter.next().toAddress();
+      else if (idx == 2) mirrorSynPackage.bep20Symbol   = bytes32(iter.next().toUint());
+      else if (idx == 3) mirrorSynPackage.bep20Supply   = iter.next().toUint();
+      else if (idx == 4) mirrorSynPackage.bep20Decimals = uint8(iter.next().toUint());
+      else if (idx == 5) mirrorSynPackage.mirrorFee     = iter.next().toUint();
+      else if (idx == 6) {
+        mirrorSynPackage.expireTime = uint64(iter.next().toUint());
+        success = true;
+      }
+      else break;
+      idx++;
+    }
+    return (mirrorSynPackage, success);
+  }
+
+  function decodeMirrorAckPackage(bytes memory msgBytes) internal pure returns(MirrorAckPackage memory, bool) {
+    MirrorAckPackage memory mirrorAckPackage;
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0)      mirrorAckPackage.mirrorSender   = iter.next().toAddress();
+      else if (idx == 1) mirrorAckPackage.bep20Addr      = iter.next().toAddress();
+      else if (idx == 2) mirrorAckPackage.bep20Decimals  = uint8(iter.next().toUint());
+      else if (idx == 3) mirrorAckPackage.bep2Symbol     = bytes32(iter.next().toUint());
+      else if (idx == 4) mirrorAckPackage.refundAmount   = iter.next().toUint();
+      else if (idx == 5) {
+        mirrorAckPackage.errorCode  = uint8(iter.next().toUint());
+        success = true;
+      }
+      else break;
+      idx++;
+    }
+    return (mirrorAckPackage, success);
+  }
+
+  function encodeSyncSynPackage(SyncSynPackage memory syncSynPackage) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](5);
+    elements[0] = syncSynPackage.syncSender.encodeAddress();
+    elements[1] = syncSynPackage.bep20Addr.encodeAddress();
+    elements[2] = syncSynPackage.bep20Supply.encodeUint();
+    elements[3] = syncSynPackage.syncFee.encodeUint();
+    elements[4] = uint256(syncSynPackage.expireTime).encodeUint();
+    return elements.encodeList();
+  }
+
+  function decodeSyncSynPackage(bytes memory msgBytes) internal pure returns(SyncSynPackage memory, bool) {
+    SyncSynPackage memory syncSynPackage;
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0)      syncSynPackage.syncSender  = iter.next().toAddress();
+      else if (idx == 1) syncSynPackage.bep20Addr   = iter.next().toAddress();
+      else if (idx == 2) syncSynPackage.bep20Supply = iter.next().toUint();
+      else if (idx == 3) syncSynPackage.syncFee     = iter.next().toUint();
+      else if (idx == 4) {
+        syncSynPackage.expireTime = uint64(iter.next().toUint());
+        success = true;
+      }
+      else break;
+      idx++;
+    }
+    return (syncSynPackage, success);
+  }
+
+  function decodeSyncAckPackage(bytes memory msgBytes) internal pure returns(SyncAckPackage memory, bool) {
+    SyncAckPackage memory syncAckPackage;
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    bool success = false;
+    uint256 idx=0;
+    while (iter.hasNext()) {
+      if (idx == 0)      syncAckPackage.syncSender   = iter.next().toAddress();
+      else if (idx == 1) syncAckPackage.bep20Addr    = iter.next().toAddress();
+      else if (idx == 2) syncAckPackage.refundAmount = uint8(iter.next().toUint());
+      else if (idx == 3) {
+        syncAckPackage.errorCode  = uint8(iter.next().toUint());
+        success = true;
+      }
+      else break;
+      idx++;
+    }
+    return (syncAckPackage, success);
   }
 
   function bep2TokenSymbolConvert(string memory symbol) internal pure returns(bytes32) {
