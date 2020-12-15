@@ -94,9 +94,14 @@ contract TokenManager is System, IApplication {
 
   mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
+  mapping(address => bool) public mirrorPendingRecord;
+  uint256 public mirrorFee;
+  uint256 public syncFee;
+
   event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
   event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
+  event paramChange(string key, bytes value);
 
   constructor() public {}
 
@@ -189,6 +194,7 @@ contract TokenManager is System, IApplication {
   }
 
   function rejectBind(address contractAddr, string memory bep2Symbol) payable public returns (bool) {
+    require(!mirrorPendingRecord[contractAddr], "the bep20 token is in mirror pending status");
     bytes32 bep2TokenSymbol = bep2TokenSymbolConvert(bep2Symbol);
     BindSynPackage memory bindSynPkg = bindPackageRecord[bep2TokenSymbol];
     require(bindSynPkg.bep2TokenSymbol!=bytes32(0x00), "bind request doesn't exist");
@@ -282,6 +288,11 @@ contract TokenManager is System, IApplication {
     return (mirrorAckPackage, success);
   }
 
+  function mirror(address bep20Addr, uint64 expireTime) payable public returns (bool) {
+
+    return true;
+  }
+
   function encodeSyncSynPackage(SyncSynPackage memory syncSynPackage) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](5);
     elements[0] = syncSynPackage.syncSender.encodeAddress();
@@ -329,6 +340,39 @@ contract TokenManager is System, IApplication {
       idx++;
     }
     return (syncAckPackage, success);
+  }
+
+  function sync(address bep20Addr, uint64 expireTime) payable public returns (bool) {
+
+    return true;
+  }
+
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+    require(value.length == 32, "expected value length is 32");
+    string memory localKey = key;
+    bytes memory localValue = value;
+    bytes32 bytes32Key;
+    assembly {
+      bytes32Key := mload(add(localKey, 32))
+    }
+    if (bytes32Key == bytes32(0x6d6972726f724665650000000000000000000000000000000000000000000000)) { // mirrorFee
+      uint256 newMirrorFee;
+      assembly {
+        newMirrorFee := mload(add(localValue, 32))
+      }
+      require(newMirrorFee%(TEN_DECIMALS)==0, "the mirrorFee should be N * 10**10");
+      mirrorFee = newMirrorFee;
+    } else if (bytes32Key == bytes32(0x73796e6346656500000000000000000000000000000000000000000000000000)) { // syncFee
+      uint256 newSyncFee;
+      assembly {
+        newSyncFee := mload(add(localValue, 32))
+      }
+      require(newSyncFee%(TEN_DECIMALS)==0, "the syncFee should be N * 10**10");
+      syncFee = newSyncFee;
+    } else {
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 
   function bep2TokenSymbolConvert(string memory symbol) internal pure returns(bytes32) {
