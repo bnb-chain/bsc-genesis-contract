@@ -91,7 +91,17 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   uint8 constant public MIRROR_CHANNELID = 0x04;
   uint8 constant public SYNC_CHANNELID = 0x05;
   uint8 constant public BEP2_TOKEN_DECIMALS = 8;
+  uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
+  // mirror status
+  uint8 constant public   MIRROR_STATUS_SUCCESS = 0;
+  uint8 constant public   MIRROR_STATUS_TIMEOUT = 1;
+  uint8 constant public   MIRROR_STATUS_DUPLICATED_BEP2_SYMBOL = 2;
+  uint8 constant public   MIRROR_STATUS_ALREADY_BOUND = 3;
+  // sync status
+  uint8 constant public   SYNC_STATUS_SUCCESS = 0;
+  uint8 constant public   SYNC_STATUS_TIMEOUT = 1;
+  uint8 constant public   SYNC_STATUS_NOT_BOUND_MIRROR = 2;
 
   uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
@@ -108,19 +118,42 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
+  event mirrorSuccess(address indexed bep20Addr, bytes32 bep2Symbol);
+  event mirrorFailure(address indexed bep20Addr, string reason);
+  event syncSuccess(address indexed bep20Addr);
+  event syncFailure(address indexed bep20Addr, string reason);
+  event refundFeeSuccess(address recipient, uint256 value);
+  event refundFeeFailure(address recipient, uint256 value);
 
   constructor() public {}
 
-  function handleSynPackage(uint8 /* channelId */, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory) {
-    return handleBindSynPackage(msgBytes);
+  function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory) {
+    if (channelId == BIND_CHANNELID) {
+      return handleBindSynPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+      return new bytes(0);
+    }
   }
 
   function handleAckPackage(uint8 channelId, bytes calldata msgBytes) onlyCrossChainContract external override {
-    emit unexpectedPackage(channelId, msgBytes);
+    if (channelId == MIRROR_CHANNELID) {
+      handleMirrorAckPackage(msgBytes);
+    } else if (channelId == SYNC_CHANNELID) {
+      handleSyncAckPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+    }
   }
 
   function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) onlyCrossChainContract external override {
-    emit unexpectedPackage(channelId, msgBytes);
+    if (channelId == MIRROR_CHANNELID) {
+      handleMirrorFailAckPackage(msgBytes);
+    } else if (channelId == SYNC_CHANNELID) {
+      handleSyncFailAckPackage(msgBytes);
+    } else {
+      emit unexpectedPackage(channelId, msgBytes);
+    }
   }
 
   function decodeBindSynPackage(bytes memory msgBytes) internal pure returns(BindSynPackage memory, bool) {
@@ -330,6 +363,44 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     return true;
   }
 
+  function handleMirrorAckPackage(bytes memory msgBytes) internal {
+    (MirrorAckPackage memory mirrorAckPackage, bool decodeSuccess) = decodeMirrorAckPackage(msgBytes);
+    require(decodeSuccess, "unrecognized mirror syn package");
+    mirrorPendingRecord[mirrorAckPackage.bep20Addr] = false;
+    if (mirrorAckPackage.errorCode == MIRROR_STATUS_SUCCESS ) {
+      ITokenHub(TOKEN_HUB_ADDR).bindToken(mirrorAckPackage.bep2Symbol, mirrorAckPackage.bep20Addr, mirrorAckPackage.bep20Decimals);
+      emit mirrorSuccess(mirrorAckPackage.bep20Addr, mirrorAckPackage.bep2Symbol);
+    } else if (mirrorAckPackage.errorCode == MIRROR_STATUS_TIMEOUT ) {
+      emit mirrorFailure(mirrorAckPackage.bep20Addr, "mirror timeout");
+    } else if (mirrorAckPackage.errorCode == MIRROR_STATUS_DUPLICATED_BEP2_SYMBOL ) {
+      emit mirrorFailure(mirrorAckPackage.bep20Addr, "duplicated BEP2 symbol");
+    } else if (mirrorAckPackage.errorCode == MIRROR_STATUS_ALREADY_BOUND ) {
+      emit mirrorFailure(mirrorAckPackage.bep20Addr, "ready bound");
+    } else {
+      emit mirrorFailure(mirrorAckPackage.bep20Addr, "unknown reason");
+    }
+    if (mirrorAckPackage.refundAmount != 0) {
+      (bool success, ) = mirrorAckPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorAckPackage.refundAmount}("");
+      if (!success) {
+        emit refundFeeSuccess(mirrorAckPackage.mirrorSender, mirrorAckPackage.refundAmount);
+      } else {
+        emit refundFeeFailure(mirrorAckPackage.mirrorSender, mirrorAckPackage.refundAmount);
+      }
+    }
+  }
+
+  function handleMirrorFailAckPackage(bytes memory msgBytes) internal {
+    (MirrorSynPackage memory mirrorSynPackage, bool decodeSuccess) = decodeMirrorSynPackage(msgBytes);
+    require(decodeSuccess, "unrecognized mirror syn package");
+    mirrorPendingRecord[mirrorSynPackage.bep20Addr] = false;
+    (bool success, ) = mirrorSynPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorSynPackage.mirrorFee}("");
+    if (!success) {
+      emit refundFeeSuccess(mirrorSynPackage.mirrorSender, mirrorSynPackage.mirrorFee);
+    } else {
+      emit refundFeeFailure(mirrorSynPackage.mirrorSender, mirrorSynPackage.mirrorFee);
+    }
+  }
+
   function encodeSyncSynPackage(SyncSynPackage memory syncSynPackage) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](5);
     elements[0] = syncSynPackage.syncSender.encodeAddress();
@@ -380,8 +451,57 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   }
 
   function sync(address bep20Addr, uint64 expireTime) payable public returns (bool) {
+    require(ITokenHub(TOKEN_HUB_ADDR).getBep2SymbolByContractAddr(bep20Addr) != bytes32(0x00), "the bep20 token is not bound");
+    uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
+    require(msg.value%TEN_DECIMALS == 0 && msg.value>=syncFee.add(miniRelayFee), "msg.value must be N * 1e10 and greater than sum of miniRelayFee and syncFee");
+    require(expireTime>=block.timestamp + 120 && expireTime <= block.timestamp + 86400, "expireTime must be two minutes later and one day earlier");
+    uint256 totalSupply = IBEP20(bep20Addr).totalSupply();
+    uint8 decimals = IBEP20(bep20Addr).decimals();
+    require(convertToBep2Amount(totalSupply, decimals) <= MAX_BEP2_TOTAL_SUPPLY, "bep20 total supply is to large");
 
+    address(uint160(TOKEN_HUB_ADDR)).transfer(msg.value);
+    SyncSynPackage memory syncSynPackage = SyncSynPackage({
+      syncSender:    msg.sender,
+      bep20Addr:     bep20Addr,
+      bep20Supply:   totalSupply,
+      syncFee:       syncFee,
+      expireTime:    expireTime
+      });
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SYNC_CHANNELID, encodeSyncSynPackage(syncSynPackage), msg.value.sub(syncFee).div(TEN_DECIMALS));
     return true;
+  }
+
+  function handleSyncAckPackage(bytes memory msgBytes) internal {
+    (SyncAckPackage memory syncAckPackage, bool decodeSuccess) = decodeSyncAckPackage(msgBytes);
+    require(decodeSuccess, "unrecognized sync ack package");
+    if (syncAckPackage.errorCode == SYNC_STATUS_SUCCESS ) {
+      emit syncSuccess(syncAckPackage.bep20Addr);
+    } else if (syncAckPackage.errorCode == SYNC_STATUS_TIMEOUT ) {
+      emit syncFailure(syncAckPackage.bep20Addr, "sync timeout");
+    } else if (syncAckPackage.errorCode == SYNC_STATUS_NOT_BOUND_MIRROR ) {
+      emit syncFailure(syncAckPackage.bep20Addr, "not bound by mirror");
+    } else {
+      emit syncFailure(syncAckPackage.bep20Addr, "unknown reason");
+    }
+    if (syncAckPackage.refundAmount != 0) {
+      (bool success, ) = syncAckPackage.syncSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: syncAckPackage.refundAmount}("");
+      if (!success) {
+        emit refundFeeSuccess(syncAckPackage.syncSender, syncAckPackage.refundAmount);
+      } else {
+        emit refundFeeFailure(syncAckPackage.syncSender, syncAckPackage.refundAmount);
+      }
+    }
+  }
+
+  function handleSyncFailAckPackage(bytes memory msgBytes) internal {
+    (SyncSynPackage memory syncSynPackage, bool decodeSuccess) = decodeSyncSynPackage(msgBytes);
+    require(decodeSuccess, "unrecognized sync syn package");
+    (bool success, ) = syncSynPackage.syncSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: syncSynPackage.syncFee}("");
+    if (!success) {
+      emit refundFeeSuccess(syncSynPackage.syncSender, syncSynPackage.syncFee);
+    } else {
+      emit refundFeeFailure(syncSynPackage.syncSender, syncSynPackage.syncFee);
+    }
   }
 
   function updateParam(string calldata key, bytes calldata value) override external onlyGov{
