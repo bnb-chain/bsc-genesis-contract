@@ -4,12 +4,13 @@ import "./interface/IBEP20.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/IParamSubscriber.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
 import "./System.sol";
 
-contract TokenManager is System, IApplication {
+contract TokenManager is System, IApplication, IParamSubscriber {
 
   using SafeMath for uint256;
 
@@ -86,6 +87,11 @@ contract TokenManager is System, IApplication {
   uint8 constant public   BIND_STATUS_DECIMALS_MISMATCH = 5;
   uint8 constant public   BIND_STATUS_ALREADY_BOUND_TOKEN = 6;
   uint8 constant public   BIND_STATUS_REJECTED = 7;
+
+  uint8 constant public MIRROR_CHANNELID = 0x04;
+  uint8 constant public SYNC_CHANNELID = 0x05;
+  uint8 constant public BEP2_TOKEN_DECIMALS = 8;
+  uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
 
   uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
@@ -289,7 +295,38 @@ contract TokenManager is System, IApplication {
   }
 
   function mirror(address bep20Addr, uint64 expireTime) payable public returns (bool) {
+    require(ITokenHub(TOKEN_HUB_ADDR).getBep2SymbolByContractAddr(bep20Addr) == bytes32(0x00), "the bep20 token has already been bound");
+    require(!mirrorPendingRecord[bep20Addr], "the bep20 token is in mirror pending status");
+    uint256 miniRelayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
+    require(msg.value%TEN_DECIMALS == 0 && msg.value>=mirrorFee.add(miniRelayFee), "msg.value must be N * 1e10 and greater than sum of miniRelayFee and mirrorFee");
+    require(expireTime>=block.timestamp + 120 && expireTime <= block.timestamp + 86400, "expireTime must be two minutes later and one day earlier");
+    uint8 decimals = IBEP20(bep20Addr).decimals();
+    uint256 totalSupply = IBEP20(bep20Addr).totalSupply();
+    require(convertToBep2Amount(totalSupply, decimals) <= MAX_BEP2_TOTAL_SUPPLY, "bep20 total supply is to large");
+    string memory symbol = IBEP20(bep20Addr).symbol();
+    bytes memory symbolBytes = bytes(symbol);
+    require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "bep20 symbol length should be in [3,8]");
+    for (uint8 i = 0; i < symbolBytes.length; i++) {
+      require((symbolBytes[i]>='a' && symbolBytes[i]<='a') || (symbolBytes[i]>='A' && symbolBytes[i]<='Z'), "bep20 symbol must not contain non-alphabet");
+    }
 
+    address(uint160(TOKEN_HUB_ADDR)).transfer(msg.value);
+    mirrorPendingRecord[bep20Addr] = true;
+
+    bytes32 bytes32Symbol;
+    assembly {
+      bytes32Symbol := mload(add(symbol, 32))
+    }
+    MirrorSynPackage memory mirrorSynPackage = MirrorSynPackage({
+      mirrorSender:  msg.sender,
+      bep20Addr:     bep20Addr,
+      bep20Symbol:   bytes32Symbol,
+      bep20Supply:   totalSupply,
+      bep20Decimals: decimals,
+      mirrorFee:     mirrorFee,
+      expireTime:    expireTime
+      });
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(MIRROR_CHANNELID, encodeMirrorSynPackage(mirrorSynPackage), msg.value.sub(mirrorFee).div(TEN_DECIMALS));
     return true;
   }
 
@@ -446,4 +483,19 @@ contract TokenManager is System, IApplication {
     }
     return symbolMatch;
   }
+
+  function convertToBep2Amount(uint256 amount, uint256 bep20TokenDecimals) internal pure returns (uint256) {
+    if (bep20TokenDecimals > BEP2_TOKEN_DECIMALS) {
+      return amount.div(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS));
+    }
+    return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep20TokenDecimals));
+  }
+
+  function convertFromBep2Amount(uint256 amount, uint256 bep20TokenDecimals) internal pure returns (uint256) {
+    if (bep20TokenDecimals > BEP2_TOKEN_DECIMALS) {
+      return amount.mul(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS));
+    }
+    return amount.div(10**(BEP2_TOKEN_DECIMALS-bep20TokenDecimals));
+  }
+
 }
