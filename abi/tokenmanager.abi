@@ -65,6 +65,95 @@
 		"anonymous": false,
 		"inputs": [
 			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "bep20Addr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "reason",
+				"type": "string"
+			}
+		],
+		"name": "mirrorFailure",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "bep20Addr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes32",
+				"name": "bep2Symbol",
+				"type": "bytes32"
+			}
+		],
+		"name": "mirrorSuccess",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"indexed": false,
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "paramChange",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "bep20Addr",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "reason",
+				"type": "string"
+			}
+		],
+		"name": "syncFailure",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "bep20Addr",
+				"type": "address"
+			}
+		],
+		"name": "syncSuccess",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
 				"indexed": false,
 				"internalType": "uint8",
 				"name": "channelId",
@@ -79,6 +168,21 @@
 		],
 		"name": "unexpectedPackage",
 		"type": "event"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "BEP2_TOKEN_DECIMALS",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
 	},
 	{
 		"constant": true,
@@ -353,7 +457,112 @@
 	{
 		"constant": true,
 		"inputs": [],
+		"name": "MAX_BEP2_TOTAL_SUPPLY",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MAX_GAS_FOR_TRANSFER_BNB",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
 		"name": "MINIMUM_BEP20_SYMBOL_LEN",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MIRROR_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MIRROR_STATUS_ALREADY_BOUND",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MIRROR_STATUS_DUPLICATED_BEP2_SYMBOL",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MIRROR_STATUS_SUCCESS",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "MIRROR_STATUS_TIMEOUT",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -414,6 +623,66 @@
 		"constant": true,
 		"inputs": [],
 		"name": "STAKING_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SYNC_CHANNELID",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SYNC_STATUS_NOT_BOUND_MIRROR",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SYNC_STATUS_SUCCESS",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "SYNC_STATUS_TIMEOUT",
 		"outputs": [
 			{
 				"internalType": "uint8",
@@ -561,6 +830,32 @@
 		"type": "function"
 	},
 	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "contractAddr",
+				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "bep2Symbol",
+				"type": "string"
+			}
+		],
+		"name": "approveBind",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
 		"constant": true,
 		"inputs": [
 			{
@@ -613,6 +908,27 @@
 	},
 	{
 		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "boundByMirror",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
 		"inputs": [],
 		"name": "bscChainID",
 		"outputs": [
@@ -630,26 +946,21 @@
 		"constant": false,
 		"inputs": [
 			{
-				"internalType": "uint8",
-				"name": "",
-				"type": "uint8"
-			},
-			{
-				"internalType": "bytes",
-				"name": "msgBytes",
-				"type": "bytes"
+				"internalType": "string",
+				"name": "bep2Symbol",
+				"type": "string"
 			}
 		],
-		"name": "handleSynPackage",
+		"name": "expireBind",
 		"outputs": [
 			{
-				"internalType": "bytes",
+				"internalType": "bool",
 				"name": "",
-				"type": "bytes"
+				"type": "bool"
 			}
 		],
-		"payable": false,
-		"stateMutability": "nonpayable",
+		"payable": true,
+		"stateMutability": "payable",
 		"type": "function"
 	},
 	{
@@ -696,17 +1007,43 @@
 		"constant": false,
 		"inputs": [
 			{
+				"internalType": "uint8",
+				"name": "channelId",
+				"type": "uint8"
+			},
+			{
+				"internalType": "bytes",
+				"name": "msgBytes",
+				"type": "bytes"
+			}
+		],
+		"name": "handleSynPackage",
+		"outputs": [
+			{
+				"internalType": "bytes",
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
 				"internalType": "address",
-				"name": "contractAddr",
+				"name": "bep20Addr",
 				"type": "address"
 			},
 			{
-				"internalType": "string",
-				"name": "bep2Symbol",
-				"type": "string"
+				"internalType": "uint64",
+				"name": "expireTime",
+				"type": "uint64"
 			}
 		],
-		"name": "approveBind",
+		"name": "mirror",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -716,6 +1053,63 @@
 		],
 		"payable": true,
 		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "mirrorFee",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "mirrorPendingRecord",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "symbol",
+				"type": "string"
+			}
+		],
+		"name": "queryRequiredLockAmountForBind",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -748,12 +1142,17 @@
 		"constant": false,
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "bep2Symbol",
-				"type": "string"
+				"internalType": "address",
+				"name": "bep20Addr",
+				"type": "address"
+			},
+			{
+				"internalType": "uint64",
+				"name": "expireTime",
+				"type": "uint64"
 			}
 		],
-		"name": "expireBind",
+		"name": "sync",
 		"outputs": [
 			{
 				"internalType": "bool",
@@ -767,14 +1166,8 @@
 	},
 	{
 		"constant": true,
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "symbol",
-				"type": "string"
-			}
-		],
-		"name": "queryRequiredLockAmountForBind",
+		"inputs": [],
+		"name": "syncFee",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -784,6 +1177,26 @@
 		],
 		"payable": false,
 		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "key",
+				"type": "string"
+			},
+			{
+				"internalType": "bytes",
+				"name": "value",
+				"type": "bytes"
+			}
+		],
+		"name": "updateParam",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	}
 ]
