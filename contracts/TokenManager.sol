@@ -344,7 +344,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     bytes memory symbolBytes = bytes(symbol);
     require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "symbol length must be in [3,8]");
     for (uint8 i = 0; i < symbolBytes.length; i++) {
-      require(symbolBytes[i]>='A' && symbolBytes[i]<='Z', "symbol should contain upper case alphabet only");
+      require((symbolBytes[i]>='A' && symbolBytes[i]<='Z') || (symbolBytes[i]>='a' && symbolBytes[i]<='z') || (symbolBytes[i]>='0' && symbolBytes[i]<='9'), "symbol should only contain alphabet and number");
     }
     address(uint160(TOKEN_HUB_ADDR)).transfer(msg.value.sub(mirrorFee));
     mirrorPendingRecord[bep20Addr] = true;

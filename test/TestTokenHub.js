@@ -1028,7 +1028,19 @@ contract('TokenHub', (accounts) => {
             await tokenManager.mirror(xyzToken.address, expireTime, {from: player, value: miniRelayFee.add(mirrorFee)});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("symbol must not contain non-alphabet"));
+            assert.ok(error.toString().includes("symbol should only contain alphabet and number"));
+        }
+
+        try {
+            await xyzToken.setName("XYZ Token", {from: xyzTokenOwner});
+            await xyzToken.setSymbol("XY_Z", {from: xyzTokenOwner});
+
+            let timestamp = Math.floor(Date.now() / 1000); // counted by second
+            let expireTime = timestamp + 300; // expire at five minutes later
+            await tokenManager.mirror(xyzToken.address, expireTime, {from: player, value: miniRelayFee.add(mirrorFee)});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("symbol should only contain alphabet and number"));
         }
 
         try {
