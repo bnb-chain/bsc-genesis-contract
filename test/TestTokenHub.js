@@ -1047,6 +1047,19 @@ contract('TokenHub', (accounts) => {
         try {
             await xyzToken.setName("XYZ Token", {from: xyzTokenOwner});
             await xyzToken.setSymbol("XYZ", {from: xyzTokenOwner});
+            await xyzToken.setDecimals(86, {from: xyzTokenOwner});
+
+            let timestamp = Math.floor(Date.now() / 1000); // counted by second
+            let expireTime = timestamp + 300; // expire at five minutes later
+            await tokenManager.mirror(xyzToken.address, expireTime, {from: player, value: miniRelayFee.add(mirrorFee)});
+            assert.fail();
+        } catch (error) {
+            assert.ok(error.toString().includes("too large decimals"));
+        }
+
+        try {
+            await xyzToken.setName("XYZ Token", {from: xyzTokenOwner});
+            await xyzToken.setSymbol("XYZ", {from: xyzTokenOwner});
             await xyzToken.setDecimals(18, {from: xyzTokenOwner});
             await xyzToken.setTotalSupply(web3.utils.toBN(1e18).mul(web3.utils.toBN(1e18)), {from: xyzTokenOwner});
 

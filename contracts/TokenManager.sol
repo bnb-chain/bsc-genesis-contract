@@ -81,7 +81,6 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   uint8 constant public   UNBIND_PACKAGE = 1;
 
   // bind status
-  uint8 constant public   BIND_STATUS_SUCCESS = 0;
   uint8 constant public   BIND_STATUS_TIMEOUT = 1;
   uint8 constant public   BIND_STATUS_SYMBOL_MISMATCH = 2;
   uint8 constant public   BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE = 3;
@@ -95,13 +94,12 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   uint8 constant public BEP2_TOKEN_DECIMALS = 8;
   uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
+  uint256 constant public LOG_MAX_UINT256 = 77;
   // mirror status
-  uint8 constant public   MIRROR_STATUS_SUCCESS = 0;
   uint8 constant public   MIRROR_STATUS_TIMEOUT = 1;
   uint8 constant public   MIRROR_STATUS_DUPLICATED_BEP2_SYMBOL = 2;
   uint8 constant public   MIRROR_STATUS_ALREADY_BOUND = 3;
   // sync status
-  uint8 constant public   SYNC_STATUS_SUCCESS = 0;
   uint8 constant public   SYNC_STATUS_TIMEOUT = 1;
   uint8 constant public   SYNC_STATUS_NOT_BOUND_MIRROR = 2;
 
@@ -217,7 +215,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     require(relayFee >= miniRelayFee && relayFee%TEN_DECIMALS == 0, "relayFee must be N * 1e10 and greater than miniRelayFee");
 
     uint32 verifyCode = verifyBindParameters(bindSynPkg, contractAddr);
-    if (verifyCode == BIND_STATUS_SUCCESS) {
+    if (verifyCode == CODE_OK) {
       IBEP20(contractAddr).transferFrom(msg.sender, TOKEN_HUB_ADDR, lockedAmount.sub(tokenHubBalance));
       ITokenHub(TOKEN_HUB_ADDR).bindToken(bindSynPkg.bep2TokenSymbol, bindSynPkg.contractAddr, bindSynPkg.bep20Decimals);
       emit bindSuccess(contractAddr, bep2Symbol, bindSynPkg.totalSupply, lockedAmount);
@@ -346,7 +344,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     bytes memory symbolBytes = bytes(symbol);
     require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "symbol length must be in [3,8]");
     for (uint8 i = 0; i < symbolBytes.length; i++) {
-      require((symbolBytes[i]>='a' && symbolBytes[i]<='a') || (symbolBytes[i]>='A' && symbolBytes[i]<='Z'), "symbol must not contain non-alphabet");
+      require(symbolBytes[i]>='A' && symbolBytes[i]<='Z', "symbol should contain upper case alphabet only");
     }
     address(uint160(TOKEN_HUB_ADDR)).transfer(msg.value.sub(mirrorFee));
     mirrorPendingRecord[bep20Addr] = true;
@@ -365,7 +363,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
       bep20Symbol:   bytes32Symbol,
       bep20Supply:   totalSupply,
       bep20Decimals: decimals,
-      mirrorFee:     mirrorFee/TEN_DECIMALS,
+      mirrorFee:     mirrorFee.div(TEN_DECIMALS),
       expireTime:    expireTime
       });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(MIRROR_CHANNELID, encodeMirrorSynPackage(mirrorSynPackage), msg.value.sub(mirrorFee).div(TEN_DECIMALS));
@@ -376,18 +374,18 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     (MirrorAckPackage memory mirrorAckPackage, bool decodeSuccess) = decodeMirrorAckPackage(msgBytes);
     require(decodeSuccess, "unrecognized package");
     mirrorPendingRecord[mirrorAckPackage.bep20Addr] = false;
-    if (mirrorAckPackage.errorCode == MIRROR_STATUS_SUCCESS ) {
+    if (mirrorAckPackage.errorCode == CODE_OK ) {
       address(uint160(TOKEN_HUB_ADDR)).transfer(mirrorAckPackage.mirrorFee);
       ITokenHub(TOKEN_HUB_ADDR).bindToken(mirrorAckPackage.bep2Symbol, mirrorAckPackage.bep20Addr, mirrorAckPackage.bep20Decimals);
       boundByMirror[mirrorAckPackage.bep20Addr] = true;
       emit mirrorSuccess(mirrorAckPackage.bep20Addr, mirrorAckPackage.bep2Symbol);
       return;
     } else {
+      (bool success, ) = mirrorAckPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorAckPackage.mirrorFee}("");
+      if (!success) {
+        address(uint160(SYSTEM_REWARD_ADDR)).transfer(mirrorAckPackage.mirrorFee);
+      }
       emit mirrorFailure(mirrorAckPackage.bep20Addr, mirrorAckPackage.errorCode);
-    }
-    (bool success, ) = mirrorAckPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorAckPackage.mirrorFee}("");
-    if (!success) {
-      address(uint160(SYSTEM_REWARD_ADDR)).transfer(mirrorAckPackage.mirrorFee);
     }
   }
 
@@ -397,7 +395,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     mirrorPendingRecord[mirrorSynPackage.bep20Addr] = false;
     (bool success, ) = mirrorSynPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorSynPackage.mirrorFee*TEN_DECIMALS}("");
     if (!success) {
-      address(uint160(SYSTEM_REWARD_ADDR)).transfer(mirrorSynPackage.mirrorFee*TEN_DECIMALS);
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(mirrorSynPackage.mirrorFee.mul(TEN_DECIMALS));
     }
   }
 
@@ -469,7 +467,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
       bep20Addr:     bep20Addr,
       bep2Symbol:    bep2Symbol,
       bep20Supply:   totalSupply,
-      syncFee:       syncFee/TEN_DECIMALS,
+      syncFee:       syncFee.div(TEN_DECIMALS),
       expireTime:    expireTime
       });
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SYNC_CHANNELID, encodeSyncSynPackage(syncSynPackage), msg.value.sub(syncFee).div(TEN_DECIMALS));
@@ -479,7 +477,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   function handleSyncAckPackage(bytes memory msgBytes) internal {
     (SyncAckPackage memory syncAckPackage, bool decodeSuccess) = decodeSyncAckPackage(msgBytes);
     require(decodeSuccess, "unrecognized package");
-    if (syncAckPackage.errorCode == SYNC_STATUS_SUCCESS ) {
+    if (syncAckPackage.errorCode == CODE_OK ) {
       address(uint160(TOKEN_HUB_ADDR)).transfer(syncAckPackage.syncFee);
       emit syncSuccess(syncAckPackage.bep20Addr);
       return;
@@ -575,7 +573,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     ITokenHub(TOKEN_HUB_ADDR).getBep2SymbolByContractAddr(bindSynPkg.contractAddr)!=bytes32(0x00)) {
       return BIND_STATUS_ALREADY_BOUND_TOKEN;
     }
-    return BIND_STATUS_SUCCESS;
+    return CODE_OK;
   }
 
   function checkSymbol(string memory bep20Symbol, bytes32 bep2TokenSymbol) internal pure returns(bool) {
@@ -603,6 +601,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
 
   function convertToBep2Amount(uint256 amount, uint256 bep20TokenDecimals) internal pure returns (uint256) {
     if (bep20TokenDecimals > BEP2_TOKEN_DECIMALS) {
+      require(bep20TokenDecimals-BEP2_TOKEN_DECIMALS <= LOG_MAX_UINT256, "too large decimals");
       return amount.div(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS));
     }
     return amount.mul(10**(BEP2_TOKEN_DECIMALS-bep20TokenDecimals));
