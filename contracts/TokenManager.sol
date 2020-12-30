@@ -103,7 +103,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   uint8 constant public   SYNC_STATUS_TIMEOUT = 1;
   uint8 constant public   SYNC_STATUS_NOT_BOUND_MIRROR = 2;
 
-  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
+  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 2;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
 
   uint256 constant public  TEN_DECIMALS = 1e10;
@@ -342,7 +342,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     require(nameBytes.length>=1 && nameBytes.length<=32, "name length must be in [1,32]");
     string memory symbol = IBEP20(bep20Addr).symbol();
     bytes memory symbolBytes = bytes(symbol);
-    require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "symbol length must be in [3,8]");
+    require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "symbol length must be in [2,8]");
     for (uint8 i = 0; i < symbolBytes.length; i++) {
       require((symbolBytes[i]>='A' && symbolBytes[i]<='Z') || (symbolBytes[i]>='a' && symbolBytes[i]<='z') || (symbolBytes[i]>='0' && symbolBytes[i]<='9'), "symbol should only contain alphabet and number");
     }
@@ -393,7 +393,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     (MirrorSynPackage memory mirrorSynPackage, bool decodeSuccess) = decodeMirrorSynPackage(msgBytes);
     require(decodeSuccess, "unrecognized package");
     mirrorPendingRecord[mirrorSynPackage.bep20Addr] = false;
-    (bool success, ) = mirrorSynPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorSynPackage.mirrorFee*TEN_DECIMALS}("");
+    (bool success, ) = mirrorSynPackage.mirrorSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: mirrorSynPackage.mirrorFee.mul(TEN_DECIMALS)}("");
     if (!success) {
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(mirrorSynPackage.mirrorFee.mul(TEN_DECIMALS));
     }
@@ -493,9 +493,9 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   function handleSyncFailAckPackage(bytes memory msgBytes) internal {
     (SyncSynPackage memory syncSynPackage, bool decodeSuccess) = decodeSyncSynPackage(msgBytes);
     require(decodeSuccess, "unrecognized package");
-    (bool success, ) = syncSynPackage.syncSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: syncSynPackage.syncFee*TEN_DECIMALS}("");
+    (bool success, ) = syncSynPackage.syncSender.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: syncSynPackage.syncFee.mul(TEN_DECIMALS)}("");
     if (!success) {
-      address(uint160(SYSTEM_REWARD_ADDR)).transfer(syncSynPackage.syncFee*TEN_DECIMALS);
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(syncSynPackage.syncFee.mul(TEN_DECIMALS));
     }
   }
 

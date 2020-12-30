@@ -997,14 +997,14 @@ contract('TokenHub', (accounts) => {
 
         try {
             await xyzToken.setName("XYZ Token", {from: xyzTokenOwner});
-            await xyzToken.setSymbol("XY", {from: xyzTokenOwner});
+            await xyzToken.setSymbol("X", {from: xyzTokenOwner});
 
             let timestamp = Math.floor(Date.now() / 1000); // counted by second
             let expireTime = timestamp + 300; // expire at five minutes later
             await tokenManager.mirror(xyzToken.address, expireTime, {from: player, value: miniRelayFee.add(mirrorFee)});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("symbol length must be in [3,8]"));
+            assert.ok(error.toString().includes("symbol length must be in [2,8]"));
         }
 
         try {
@@ -1016,7 +1016,7 @@ contract('TokenHub', (accounts) => {
             await tokenManager.mirror(xyzToken.address, expireTime, {from: player, value: miniRelayFee.add(mirrorFee)});
             assert.fail();
         } catch (error) {
-            assert.ok(error.toString().includes("symbol length must be in [3,8]"));
+            assert.ok(error.toString().includes("symbol length must be in [2,8]"));
         }
 
         try {
