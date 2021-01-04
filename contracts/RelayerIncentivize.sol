@@ -39,6 +39,8 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   mapping(address => uint256) public relayerRewardVault;
 
+  uint256 public compensateRelayerAmount;
+
   event distributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
   event paramChange(string key, bytes value);
   event rewardToRelayer(address relayer, uint256 amount);
@@ -62,6 +64,10 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
     } else {
       actualAmount = ISystemReward(TOKEN_HUB_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+    }
+
+    if (compensateRelayerAmount > 0) {
+        actualAmount = actualAmount.add(ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), compensateRelayerAmount));
     }
 
     countInRound++;
@@ -216,6 +222,11 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       uint256 newCallerCompensationDenominator = BytesToTypes.bytesToUint256(32, value);
       require(newCallerCompensationDenominator != 0 && newCallerCompensationDenominator >= callerCompensationMolecule, "the newCallerCompensationDenominator must not be zero and no less than callerCompensationMolecule");
       callerCompensationDenominator = newCallerCompensationDenominator;
+    } else if (Memory.compareStrings(key,"compensateRelayerAmount")) {
+      require(value.length == 32, "length of compensateRelayerAmount mismatch");
+      uint256 newCompensateRelayerAmount = BytesToTypes.bytesToUint256(32, value);
+      require(newCompensateRelayerAmount >= 0 , "the newCompensateRelayerAmount must be no less than zero");
+      compensateRelayerAmount = newCompensateRelayerAmount;
     } else {
       require(false, "unknown param");
     }
