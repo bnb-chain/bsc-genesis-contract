@@ -66,7 +66,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   TRANSFER_IN_FAILURE_UNKNOWN = 5;
 
   uint256 constant public MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
-  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 3;
+  uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 2;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
@@ -333,7 +333,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       }
       idx++;
     }
-    return (transOutSynPkg, true);
+    return (transOutSynPkg, success);
   }
 
   function handleTransferOutFailAckPackage(bytes memory msgBytes) internal {

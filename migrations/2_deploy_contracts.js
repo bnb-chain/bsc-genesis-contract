@@ -23,6 +23,7 @@ const TokenHub = artifacts.require("TokenHub");
 const TokenManager = artifacts.require("TokenManager");
 const ABCToken = artifacts.require("test/ABCToken");
 const DEFToken = artifacts.require("test/DEFToken");
+const XYZToken = artifacts.require("test/XYZToken");
 const MiniToken = artifacts.require("test/MiniToken");
 const MaliciousToken = artifacts.require("test/MaliciousToken");
 const BSCValidatorSetTool = artifacts.require("tool/BSCValidatorSetTool");
@@ -48,6 +49,7 @@ module.exports = function(deployer, network, accounts) {
   });
   deployer.deploy(ABCToken);
   deployer.deploy(DEFToken);
+  deployer.deploy(XYZToken);
   deployer.deploy(MiniToken);
   deployer.deploy(MaliciousToken);
   deployer.deploy(MockRelayerHub);
