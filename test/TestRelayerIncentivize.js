@@ -275,7 +275,7 @@ contract('RelayerIncentivize', (accounts) => {
         let roundSequence = await relayerIncentivize.roundSequence.call();
         assert.equal(roundSequence.toNumber(), 3, "wrong round sequence");
     });
-    it('compensate relayer incentivize', async () => {
+    it('dynamic extra incentive', async () => {
         const relayerIncentivize = await RelayerIncentivize.deployed();
         const crossChain = await CrossChain.deployed();
         const govHub = await GovHub.deployed();
@@ -319,8 +319,8 @@ contract('RelayerIncentivize', (accounts) => {
         const relayerReward2 = web3.utils.toBN(newRelayerBalance2).sub(web3.utils.toBN(newRelayerBalance1));
         assert.equal(relayerReward2.gt(relayerReward1), true, "relayerReward2 should be larger than relayerReward1");
 
-        let compensateRelayerAmount = await relayerIncentivize.compensateRelayerAmount.call();
-        assert.equal(web3.utils.toBN(compensateRelayerAmount).eq(web3.utils.toBN(0)), true, "wrong compensateRelayerAmount");
+        let dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
+        assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(0)), true, "wrong dynamicExtraIncentiveAmount");
 
         await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address);
 
@@ -328,13 +328,13 @@ contract('RelayerIncentivize', (accounts) => {
 
         let govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
         let govValue = "0x000000000000000000000000000000000000000000000000002386F26FC10000";// 1e16;
-        let govPackageBytes = serialize("compensateRelayerAmount", govValue, RelayerIncentivize.address);
+        let govPackageBytes = serialize("dynamicExtraIncentiveAmount", govValue, RelayerIncentivize.address);
         await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
 
         await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8]);
 
-        compensateRelayerAmount = await relayerIncentivize.compensateRelayerAmount.call();
-        assert.equal(web3.utils.toBN(compensateRelayerAmount).eq(web3.utils.toBN(1e16)), true, "wrong compensateRelayerAmount");
+        dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
+        assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(1e16)), true, "wrong dynamicExtraIncentiveAmount");
 
         for(let i=0; i<29; i++){
             await relayerIncentivize.addReward(relayer, accounts[0], web3.utils.toBN(1e16), false, {from: accounts[0]});
