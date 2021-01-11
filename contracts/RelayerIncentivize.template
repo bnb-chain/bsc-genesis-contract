@@ -39,6 +39,8 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   mapping(address => uint256) public relayerRewardVault;
 
+  uint256 public dynamicExtraIncentiveAmount;
+
   event distributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);
   event paramChange(string key, bytes value);
   event rewardToRelayer(address relayer, uint256 amount);
@@ -61,9 +63,12 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   {% endif %}
     uint256 actualAmount;
     if (fromSystemReward) {
-      actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+      actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount.add(dynamicExtraIncentiveAmount));
     } else {
       actualAmount = ISystemReward(TOKEN_HUB_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
+      if (dynamicExtraIncentiveAmount > 0) {
+          actualAmount = actualAmount.add(ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), dynamicExtraIncentiveAmount));
+      }
     }
 
     countInRound++;
@@ -218,6 +223,11 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       uint256 newCallerCompensationDenominator = BytesToTypes.bytesToUint256(32, value);
       require(newCallerCompensationDenominator != 0 && newCallerCompensationDenominator >= callerCompensationMolecule, "the newCallerCompensationDenominator must not be zero and no less than callerCompensationMolecule");
       callerCompensationDenominator = newCallerCompensationDenominator;
+    } else if (Memory.compareStrings(key,"dynamicExtraIncentiveAmount")) {
+      require(value.length == 32, "length of dynamicExtraIncentiveAmount mismatch");
+      uint256 newDynamicExtraIncentiveAmount = BytesToTypes.bytesToUint256(32, value);
+      require(newDynamicExtraIncentiveAmount >= 0 , "the newDynamicExtraIncentiveAmount must be no less than zero");
+      dynamicExtraIncentiveAmount = newDynamicExtraIncentiveAmount;
     } else {
       require(false, "unknown param");
     }

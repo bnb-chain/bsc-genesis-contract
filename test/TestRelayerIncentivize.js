@@ -1,10 +1,55 @@
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const SystemReward = artifacts.require("SystemReward");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
+const MockLightClient = artifacts.require("mock/MockLightClient");
+const TokenHub = artifacts.require("TokenHub");
+const TokenManager = artifacts.require("TokenManager");
+const CrossChain = artifacts.require("CrossChain");
+const ABCToken = artifacts.require("ABCToken");
+const DEFToken = artifacts.require("DEFToken");
+const XYZToken = artifacts.require("test/XYZToken");
+const MiniToken = artifacts.require("test/MiniToken");
+const MaliciousToken = artifacts.require("test/MaliciousToken");
+const RelayerHub = artifacts.require("RelayerHub");
+const GovHub = artifacts.require("GovHub");
+const BSCValidatorSet = artifacts.require("BSCValidatorSet");
+const SlashIndicator = artifacts.require("SlashIndicator");
 
 const Web3 = require('web3');
+const RLP = require('rlp');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
-const truffleAssert = require('truffle-assertions');
+
+const GOV_CHANNEL_ID = 0x09;
+const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+const merkleHeight = 100;
+
+function serialize(key,value, target,extra) {
+    let pkg = [];
+    pkg.push(key);
+    pkg.push(value);
+    pkg.push(target);
+    if(extra != null){
+        pkg.push(extra);
+    }
+    return RLP.encode(pkg);
+}
+
+function toBytes32String(input) {
+    let initialInputHexStr = web3.utils.toBN(input).toString(16);
+    const initialInputHexStrLength = initialInputHexStr.length;
+
+    let inputHexStr = initialInputHexStr;
+    for (var i = 0; i < 64 - initialInputHexStrLength; i++) {
+        inputHexStr = '0' + inputHexStr;
+    }
+    return inputHexStr;
+}
+
+function buildSyncPackagePrefix(syncRelayFee) {
+    return Buffer.from(web3.utils.hexToBytes(
+        "0x00" + toBytes32String(syncRelayFee)
+    ));
+}
 
 contract('RelayerIncentivize', (accounts) => {
     it('init incentivize', async () => {
@@ -229,5 +274,91 @@ contract('RelayerIncentivize', (accounts) => {
 
         let roundSequence = await relayerIncentivize.roundSequence.call();
         assert.equal(roundSequence.toNumber(), 3, "wrong round sequence");
+    });
+    it('dynamic extra incentive', async () => {
+        const relayerIncentivize = await RelayerIncentivize.deployed();
+        const crossChain = await CrossChain.deployed();
+        const govHub = await GovHub.deployed();
+        const relayer = accounts[2];
+
+        const relayerInstance = await RelayerHub.deployed();
+        await relayerInstance.register({from: relayer, value: 1e20});
+
+        const initialAccount1Balance = await web3.eth.getBalance(relayer);
+
+        const roundSize = await relayerIncentivize.ROUND_SIZE.call();
+        assert.equal(roundSize.toNumber(), 30, "wrong round size");
+        const maximumWeight = await relayerIncentivize.MAXIMUM_WEIGHT.call();
+        assert.equal(maximumWeight.toNumber(), 3, "wrong maximum weight");
+
+        for(let i=0; i<30; i++){
+            await relayerIncentivize.addReward(relayer, accounts[0], web3.utils.toBN(1e16), false, {from: accounts[0]});
+        }
+
+        await relayerIncentivize.claimRelayerReward(relayer, {from: accounts[0]});
+
+        let roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 4, "wrong round sequence");
+
+        const newRelayerBalance1 = await web3.eth.getBalance(relayer);
+
+        const relayerReward1 = web3.utils.toBN(newRelayerBalance1).sub(web3.utils.toBN(initialAccount1Balance));
+
+
+        for(let i=0; i<30; i++){
+            await relayerIncentivize.addReward(relayer, accounts[0], web3.utils.toBN(2e16), false, {from: accounts[0]});
+        }
+
+        await relayerIncentivize.claimRelayerReward(relayer, {from: accounts[0]});
+
+        roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 5, "wrong round sequence");
+
+        const newRelayerBalance2 = await web3.eth.getBalance(relayer);
+
+        const relayerReward2 = web3.utils.toBN(newRelayerBalance2).sub(web3.utils.toBN(newRelayerBalance1));
+        assert.equal(relayerReward2.gt(relayerReward1), true, "relayerReward2 should be larger than relayerReward1");
+
+        let dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
+        assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(0)), true, "wrong dynamicExtraIncentiveAmount");
+
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address);
+
+        await web3.eth.sendTransaction({to:SystemReward.address, from:accounts[3], value: web3.utils.toWei("10", "ether")});
+
+        let govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+        let govValue = "0x000000000000000000000000000000000000000000000000002386F26FC10000";// 1e16;
+        let govPackageBytes = serialize("dynamicExtraIncentiveAmount", govValue, RelayerIncentivize.address);
+        await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8]);
+
+        dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
+        assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(1e16)), true, "wrong dynamicExtraIncentiveAmount");
+
+        for(let i=0; i<29; i++){
+            await relayerIncentivize.addReward(relayer, accounts[0], web3.utils.toBN(1e16), false, {from: accounts[0]});
+        }
+
+        roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 6, "wrong round sequence");
+
+        await relayerIncentivize.claimRelayerReward(relayer, {from: accounts[0]});
+
+        const relayerBalanceBeforeReward3 = await web3.eth.getBalance(relayer);
+
+        for(let i=0; i<30; i++){
+            await relayerIncentivize.addReward(relayer, accounts[0], web3.utils.toBN(1e16), false, {from: accounts[0]});
+        }
+
+        await relayerIncentivize.claimRelayerReward(relayer, {from: accounts[0]});
+
+        roundSequence = await relayerIncentivize.roundSequence.call();
+        assert.equal(roundSequence.toNumber(), 7, "wrong round sequence");
+
+        const newRelayerBalance3 = await web3.eth.getBalance(relayer);
+
+        const relayerReward3 = web3.utils.toBN(newRelayerBalance3).sub(web3.utils.toBN(relayerBalanceBeforeReward3));
+        assert.equal(relayerReward3.eq(relayerReward2), true, "relayerReward3 should equal to relayerReward2");
     });
 });
