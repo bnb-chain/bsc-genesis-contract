@@ -16,6 +16,12 @@ program.option(
     "./contracts/BSCValidatorSet.sol"
 )
 
+program.option(
+    "--initValidatorSetBytes <initValidatorSetBytes>",
+    "initValidatorSetBytes",
+    ""
+)
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -23,11 +29,15 @@ program.option("--mock <mock>",
 program.parse(process.argv);
 
 const validators = require("./validators")
-
+let initValidatorSetBytes = program.initValidatorSetBytes;
+if (initValidatorSetBytes == ""){
+  initValidatorSetBytes = validators.validatorSetBytes.slice(2);
+}
 const data = {
-  initValidatorSetBytes: validators.validatorSetBytes.slice(2),
+  initValidatorSetBytes: initValidatorSetBytes,
   mock: program.mock,
 };
+
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
