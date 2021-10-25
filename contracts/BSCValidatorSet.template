@@ -50,6 +50,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   mapping(address =>uint256) public currentValidatorSetMap;
   uint256 public numOfJailed;
 
+  uint256 public constant BURN_RATIO_SCALE = 10000;
+  address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
+  uint256 public constant INIT_BURN_RATIO = {{initBurnRatio}};
+  uint256 public burnRatio;
+  bool public burnRatioInitialized;
+
   struct Validator{
     address consensusAddress;
     address payable feeAddress;
@@ -90,6 +96,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event failReasonWithStr(string message);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
+  event feeBurned(uint256 indexed amount);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -143,6 +150,22 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
+
+    uint256 curBurnRatio = INIT_BURN_RATIO;
+    if (burnRatioInitialized) {
+      curBurnRatio = burnRatio;
+    }
+
+    if (value > 0 && curBurnRatio > 0) {
+      uint256 toBurn = value * curBurnRatio / BURN_RATIO_SCALE;
+      if (toBurn > 0) {
+        address(uint160(BURN_ADDRESS)).transfer(toBurn);
+        emit feeBurned(toBurn);
+
+        value = value - toBurn;
+      }
+    }
+
     if (index>0) {
       Validator storage validator = currentValidatorSet[index-1];
       if (validator.jailed) {
@@ -393,6 +416,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
       require(newExpireTimeSecondGap >=100 && newExpireTimeSecondGap <= 1e5, "the expireTimeSecondGap is out of range");
       expireTimeSecondGap = newExpireTimeSecondGap;
+    } else if (Memory.compareStrings(key, "burnRatio")) {
+      require(value.length == 32, "length of burnRatio mismatch");
+      uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newBurnRatio <= BURN_RATIO_SCALE, "the burnRatio must be no greater than 10000");
+      burnRatio = newBurnRatio;
+      burnRatioInitialized = true;
     } else {
       require(false, "unknown param");
     }

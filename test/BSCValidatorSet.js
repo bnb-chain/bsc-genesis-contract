@@ -1,6 +1,8 @@
 const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 const SystemReward = artifacts.require("SystemReward");
 const LightClient = artifacts.require("MockLightClient");
+const RelayerIncentivize = artifacts.require("RelayerIncentivize");
+const TokenManager = artifacts.require("TokenManager");
 const crypto = require('crypto');
 const MockTokenHub = artifacts.require("mock/MockTokenHub");
 const Web3 = require('web3');
@@ -8,7 +10,14 @@ const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 const RLP = require('rlp');
 const truffleAssert = require('truffle-assertions');
 const CrossChain = artifacts.require("CrossChain");
+const GovHub = artifacts.require("GovHub");
+const RelayerHub = artifacts.require("RelayerHub");
 const STAKE_CHANNEL_ID = 0x08;
+const GOV_CHANNEL_ID = 0x09;
+const SlashIndicator = artifacts.require("SlashIndicator");
+
+const proof = Buffer.from(web3.utils.hexToBytes("0x00"));
+const merkleHeight = 100;
 
 const packageBytesPrefix = Buffer.from(web3.utils.hexToBytes(
     "0x00" +
@@ -552,6 +561,44 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
+contract('BSCValidatorSet', (accounts) => {
+  it('burn', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    let systemAccount = accounts[0];
+    let validator =  accounts[0];
+
+    let relayerAccount = accounts[8];
+    const crossChain = await CrossChain.deployed();
+    const govHub = await GovHub.deployed();
+    const relayer = accounts[2];
+
+    const relayerInstance = await RelayerHub.deployed();
+    await relayerInstance.register({from: relayer, value: 1e20});
+
+    let initialBurnRatio = await validatorSetInstance.burnRatio.call();
+    assert.equal(web3.utils.toBN(initialBurnRatio).eq(web3.utils.toBN(0)), true, "wrong burnRatio");
+
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+
+    let govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+    let govValue = "0x0000000000000000000000000000000000000000000000000000000000000BB8";// 3000;
+    let govPackageBytes = serializeGovPack("burnRatio", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    let burnRatio = await validatorSetInstance.burnRatio.call();
+    assert.equal(web3.utils.toBN(burnRatio).eq(web3.utils.toBN(3000)), true, "wrong burnRatio");
+
+    let tx = await validatorSetInstance.deposit(validator, {from: systemAccount, value: 1e8 });
+
+    truffleAssert.eventEmitted(tx, "validatorDeposit",(ev) => {
+      return ev.amount.toNumber() === 7e7 && ev.validator === validator;
+    });
+
+    truffleAssert.eventEmitted(tx, "feeBurned",(ev) => {
+      return ev.amount.toNumber() === 3e7;
+    });
+  });
+});
 
 function jailRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let pkg = [];
@@ -585,4 +632,32 @@ function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList)
   }
   pkg.push(vals);
   return RLP.encode(pkg)
+}
+
+function serializeGovPack(key,value, target,extra) {
+  let pkg = [];
+  pkg.push(key);
+  pkg.push(value);
+  pkg.push(target);
+  if(extra != null){
+    pkg.push(extra);
+  }
+  return RLP.encode(pkg);
+}
+
+function buildSyncPackagePrefix(syncRelayFee) {
+  return Buffer.from(web3.utils.hexToBytes(
+      "0x00" + toBytes32String(syncRelayFee)
+  ));
+}
+
+function toBytes32String(input) {
+  let initialInputHexStr = web3.utils.toBN(input).toString(16);
+  const initialInputHexStrLength = initialInputHexStr.length;
+
+  let inputHexStr = initialInputHexStr;
+  for (var i = 0; i < 64 - initialInputHexStrLength; i++) {
+    inputHexStr = '0' + inputHexStr;
+  }
+  return inputHexStr;
 }
