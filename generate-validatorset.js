@@ -22,6 +22,12 @@ program.option(
     ""
 )
 
+program.option(
+    "--initBurnRatio <initBurnRatio>",
+    "initBurnRatio",
+    "0"
+)
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -35,6 +41,7 @@ if (initValidatorSetBytes == ""){
 }
 const data = {
   initValidatorSetBytes: initValidatorSetBytes,
+  initBurnRatio: program.initBurnRatio,
   mock: program.mock,
 };
 
