@@ -96,7 +96,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event failReasonWithStr(string message);
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
-  event feeBurned(uint256 indexed amount);
+  event feeBurned(uint256 amount);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
