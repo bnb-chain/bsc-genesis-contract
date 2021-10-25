@@ -157,12 +157,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     if (value > 0 && curBurnRatio > 0) {
-      uint256 toBurn = value * curBurnRatio / BURN_RATIO_SCALE;
+      uint256 toBurn = value.mul(curBurnRatio).div(BURN_RATIO_SCALE);
       if (toBurn > 0) {
         address(uint160(BURN_ADDRESS)).transfer(toBurn);
         emit feeBurned(toBurn);
 
-        value = value - toBurn;
+        value = value.sub(toBurn);
       }
     }
 
