@@ -463,33 +463,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     _enterMaintenance(msg.sender, index, exitMaintenanceReward);
   }
 
-  function _enterMaintenance(address validator, uint256 index, uint256 exitMaintenanceReward) internal {
-    // step 1: modify status of the validator
-    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
-    maintainInfo.isMaintaining = true;
-    maintainInfo.maintainStartAt = block.timestamp;
-    maintainInfo.exitMaintenanceReward = exitMaintenanceReward;
-
-    // step 2: add the validator to maintainingValidatorSet
-    maintainingValidatorSet.push(currentValidatorSet[index]);
-    maintainInfo.maintainingIndex = maintainingValidatorSet.length - 1;
-
-    // step 3: remove the validator from currentValidatorSet
-    _removeFromCurrentValidatorSet(validator, index);
-
-    // TODO add event
-  }
-
-  function _removeFromCurrentValidatorSet(address validator, uint256 index) internal {
-    delete currentValidatorSetMap[validator];
-    // It is ok that the validatorSet is not in order.
-    if (index != currentValidatorSet.length - 1) {
-      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length - 1];
-      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
-    }
-    currentValidatorSet.pop();
-  }
-
   function exitMaintenance(address validator) external {
     MaintainInfo memory maintainInfo = maintainInfoMap[validator];
     require(maintainInfo.isMaintaining && maintainInfo.maintainStartAt > 0, "validator is not maintaining");
@@ -504,32 +477,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     _exitMaintenance(validator, msg.sender);
-  }
-
-  function _exitMaintenance(address validator, address payable rewardSearcher) internal {
-    // step 1: modify status of the validator
-    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
-    maintainInfo.isMaintaining = false;
-    if (maintainInfo.exitMaintenanceReward > 0) {
-      rewardSearcher.transfer(maintainInfo.exitMaintenanceReward);
-      maintainInfo.exitMaintenanceReward = 0;
-    }
-
-    // step 2: add the validator to currentValidatorSet
-    uint256 index = maintainInfo.maintainingIndex;
-    currentValidatorSet.push(maintainingValidatorSet[index]);
-    currentValidatorSetMap[validator] = currentValidatorSet.length;
-
-    // step 3: remove the validator from maintainingValidatorSet
-    maintainInfo.maintainingIndex = 0;
-    // It is ok that the maintainingValidatorSet is not in order.
-    if (index != maintainingValidatorSet.length - 1) {
-      maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
-      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].maintainingIndex = index;
-    }
-    maintainingValidatorSet.pop();
-
-    // TODO add event
   }
 
   /*********************** Param update ********************************/
@@ -610,6 +557,60 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
   }
+
+  function _removeFromCurrentValidatorSet(address validator, uint256 index) private {
+    delete currentValidatorSetMap[validator];
+    // It is ok that the validatorSet is not in order.
+    if (index != currentValidatorSet.length - 1) {
+      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length - 1];
+      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
+    }
+    currentValidatorSet.pop();
+  }
+
+  function _enterMaintenance(address validator, uint256 index, uint256 exitMaintenanceReward) private {
+    // step 1: modify status of the validator
+    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
+    maintainInfo.isMaintaining = true;
+    maintainInfo.maintainStartAt = block.timestamp;
+    maintainInfo.exitMaintenanceReward = exitMaintenanceReward;
+
+    // step 2: add the validator to maintainingValidatorSet
+    maintainingValidatorSet.push(currentValidatorSet[index]);
+    maintainInfo.maintainingIndex = maintainingValidatorSet.length - 1;
+
+    // step 3: remove the validator from currentValidatorSet
+    _removeFromCurrentValidatorSet(validator, index);
+
+    // TODO add event
+  }
+
+  function _exitMaintenance(address validator, address payable rewardSearcher) private {
+    // step 1: modify status of the validator
+    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
+    maintainInfo.isMaintaining = false;
+    if (maintainInfo.exitMaintenanceReward > 0) {
+      rewardSearcher.transfer(maintainInfo.exitMaintenanceReward);
+      maintainInfo.exitMaintenanceReward = 0;
+    }
+
+    // step 2: add the validator to currentValidatorSet
+    uint256 index = maintainInfo.maintainingIndex;
+    currentValidatorSet.push(maintainingValidatorSet[index]);
+    currentValidatorSetMap[validator] = currentValidatorSet.length;
+
+    // step 3: remove the validator from maintainingValidatorSet
+    maintainInfo.maintainingIndex = 0;
+    // It is ok that the maintainingValidatorSet is not in order.
+    if (index != maintainingValidatorSet.length - 1) {
+      maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
+      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].maintainingIndex = index;
+    }
+    maintainingValidatorSet.pop();
+
+    // TODO add event
+  }
+
 
   //rlp encode & decode function
   function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
