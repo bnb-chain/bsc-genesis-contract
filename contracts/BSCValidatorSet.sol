@@ -76,6 +76,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // BEP-99 Temporary Maintenance
   uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO_SCALE = 100;
   uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO = 20;
+  uint256 public constant SAFE_MIN_GAS = 2300;
 
   uint256 public MaxNumOfMaintaining;
   uint256 public MaxMaintainingTime;
@@ -590,7 +591,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
     maintainInfo.isMaintaining = false;
     if (maintainInfo.exitMaintenanceReward > 0) {
-      rewardSearcher.transfer(maintainInfo.exitMaintenanceReward);
+      _safeTransferBNB(rewardSearcher, maintainInfo.exitMaintenanceReward);
       maintainInfo.exitMaintenanceReward = 0;
     }
 
@@ -611,6 +612,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // TODO add event
   }
 
+  function _safeTransferBNB(address to, uint256 value) internal {
+    (bool success, ) = to.call{ gas: SAFE_MIN_GAS, value: value }("");
+    require(success, "transfer bnb failed");
+  }
 
   //rlp encode & decode function
   function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
