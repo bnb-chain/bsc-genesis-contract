@@ -514,8 +514,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     maintainInfo.isMaintaining = false;
     if (maintainInfo.exitMaintenanceReward > 0) {
       rewardSearcher.transfer(maintainInfo.exitMaintenanceReward);
+      maintainInfo.exitMaintenanceReward = 0;
     }
-    maintainInfo.exitMaintenanceReward = 0;
 
     // step 2: add the validator to currentValidatorSet
     uint256 index = maintainInfo.maintainingIndex;
@@ -524,7 +524,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // step 3: remove the validator from maintainingValidatorSet
     maintainInfo.maintainingIndex = 0;
-    // It is ok that the validatorSet is not in order.
+    // It is ok that the maintainingValidatorSet is not in order.
     if (index != maintainingValidatorSet.length - 1) {
       maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
       maintainInfoMap[maintainingValidatorSet[index].consensusAddress].maintainingIndex = index;
