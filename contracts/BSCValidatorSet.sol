@@ -442,7 +442,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       || maintainingValidatorSet.length >= MaxNumOfMaintaining      // - 2. check if exceeded upper limit
       || validatorInfo.jailed                                       // - 3. check if jailed
       || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
-      || maintainInfoMap[validator].maintainStartAt > 0                // - 5. check if has Maintained
+      || maintainInfoMap[validator].maintainStartAt > 0             // - 5. check if has Maintained
       || currentValidatorSet.length <= 1                            // - 6. check num of remaining currentValidators
     ) {
       return (false, 0);
