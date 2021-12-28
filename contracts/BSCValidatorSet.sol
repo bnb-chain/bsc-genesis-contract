@@ -83,7 +83,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   struct MaintainInfo {
     // TODO optimize struct
     bool isMaintaining;
-    uint256 maintainTime;
+    uint256 maintainStartAt;
     uint256 maintainingIndex;   // the index of the element in `maintainingValidatorSet`.
     uint256 exitMaintenanceReward;
   }
@@ -442,7 +442,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       || maintainingValidatorSet.length >= MaxNumOfMaintaining      // - 2. check if exceeded upper limit
       || validatorInfo.jailed                                       // - 3. check if jailed
       || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
-      || maintainInfoMap[validator].maintainTime > 0                // - 5. check if has Maintained
+      || maintainInfoMap[validator].maintainStartAt > 0                // - 5. check if has Maintained
       || currentValidatorSet.length <= 1                            // - 6. check num of remaining currentValidators
     ) {
       return (false, 0);
@@ -468,7 +468,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
     maintainInfo.isMaintaining = true;
-    maintainInfo.maintainTime = block.timestamp;
+    maintainInfo.maintainStartAt = block.timestamp;
     maintainInfo.exitMaintenanceReward = exitMaintenanceReward;
 
     // step 2: add the validator to maintainingValidatorSet
@@ -493,14 +493,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function exitMaintenance(address validator) external {
     MaintainInfo memory maintainInfo = maintainInfoMap[validator];
-    require(maintainInfo.isMaintaining && maintainInfo.maintainTime > 0, "validator is not maintaining");
+    require(maintainInfo.isMaintaining && maintainInfo.maintainStartAt > 0, "validator is not maintaining");
 
     // disable reentry while _exitMaintenance
     require(msg.sender == tx.origin, "no proxy is allowed");
 
     if (msg.sender != validator) {
       // called by reward searcher while the maintainedTime exceeded MaxMaintainingTime
-      uint256 maintainingTime = block.timestamp.sub(maintainInfo.maintainTime);
+      uint256 maintainingTime = block.timestamp.sub(maintainInfo.maintainStartAt);
       require(maintainingTime > MaxMaintainingTime, "maintaining time not exceed MaxMaintainingTime");
     }
 
