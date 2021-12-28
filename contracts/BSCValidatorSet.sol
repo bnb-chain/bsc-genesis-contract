@@ -383,7 +383,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 income = currentValidatorSet[index].incoming.sub(exitMaintenanceReward);
     currentValidatorSet[index].incoming = 0;
     uint256 rest = currentValidatorSet.length - 1;
-
     emit validatorMisdemeanor(validator,income);
     if (rest==0) {
       // should not happen, but still protect
