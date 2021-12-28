@@ -375,13 +375,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     // the actually index
     index = index - 1;
-    uint256 income = currentValidatorSet[index].incoming;
-    currentValidatorSet[index].incoming = 0;
-    uint256 rest = currentValidatorSet.length - 1;
 
     // deduct the exitMaintenanceReward
-    (bool can, uint256 exitMaintenanceReward) = canMaintain(validator, income);
-    income = income.sub(exitMaintenanceReward);
+    (bool can, uint256 exitMaintenanceReward) = canEnterMaintenance(validator, index);
+
+    uint256 income = currentValidatorSet[index].incoming.sub(exitMaintenanceReward);
+    currentValidatorSet[index].incoming = 0;
+    uint256 rest = currentValidatorSet.length - 1;
 
     emit validatorMisdemeanor(validator,income);
     if (rest==0) {
@@ -420,13 +420,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return;
     }
     emit validatorFelony(validator,income);
-    delete currentValidatorSetMap[validator];
-    // It is ok that the validatorSet is not in order.
-    if (index != currentValidatorSet.length-1) {
-      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length-1];
-      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
-    }
-    currentValidatorSet.pop();
+
+    _removeFromCurrentValidatorSet(validator, index);
+
     uint256 averageDistribute = income/rest;
     if (averageDistribute!=0) {
       uint n = currentValidatorSet.length;
@@ -438,32 +434,36 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** For Temporary Maintenance **************************/
-  function canMaintain(address validator, uint256 income) public view returns (bool can, uint256 exitMaintenanceReward) {
+  function canEnterMaintenance(address validator, uint256 index) public view returns (bool can, uint256 exitMaintenanceReward) {
+    Validator memory validatorInfo = currentValidatorSet[index];
+
     if (
-      maintainingValidatorSet.length >= MaxNumOfMaintaining      // - 1. check if exceeded upper limit
-      || maintainInfoMap[validator].isMaintaining                   // - 2. check if maintaining
-      || maintainInfoMap[validator].maintainTime > 0                // - 3. check if has Maintained
-      || currentValidatorSet.length <= 1                            // - 4. check currentValidatorSet.length
+      (MaxNumOfMaintaining == 0 || MaxMaintainingTime == 0)         // - 1. check if not start
+      || maintainingValidatorSet.length >= MaxNumOfMaintaining      // - 2. check if exceeded upper limit
+      || validatorInfo.jailed                                       // - 3. check if jailed
+      || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
+      || maintainInfoMap[validator].maintainTime > 0                // - 5. check if has Maintained
+      || currentValidatorSet.length <= 1                            // - 6. check num of remaining currentValidators
     ) {
       return (false, 0);
     }
 
     can = true;
-    exitMaintenanceReward = income.mul(EXIT_MAINTENANCE_REWARD_RATIO).div(EXIT_MAINTENANCE_REWARD_RATIO_SCALE);
+    exitMaintenanceReward = validatorInfo.incoming.mul(EXIT_MAINTENANCE_REWARD_RATIO).div(EXIT_MAINTENANCE_REWARD_RATIO_SCALE);
   }
 
   function enterMaintenance() external {
     uint256 index = currentValidatorSetMap[msg.sender];
-    require(index > 0, "only current validators can maintain");
+    require(index > 0, "only current validators can enter maintenance");
 
     // the actually index
     index = index - 1;
-    (bool can, uint256 exitMaintenanceReward) = canMaintain(msg.sender, currentValidatorSet[index].incoming);
+    (bool can, uint256 exitMaintenanceReward) = canEnterMaintenance(msg.sender, index);
     require(can, "can not enter Temporary Maintenance");
     _enterMaintenance(msg.sender, index, exitMaintenanceReward);
   }
 
-  // start to enter `Temporary Maintenance`
+  // enter `Temporary Maintenance`
   function _enterMaintenance(address validator, uint256 index, uint256 exitMaintenanceReward) internal {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
@@ -475,7 +475,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     maintainingValidatorSet.push(currentValidatorSet[index]);
     maintainInfo.maintainingIndex = maintainingValidatorSet.length - 1;
 
-    // step 3: delete the validator from currentValidatorSet
+    // step 3: remove the validator from currentValidatorSet
+    _removeFromCurrentValidatorSet(validator, index);
+
+    // TODO add event
+  }
+
+  function _removeFromCurrentValidatorSet(address validator, uint256 index) internal {
     delete currentValidatorSetMap[validator];
     // It is ok that the validatorSet is not in order.
     if (index != currentValidatorSet.length - 1) {
@@ -483,20 +489,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
     }
     currentValidatorSet.pop();
-
-    // TODO add event
   }
 
   function exitMaintenance(address validator) external {
     MaintainInfo memory maintainInfo = maintainInfoMap[validator];
     require(maintainInfo.isMaintaining && maintainInfo.maintainTime > 0, "validator is not maintaining");
+
+    // disable reentry while _exitMaintenance
     require(msg.sender == tx.origin, "no proxy is allowed");
 
     if (msg.sender != validator) {
-      // called by reward searcher
-      // check if exceeded MaxMaintainingTime
-      uint256 maintainedTime = block.timestamp.sub(maintainInfo.maintainTime);
-      require(maintainedTime >= MaxMaintainingTime, "maintaining not exceed MaxMaintainingTime");
+      // called by reward searcher while the maintainedTime exceeded MaxMaintainingTime
+      uint256 maintainingTime = block.timestamp.sub(maintainInfo.maintainTime);
+      require(maintainingTime > MaxMaintainingTime, "maintaining time not exceed MaxMaintainingTime");
     }
 
     _exitMaintenance(validator, msg.sender);
