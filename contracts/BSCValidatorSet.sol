@@ -463,7 +463,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     _enterMaintenance(msg.sender, index, exitMaintenanceReward);
   }
 
-  // enter `Temporary Maintenance`
   function _enterMaintenance(address validator, uint256 index, uint256 exitMaintenanceReward) internal {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
@@ -507,7 +506,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     _exitMaintenance(validator, msg.sender);
   }
 
-  // exit `Temporary Maintenance`
   function _exitMaintenance(address validator, address payable rewardSearcher) internal {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
