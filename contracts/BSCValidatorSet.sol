@@ -57,8 +57,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   bool public burnRatioInitialized;
 
   // BEP-99 Temporary Maintenance
-  uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO_SCALE = 100;
-
   uint256 public maxNumOfMaintaining;
   uint256 public maintainSlashScale;
 
