@@ -582,7 +582,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       isFelony = _exitMaintenance(validator);
       delete maintainInfoMap[validator];
 
-      if (!isFelony || validatorSet.length <= 1) {
+      if (!isFelony || numOfFelony >= validatorSet.length - 1) {
         continue;
       }
 
