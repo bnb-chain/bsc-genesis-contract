@@ -188,4 +188,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     elements[3] = uint256(block.timestamp).encodeUint();
     return elements.encodeList();
   }
+
+  function getSlashThresholds() override(ISlashIndicator) external view returns (uint256, uint256) {
+    return (misdemeanorThreshold, felonyThreshold);
+  }
 }
