@@ -373,67 +373,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function _misdemeanor(address validator) private returns (uint256) {
-    uint256 index = currentValidatorSetMap[validator];
-    if (index <= 0) {
-      return index;
-    }
-    // the actually index
-    index = index - 1;
-
-    uint256 income = currentValidatorSet[index].incoming;
-    currentValidatorSet[index].incoming = 0;
-    uint256 rest = currentValidatorSet.length - 1;
-    emit validatorMisdemeanor(validator,income);
-    if (rest==0) {
-      // should not happen, but still protect
-      return index;
-    }
-    uint256 averageDistribute = income/rest;
-    if (averageDistribute!=0) {
-      for (uint i=0;i<index;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-      uint n = currentValidatorSet.length;
-      for (uint i=index+1;i<n;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-    }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
-
-    return index;
-  }
-
   function felony(address validator)external onlySlash override {
     _felony(validator);
-  }
-
-  function _felony(address validator) private {
-    uint256 index = currentValidatorSetMap[validator];
-    if (index <= 0) {
-      return;
-    }
-    // the actually index
-    index = index - 1;
-    uint256 income = currentValidatorSet[index].incoming;
-    uint256 rest = currentValidatorSet.length - 1;
-    if (getValidators().length <= 1) {
-      // will not remove the validator if it is the only one validator.
-      currentValidatorSet[index].incoming = 0;
-      return;
-    }
-    emit validatorFelony(validator,income);
-
-    _removeFromCurrentValidatorSet(validator, index);
-
-    uint256 averageDistribute = income/rest;
-    if (averageDistribute!=0) {
-      uint n = currentValidatorSet.length;
-      for (uint i=0;i<n;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-    }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
   /*********************** For Temporary Maintenance **************************/
@@ -548,6 +489,65 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
+  }
+
+  function _misdemeanor(address validator) private returns (uint256) {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index <= 0) {
+      return index;
+    }
+    // the actually index
+    index = index - 1;
+
+    uint256 income = currentValidatorSet[index].incoming;
+    currentValidatorSet[index].incoming = 0;
+    uint256 rest = currentValidatorSet.length - 1;
+    emit validatorMisdemeanor(validator,income);
+    if (rest==0) {
+      // should not happen, but still protect
+      return index;
+    }
+    uint256 averageDistribute = income/rest;
+    if (averageDistribute!=0) {
+      for (uint i=0;i<index;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+      uint n = currentValidatorSet.length;
+      for (uint i=index+1;i<n;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+
+    return index;
+  }
+
+  function _felony(address validator) private {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index <= 0) {
+      return;
+    }
+    // the actually index
+    index = index - 1;
+    uint256 income = currentValidatorSet[index].incoming;
+    uint256 rest = currentValidatorSet.length - 1;
+    if (getValidators().length <= 1) {
+      // will not remove the validator if it is the only one validator.
+      currentValidatorSet[index].incoming = 0;
+      return;
+    }
+    emit validatorFelony(validator,income);
+
+    _removeFromCurrentValidatorSet(validator, index);
+
+    uint256 averageDistribute = income/rest;
+    if (averageDistribute!=0) {
+      uint n = currentValidatorSet.length;
+      for (uint i=0;i<n;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
   }
 
   function _removeFromCurrentValidatorSet(address validator, uint256 index) private {
