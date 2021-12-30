@@ -425,6 +425,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(newBurnRatio <= BURN_RATIO_SCALE, "the burnRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
       burnRatioInitialized = true;
+    } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
+      require(value.length == 32, "length of maxNumOfMaintaining mismatch");
+      uint256 newMaxNumOfMaintaining = BytesToTypes.bytesToUint256(32, value);
+      require(newMaxNumOfMaintaining < MAX_NUM_OF_VALIDATORS, "the maxNumOfMaintaining must be less than MAX_NUM_OF_VALIDATORS");
+      maxNumOfMaintaining = newMaxNumOfMaintaining;
+    } else if (Memory.compareStrings(key, "maintainSlashScale")) {
+      require(value.length == 32, "length of maintainSlashScale mismatch");
+      uint256 newMaintainSlashScale = BytesToTypes.bytesToUint256(32, value);
+      require(newMaintainSlashScale > 0, "the maintainSlashScale must be greater than 0");
+      maintainSlashScale = newMaintainSlashScale;
     } else {
       require(false, "unknown param");
     }
