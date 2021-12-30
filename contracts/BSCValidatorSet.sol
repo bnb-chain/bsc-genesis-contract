@@ -230,7 +230,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     // step 0: force all maintaining validators to exit `Temporary Maintenance`
-    // get unjailed validators from validatorSet after all maintaining validators exited
+    // - 1. validators exit maintenance
+    // - 2. clear all maintainInfo
+    // - 3. get unjailed validators from validatorSet
     Validator[] memory validatorSetTemp = _forceMaintainingValidatorsExit(validatorSet);
 
     //step 1: do calculate distribution, do not make it as an internal function for saving gas.
@@ -562,9 +564,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 numOfFelony = 0;
     address validator;
     bool isFelony;
+
+    // 1. validators exit maintenance
     for (uint i = 0; i < maintainingValidatorSet.length; i++) {
       validator = maintainingValidatorSet[i].consensusAddress;
-      // - 1. exit maintenance
+      // exit maintenance
       isFelony = _exitMaintenance(validator);
       delete maintainInfoMap[validator];
 
@@ -572,7 +576,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         continue;
       }
 
-      // - 2. record the jailed validator in validatorSet
+      // record the jailed validator in validatorSet
       for (uint index = 0; index < validatorSet.length; index++) {
         if (validatorSet[index].consensusAddress == validator) {
           validatorSet[index].jailed = true;
@@ -581,9 +585,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
       }
     }
+
+    // 2. clear all maintain info
     delete maintainingValidatorSet;
 
-    // get unjailed validators from validatorSet
+    // 3. get unjailed validators from validatorSet
     unjailedValidatorSet = new Validator[](validatorSet.length - numOfFelony);
     uint256 i = 0;
     for (uint index = 0; index < validatorSet.length; index++) {
