@@ -10,6 +10,7 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
+import "./interface/ICrossChain.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
@@ -19,6 +20,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   using SafeMath for uint256;
 
+  using RLPEncode for *;
   using RLPDecode for *;
 
   // will not transfer value less than 0.1 BNB for validators
@@ -113,7 +115,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event paramChange(string key, bytes value);
   event feeBurned(uint256 amount);
   event validatorMaintain(address indexed validator);
-  event validatorExitMaintenance(address indexed validator, uint256 slashCount);
+  event validatorExitMaintenance(address indexed validator);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -218,21 +220,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function updateValidatorSet(Validator[] memory validatorSet) internal returns (uint32) {
-    // do verify.
-    (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
-    if (!valid) {
-      emit failReasonWithStr(errMsg);
-      return ERROR_FAIL_CHECK_VALIDATORS;
+    {
+      // do verify.
+      (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
+      if (!valid) {
+        emit failReasonWithStr(errMsg);
+        return ERROR_FAIL_CHECK_VALIDATORS;
+      }
     }
 
     // step 0: force all maintaining validators to exit `Temporary Maintenance`
-    address validator;
-    for (uint i = 0; i < maintainingValidatorSet.length; i++) {
-      validator = maintainingValidatorSet[i].consensusAddress;
-      _exitMaintenance(validator);
-      delete maintainInfoMap[validator];
-    }
-    delete maintainingValidatorSet;
+    // get unjailed validators from validatorSet after all maintaining validators exited
+    Validator[] memory validatorSetTemp = _forceMaintainingValidatorsExit(validatorSet);
 
     //step 1: do calculate distribution, do not make it as an internal function for saving gas.
     uint crossSize;
@@ -256,7 +255,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256[] memory directAmounts = new uint256[](directSize);
     crossSize = 0;
     directSize = 0;
-    Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     if (relayFee > DUSTY_INCOMING) {
       emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
@@ -356,7 +354,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     return consensusAddrs;
   }
-  
+
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0) {
@@ -560,6 +558,44 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     currentValidatorSet.pop();
   }
 
+  function _forceMaintainingValidatorsExit(Validator[] memory validatorSet) private returns (Validator[] memory unjailedValidatorSet){
+    uint256 numOfFelony = 0;
+    address validator;
+    bool isFelony;
+    for (uint i = 0; i < maintainingValidatorSet.length; i++) {
+      validator = maintainingValidatorSet[i].consensusAddress;
+      // - 1. exit maintenance
+      isFelony = _exitMaintenance(validator);
+      delete maintainInfoMap[validator];
+
+      if (!isFelony || validatorSet.length <= 1) {
+        continue;
+      }
+
+      // - 2. record the jailed validator in validatorSet
+      for (uint index = 0; index < validatorSet.length; index++) {
+        if (validatorSet[index].consensusAddress == validator) {
+          validatorSet[index].jailed = true;
+          numOfFelony++;
+          break;
+        }
+      }
+    }
+    delete maintainingValidatorSet;
+
+    // get unjailed validators from validatorSet
+    unjailedValidatorSet = new Validator[](validatorSet.length - numOfFelony);
+    uint256 i = 0;
+    for (uint index = 0; index < validatorSet.length; index++) {
+      if (!validatorSet[index].jailed) {
+        unjailedValidatorSet[i] = validatorSet[index];
+        i++;
+      }
+    }
+
+    return unjailedValidatorSet;
+  }
+
   function _enterMaintenance(address validator, uint256 index) private {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
@@ -576,7 +612,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     emit validatorMaintain(validator);
   }
 
-  function _exitMaintenance(address validator) private {
+  function _exitMaintenance(address validator) private returns (bool isFelony){
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
     maintainInfo.isMaintaining = false;
@@ -594,22 +630,33 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       maintainInfoMap[maintainingValidatorSet[index].consensusAddress].index = index;
     }
     maintainingValidatorSet.pop();
+    emit validatorExitMaintenance(validator);
 
     // step 4: slash
     uint256 slashCount =
       block.number.sub(maintainInfo.startBlockNumber).div(currentValidatorSet.length).div(maintainSlashScale);
 
     (uint256 misdemeanorThreshold, uint256 felonyThreshold) = ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
+    isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator);
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+      isFelony = true;
     } else if (slashCount >= misdemeanorThreshold) {
       _misdemeanor(validator);
     }
-
-    emit validatorExitMaintenance(validator, slashCount);
   }
 
   //rlp encode & decode function
+  function encodeSlashPackage(address valAddr) internal view returns (bytes memory) {
+    bytes[] memory elements = new bytes[](4);
+    elements[0] = valAddr.encodeAddress();
+    elements[1] = uint256(block.number).encodeUint();
+    elements[2] = uint256(bscChainID).encodeUint();
+    elements[3] = uint256(block.timestamp).encodeUint();
+    return elements.encodeList();
+  }
+
   function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
