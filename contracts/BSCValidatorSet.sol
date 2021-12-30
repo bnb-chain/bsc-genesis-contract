@@ -56,6 +56,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public burnRatio;
   bool public burnRatioInitialized;
 
+  // BEP-99 Temporary Maintenance
+  uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO_SCALE = 100;
+
+  uint256 public maxNumOfMaintaining;
+  uint256 public maintainSlashScale;
+
+  Validator[] public maintainingValidatorSet;
+  // key is the `consensusAddress` of `Validator`,
+  mapping(address => MaintainInfo) public maintainInfoMap;
+
   struct Validator{
     address consensusAddress;
     address payable feeAddress;
@@ -67,31 +77,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 incoming;
   }
 
+  // BEP-99 Temporary Maintenance
+  struct MaintainInfo {
+    bool isMaintaining;
+    uint256 startBlockNumber;     // the block number at which the validator enters Maintenance
+    uint256 index;                // the index of the element in `maintainingValidatorSet`.
+  }
+
   /*********************** cross chain package **************************/
   struct IbcValidatorSetPackage {
     uint8  packageType;
     Validator[] validatorSet;
   }
-
-  // BEP-99 Temporary Maintenance
-  uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO_SCALE = 100;
-  uint256 public constant EXIT_MAINTENANCE_REWARD_RATIO = 20;
-  uint256 public constant SAFE_MIN_GAS = 2300;
-
-  uint256 public MaxNumOfMaintaining;
-  uint256 public MaxMaintainingTime;
-
-  struct MaintainInfo {
-    // TODO optimize struct
-    bool isMaintaining;
-    uint256 maintainStartAt;
-    uint256 maintainingIndex;   // the index of the element in `maintainingValidatorSet`.
-    uint256 exitMaintenanceReward;
-  }
-  // key is the `consensusAddress` of `Validator`,
-  mapping(address => MaintainInfo) public maintainInfoMap;
-  Validator[] public maintainingValidatorSet;
-
 
   /*********************** modifiers **************************/
   modifier noEmptyDeposit() {
@@ -117,6 +114,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
   event feeBurned(uint256 amount);
+  event validatorMaintain(address indexed validator);
+  event validatorExitMaintenance(address indexed validator, uint256 slashCount);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -232,7 +231,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address validator;
     for (uint i = 0; i < maintainingValidatorSet.length; i++) {
       validator = maintainingValidatorSet[i].consensusAddress;
-      _exitMaintenance(validator, payable(BURN_ADDRESS));
+      _exitMaintenance(validator);
       delete maintainInfoMap[validator];
     }
     delete maintainingValidatorSet;
@@ -341,7 +340,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return CODE_OK;
   }
 
-  function getValidators()external view returns(address[] memory) {
+  function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
     for (uint i = 0;i<n;i++) {
@@ -370,23 +369,27 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** For slash **************************/
   function misdemeanor(address validator)external onlySlash override{
+    uint256 validatorIndex = _misdemeanor(validator);
+    if (canEnterMaintenance(validatorIndex)) {
+      _enterMaintenance(validator, validatorIndex);
+    }
+  }
+
+  function _misdemeanor(address validator) private returns (uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
-      return;
+      return index;
     }
     // the actually index
     index = index - 1;
 
-    // deduct the exitMaintenanceReward
-    (bool can, uint256 exitMaintenanceReward) = canEnterMaintenance(validator, index);
-
-    uint256 income = currentValidatorSet[index].incoming.sub(exitMaintenanceReward);
+    uint256 income = currentValidatorSet[index].incoming;
     currentValidatorSet[index].incoming = 0;
     uint256 rest = currentValidatorSet.length - 1;
     emit validatorMisdemeanor(validator,income);
     if (rest==0) {
       // should not happen, but still protect
-      return;
+      return index;
     }
     uint256 averageDistribute = income/rest;
     if (averageDistribute!=0) {
@@ -400,12 +403,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
 
-    if (can) {
-        _enterMaintenance(validator, index, exitMaintenanceReward);
-    }
+    return index;
   }
 
-  function felony(address validator)external onlySlash override{
+  function felony(address validator)external onlySlash override {
+    _felony(validator);
+  }
+
+  function _felony(address validator) private {
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
       return;
@@ -414,7 +419,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     index = index - 1;
     uint256 income = currentValidatorSet[index].incoming;
     uint256 rest = currentValidatorSet.length - 1;
-    if (rest==0) {
+    if (getValidators().length <= 1) {
       // will not remove the validator if it is the only one validator.
       currentValidatorSet[index].incoming = 0;
       return;
@@ -434,22 +439,22 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** For Temporary Maintenance **************************/
-  function canEnterMaintenance(address validator, uint256 index) public view returns (bool can, uint256 exitMaintenanceReward) {
+  function canEnterMaintenance(uint256 index) public view returns (bool) {
     Validator memory validatorInfo = currentValidatorSet[index];
+    address validator = validatorInfo.consensusAddress;
 
     if (
-      (MaxNumOfMaintaining == 0 || MaxMaintainingTime == 0)         // - 1. check if not start
-      || maintainingValidatorSet.length >= MaxNumOfMaintaining      // - 2. check if exceeded upper limit
+      (maxNumOfMaintaining == 0 || maintainSlashScale == 0)         // - 1. check if not start
+      || maintainingValidatorSet.length >= maxNumOfMaintaining      // - 2. check if exceeded upper limit
       || validatorInfo.jailed                                       // - 3. check if jailed
       || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
-      || maintainInfoMap[validator].maintainStartAt > 0             // - 5. check if has Maintained
-      || currentValidatorSet.length <= 1                            // - 6. check num of remaining currentValidators
+      || maintainInfoMap[validator].startBlockNumber > 0            // - 5. check if has Maintained
+      || getValidators().length <= 1                                // - 6. check num of remaining unjailed currentValidators
     ) {
-      return (false, 0);
+      return false;
     }
 
-    can = true;
-    exitMaintenanceReward = validatorInfo.incoming.mul(EXIT_MAINTENANCE_REWARD_RATIO).div(EXIT_MAINTENANCE_REWARD_RATIO_SCALE);
+    return true;
   }
 
   function enterMaintenance() external {
@@ -458,25 +463,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // the actually index
     index = index - 1;
-    (bool can, uint256 exitMaintenanceReward) = canEnterMaintenance(msg.sender, index);
-    require(can, "can not enter Temporary Maintenance");
-    _enterMaintenance(msg.sender, index, exitMaintenanceReward);
+
+    require(canEnterMaintenance(index), "can not enter Temporary Maintenance");
+    _enterMaintenance(msg.sender, index);
   }
 
-  function exitMaintenance(address validator) external {
-    MaintainInfo memory maintainInfo = maintainInfoMap[validator];
-    require(maintainInfo.isMaintaining && maintainInfo.maintainStartAt > 0, "validator is not maintaining");
-
-    // disable reentry while _exitMaintenance
-    require(msg.sender == tx.origin, "no proxy is allowed");
-
-    if (msg.sender != validator) {
-      // called by reward searcher while the maintainedTime exceeded MaxMaintainingTime
-      uint256 maintainingTime = block.timestamp.sub(maintainInfo.maintainStartAt);
-      require(maintainingTime > MaxMaintainingTime, "maintaining time not exceed MaxMaintainingTime");
-    }
-
-    _exitMaintenance(validator, msg.sender);
+  function exitMaintenance() external {
+    require(maintainInfoMap[msg.sender].isMaintaining, "not in maintenance");
+    _exitMaintenance(msg.sender);
   }
 
   /*********************** Param update ********************************/
@@ -568,52 +562,53 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     currentValidatorSet.pop();
   }
 
-  function _enterMaintenance(address validator, uint256 index, uint256 exitMaintenanceReward) private {
+  function _enterMaintenance(address validator, uint256 index) private {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
     maintainInfo.isMaintaining = true;
-    maintainInfo.maintainStartAt = block.timestamp;
-    maintainInfo.exitMaintenanceReward = exitMaintenanceReward;
+    maintainInfo.startBlockNumber = block.number;
 
     // step 2: add the validator to maintainingValidatorSet
     maintainingValidatorSet.push(currentValidatorSet[index]);
-    maintainInfo.maintainingIndex = maintainingValidatorSet.length - 1;
+    maintainInfo.index = maintainingValidatorSet.length - 1;
 
     // step 3: remove the validator from currentValidatorSet
     _removeFromCurrentValidatorSet(validator, index);
 
-    // TODO add event
+    emit validatorMaintain(validator);
   }
 
-  function _exitMaintenance(address validator, address payable rewardSearcher) private {
+  function _exitMaintenance(address validator) private {
     // step 1: modify status of the validator
     MaintainInfo storage maintainInfo = maintainInfoMap[validator];
     maintainInfo.isMaintaining = false;
-    if (maintainInfo.exitMaintenanceReward > 0) {
-      _safeTransferBNB(rewardSearcher, maintainInfo.exitMaintenanceReward);
-      maintainInfo.exitMaintenanceReward = 0;
-    }
 
     // step 2: add the validator to currentValidatorSet
-    uint256 index = maintainInfo.maintainingIndex;
+    uint256 index = maintainInfo.index;
     currentValidatorSet.push(maintainingValidatorSet[index]);
     currentValidatorSetMap[validator] = currentValidatorSet.length;
 
     // step 3: remove the validator from maintainingValidatorSet
-    maintainInfo.maintainingIndex = 0;
+    maintainInfo.index = 0;
     // It is ok that the maintainingValidatorSet is not in order.
     if (index != maintainingValidatorSet.length - 1) {
       maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
-      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].maintainingIndex = index;
+      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].index = index;
     }
     maintainingValidatorSet.pop();
 
-    // TODO add event
-  }
+    // step 4: slash
+    uint256 slashCount =
+      block.number.sub(maintainInfo.startBlockNumber).div(currentValidatorSet.length).div(maintainSlashScale);
 
-  function _safeTransferBNB(address to, uint256 value) internal {
-    (bool success, ) = to.call{ gas: SAFE_MIN_GAS, value: value }("");
-    require(success, "transfer bnb failed");
+    (uint256 misdemeanorThreshold, uint256 felonyThreshold) = ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
+    if (slashCount >= felonyThreshold) {
+      _felony(validator);
+    } else if (slashCount >= misdemeanorThreshold) {
+      _misdemeanor(validator);
+    }
+
+    emit validatorExitMaintenance(validator, slashCount);
   }
 
   //rlp encode & decode function
