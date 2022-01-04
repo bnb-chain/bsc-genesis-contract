@@ -83,7 +83,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 startBlockNumber;     // the block number at which the validator enters Maintenance
 
     // The index of the element in `maintainingValidatorSet`.
-    // The value of maintaining validators is stored at 0 ~ maintainingValidatorSet.length - 1,
+    // The values of maintaining validators are stored at 0 ~ maintainingValidatorSet.length - 1,
     // but we add 1 to all indexes, so the index here is range from [1, maintainingValidatorSet.length],
     // and use 0 as a `sentinel value`
     uint256 index;
