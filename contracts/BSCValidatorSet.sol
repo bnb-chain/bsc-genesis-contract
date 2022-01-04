@@ -81,7 +81,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   struct MaintainInfo {
     bool isMaintaining;
     uint256 startBlockNumber;     // the block number at which the validator enters Maintenance
-    uint256 index;                // the index of the element in `maintainingValidatorSet`.
+
+    // The index of the element in `maintainingValidatorSet`.
+    // The value of maintaining validators is stored at 0 ~ maintainingValidatorSet.length - 1,
+    // but we add 1 to all indexes, so the index here is range from [1, maintainingValidatorSet.length],
+    // and use 0 as a `sentinel value`
+    uint256 index;
   }
 
   /*********************** cross chain package **************************/
@@ -625,7 +630,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // step 2: add the validator to maintainingValidatorSet
     maintainingValidatorSet.push(currentValidatorSet[index]);
-    maintainInfo.index = maintainingValidatorSet.length - 1;
+    maintainInfo.index = maintainingValidatorSet.length;
 
     // step 3: remove the validator from currentValidatorSet
     _removeFromCurrentValidatorSet(validator, index);
@@ -639,16 +644,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     maintainInfo.isMaintaining = false;
 
     // step 2: add the validator to currentValidatorSet
-    uint256 index = maintainInfo.index;
+    // the actual index
+    uint256 index = maintainInfo.index - 1;
     currentValidatorSet.push(maintainingValidatorSet[index]);
     currentValidatorSetMap[validator] = currentValidatorSet.length;
 
     // step 3: remove the validator from maintainingValidatorSet
+    // 0 is the `sentinel value`
     maintainInfo.index = 0;
     // It is ok that the maintainingValidatorSet is not in order.
     if (index != maintainingValidatorSet.length - 1) {
       maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
-      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].index = index;
+      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].index = index + 1;
     }
     maintainingValidatorSet.pop();
     emit validatorExitMaintenance(validator);
