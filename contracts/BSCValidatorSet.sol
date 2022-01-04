@@ -114,7 +114,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
   event feeBurned(uint256 amount);
-  event validatorMaintain(address indexed validator);
+  event validatorEnterMaintenance(address indexed validator);
   event validatorExitMaintenance(address indexed validator);
 
   /*********************** init **************************/
@@ -379,11 +379,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** For Temporary Maintenance **************************/
   function canEnterMaintenance(uint256 index) public view returns (bool) {
+    if (index >= currentValidatorSet.length) {
+      return false;
+    }
+
     Validator memory validatorInfo = currentValidatorSet[index];
     address validator = validatorInfo.consensusAddress;
 
     if (
-      (maxNumOfMaintaining == 0 || maintainSlashScale == 0)         // - 1. check if not start
+      validator == address(0)                                       // - 0. check if empty validator
+      || (maxNumOfMaintaining == 0 || maintainSlashScale == 0)      // - 1. check if not start
       || maintainingValidatorSet.length >= maxNumOfMaintaining      // - 2. check if exceeded upper limit
       || validatorInfo.jailed                                       // - 3. check if jailed
       || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
@@ -504,7 +509,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function _misdemeanor(address validator) private returns (uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
-      return index;
+      return ~uint256(0);
     }
     // the actually index
     index = index - 1;
@@ -625,7 +630,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // step 3: remove the validator from currentValidatorSet
     _removeFromCurrentValidatorSet(validator, index);
 
-    emit validatorMaintain(validator);
+    emit validatorEnterMaintenance(validator);
   }
 
   function _exitMaintenance(address validator) private returns (bool isFelony){
@@ -649,6 +654,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     emit validatorExitMaintenance(validator);
 
     // step 4: slash
+    if (maintainSlashScale == 0 || currentValidatorSet.length == 0) {
+      // should not happen, still protect
+      return false;
+    }
+
     uint256 slashCount =
       block.number.sub(maintainInfo.startBlockNumber).div(currentValidatorSet.length).div(maintainSlashScale);
 
