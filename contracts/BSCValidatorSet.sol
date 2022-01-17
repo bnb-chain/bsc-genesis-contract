@@ -608,6 +608,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // 2. clear all maintain info
     delete maintainingValidatorSet;
+    for (uint256 i = 0; i < validatorSet.length; i++) {
+      delete maintainInfoMap[validatorSet[i].consensusAddress];
+    }
 
     // 3. get unjailed validators from validatorSet
     unjailedValidatorSet = new Validator[](validatorSet.length - numOfFelony);
@@ -617,11 +620,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         unjailedValidatorSet[i] = validatorSet[index];
         i++;
       }
-    }
-
-    // 4. remove maintainInfo for new validatorSet
-    for (uint256 i = 0; i < unjailedValidatorSet.length; i++) {
-      delete maintainInfoMap[unjailedValidatorSet[i].consensusAddress];
     }
 
     return unjailedValidatorSet;
