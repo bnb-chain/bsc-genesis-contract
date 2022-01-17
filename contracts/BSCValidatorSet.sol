@@ -619,6 +619,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
+    // 4. remove maintainInfo for new validatorSet
+    for (uint256 i = 0; i < unjailedValidatorSet.length; i++) {
+      delete maintainInfoMap[unjailedValidatorSet[i].consensusAddress];
+    }
+
     return unjailedValidatorSet;
   }
 
