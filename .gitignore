@@ -5,3 +5,10 @@ pids
 logs
 .idea/
 contracts/flattened/*.sol
+
+#Hardhat files
+cache
+artifacts
+
+.env
+
