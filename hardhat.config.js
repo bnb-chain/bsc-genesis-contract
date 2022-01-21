@@ -20,6 +20,13 @@ module.exports = {
   },
 
   networks: {
+    development: {
+      url: "127.0.0.1:8545",     // Localhost (default: none)
+      accounts: {
+        mnemonic: "clock radar mass judge dismiss just intact mind resemble fringe diary casino",
+        count: 100
+      }
+    },
     'bsc': {
       // url: process.env.BSC_API || "",
       // url:"https://bsc-dataseed1.defibit.io/",
