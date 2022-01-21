@@ -22,6 +22,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@openzeppelin/contracts": "^4.3.1",
+    "@openzeppelin/contracts-upgradeable": "^4.3.1",
     "commander": "^3.0.1",
     "nunjucks": "^3.2.0",
     "openzeppelin-solidity": "v3.0.0-rc.0",
@@ -37,5 +39,25 @@
     "minimist": ">=1.2.3",
     "mem": ">=4.0.0",
     "lodash": ">=4.17.19"
+  },
+  "devDependencies": {
+    "@nomiclabs/hardhat-etherscan": "^2.1.6",
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/hardhat-upgrades": "^1.12.0",
+    "@types/chai": "^4.2.15",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "^14.14.35",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.3.0",
+    "ethers": "^5.0.32",
+    "hardhat": "^2.6.2",
+    "hardhat-storage-layout": "^0.1.6",
+    "hardhat-watcher": "^2.1.1",
+    "mocha": "^8.3.2",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.3",
+    "solidity-coverage": "^0.7.17",
+    "typeorm": "^0.2.31"
   }
 }
