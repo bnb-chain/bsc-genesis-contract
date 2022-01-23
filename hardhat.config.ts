@@ -1,10 +1,13 @@
-require('hardhat-watcher');
-require("@nomiclabs/hardhat-truffle5");
+import '@typechain/hardhat';
+import 'hardhat-watcher'
+import 'hardhat-gas-reporter';
+import '@nomiclabs/hardhat-ethers';
+import '@nomiclabs/hardhat-waffle';
 
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
-module.exports = {
+export default {
   solidity: {
     compilers: [
       {
@@ -18,7 +21,6 @@ module.exports = {
       },
     ]
   },
-
   networks: {
     development: {
       url: "127.0.0.1:8545",     // Localhost (default: none)
@@ -28,20 +30,7 @@ module.exports = {
       }
     },
     'bsc': {
-      // url: process.env.BSC_API || "",
-      // url:"https://bsc-dataseed1.defibit.io/",
       url: "https://bsc-dataseed1.ninicoin.io",
-      //url:"https://bsc-dataseed2.defibit.io/",
-      //url:"https://bsc-dataseed3.defibit.io/",
-      //url:"https://bsc-dataseed4.defibit.io/",
-      //url:"https://bsc-dataseed2.ninicoin.io",
-      //url:"https://bsc-dataseed3.ninicoin.io",
-      //url:"https://bsc-dataseed4.ninicoin.io",
-      //url:"https://bsc-dataseed1.binance.org",
-      //url:"https://bsc-dataseed2.binance.org",
-      //url:"https://bsc-dataseed3.binance.org",
-      //url:"https://bsc-dataseed4.binance.org",
-
       accounts: {
         mnemonic: process.env.BSC_TEST_MN ? process.env.BSC_TEST_MN : "",
       }
@@ -56,6 +45,12 @@ module.exports = {
   },
   mocha: {
     timeout: 2000000
-  }
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test/test-maintenance",
+    cache: "./cache",
+    artifacts: "./artifacts"
+  },
 };
 
