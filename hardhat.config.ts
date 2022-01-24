@@ -22,6 +22,12 @@ export default {
     ]
   },
   networks: {
+    hardhat: {
+      accounts: {
+        mnemonic: "clock radar mass judge dismiss just intact mind resemble fringe diary casino",
+        count: 100
+      }
+    },
     development: {
       url: "127.0.0.1:8545",     // Localhost (default: none)
       accounts: {
