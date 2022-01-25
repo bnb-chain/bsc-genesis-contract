@@ -3,7 +3,14 @@ import {ethers} from 'hardhat'
 import {BSCValidatorSet} from '../../typechain-types'
 import {SlashIndicator} from '../../typechain-types'
 import {expect} from "chai";
-import {deployContract, waitTx} from "./helper";
+import {
+  deployContract,
+  waitTx,
+  setSlashIndicator,
+  validatorUpdateRlpEncode,
+  buildSyncPackagePrefix,
+  serializeGovPack
+} from "./helper";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import web3 from 'web3';
 import {
@@ -13,7 +20,6 @@ import {
   SystemReward, TendermintLightClient,
 } from "../../typechain-types";
 
-const RLP = require("rlp");
 const log = console.log
 const STAKE_CHANNEL_ID = 0x08;
 const GOV_CHANNEL_ID = 0x09;
@@ -72,10 +78,12 @@ describe('BSCValidatorSet', () => {
       {
         name: 'SystemReward', // 3
         needInit: false,
+        needUpdate: false,
       },
       {
         name: 'MockLightClient', // 4
         needInit: false,
+        needUpdate: false,
       },
       {
         name: 'TokenHub', // 5
@@ -442,63 +450,3 @@ describe('BSCValidatorSet', () => {
   })
 
 })
-
-const setSlashIndicator = async (slashAddress: string, validatorSet: BSCValidatorSet, instances: any[]) => {
-  await waitTx(validatorSet.updateContractAddr(
-    instances[10].address,
-    slashAddress,
-    instances[3].address,
-    instances[4].address,
-    instances[5].address,
-    instances[0].address,
-    instances[7].address,
-    instances[9].address,
-    instances[6].address,
-    instances[2].address
-  ))
-}
-
-function validatorUpdateRlpEncode(consensusAddrList: any, feeAddrList: any, bscFeeAddrList: any) {
-  let pkg = [];
-  pkg.push(0x00);
-  let n = consensusAddrList.length;
-  let vals = [];
-  for (let i = 0; i < n; i++) {
-    vals.push([
-      consensusAddrList[i].toString(),
-      feeAddrList[i].toString(),
-      bscFeeAddrList[i].toString(),
-      0x0000000000000064,
-    ]);
-  }
-  pkg.push(vals);
-  return RLP.encode(pkg)
-}
-
-function buildSyncPackagePrefix(syncRelayFee: any) {
-  return Buffer.from(web3.utils.hexToBytes(
-    "0x00" + toBytes32String(syncRelayFee)
-  ));
-}
-
-function toBytes32String(input: any) {
-  let initialInputHexStr = web3.utils.toBN(input).toString(16);
-  const initialInputHexStrLength = initialInputHexStr.length;
-
-  let inputHexStr = initialInputHexStr;
-  for (let i = 0; i < 64 - initialInputHexStrLength; i++) {
-    inputHexStr = '0' + inputHexStr;
-  }
-  return inputHexStr;
-}
-
-function serializeGovPack(key: string, value: string, target: string, extra?: string) {
-  let pkg = [];
-  pkg.push(key);
-  pkg.push(value);
-  pkg.push(target);
-  if (extra) {
-    pkg.push(extra);
-  }
-  return RLP.encode(pkg);
-}
