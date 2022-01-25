@@ -362,6 +362,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return consensusAddrs;
   }
 
+  function getMaintainingValidators() public view returns(address[] memory maintainingValidators) {
+    maintainingValidators = new address[](maintainingValidatorSet.length);
+    for (uint i = 0; i < maintainingValidators.length; i++) {
+      maintainingValidators[i] = maintainingValidatorSet[i].consensusAddress;
+    }
+  }
+
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0) {
@@ -586,8 +593,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isFelony;
 
     // 1. validators exit maintenance
-    for (uint i = 0; i < maintainingValidatorSet.length; i++) {
-      validator = maintainingValidatorSet[i].consensusAddress;
+    address[] memory maintainingValidators = getMaintainingValidators();
+
+    for (uint i = 0; i < maintainingValidators.length; i++) {
+      validator = maintainingValidators[i];
       // exit maintenance
       isFelony = _exitMaintenance(validator);
       delete maintainInfoMap[validator];
