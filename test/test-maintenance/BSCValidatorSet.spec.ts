@@ -9,7 +9,7 @@ import {
   setSlashIndicator,
   validatorUpdateRlpEncode,
   buildSyncPackagePrefix,
-  serializeGovPack
+  serializeGovPack, mineBlocks
 } from "./helper";
 import {SignerWithAddress} from "@nomiclabs/hardhat-ethers/signers";
 import web3 from 'web3';
@@ -19,6 +19,9 @@ import {
   RelayerHub, RelayerIncentivize,
   SystemReward, TendermintLightClient,
 } from "../../typechain-types";
+
+const MISDEMEANOR_THRESHOLD = 50;
+const FELONY_THRESHOLD = 150;
 
 const log = console.log
 const STAKE_CHANNEL_ID = 0x08;
@@ -52,6 +55,8 @@ describe('BSCValidatorSet', () => {
   let relayerAccount: string
   let signers: SignerWithAddress[]
 
+  let maxNumOfMaintaining: number
+  let maintainSlashScale: number
   before('before', async () => {
     signers = await ethers.getSigners()
     log(signers.length)
@@ -174,13 +179,16 @@ describe('BSCValidatorSet', () => {
   it('query basic info', async () => {
     // do update validators
     let packageBytes = validatorUpdateRlpEncode(
-      validators.slice(1, 20),
-      validators.slice(1, 20),
-      validators.slice(1, 20)
+      validators.slice(1, 22),
+      validators.slice(1, 22),
+      validators.slice(1, 22)
     );
+
+    log('current validators', validators.slice(1, 22))
+
     await waitTx(validatorSet.connect(operator).handleSynPackage(STAKE_CHANNEL_ID, packageBytes));
 
-    expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(1, 20))
+    expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(1, 22))
   })
 
   it('Fee case 1-0', async () => {
@@ -206,6 +214,7 @@ describe('BSCValidatorSet', () => {
 
     //  set maxNumOfMaintaining to 5
     let govChannelSeq = await crosschain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+    maxNumOfMaintaining = 5
     let govValue = "0x0000000000000000000000000000000000000000000000000000000000000005"; // 5;
     let govPackageBytes = serializeGovPack("maxNumOfMaintaining", govValue, validatorSet.address);
     await crosschain.connect(operator).handlePackage(
@@ -219,6 +228,7 @@ describe('BSCValidatorSet', () => {
 
     //  set maintainSlashScale to 2
     govChannelSeq = await crosschain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+    maintainSlashScale = 2
     govValue = "0x0000000000000000000000000000000000000000000000000000000000000002"; // 2;
     govPackageBytes = serializeGovPack("maintainSlashScale", govValue, validatorSet.address);
     await crosschain.connect(operator).handlePackage(
@@ -244,7 +254,7 @@ describe('BSCValidatorSet', () => {
     expect(validatorInfo.consensusAddress).to.be.eq(validators[2])
   })
 
-  it('Fee case 1-4', async () => {
+  it('Fee case 1-4: validator-3 misdemeanor, enterMaintenance', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances)
 
     await validatorSet.connect(operator).misdemeanor(validators[3]);
@@ -259,7 +269,6 @@ describe('BSCValidatorSet', () => {
     await waitTx(validatorSet.connect(signers[2]).exitMaintenance())
     const maintainInfo = await validatorSet.maintainInfoMap(validators[2])
 
-    log(maintainInfo)
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
   })
@@ -273,11 +282,13 @@ describe('BSCValidatorSet', () => {
     expect(maintainInfo.index).to.be.eq(BigNumber.from(3))
   })
 
-  it('Fee case 1-7: validator-5 misdemeanor', async () => {
+  it('Fee case 1-7: validator-5 misdemeanor, enterMaintenance', async () => {
     await validatorSet.connect(operator).misdemeanor(validators[5]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[5])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(4))
+
+    log("after validator-5 enterMaintenance", await validatorSet.getMaintainingValidators())
   })
 
   it('Fee case 1-8: validator-6 enterMaintenance', async () => {
@@ -325,6 +336,8 @@ describe('BSCValidatorSet', () => {
 
 
   it('Fee case 1-13: validator-8 enterMaintenance', async () => {
+    await mineBlocks(21 * 100 * maintainSlashScale)
+
     await setSlashIndicator(slashIndicator.address, validatorSet, instances)
 
     await waitTx(validatorSet.connect(signers[8]).enterMaintenance())
@@ -427,6 +440,8 @@ describe('BSCValidatorSet', () => {
       operator.address
     ))
 
+    await mineBlocks(21 * 50 * maintainSlashScale)
+
     // do update validators
     let packageBytes = validatorUpdateRlpEncode(
       validators.slice(2, 23),
@@ -434,8 +449,10 @@ describe('BSCValidatorSet', () => {
       validators.slice(2, 23)
     );
     await waitTx(validatorSet.connect(operator).handleSynPackage(STAKE_CHANNEL_ID, packageBytes));
-    expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(2, 23))
 
+    // validator-5,6 felony,  validator-8 misdemeanor
+    const expectedValidators = validators.slice(2, 23).filter(item => item !== validators[5] && item !== validators[6])
+    expect(await validatorSet.getValidators()).to.deep.eq(expectedValidators)
 
     for (let i = 2; i < 23; i++) {
       const maintainInfo = await validatorSet.maintainInfoMap(validators[i])
@@ -448,5 +465,4 @@ describe('BSCValidatorSet', () => {
       validatorSet.maintainingValidatorSet(0)
     ).to.be.reverted
   })
-
 })

@@ -2,6 +2,7 @@ import {ethers} from "hardhat";
 import {Signer} from "@ethersproject/abstract-signer";
 import {Contract, ContractReceipt, ContractTransaction} from "@ethersproject/contracts";
 import {BSCValidatorSet} from "../../typechain-types";
+
 const RLP = require("rlp");
 import web3 from "web3";
 
@@ -77,4 +78,8 @@ export function serializeGovPack(key: string, value: string, target: string, ext
   return RLP.encode(pkg);
 }
 
-
+export async function mineBlocks(addedBlocksCount: number) {
+  for (let i = 0; i < addedBlocksCount; i++) {
+    await ethers.provider.send("evm_mine", [])
+  }
+}
