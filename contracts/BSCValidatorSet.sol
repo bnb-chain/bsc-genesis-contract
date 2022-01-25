@@ -59,6 +59,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   bool public burnRatioInitialized;
 
   // BEP-127 Temporary Maintenance
+  uint256 public constant INIT_MAX_NUM_OF_MAINTAINING = 3;
+  uint256 public constant INIT_MAINTAIN_SLASH_SCALE = 2;
+
   uint256 public maxNumOfMaintaining;
   uint256 public maintainSlashScale;
 
@@ -425,6 +428,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function enterMaintenance() external {
+    // check maintain config
+    if (maxNumOfMaintaining == 0) {
+      maxNumOfMaintaining = INIT_MAX_NUM_OF_MAINTAINING;
+    }
+    if (maintainSlashScale == 0) {
+      maintainSlashScale = INIT_MAINTAIN_SLASH_SCALE;
+    }
+
     uint256 index = currentValidatorSetMap[msg.sender];
     require(index > 0, "only current validators can enter maintenance");
 
