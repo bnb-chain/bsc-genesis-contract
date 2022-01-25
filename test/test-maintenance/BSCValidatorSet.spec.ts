@@ -188,8 +188,6 @@ describe('BSCValidatorSet', () => {
       validators.slice(1, 22)
     );
 
-    log('current validators', validators.slice(1, 22));
-
     await waitTx(validatorSet.connect(operator).handleSynPackage(STAKE_CHANNEL_ID, packageBytes));
 
     expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(1, 22));
