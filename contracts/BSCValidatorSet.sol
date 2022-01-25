@@ -377,6 +377,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return currentValidatorSet[index-1].incoming;
   }
 
+  function isCurrentValidator(address validator) external view override returns (bool) {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index <= 0) {
+      return false;
+    }
+
+    // the actual index
+    index = index - 1;
+    return !currentValidatorSet[index].jailed;
+  }
+
   /*********************** For slash **************************/
   function misdemeanor(address validator)external onlySlash override{
     uint256 validatorIndex = _misdemeanor(validator);
@@ -425,7 +436,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function exitMaintenance() external {
-    require(maintainInfoMap[msg.sender].isMaintaining, "not in maintenance");
+    MaintainInfo memory maintainInfo = maintainInfoMap[msg.sender];
+    require(maintainInfo.isMaintaining, "not in maintenance");
+
+    uint256 index = maintainInfo.index.sub(1);  // the actually index
+    // should not happen, still protect
+    require(maintainingValidatorSet[index].consensusAddress == msg.sender, "invalid maintainInfo");
+
     _exitMaintenance(msg.sender);
   }
 
