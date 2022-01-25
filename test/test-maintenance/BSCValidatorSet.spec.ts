@@ -193,12 +193,6 @@ describe('BSCValidatorSet', () => {
     expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(1, 22));
   });
 
-  it('common case 1-0', async () => {
-    expect(validatorSet.connect(signers[1]).enterMaintenance()).to.be.revertedWith(
-      'can not enter Temporary Maintenance'
-    );
-  });
-
   it('common case 1-1 update params', async () => {
     await waitTx(relayerHub.connect(operator).register({ value: unit.mul(100) }));
     await waitTx(
