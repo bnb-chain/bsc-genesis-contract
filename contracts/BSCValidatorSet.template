@@ -34,7 +34,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
   uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"{{initValidatorSetBytes}}";
 
   uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
   uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
@@ -54,11 +54,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-  uint256 public constant INIT_BURN_RATIO = 0;
+  uint256 public constant INIT_BURN_RATIO = {{initBurnRatio}};
   uint256 public burnRatio;
   bool public burnRatioInitialized;
 
-  // BEP-99 Temporary Maintenance
+  // BEP-127 Temporary Maintenance
   uint256 public maxNumOfMaintaining;
   uint256 public maintainSlashScale;
 
@@ -77,7 +77,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 incoming;
   }
 
-  // BEP-99 Temporary Maintenance
+  // BEP-127 Temporary Maintenance
   struct MaintainInfo {
     bool isMaintaining;
     uint256 startBlockNumber;     // the block number at which the validator enters Maintenance

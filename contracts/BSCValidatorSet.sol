@@ -58,7 +58,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public burnRatio;
   bool public burnRatioInitialized;
 
-  // BEP-99 Temporary Maintenance
+  // BEP-127 Temporary Maintenance
   uint256 public maxNumOfMaintaining;
   uint256 public maintainSlashScale;
 
@@ -77,7 +77,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 incoming;
   }
 
-  // BEP-99 Temporary Maintenance
+  // BEP-127 Temporary Maintenance
   struct MaintainInfo {
     bool isMaintaining;
     uint256 startBlockNumber;     // the block number at which the validator enters Maintenance
