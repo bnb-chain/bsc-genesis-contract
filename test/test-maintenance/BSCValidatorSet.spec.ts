@@ -195,13 +195,13 @@ describe('BSCValidatorSet', () => {
     expect(await validatorSet.getValidators()).to.deep.eq(validators.slice(1, 22));
   });
 
-  it('Fee case 1-0', async () => {
+  it('common case 1-0', async () => {
     expect(validatorSet.connect(signers[1]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-1 update params', async () => {
+  it('common case 1-1 update params', async () => {
     await waitTx(relayerHub.connect(operator).register({ value: unit.mul(100) }));
     await waitTx(
       govHub.updateContractAddr(
@@ -251,14 +251,14 @@ describe('BSCValidatorSet', () => {
     expect(await validatorSet.maintainSlashScale()).to.be.eq(BigNumber.from(govValue));
   });
 
-  it('Fee case 1-2: validator-1 enterMaintenance', async () => {
+  it('common case 1-2: validator-1 enterMaintenance', async () => {
     await waitTx(validatorSet.connect(signers[1]).enterMaintenance());
     const validatorInfo = await validatorSet.maintainingValidatorSet(0);
     expect(validatorInfo.consensusAddress).to.be.eq(validators[1]);
     expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1]]);
   });
 
-  it('Fee case 1-3: validator-2 enterMaintenance', async () => {
+  it('common case 1-3: validator-2 enterMaintenance', async () => {
     await waitTx(validatorSet.connect(signers[2]).enterMaintenance());
     const validatorInfo = await validatorSet.maintainingValidatorSet(1);
     expect(validatorInfo.consensusAddress).to.be.eq(validators[2]);
@@ -268,7 +268,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-4: validator-3 misdemeanor, enterMaintenance', async () => {
+  it('common case 1-4: validator-3 misdemeanor, enterMaintenance', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances);
 
     await validatorSet.connect(operator).misdemeanor(validators[3]);
@@ -282,7 +282,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-5: validator-2 exitMaintenance', async () => {
+  it('common case 1-5: validator-2 exitMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[2]).exitMaintenance());
@@ -296,7 +296,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-6: validator-4 misdemeanor, enterMaintenance', async () => {
+  it('common case 1-6: validator-4 misdemeanor, enterMaintenance', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances);
 
     await validatorSet.connect(operator).misdemeanor(validators[4]);
@@ -310,7 +310,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-7: validator-5 misdemeanor, enterMaintenance', async () => {
+  it('common case 1-7: validator-5 misdemeanor, enterMaintenance', async () => {
     await validatorSet.connect(operator).misdemeanor(validators[5]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[5]);
     expect(maintainInfo.isMaintaining).to.be.eq(true);
@@ -323,7 +323,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-8: validator-6 enterMaintenance', async () => {
+  it('common case 1-8: validator-6 enterMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[6]).enterMaintenance());
@@ -338,13 +338,13 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-9: validator-7 enterMaintenance failed!', async () => {
+  it('common case 1-9: validator-7 enterMaintenance failed!', async () => {
     expect(validatorSet.connect(signers[7]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-10: validator-7 misdemeanor, enterMaintenance failed!', async () => {
+  it('common case 1-10: validator-7 misdemeanor, enterMaintenance failed!', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances);
 
     await validatorSet.connect(operator).misdemeanor(validators[7]);
@@ -359,7 +359,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-11: validator-1 exitMaintenance', async () => {
+  it('common case 1-11: validator-1 exitMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[1]).exitMaintenance());
@@ -376,7 +376,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-12: validator-1 misdemeanor, enterMaintenance failed!', async () => {
+  it('common case 1-12: validator-1 misdemeanor, enterMaintenance failed!', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances);
 
     await validatorSet.connect(operator).misdemeanor(validators[1]);
@@ -392,7 +392,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-13: validator-8 enterMaintenance', async () => {
+  it('common case 1-13: validator-8 enterMaintenance', async () => {
     await mineBlocks(21 * 100 * maintainSlashScale);
 
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
@@ -411,13 +411,13 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-14: validator-9 enterMaintenance failed!', async () => {
+  it('common case 1-14: validator-9 enterMaintenance failed!', async () => {
     expect(validatorSet.connect(signers[9]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-15: validator-1 felony', async () => {
+  it('common case 1-15: validator-1 felony', async () => {
     let index = await validatorSet.currentValidatorSetMap(validators[1]);
     expect(index.toNumber() > 0).to.be.eq(true);
 
@@ -435,13 +435,13 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-16: validator-2 enterMaintenance failed!', async () => {
+  it('common case 1-16: validator-2 enterMaintenance failed!', async () => {
     expect(validatorSet.connect(signers[2]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-17: validator-4 exitMaintenance', async () => {
+  it('common case 1-17: validator-4 exitMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[4]).exitMaintenance());
@@ -458,13 +458,13 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-18: validator-2 enterMaintenance failed!', async () => {
+  it('common case 1-18: validator-2 enterMaintenance failed!', async () => {
     expect(validatorSet.connect(signers[2]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-19: validator-2 misdemeanor, enterMaintenance failed!', async () => {
+  it('common case 1-19: validator-2 misdemeanor, enterMaintenance failed!', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances);
     await validatorSet.connect(operator).misdemeanor(validators[2]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[2]);
@@ -477,7 +477,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-20: validator-10 enterMaintenance', async () => {
+  it('common case 1-20: validator-10 enterMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[10]).enterMaintenance());
@@ -494,7 +494,7 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-21: validator-3 exitMaintenance', async () => {
+  it('common case 1-21: validator-3 exitMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
 
     await waitTx(validatorSet.connect(signers[3]).exitMaintenance());
@@ -511,20 +511,20 @@ describe('BSCValidatorSet', () => {
     ]);
   });
 
-  it('Fee case 1-22: validator-4 exitMaintenance', async () => {
+  it('common case 1-22: validator-4 exitMaintenance', async () => {
     await setSlashIndicator(slashIndicator.address, validatorSet, instances);
     expect(validatorSet.connect(signers[4]).exitMaintenance()).to.revertedWith(
       'not in maintenance'
     );
   });
 
-  it('Fee case 1-23: validator-4 enterMaintenance failed!', async () => {
+  it('common case 1-23: validator-4 enterMaintenance failed!', async () => {
     expect(validatorSet.connect(signers[4]).enterMaintenance()).to.be.revertedWith(
       'can not enter Temporary Maintenance'
     );
   });
 
-  it('Fee case 1-24: 24 hours ended, clear all maintainInfo', async () => {
+  it('common case 1-24: 24 hours ended, clear all maintainInfo', async () => {
     expect(await validatorSet.getMaintainingValidators()).to.deep.eq([
       validators[6],
       validators[10],
