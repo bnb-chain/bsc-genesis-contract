@@ -20,9 +20,6 @@ import {
   SystemReward, TendermintLightClient,
 } from "../../typechain-types";
 
-const MISDEMEANOR_THRESHOLD = 50;
-const FELONY_THRESHOLD = 150;
-
 const log = console.log
 const STAKE_CHANNEL_ID = 0x08;
 const GOV_CHANNEL_ID = 0x09;
@@ -246,12 +243,14 @@ describe('BSCValidatorSet', () => {
     await waitTx(validatorSet.connect(signers[1]).enterMaintenance())
     const validatorInfo = await validatorSet.maintainingValidatorSet(0)
     expect(validatorInfo.consensusAddress).to.be.eq(validators[1])
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1]])
   })
 
   it('Fee case 1-3: validator-2 enterMaintenance', async () => {
     await waitTx(validatorSet.connect(signers[2]).enterMaintenance())
     const validatorInfo = await validatorSet.maintainingValidatorSet(1)
     expect(validatorInfo.consensusAddress).to.be.eq(validators[2])
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[2]])
   })
 
   it('Fee case 1-4: validator-3 misdemeanor, enterMaintenance', async () => {
@@ -261,6 +260,7 @@ describe('BSCValidatorSet', () => {
     const maintainInfo = await validatorSet.maintainInfoMap(validators[3])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(3))
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[2], validators[3]])
   })
 
   it('Fee case 1-5: validator-2 exitMaintenance', async () => {
@@ -271,15 +271,17 @@ describe('BSCValidatorSet', () => {
 
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[3]])
   })
 
-  it('Fee case 1-6: validator-4 misdemeanor', async () => {
+  it('Fee case 1-6: validator-4 misdemeanor, enterMaintenance', async () => {
     await setSlashIndicator(operator.address, validatorSet, instances)
 
     await validatorSet.connect(operator).misdemeanor(validators[4]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[4])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(3))
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[3], validators[4]])
   })
 
   it('Fee case 1-7: validator-5 misdemeanor, enterMaintenance', async () => {
@@ -287,8 +289,7 @@ describe('BSCValidatorSet', () => {
     const maintainInfo = await validatorSet.maintainInfoMap(validators[5])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(4))
-
-    log("after validator-5 enterMaintenance", await validatorSet.getMaintainingValidators())
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[3], validators[4], validators[5]])
   })
 
   it('Fee case 1-8: validator-6 enterMaintenance', async () => {
@@ -297,6 +298,7 @@ describe('BSCValidatorSet', () => {
     await waitTx(validatorSet.connect(signers[6]).enterMaintenance())
     const validatorInfo = await validatorSet.maintainingValidatorSet(4)
     expect(validatorInfo.consensusAddress).to.be.eq(validators[6])
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[3], validators[4], validators[5], validators[6]])
   })
 
   it('Fee case 1-9: validator-7 enterMaintenance failed!', async () => {
@@ -311,6 +313,7 @@ describe('BSCValidatorSet', () => {
     await validatorSet.connect(operator).misdemeanor(validators[7]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[7])
     expect(maintainInfo.isMaintaining).to.be.eq(false)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[1], validators[3], validators[4], validators[5], validators[6]])
   })
 
   it('Fee case 1-11: validator-1 exitMaintenance', async () => {
@@ -322,6 +325,7 @@ describe('BSCValidatorSet', () => {
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[4], validators[5]])
   })
 
   it('Fee case 1-12: validator-1 misdemeanor, enterMaintenance failed!', async () => {
@@ -332,6 +336,7 @@ describe('BSCValidatorSet', () => {
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[4], validators[5]])
   })
 
 
@@ -345,6 +350,7 @@ describe('BSCValidatorSet', () => {
     const maintainInfo = await validatorSet.maintainInfoMap(validators[8])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[4], validators[5], validators[8]])
   })
 
   it('Fee case 1-14: validator-9 enterMaintenance failed!', async () => {
@@ -362,6 +368,7 @@ describe('BSCValidatorSet', () => {
 
     index = await validatorSet.currentValidatorSetMap(validators[1])
     expect(index.toNumber() === 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[4], validators[5], validators[8]])
   })
 
   it('Fee case 1-16: validator-2 enterMaintenance failed!', async () => {
@@ -379,6 +386,7 @@ describe('BSCValidatorSet', () => {
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[8], validators[5]])
   })
 
   it('Fee case 1-18: validator-2 enterMaintenance failed!', async () => {
@@ -392,6 +400,7 @@ describe('BSCValidatorSet', () => {
     await validatorSet.connect(operator).misdemeanor(validators[2]);
     const maintainInfo = await validatorSet.maintainInfoMap(validators[2])
     expect(maintainInfo.isMaintaining).to.be.eq(false)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[8], validators[5]])
   })
 
   it('Fee case 1-20: validator-10 enterMaintenance', async () => {
@@ -402,6 +411,7 @@ describe('BSCValidatorSet', () => {
     const maintainInfo = await validatorSet.maintainInfoMap(validators[10])
     expect(maintainInfo.isMaintaining).to.be.eq(true)
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[3], validators[8], validators[5], validators[10]])
   })
 
   it('Fee case 1-21: validator-3 exitMaintenance', async () => {
@@ -413,6 +423,7 @@ describe('BSCValidatorSet', () => {
     expect(maintainInfo.isMaintaining).to.be.eq(false)
     expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
     expect(maintainInfo.startBlockNumber.toNumber() > 0).to.be.eq(true)
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[10], validators[8], validators[5]])
   })
 
   it('Fee case 1-22: validator-4 exitMaintenance', async () => {
@@ -427,6 +438,8 @@ describe('BSCValidatorSet', () => {
   })
 
   it('Fee case 1-24: 24 hours ended, clear all maintainInfo', async () => {
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([validators[6], validators[10], validators[8], validators[5]])
+
     await waitTx(validatorSet.updateContractAddr(
       instances[10].address,
       instances[8].address,
@@ -456,11 +469,11 @@ describe('BSCValidatorSet', () => {
 
     for (let i = 2; i < 23; i++) {
       const maintainInfo = await validatorSet.maintainInfoMap(validators[i])
-
       expect(maintainInfo.isMaintaining).to.be.eq(false)
       expect(maintainInfo.index).to.be.eq(BigNumber.from(0))
       expect(maintainInfo.startBlockNumber.toNumber() === 0).to.be.eq(true)
     }
+    expect(await validatorSet.getMaintainingValidators()).to.deep.eq([])
     expect(
       validatorSet.maintainingValidatorSet(0)
     ).to.be.reverted
