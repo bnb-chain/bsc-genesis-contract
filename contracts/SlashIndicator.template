@@ -85,6 +85,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   /*********************** External func ********************************/
   function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator), "not current validator");
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
       indicator.count++;
