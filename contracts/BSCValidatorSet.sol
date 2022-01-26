@@ -19,8 +19,6 @@ import "./lib/CmnPkg.sol";
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
   using SafeMath for uint256;
-
-  using RLPEncode for *;
   using RLPDecode for *;
 
   // will not transfer value less than 0.1 BNB for validators
@@ -713,7 +711,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+      ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
       isFelony = true;
     } else if (slashCount >= misdemeanorThreshold) {
       _misdemeanor(validator);
@@ -721,15 +719,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   //rlp encode & decode function
-  function encodeSlashPackage(address valAddr) internal view returns (bytes memory) {
-    bytes[] memory elements = new bytes[](4);
-    elements[0] = valAddr.encodeAddress();
-    elements[1] = uint256(block.number).encodeUint();
-    elements[2] = uint256(bscChainID).encodeUint();
-    elements[3] = uint256(block.timestamp).encodeUint();
-    return elements.encodeList();
-  }
-
   function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 

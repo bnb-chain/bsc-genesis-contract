@@ -161,6 +161,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+  }
 
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
