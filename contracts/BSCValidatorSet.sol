@@ -10,6 +10,7 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
+import "./interface/ICrossChain.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
@@ -18,7 +19,6 @@ import "./lib/CmnPkg.sol";
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
   using SafeMath for uint256;
-
   using RLPDecode for *;
 
   // will not transfer value less than 0.1 BNB for validators
@@ -56,6 +56,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public burnRatio;
   bool public burnRatioInitialized;
 
+  // BEP-127 Temporary Maintenance
+  uint256 public constant INIT_MAX_NUM_OF_MAINTAINING = 3;
+  uint256 public constant INIT_MAINTAIN_SLASH_SCALE = 2;
+
+  uint256 public maxNumOfMaintaining;
+  uint256 public maintainSlashScale;
+
+  Validator[] public maintainingValidatorSet;
+  // key is the `consensusAddress` of `Validator`,
+  mapping(address => MaintainInfo) public maintainInfoMap;
+
   struct Validator{
     address consensusAddress;
     address payable feeAddress;
@@ -65,6 +76,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // only in state
     bool jailed;
     uint256 incoming;
+  }
+
+  // BEP-127 Temporary Maintenance
+  struct MaintainInfo {
+    bool isMaintaining;
+    uint256 startBlockNumber;     // the block number at which the validator enters Maintenance
+
+    // The index of the element in `maintainingValidatorSet`.
+    // The values of maintaining validators are stored at 0 ~ maintainingValidatorSet.length - 1,
+    // but we add 1 to all indexes, so the index here is range from [1, maintainingValidatorSet.length],
+    // and use 0 as a `sentinel value`
+    uint256 index;
   }
 
   /*********************** cross chain package **************************/
@@ -97,6 +120,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
   event feeBurned(uint256 amount);
+  event validatorEnterMaintenance(address indexed validator);
+  event validatorExitMaintenance(address indexed validator);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -201,12 +226,20 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function updateValidatorSet(Validator[] memory validatorSet) internal returns (uint32) {
-    // do verify.
-    (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
-    if (!valid) {
-      emit failReasonWithStr(errMsg);
-      return ERROR_FAIL_CHECK_VALIDATORS;
+    {
+      // do verify.
+      (bool valid, string memory errMsg) = checkValidatorSet(validatorSet);
+      if (!valid) {
+        emit failReasonWithStr(errMsg);
+        return ERROR_FAIL_CHECK_VALIDATORS;
+      }
     }
+
+    // step 0: force all maintaining validators to exit `Temporary Maintenance`
+    // - 1. validators exit maintenance
+    // - 2. clear all maintainInfo
+    // - 3. get unjailed validators from validatorSet
+    Validator[] memory validatorSetTemp = _forceMaintainingValidatorsExit(validatorSet);
 
     //step 1: do calculate distribution, do not make it as an internal function for saving gas.
     uint crossSize;
@@ -230,7 +263,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256[] memory directAmounts = new uint256[](directSize);
     crossSize = 0;
     directSize = 0;
-    Validator[] memory validatorSetTemp = validatorSet; // fix error: stack too deep, try removing local variables
     uint256 relayFee = ITokenHub(TOKEN_HUB_ADDR).getMiniRelayFee();
     if (relayFee > DUSTY_INCOMING) {
       emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
@@ -312,7 +344,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return CODE_OK;
   }
 
-  function getValidators()external view returns(address[] memory) {
+  function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
     for (uint i = 0;i<n;i++) {
@@ -330,7 +362,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     return consensusAddrs;
   }
-  
+
+  function getMaintainingValidators() public view returns(address[] memory maintainingValidators) {
+    maintainingValidators = new address[](maintainingValidatorSet.length);
+    for (uint i = 0; i < maintainingValidators.length; i++) {
+      maintainingValidators[i] = maintainingValidatorSet[i].consensusAddress;
+    }
+  }
+
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0) {
@@ -339,65 +378,81 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return currentValidatorSet[index-1].incoming;
   }
 
-  /*********************** For slash **************************/
-  function misdemeanor(address validator)external onlySlash override{
+  function isCurrentValidator(address validator) external view override returns (bool) {
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
-      return;
+      return false;
     }
-    // the actually index
+
+    // the actual index
     index = index - 1;
-    uint256 income = currentValidatorSet[index].incoming;
-    currentValidatorSet[index].incoming = 0;
-    uint256 rest = currentValidatorSet.length - 1;
-    emit validatorMisdemeanor(validator,income);
-    if (rest==0) {
-      // should not happen, but still protect
-      return;
-    }
-    uint256 averageDistribute = income/rest;
-    if (averageDistribute!=0) {
-      for (uint i=0;i<index;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-      uint n = currentValidatorSet.length;
-      for (uint i=index+1;i<n;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-    }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+    return !currentValidatorSet[index].jailed;
   }
 
-  function felony(address validator)external onlySlash override{
-    uint256 index = currentValidatorSetMap[validator];
-    if (index <= 0) {
-      return;
+  /*********************** For slash **************************/
+  function misdemeanor(address validator)external onlySlash override{
+    uint256 validatorIndex = _misdemeanor(validator);
+    if (canEnterMaintenance(validatorIndex)) {
+      _enterMaintenance(validator, validatorIndex);
     }
+  }
+
+  function felony(address validator)external onlySlash override {
+    _felony(validator);
+  }
+
+  /*********************** For Temporary Maintenance **************************/
+  function canEnterMaintenance(uint256 index) public view returns (bool) {
+    if (index >= currentValidatorSet.length) {
+      return false;
+    }
+
+    Validator memory validatorInfo = currentValidatorSet[index];
+    address validator = validatorInfo.consensusAddress;
+
+    if (
+      validator == address(0)                                       // - 0. check if empty validator
+      || (maxNumOfMaintaining == 0 || maintainSlashScale == 0)      // - 1. check if not start
+      || maintainingValidatorSet.length >= maxNumOfMaintaining      // - 2. check if exceeded upper limit
+      || validatorInfo.jailed                                       // - 3. check if jailed
+      || maintainInfoMap[validator].isMaintaining                   // - 4. check if maintaining
+      || maintainInfoMap[validator].startBlockNumber > 0            // - 5. check if has Maintained
+      || getValidators().length <= 1                                // - 6. check num of remaining unjailed currentValidators
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function enterMaintenance() external {
+    // check maintain config
+    if (maxNumOfMaintaining == 0) {
+      maxNumOfMaintaining = INIT_MAX_NUM_OF_MAINTAINING;
+    }
+    if (maintainSlashScale == 0) {
+      maintainSlashScale = INIT_MAINTAIN_SLASH_SCALE;
+    }
+
+    uint256 index = currentValidatorSetMap[msg.sender];
+    require(index > 0, "only current validators can enter maintenance");
+
     // the actually index
     index = index - 1;
-    uint256 income = currentValidatorSet[index].incoming;
-    uint256 rest = currentValidatorSet.length - 1;
-    if (rest==0) {
-      // will not remove the validator if it is the only one validator.
-      currentValidatorSet[index].incoming = 0;
-      return;
-    }
-    emit validatorFelony(validator,income);
-    delete currentValidatorSetMap[validator];
-    // It is ok that the validatorSet is not in order.
-    if (index != currentValidatorSet.length-1) {
-      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length-1];
-      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
-    }
-    currentValidatorSet.pop();
-    uint256 averageDistribute = income/rest;
-    if (averageDistribute!=0) {
-      uint n = currentValidatorSet.length;
-      for (uint i=0;i<n;i++) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
-      }
-    }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+
+    require(canEnterMaintenance(index), "can not enter Temporary Maintenance");
+    _enterMaintenance(msg.sender, index);
+  }
+
+  function exitMaintenance() external {
+    MaintainInfo memory maintainInfo = maintainInfoMap[msg.sender];
+    require(maintainInfo.isMaintaining, "not in maintenance");
+
+    uint256 index = maintainInfo.index.sub(1);  // the actually index
+    // should not happen, still protect
+    require(maintainingValidatorSet[index].consensusAddress == msg.sender, "invalid maintainInfo");
+
+    _exitMaintenance(msg.sender);
   }
 
   /*********************** Param update ********************************/
@@ -413,6 +468,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(newBurnRatio <= BURN_RATIO_SCALE, "the burnRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
       burnRatioInitialized = true;
+    } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
+      require(value.length == 32, "length of maxNumOfMaintaining mismatch");
+      uint256 newMaxNumOfMaintaining = BytesToTypes.bytesToUint256(32, value);
+      require(newMaxNumOfMaintaining < MAX_NUM_OF_VALIDATORS, "the maxNumOfMaintaining must be less than MAX_NUM_OF_VALIDATORS");
+      maxNumOfMaintaining = newMaxNumOfMaintaining;
+    } else if (Memory.compareStrings(key, "maintainSlashScale")) {
+      require(value.length == 32, "length of maintainSlashScale mismatch");
+      uint256 newMaintainSlashScale = BytesToTypes.bytesToUint256(32, value);
+      require(newMaintainSlashScale > 0, "the maintainSlashScale must be greater than 0");
+      maintainSlashScale = newMaintainSlashScale;
     } else {
       require(false, "unknown param");
     }
@@ -477,6 +542,180 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
+  }
+
+  function _misdemeanor(address validator) private returns (uint256) {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index <= 0) {
+      return ~uint256(0);
+    }
+    // the actually index
+    index = index - 1;
+
+    uint256 income = currentValidatorSet[index].incoming;
+    currentValidatorSet[index].incoming = 0;
+    uint256 rest = currentValidatorSet.length - 1;
+    emit validatorMisdemeanor(validator,income);
+    if (rest==0) {
+      // should not happen, but still protect
+      return index;
+    }
+    uint256 averageDistribute = income/rest;
+    if (averageDistribute!=0) {
+      for (uint i=0;i<index;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+      uint n = currentValidatorSet.length;
+      for (uint i=index+1;i<n;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+
+    return index;
+  }
+
+  function _felony(address validator) private {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index <= 0) {
+      return;
+    }
+    // the actually index
+    index = index - 1;
+    uint256 income = currentValidatorSet[index].incoming;
+    uint256 rest = currentValidatorSet.length - 1;
+    if (getValidators().length <= 1) {
+      // will not remove the validator if it is the only one validator.
+      currentValidatorSet[index].incoming = 0;
+      return;
+    }
+    emit validatorFelony(validator,income);
+
+    _removeFromCurrentValidatorSet(validator, index);
+
+    uint256 averageDistribute = income/rest;
+    if (averageDistribute!=0) {
+      uint n = currentValidatorSet.length;
+      for (uint i=0;i<n;i++) {
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+      }
+    }
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
+  }
+
+  function _removeFromCurrentValidatorSet(address validator, uint256 index) private {
+    delete currentValidatorSetMap[validator];
+    // It is ok that the validatorSet is not in order.
+    if (index != currentValidatorSet.length - 1) {
+      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length - 1];
+      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
+    }
+    currentValidatorSet.pop();
+  }
+
+  function _forceMaintainingValidatorsExit(Validator[] memory validatorSet) private returns (Validator[] memory unjailedValidatorSet){
+    uint256 numOfFelony = 0;
+    address validator;
+    bool isFelony;
+
+    // 1. validators exit maintenance
+    address[] memory maintainingValidators = getMaintainingValidators();
+
+    for (uint i = 0; i < maintainingValidators.length; i++) {
+      validator = maintainingValidators[i];
+      // exit maintenance
+      isFelony = _exitMaintenance(validator);
+      delete maintainInfoMap[validator];
+
+      if (!isFelony || numOfFelony >= validatorSet.length - 1) {
+        continue;
+      }
+
+      // record the jailed validator in validatorSet
+      for (uint index = 0; index < validatorSet.length; index++) {
+        if (validatorSet[index].consensusAddress == validator) {
+          validatorSet[index].jailed = true;
+          numOfFelony++;
+          break;
+        }
+      }
+    }
+
+    // 2. clear all maintain info
+    delete maintainingValidatorSet;
+    for (uint256 i = 0; i < validatorSet.length; i++) {
+      delete maintainInfoMap[validatorSet[i].consensusAddress];
+    }
+
+    // 3. get unjailed validators from validatorSet
+    unjailedValidatorSet = new Validator[](validatorSet.length - numOfFelony);
+    uint256 i = 0;
+    for (uint index = 0; index < validatorSet.length; index++) {
+      if (!validatorSet[index].jailed) {
+        unjailedValidatorSet[i] = validatorSet[index];
+        i++;
+      }
+    }
+
+    return unjailedValidatorSet;
+  }
+
+  function _enterMaintenance(address validator, uint256 index) private {
+    // step 1: modify status of the validator
+    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
+    maintainInfo.isMaintaining = true;
+    maintainInfo.startBlockNumber = block.number;
+
+    // step 2: add the validator to maintainingValidatorSet
+    maintainingValidatorSet.push(currentValidatorSet[index]);
+    maintainInfo.index = maintainingValidatorSet.length;
+
+    // step 3: remove the validator from currentValidatorSet
+    _removeFromCurrentValidatorSet(validator, index);
+
+    emit validatorEnterMaintenance(validator);
+  }
+
+  function _exitMaintenance(address validator) private returns (bool isFelony){
+    // step 1: modify status of the validator
+    MaintainInfo storage maintainInfo = maintainInfoMap[validator];
+    maintainInfo.isMaintaining = false;
+
+    // step 2: add the validator to currentValidatorSet
+    // the actual index
+    uint256 index = maintainInfo.index - 1;
+    currentValidatorSet.push(maintainingValidatorSet[index]);
+    currentValidatorSetMap[validator] = currentValidatorSet.length;
+
+    // step 3: remove the validator from maintainingValidatorSet
+    // 0 is the `sentinel value`
+    maintainInfo.index = 0;
+    // It is ok that the maintainingValidatorSet is not in order.
+    if (index != maintainingValidatorSet.length - 1) {
+      maintainingValidatorSet[index] = maintainingValidatorSet[maintainingValidatorSet.length - 1];
+      maintainInfoMap[maintainingValidatorSet[index].consensusAddress].index = index + 1;
+    }
+    maintainingValidatorSet.pop();
+    emit validatorExitMaintenance(validator);
+
+    // step 4: slash
+    if (maintainSlashScale == 0 || currentValidatorSet.length == 0) {
+      // should not happen, still protect
+      return false;
+    }
+
+    uint256 slashCount =
+      block.number.sub(maintainInfo.startBlockNumber).div(currentValidatorSet.length).div(maintainSlashScale);
+
+    (uint256 misdemeanorThreshold, uint256 felonyThreshold) = ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
+    isFelony = false;
+    if (slashCount >= felonyThreshold) {
+      _felony(validator);
+      ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
+      isFelony = true;
+    } else if (slashCount >= misdemeanorThreshold) {
+      _misdemeanor(validator);
+    }
   }
 
   //rlp encode & decode function
