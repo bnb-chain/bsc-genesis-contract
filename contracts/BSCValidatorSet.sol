@@ -392,7 +392,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       shuffle(validators, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, _numOfCabinets-_maxNumOfWorkingCandidates,
       _maxNumOfWorkingCandidates, validators.length-_numOfCabinets+_maxNumOfWorkingCandidates);
     }
-    
     address[] memory miningValidators = new address[](_numOfCabinets);
     for (uint i=0;i<_numOfCabinets;i++) {
       miningValidators[i] = validators[i];
@@ -557,6 +556,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 newMaxNumOfCandidates = BytesToTypes.bytesToUint256(32, value);
       require(newMaxNumOfCandidates >= 0, "the maxNumOfCandidates must be not less than 0");
       maxNumOfCandidates = newMaxNumOfCandidates;
+      if (maxNumOfWorkingCandidates>maxNumOfCandidates) {
+        maxNumOfWorkingCandidates = maxNumOfCandidates;
+      }
     } else if (Memory.compareStrings(key, "numOfCabinets")) {
       require(value.length == 32, "length of numOfCabinets mismatch");
       uint256 newNumOfCabinets = BytesToTypes.bytesToUint256(32, value);

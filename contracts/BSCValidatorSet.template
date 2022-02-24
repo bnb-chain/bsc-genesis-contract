@@ -556,6 +556,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 newMaxNumOfCandidates = BytesToTypes.bytesToUint256(32, value);
       require(newMaxNumOfCandidates >= 0, "the maxNumOfCandidates must be not less than 0");
       maxNumOfCandidates = newMaxNumOfCandidates;
+      if (maxNumOfWorkingCandidates > maxNumOfCandidates) {
+        maxNumOfWorkingCandidates = maxNumOfCandidates;
+      }
     } else if (Memory.compareStrings(key, "numOfCabinets")) {
       require(value.length == 32, "length of numOfCabinets mismatch");
       uint256 newNumOfCabinets = BytesToTypes.bytesToUint256(32, value);

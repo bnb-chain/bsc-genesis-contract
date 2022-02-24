@@ -621,6 +621,47 @@ contract('BSCValidatorSet', (accounts) => {
 });
 
 contract('BSCValidatorSet', (accounts) => {
+  it('test set maxNumOfCandidates less than maxNumOfWorkingCandidates', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const relayer = accounts[2];
+    const relayerInstance = await RelayerHub.deployed();
+    await relayerInstance.register({from: relayer, value: 1e20});
+    const crossChain = await CrossChain.deployed();
+    const govHub = await GovHub.deployed();
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+
+    // set maxNumOfCandidates to 20
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x0000000000000000000000000000000000000000000000000000000000000014";// 20;
+    govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+ 
+    except = await validatorSetInstance.maxNumOfCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(20)), true, "wrong maxNumOfCandidates");
+
+    // set maxNumOfWorkingCandidates to 10
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x000000000000000000000000000000000000000000000000000000000000000A";// 10;
+    govPackageBytes = serializeGovPack("maxNumOfWorkingCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(10)), true, "wrong maxNumOfWorkingCandidates");
+
+    // set maxNumOfCandidates to 5
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x0000000000000000000000000000000000000000000000000000000000000005";// 5;
+    govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+ 
+    except = await validatorSetInstance.maxNumOfCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(5)), true, "wrong maxNumOfCandidates");
+    except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(5)), true, "wrong maxNumOfWorkingCandidates");
+  });
+});
+
+contract('BSCValidatorSet', (accounts) => {
   it('test getMiningValidators with 41 validators', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
     const relayer = accounts[2];
