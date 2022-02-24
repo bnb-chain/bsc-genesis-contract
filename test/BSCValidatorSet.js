@@ -648,11 +648,21 @@ contract('BSCValidatorSet', (accounts) => {
     let except = await validatorSetInstance.numOfCabinets.call();
     assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(21)), true, "wrong numOfCabinets");
 
+    // without candidate validators
+    let maxNumOfWorkingCandidates = 2;
+    let numOfCabinets = 21;
+    let validators = await validatorSetInstance.getValidators.call();
+    let miningValidators = await validatorSetInstance.getMiningValidators.call();
+    assert.deepEqual(validators.slice(0,numOfCabinets), miningValidators, "wrong validators");
+
     // set maxNumOfCandidates to 20
     govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
     govValue = "0x0000000000000000000000000000000000000000000000000000000000000014";// 20;
     govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
     await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    except = await validatorSetInstance.maxNumOfCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(20)), true, "wrong maxNumOfCandidates");
 
     // set maxNumOfWorkingCandidates to 2
     govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
@@ -663,18 +673,14 @@ contract('BSCValidatorSet', (accounts) => {
     except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
     assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(2)), true, "wrong maxNumOfWorkingCandidates");
 
-    let maxNumOfWorkingCandidates = 2;
-    let validators = await validatorSetInstance.getValidators.call();
-    let numOfCabinets = 21;
-
     if ((validators.length - numOfCabinets) < maxNumOfWorkingCandidates){
       maxNumOfWorkingCandidates = validators.length - numOfCabinets;
     } 
     
-    let miningValidators = await validatorSetInstance.getMiningValidators.call();
+    miningValidators = await validatorSetInstance.getMiningValidators.call();
     let exceptValues = validators.slice(0,numOfCabinets);
     for (var j=0;j<numOfCabinets-maxNumOfWorkingCandidates;j++){
-      expect(exceptValues).to.includes(miningValidators[j]);
+      assert.equal(exceptValues.includes(miningValidators[j]),true, "wrong cabinet validators")
     }
     
   });
