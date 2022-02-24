@@ -386,10 +386,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if ((validators.length - _numOfCabinets) < _maxNumOfWorkingCandidates){
       _maxNumOfWorkingCandidates = validators.length - _numOfCabinets;
     }
-    uint256 epochNumber = block.number & EPOCH;
-    shuffle(validators, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, 0, _maxNumOfWorkingCandidates, _numOfCabinets);
-    shuffle(validators, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, _numOfCabinets-_maxNumOfWorkingCandidates,
-     _maxNumOfWorkingCandidates, validators.length-_numOfCabinets+_maxNumOfWorkingCandidates);
+    if (_maxNumOfWorkingCandidates > 0) {
+      uint256 epochNumber = block.number & EPOCH;
+      shuffle(validators, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, 0, _maxNumOfWorkingCandidates, _numOfCabinets);
+      shuffle(validators, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, _numOfCabinets-_maxNumOfWorkingCandidates,
+      _maxNumOfWorkingCandidates, validators.length-_numOfCabinets+_maxNumOfWorkingCandidates);
+    }
+    
     address[] memory miningValidators = new address[](_numOfCabinets);
     for (uint i=0;i<_numOfCabinets;i++) {
       miningValidators[i] = validators[i];
