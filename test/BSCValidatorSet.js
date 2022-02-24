@@ -600,6 +600,86 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
+contract('BSCValidatorSet', (accounts) => {
+  it('test set maxNumOfWorkingCandidates greater than maxNumOfCandidates', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const relayer = accounts[2];
+    const relayerInstance = await RelayerHub.deployed();
+    await relayerInstance.register({from: relayer, value: 1e20});
+    const crossChain = await CrossChain.deployed();
+    const govHub = await GovHub.deployed();
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+
+    // should fail
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x0000000000000000000000000000000000000000000000000000000000000002";// 2;
+    govPackageBytes = serializeGovPack("maxNumOfWorkingCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+    except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(0)), true, "wrong maxNumOfWorkingCandidates");
+  });
+});
+
+contract('BSCValidatorSet', (accounts) => {
+  it('test getMiningValidators with 41 validators', async () => {
+    const validatorSetInstance = await BSCValidatorSet.deployed();
+    const relayer = accounts[2];
+    const relayerInstance = await RelayerHub.deployed();
+    await relayerInstance.register({from: relayer, value: 1e20});
+    const crossChain = await CrossChain.deployed();
+    const govHub = await GovHub.deployed();
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+
+    let relayerAccount = accounts[8];
+    let newValidators = [];
+    for (let i = 0; i < 41; i++) {
+      newValidators.push(web3.eth.accounts.create().address)
+    }
+    let packageBytes = validatorUpdateRlpEncode(newValidators,
+        newValidators, newValidators);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {from: relayerAccount});
+
+    // set numOfCabinets to 21
+    let govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+    let govValue = "0x0000000000000000000000000000000000000000000000000000000000000015";// 21;
+    let govPackageBytes = serializeGovPack("numOfCabinets", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    let except = await validatorSetInstance.numOfCabinets.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(21)), true, "wrong numOfCabinets");
+
+    // set maxNumOfCandidates to 20
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x0000000000000000000000000000000000000000000000000000000000000014";// 20;
+    govPackageBytes = serializeGovPack("maxNumOfCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    // set maxNumOfWorkingCandidates to 2
+    govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
+    govValue = "0x0000000000000000000000000000000000000000000000000000000000000002";// 2;
+    govPackageBytes = serializeGovPack("maxNumOfWorkingCandidates", govValue, validatorSetInstance.address);
+    await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
+
+    except = await validatorSetInstance.maxNumOfWorkingCandidates.call();
+    assert.equal(web3.utils.toBN(except).eq(web3.utils.toBN(2)), true, "wrong maxNumOfWorkingCandidates");
+
+    let maxNumOfWorkingCandidates = 2;
+    let validators = await validatorSetInstance.getValidators.call();
+    let numOfCabinets = 21;
+
+    if ((validators.length - numOfCabinets) < maxNumOfWorkingCandidates){
+      maxNumOfWorkingCandidates = validators.length - numOfCabinets;
+    } 
+    
+    let miningValidators = await validatorSetInstance.getMiningValidators.call();
+    let exceptValues = validators.slice(0,numOfCabinets);
+    for (var j=0;j<numOfCabinets-maxNumOfWorkingCandidates;j++){
+      expect(exceptValues).to.includes(miningValidators[j]);
+    }
+    
+  });
+});
+
 function jailRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList) {
   let pkg = [];
   pkg.push(0x01);
