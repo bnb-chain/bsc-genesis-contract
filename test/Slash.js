@@ -163,23 +163,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case1: incoming of account1 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(validator, { from: systemAccount });
     }
 
     let res= (await slashInstance.getSlashIndicator.call(validator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case1: slash indicator of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case1: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    let consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],thirdValidator);
-    assert.equal(consensusAddres[1],secondValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account3 is wrong");
+    let consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case1: length of validators should be 2");
+    assert.equal(consensusAddress[0],secondValidator, "case1: index 0 of validators should be account2");
+    assert.equal(consensusAddress[1],thirdValidator, "case1: index 1 of validators should be account3");
 
     packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
@@ -187,23 +187,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case2: incoming of account2 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(secondValidator, { from: systemAccount });
     }
 
     res= (await slashInstance.getSlashIndicator.call(secondValidator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case2: slash indicator of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case2: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],validator);
-    assert.equal(consensusAddres[1],thirdValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account3 is wrong");
+    consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case2: length of validators should be 2");
+    assert.equal(consensusAddress[0],validator, "case2: index 0 of validators should be account1");
+    assert.equal(consensusAddress[1],thirdValidator, "case2: index 1 of validators should be account3");
 
     packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
@@ -211,23 +211,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(thirdValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case3: incoming of account3 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(thirdValidator, { from: systemAccount });
     }
 
     res= (await slashInstance.getSlashIndicator.call(thirdValidator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case3: slash indicator of account3 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case3: incoming of account3 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],validator);
-    assert.equal(consensusAddres[1],secondValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account2 is wrong");
+    consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case3: length of validators should be 2");
+    assert.equal(consensusAddress[0],validator, "case3: index 0 of validators should be account1");
+    assert.equal(consensusAddress[1],secondValidator, "case3: index 0 of validators should be account2");
 
   });
 });

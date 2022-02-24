@@ -679,12 +679,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // remove the validator from currentValidatorSet
     delete currentValidatorSetMap[validator];
-    // It is ok that the validatorSet is not in order.
-    if (index != currentValidatorSet.length - 1) {
-      currentValidatorSet[index] = currentValidatorSet[currentValidatorSet.length - 1];
-      validatorExtraSet[index] = validatorExtraSet[currentValidatorSet.length - 1];
-
-      currentValidatorSetMap[currentValidatorSet[index].consensusAddress] = index + 1;
+    // remove felony validator
+    for (uint i = index;i < (currentValidatorSet.length-1);i++) {
+      currentValidatorSet[i] = currentValidatorSet[i+1];
+      validatorExtraSet[i] = validatorExtraSet[i+1];
+      currentValidatorSetMap[currentValidatorSet[i].consensusAddress] = i+1;
     }
     currentValidatorSet.pop();
     validatorExtraSet.pop();
