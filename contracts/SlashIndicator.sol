@@ -46,12 +46,12 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   modifier onlyZeroGasPrice() {
-    
+
     require(tx.gasprice == 0 , "gasprice is not zero");
-    
+
     _;
   }
-  
+
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
@@ -80,6 +80,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   /*********************** External func ********************************/
   function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
+    if (!IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator)) {
+      return;
+    }
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
       indicator.count++;
@@ -155,6 +158,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+  }
 
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
@@ -187,5 +193,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     elements[2] = uint256(bscChainID).encodeUint();
     elements[3] = uint256(block.timestamp).encodeUint();
     return elements.encodeList();
+  }
+
+  function getSlashThresholds() override(ISlashIndicator) external view returns (uint256, uint256) {
+    return (misdemeanorThreshold, felonyThreshold);
   }
 }

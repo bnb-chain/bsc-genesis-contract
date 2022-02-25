@@ -37,6 +37,12 @@ truffle migrate
 truffle test
 ```
 
+Run hardhat test:
+```shell script
+npx hardhat compile
+npx hardhat test
+```
+
 Flatten all system contracts:
 ```shell script
 npm run flatten
