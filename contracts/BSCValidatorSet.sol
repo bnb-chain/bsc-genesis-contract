@@ -769,7 +769,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 slashCount =
       block.number
         .sub(validatorExtraSet[index].enterMaintenanceHeight)
-        .div(workingValidatorCount)
+        .div(numOfCabinets)
         .div(maintainSlashScale);
 
     // step 2: clear maintaining info of the validator
