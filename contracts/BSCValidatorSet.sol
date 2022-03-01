@@ -548,13 +548,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "maxNumOfWorkingCandidates")) {
       require(value.length == 32, "length of maxNumOfWorkingCandidates mismatch");
       uint256 newMaxNumOfWorkingCandidates = BytesToTypes.bytesToUint256(32, value);
-      require(newMaxNumOfWorkingCandidates >= 0, "the maxNumOfWorkingCandidates must be not less than 0");
       require(newMaxNumOfWorkingCandidates <= maxNumOfCandidates, "the maxNumOfWorkingCandidates must be not greater than maxNumOfCandidates");
       maxNumOfWorkingCandidates = newMaxNumOfWorkingCandidates;
     } else if (Memory.compareStrings(key, "maxNumOfCandidates")) {
       require(value.length == 32, "length of maxNumOfCandidates mismatch");
       uint256 newMaxNumOfCandidates = BytesToTypes.bytesToUint256(32, value);
-      require(newMaxNumOfCandidates >= 0, "the maxNumOfCandidates must be not less than 0");
       maxNumOfCandidates = newMaxNumOfCandidates;
       if (maxNumOfWorkingCandidates > maxNumOfCandidates) {
         maxNumOfWorkingCandidates = maxNumOfCandidates;
@@ -563,6 +561,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(value.length == 32, "length of numOfCabinets mismatch");
       uint256 newNumOfCabinets = BytesToTypes.bytesToUint256(32, value);
       require(newNumOfCabinets > 0, "the numOfCabinets must be greater than 0");
+      require(newNumOfCabinets <= MAX_NUM_OF_VALIDATORS, "the numOfCabinets must be less than MAX_NUM_OF_VALIDATORS");
       numOfCabinets = newNumOfCabinets;
     } else {
       require(false, "unknown param");
@@ -757,6 +756,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function _exitMaintenance(address validator, uint index) private returns (bool isFelony){
     uint256 workingValidatorCount = getValidators().length;
+    if (workingValidatorCount>numOfCabinets) {
+      workingValidatorCount = numOfCabinets;
+    }
     if (maintainSlashScale == 0 || workingValidatorCount == 0 || numOfMaintaining == 0) {
       // should not happen, still protect
       return false;
@@ -769,7 +771,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 slashCount =
       block.number
         .sub(validatorExtraSet[index].enterMaintenanceHeight)
-        .div(numOfCabinets)
+        .div(workingValidatorCount)
         .div(maintainSlashScale);
 
     // step 2: clear maintaining info of the validator

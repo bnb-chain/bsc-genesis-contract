@@ -720,8 +720,16 @@ contract('BSCValidatorSet', (accounts) => {
     
     miningValidators = await validatorSetInstance.getMiningValidators.call();
     let exceptValues = validators.slice(0,numOfCabinets);
+    let outValidator = miningValidators.filter((addr)=>{
+      return !exceptValues.includes(addr);
+    });
     for (var j=0;j<numOfCabinets-maxNumOfWorkingCandidates;j++){
       assert.equal(exceptValues.includes(miningValidators[j]),true, "wrong cabinet validators")
+      
+    }
+    extraValidators = [...outValidator, ...validators.slice(numOfCabinets,validators.length)]
+    for (var j=numOfCabinets-maxNumOfWorkingCandidates;j<numOfCabinets;j++){
+      assert.equal(extraValidators.includes(miningValidators[j]),true, "wrong extra validators")
     }
     
   });
