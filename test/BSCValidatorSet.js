@@ -723,14 +723,9 @@ contract('BSCValidatorSet', (accounts) => {
     let outValidator = miningValidators.filter((addr)=>{
       return !exceptValues.includes(addr);
     });
-    for (var j=0;j<numOfCabinets-maxNumOfWorkingCandidates;j++){
-      assert.equal(exceptValues.includes(miningValidators[j]),true, "wrong cabinet validators")
-      
-    }
-    extraValidators = [...outValidator, ...validators.slice(numOfCabinets,validators.length)]
-    for (var j=numOfCabinets-maxNumOfWorkingCandidates;j<numOfCabinets;j++){
-      assert.equal(extraValidators.includes(miningValidators[j]),true, "wrong extra validators")
-    }
+    // TODO, this is not always true, but as the epoch number is fixed during UT, the result is fixed.
+   assert(outValidator.length > 0, "no validator choose from candidates");
+   assert(outValidator.length <= maxNumOfWorkingCandidates, "too many working candidates" )
     
   });
 });
