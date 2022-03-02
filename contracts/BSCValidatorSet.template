@@ -538,7 +538,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
       require(value.length == 32, "length of maxNumOfMaintaining mismatch");
       uint256 newMaxNumOfMaintaining = BytesToTypes.bytesToUint256(32, value);
-      require(newMaxNumOfMaintaining < MAX_NUM_OF_VALIDATORS, "the maxNumOfMaintaining must be less than MAX_NUM_OF_VALIDATORS");
+      uint256 _numOfCabinets = numOfCabinets;
+      if (_numOfCabinets == 0) {
+        _numOfCabinets = INIT_NUM_OF_CABINETS;
+      }
+      require(newMaxNumOfMaintaining < _numOfCabinets, "the maxNumOfMaintaining must be less than numOfCaninates");
       maxNumOfMaintaining = newMaxNumOfMaintaining;
     } else if (Memory.compareStrings(key, "maintainSlashScale")) {
       require(value.length == 32, "length of maintainSlashScale mismatch");
