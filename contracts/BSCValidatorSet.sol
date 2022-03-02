@@ -689,7 +689,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       validatorExtraSet[i] = validatorExtraSet[i+1];
       currentValidatorSetMap[currentValidatorSet[i].consensusAddress] = i+1;
     }
-
     currentValidatorSet.pop();
     validatorExtraSet.pop();
 
@@ -756,7 +755,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function _exitMaintenance(address validator, uint index) private returns (bool isFelony){
     uint256 workingValidatorCount = getValidators().length;
-    if (workingValidatorCount>numOfCabinets) {
+    if (workingValidatorCount > numOfCabinets) {
       workingValidatorCount = numOfCabinets;
     }
     if (maintainSlashScale == 0 || workingValidatorCount == 0 || numOfMaintaining == 0) {
@@ -842,4 +841,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     return (validator, success);
   }
+
+    
 }
