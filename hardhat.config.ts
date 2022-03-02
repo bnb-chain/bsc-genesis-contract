@@ -29,7 +29,7 @@ export default {
       }
     },
     development: {
-      url: "127.0.0.1:8545",     // Localhost (default: none)
+      url: "http://127.0.0.1:8545",     // Localhost (default: none)
       accounts: {
         mnemonic: "clock radar mass judge dismiss just intact mind resemble fringe diary casino",
         count: 100
