@@ -91,7 +91,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isMaintaining;
 
     // reserve for future use
-    uint256[40] slots;
+    uint256[20] slots;
   }
 
   /*********************** cross chain package **************************/
@@ -713,7 +713,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isFelony;
 
     // 1. validators exit maintenance
-    for (uint i = 0; i < currentValidatorSet.length; i++) {
+    uint256 i;
+    // caution: it must loop from the endIndex to startIndex in currentValidatorSet
+    // because the validators order in currentValidatorSet may be changed by _felony(validator)
+    for (uint index = currentValidatorSet.length; index > 0; index--) {
+      i = index - 1;  // the actual index
       if (!validatorExtraSet[i].isMaintaining) {
         continue;
       }
@@ -739,7 +743,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // 2. get unjailed validators from validatorSet
     unjailedValidatorSet = new Validator[](_validatorSet.length - numOfFelony);
-    uint256 i = 0;
+    i = 0;
     for (uint index = 0; index < _validatorSet.length; index++) {
       if (!_validatorSet[index].jailed) {
         unjailedValidatorSet[i] = _validatorSet[index];
@@ -759,8 +763,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function _exitMaintenance(address validator, uint index) private returns (bool isFelony){
     uint256 workingValidatorCount = getValidators().length;
-    if (workingValidatorCount > numOfCabinets) {
-      workingValidatorCount = numOfCabinets;
+
+    uint256 _numOfCabinets = numOfCabinets > 0 ? numOfCabinets : INIT_NUM_OF_CABINETS;
+    if (workingValidatorCount > _numOfCabinets) {
+      workingValidatorCount = _numOfCabinets;
     }
     if (maintainSlashScale == 0 || workingValidatorCount == 0 || numOfMaintaining == 0) {
       // should not happen, still protect
