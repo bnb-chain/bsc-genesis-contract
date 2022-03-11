@@ -91,7 +91,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isMaintaining;
 
     // reserve for future use
-    uint256[40] slots;
+    uint256[20] slots;
   }
 
   /*********************** cross chain package **************************/
