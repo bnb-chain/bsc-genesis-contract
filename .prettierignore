@@ -1,3 +1,5 @@
-artifacts
+/contracts/artifacts
+build
 cache
 node_modules
+typechain-types

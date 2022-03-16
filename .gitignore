@@ -11,6 +11,7 @@ cache
 artifacts
 
 .env
+.DS_Store
 
 types
 typechain-types

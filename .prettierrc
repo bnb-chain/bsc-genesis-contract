@@ -1,15 +1,15 @@
 {
-  "printWidth": 100,
+  "printWidth": 120,
   "trailingComma": "es5",
   "semi": true,
-  "singleQuote": true,
+  "singleQuote": false,
   "tabWidth": 2,
   "overrides": [
     {
       "files": "*.sol",
       "options": {
         "semi": true,
-        "printWidth": 100
+        "printWidth": 120
       }
     }
   ]

@@ -12,7 +12,7 @@ import "./System.sol";
 import "./MerkleProof.sol";
 
 
-contract CrossChain is System, ICrossChain, IParamSubscriber{
+contract CrossChain is System, ICrossChain, IParamSubscriber {
 
   // constant variables
   string constant public STORE_NAME = "ibc";
@@ -49,7 +49,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     uint64 expectedSequence = channelReceiveSequenceMap[_channelID];
     require(_sequence == expectedSequence, "sequence not in order");
 
-    channelReceiveSequenceMap[_channelID]=expectedSequence+1;
+    channelReceiveSequenceMap[_channelID] = expectedSequence + 1;
     _;
   }
 
@@ -59,7 +59,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   }
 
   modifier channelSupported(uint8 _channelID) {
-    require(channelHandlerContractMap[_channelID]!=address(0x0), "channel is not supported");
+    require(channelHandlerContractMap[_channelID] != address(0x0), "channel is not supported");
     _;
   }
 
@@ -70,7 +70,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
-  function generateKey(uint64 _sequence, uint8 _channelID) internal pure returns(bytes memory) {
+  function generateKey(uint64 _sequence, uint8 _channelID) internal pure returns (bytes memory) {
     uint256 fullCROSS_CHAIN_KEY_PREFIX = CROSS_CHAIN_KEY_PREFIX | _channelID;
     bytes memory key = new bytes(14);
 
@@ -120,37 +120,37 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     batchSizeForOracle = INIT_BATCH_SIZE;
 
-    oracleSequence = -1;
+    oracleSequence = - 1;
     previousTxHeight = 0;
     txCounter = 0;
 
-    alreadyInit=true;
+    alreadyInit = true;
   }
 
-function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
+  function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns (bytes memory) {
     uint256 payloadLength = msgBytes.length + 33;
     bytes memory payload = new bytes(payloadLength);
     uint256 ptr;
     assembly {
       ptr := payload
     }
-    ptr+=33;
+    ptr += 33;
 
     assembly {
       mstore(ptr, relayFee)
     }
 
-    ptr-=32;
+    ptr -= 32;
     assembly {
       mstore(ptr, packageType)
     }
 
-    ptr-=1;
+    ptr -= 1;
     assembly {
       mstore(ptr, payloadLength)
     }
 
-    ptr+=65;
+    ptr += 65;
     (uint256 src,) = Memory.fromBytes(msgBytes);
     Memory.copy(src, ptr, msgBytes.length);
 
@@ -159,7 +159,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
 
   // | type   | relayFee   |package  |
   // | 1 byte | 32 bytes   | bytes    |
-  function decodePayloadHeader(bytes memory payload) internal pure returns(bool, uint8, uint256, bytes memory) {
+  function decodePayloadHeader(bytes memory payload) internal pure returns (bool, uint8, uint256, bytes memory) {
     if (payload.length < 33) {
       return (false, 0, 0, new bytes(0));
     }
@@ -170,27 +170,27 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     }
 
     uint8 packageType;
-    ptr+=1;
+    ptr += 1;
     assembly {
       packageType := mload(ptr)
     }
 
     uint256 relayFee;
-    ptr+=32;
+    ptr += 32;
     assembly {
       relayFee := mload(ptr)
     }
 
-    ptr+=32;
-    bytes memory msgBytes = new bytes(payload.length-33);
-    (uint256 dst, ) = Memory.fromBytes(msgBytes);
-    Memory.copy(ptr, dst, payload.length-33);
+    ptr += 32;
+    bytes memory msgBytes = new bytes(payload.length - 33);
+    (uint256 dst,) = Memory.fromBytes(msgBytes);
+    Memory.copy(ptr, dst, payload.length - 33);
 
     return (true, packageType, relayFee, msgBytes);
   }
 
   function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer
-      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
+  sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
@@ -207,7 +207,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     if (packageType == SYN_PACKAGE) {
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
-        if (responsePayload.length!=0) {
+        if (responsePayload.length != 0) {
           sendPackage(channelSendSequenceMap[channelIdLocal], channelIdLocal, encodePayload(ACK_PACKAGE, 0, responsePayload));
           channelSendSequenceMap[channelIdLocal] = channelSendSequenceMap[channelIdLocal] + 1;
         }
@@ -244,10 +244,10 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
-      previousTxHeight=block.number;
+      previousTxHeight = block.number;
     } else {
       txCounter++;
-      if (txCounter>batchSizeForOracle) {
+      if (txCounter > batchSizeForOracle) {
         oracleSequence++;
         txCounter = 1;
       }
@@ -287,7 +287,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       }
 
       require(isContract(handlerContract), "address is not a contract");
-      channelHandlerContractMap[channelId]=handlerContract;
+      channelHandlerContractMap[channelId] = handlerContract;
       registeredContractChannelMap[handlerContract][channelId] = true;
       isRelayRewardFromSystemReward[channelId] = isRewardFromSystem;
       emit addChannel(channelId, handlerContract);
@@ -306,7 +306,7 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
       bool isEnable = (status == 1);
 
       address handlerContract = channelHandlerContractMap[channelId];
-      if (handlerContract != address(0x00)) { //channel existing
+      if (handlerContract != address(0x00)) {//channel existing
         registeredContractChannelMap[handlerContract][channelId] = isEnable;
         emit enableOrDisableChannel(channelId, isEnable);
       }

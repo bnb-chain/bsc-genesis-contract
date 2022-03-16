@@ -31,11 +31,11 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   mapping(address => uint256) public packageRelayersSubmitCount;
   address payable[] public packageRelayerAddressRecord;
 
-  uint256 public collectedRewardForHeaderRelayer=0;
-  uint256 public collectedRewardForTransferRelayer=0;
+  uint256 public collectedRewardForHeaderRelayer = 0;
+  uint256 public collectedRewardForTransferRelayer = 0;
 
-  uint256 public roundSequence=0;
-  uint256 public countInRound=0;
+  uint256 public roundSequence = 0;
+  uint256 public countInRound = 0;
 
   mapping(address => uint256) public relayerRewardVault;
 
@@ -47,14 +47,14 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   function init() onlyNotInit external {
     require(!alreadyInit, "already initialized");
-    headerRelayerRewardRateMolecule=HEADER_RELAYER_REWARD_RATE_MOLECULE;
-    headerRelayerRewardRateDenominator=HEADER_RELAYER_REWARD_RATE_DENOMINATOR;
-    callerCompensationMolecule=CALLER_COMPENSATION_MOLECULE;
-    callerCompensationDenominator=CALLER_COMPENSATION_DENOMINATOR;
+    headerRelayerRewardRateMolecule = HEADER_RELAYER_REWARD_RATE_MOLECULE;
+    headerRelayerRewardRateDenominator = HEADER_RELAYER_REWARD_RATE_DENOMINATOR;
+    callerCompensationMolecule = CALLER_COMPENSATION_MOLECULE;
+    callerCompensationDenominator = CALLER_COMPENSATION_DENOMINATOR;
     alreadyInit = true;
   }
 
-  receive() external payable{}
+  receive() external payable {}
 
   {% if mock %}
   function addReward(address payable headerRelayerAddr, address payable packageRelayer, uint256 amount, bool fromSystemReward) external override returns (bool) {
@@ -67,7 +67,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     } else {
       actualAmount = ISystemReward(TOKEN_HUB_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount);
       if (dynamicExtraIncentiveAmount > 0) {
-          actualAmount = actualAmount.add(ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), dynamicExtraIncentiveAmount));
+        actualAmount = actualAmount.add(ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), dynamicExtraIncentiveAmount));
       }
     }
 
@@ -77,17 +77,17 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     collectedRewardForHeaderRelayer = collectedRewardForHeaderRelayer.add(reward);
     collectedRewardForTransferRelayer = collectedRewardForTransferRelayer.add(actualAmount).sub(reward);
 
-    if (headerRelayersSubmitCount[headerRelayerAddr]==0) {
+    if (headerRelayersSubmitCount[headerRelayerAddr] == 0) {
       headerRelayerAddressRecord.push(headerRelayerAddr);
     }
     headerRelayersSubmitCount[headerRelayerAddr]++;
 
-    if (packageRelayersSubmitCount[packageRelayer]==0) {
+    if (packageRelayersSubmitCount[packageRelayer] == 0) {
       packageRelayerAddressRecord.push(packageRelayer);
     }
     packageRelayersSubmitCount[packageRelayer]++;
 
-    if (countInRound>=ROUND_SIZE) {
+    if (countInRound >= ROUND_SIZE) {
       emit distributeCollectedReward(roundSequence, collectedRewardForHeaderRelayer, collectedRewardForTransferRelayer);
 
       uint256 callerHeaderReward = distributeHeaderRelayerReward();
@@ -102,17 +102,17 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   }
 
   function claimRelayerReward(address relayerAddr) external {
-     uint256 reward = relayerRewardVault[relayerAddr];
-     require(reward > 0, "no relayer reward");
-     relayerRewardVault[relayerAddr] = 0;
-     address payable recipient = address(uint160(relayerAddr));
-     if (!recipient.send(reward)) {
-        address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-        systemPayable.transfer(reward);
-        emit rewardToRelayer(SYSTEM_REWARD_ADDR, reward);
-        return;
-     }
-     emit rewardToRelayer(relayerAddr, reward);
+    uint256 reward = relayerRewardVault[relayerAddr];
+    require(reward > 0, "no relayer reward");
+    relayerRewardVault[relayerAddr] = 0;
+    address payable recipient = address(uint160(relayerAddr));
+    if (!recipient.send(reward)) {
+      address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+      systemPayable.transfer(reward);
+      emit rewardToRelayer(SYSTEM_REWARD_ADDR, reward);
+      return;
+    }
+    emit rewardToRelayer(relayerAddr, reward);
   }
 
   function calculateRewardForHeaderRelayer(uint256 reward) internal view returns (uint256) {
@@ -122,7 +122,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   function distributeHeaderRelayerReward() internal returns (uint256) {
     uint256 totalReward = collectedRewardForHeaderRelayer;
 
-    uint256 totalWeight=0;
+    uint256 totalWeight = 0;
     address payable[] memory relayers = headerRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
     for (uint256 index = 0; index < relayers.length; index++) {
@@ -153,7 +153,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
   function distributePackageRelayerReward() internal returns (uint256) {
     uint256 totalReward = collectedRewardForTransferRelayer;
 
-    uint256 totalWeight=0;
+    uint256 totalWeight = 0;
     address payable[] memory relayers = packageRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
     for (uint256 index = 0; index < relayers.length; index++) {
@@ -181,19 +181,19 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     return callerReward;
   }
 
-  function calculateTransferRelayerWeight(uint256 count) public pure returns(uint256) {
+  function calculateTransferRelayerWeight(uint256 count) public pure returns (uint256) {
     if (count <= MAXIMUM_WEIGHT) {
       return count;
-    } else if (MAXIMUM_WEIGHT < count && count <= 2*MAXIMUM_WEIGHT) {
+    } else if (MAXIMUM_WEIGHT < count && count <= 2 * MAXIMUM_WEIGHT) {
       return MAXIMUM_WEIGHT;
-    } else if (2*MAXIMUM_WEIGHT < count && count <= (2*MAXIMUM_WEIGHT + 3*MAXIMUM_WEIGHT/4)) {
-      return 3*MAXIMUM_WEIGHT - count;
+    } else if (2 * MAXIMUM_WEIGHT < count && count <= (2 * MAXIMUM_WEIGHT + 3 * MAXIMUM_WEIGHT / 4)) {
+      return 3 * MAXIMUM_WEIGHT - count;
     } else {
-      return count/4;
+      return count / 4;
     }
   }
 
-  function calculateHeaderRelayerWeight(uint256 count) public pure returns(uint256) {
+  function calculateHeaderRelayerWeight(uint256 count) public pure returns (uint256) {
     if (count <= MAXIMUM_WEIGHT) {
       return count;
     } else {
@@ -201,32 +201,32 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     }
   }
 
-  function updateParam(string calldata key, bytes calldata value) override external onlyGov{
+  function updateParam(string calldata key, bytes calldata value) override external onlyGov {
     require(alreadyInit, "contract has not been initialized");
-    if (Memory.compareStrings(key,"headerRelayerRewardRateMolecule")) {
+    if (Memory.compareStrings(key, "headerRelayerRewardRateMolecule")) {
       require(value.length == 32, "length of headerRelayerRewardRateMolecule mismatch");
       uint256 newHeaderRelayerRewardRateMolecule = BytesToTypes.bytesToUint256(32, value);
       require(newHeaderRelayerRewardRateMolecule <= headerRelayerRewardRateDenominator, "new headerRelayerRewardRateMolecule shouldn't be greater than headerRelayerRewardRateDenominator");
       headerRelayerRewardRateMolecule = newHeaderRelayerRewardRateMolecule;
-    } else if (Memory.compareStrings(key,"headerRelayerRewardRateDenominator")) {
+    } else if (Memory.compareStrings(key, "headerRelayerRewardRateDenominator")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newHeaderRelayerRewardRateDenominator = BytesToTypes.bytesToUint256(32, value);
       require(newHeaderRelayerRewardRateDenominator != 0 && newHeaderRelayerRewardRateDenominator >= headerRelayerRewardRateMolecule, "the new headerRelayerRewardRateDenominator must not be zero and no less than headerRelayerRewardRateMolecule");
       headerRelayerRewardRateDenominator = newHeaderRelayerRewardRateDenominator;
-    } else if (Memory.compareStrings(key,"callerCompensationMolecule")) {
+    } else if (Memory.compareStrings(key, "callerCompensationMolecule")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newCallerCompensationMolecule = BytesToTypes.bytesToUint256(32, value);
       require(newCallerCompensationMolecule <= callerCompensationDenominator, "new callerCompensationMolecule shouldn't be greater than callerCompensationDenominator");
       callerCompensationMolecule = newCallerCompensationMolecule;
-    } else if (Memory.compareStrings(key,"callerCompensationDenominator")) {
+    } else if (Memory.compareStrings(key, "callerCompensationDenominator")) {
       require(value.length == 32, "length of rewardForValidatorSetChange mismatch");
       uint256 newCallerCompensationDenominator = BytesToTypes.bytesToUint256(32, value);
       require(newCallerCompensationDenominator != 0 && newCallerCompensationDenominator >= callerCompensationMolecule, "the newCallerCompensationDenominator must not be zero and no less than callerCompensationMolecule");
       callerCompensationDenominator = newCallerCompensationDenominator;
-    } else if (Memory.compareStrings(key,"dynamicExtraIncentiveAmount")) {
+    } else if (Memory.compareStrings(key, "dynamicExtraIncentiveAmount")) {
       require(value.length == 32, "length of dynamicExtraIncentiveAmount mismatch");
       uint256 newDynamicExtraIncentiveAmount = BytesToTypes.bytesToUint256(32, value);
-      require(newDynamicExtraIncentiveAmount >= 0 , "the newDynamicExtraIncentiveAmount must be no less than zero");
+      require(newDynamicExtraIncentiveAmount >= 0, "the newDynamicExtraIncentiveAmount must be no less than zero");
       dynamicExtraIncentiveAmount = newDynamicExtraIncentiveAmount;
     } else {
       require(false, "unknown param");
