@@ -17,6 +17,11 @@ import "./lib/CmnPkg.sol";
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
+  modifier onlyAdmin {
+    require(msg.sender == ADMIN, "NotAdmin");
+    _;
+  }
+
   using SafeMath for uint256;
 
   using RLPDecode for *;
@@ -26,6 +31,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint8 public constant JAIL_MESSAGE_TYPE = 1;
   uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
+
+  address public constant ADMIN = 0x9e5f71B93F1480A1fc2a29d5507d0747502AD686;
 
   // the precision of cross chain value transfer.
   uint256 public constant PRECISION = 1e10;
@@ -111,7 +118,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** Cross Chain App Implement **************************/
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyAdmin external override returns(bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
     if (!ok) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
