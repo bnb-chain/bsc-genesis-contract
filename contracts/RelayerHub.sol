@@ -13,6 +13,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
   uint256 public constant INIT_DUES =  1e17;
+  address public constant INIT_RELAYER = 0xcca19442F5b3e5Fa71aaE69C092aC280e81Fd39f; // use other address for production
 
   uint256 public requiredDeposit;
   uint256 public dues;
@@ -35,8 +36,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     _;
   }
 
-  modifier noExist() {
-    require(!relayersExistMap[msg.sender], "relayer already exist");
+  modifier noExist(address newRelayer) {
+    require(!relayersExistMap[newRelayer], "relayer already exist");
     _;
   }
 
@@ -54,13 +55,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     requiredDeposit = INIT_REQUIRED_DEPOSIT;
     dues = INIT_DUES;
     alreadyInit = true;
+    relayersExistMap[INIT_RELAYER] = true;
   }
 
-  function register() external payable noExist onlyInit notContract noProxy{
+  function register(address newRelayer) external payable noExist(newRelayer) onlyInit notContract noProxy onlyRelayer{
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
-    relayers[msg.sender] = relayer(requiredDeposit, dues);
-    relayersExistMap[msg.sender] = true;
-    emit relayerRegister(msg.sender);
+    relayers[newRelayer] = relayer(requiredDeposit, dues);
+    relayersExistMap[newRelayer] = true;
+    emit relayerRegister(newRelayer);
   }
 
   function  unregister() external exist onlyInit{
