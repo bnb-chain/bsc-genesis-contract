@@ -107,10 +107,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   modifier initValidatorExtraSet() {
-    uint256 validatorsNum = currentValidatorSet.length;
-    if (validatorsNum == 0) {
+    if (validatorExtraSet.length == 0) {
       ValidatorExtra memory validatorExtra;
       // init validatorExtraSet
+      uint256 validatorsNum = currentValidatorSet.length;
       for (uint i; i < validatorsNum; ++i) {
         validatorExtraSet.push(validatorExtra);
       }
@@ -494,6 +494,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       || numOfMaintaining >= maxNumOfMaintaining                    // - 2. check if reached upper limit
       || !isWorkingValidator(index)                                 // - 3. check if not working(not jailed and not maintaining)
       || validatorExtraSet[index].enterMaintenanceHeight > 0        // - 5. check if has Maintained during current 24-hour period
+                                                                    // current validators are selected every 24 hours(from 00:00:00 UTC to 23:59:59 UTC)
+                                                                    // for more details, refer to https://github.com/bnb-chain/docs-site/blob/master/docs/smart-chain/validator/Binance%20Smart%20Chain%20Validator%20FAQs%20-%20Updated.md
       || getValidators().length <= 1                                // - 6. check num of remaining working validators
     ) {
       return false;
@@ -735,7 +737,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
 
       // record the jailed validator in validatorSet
-      for (uint k = 0; k < _validatorSet.length; ++k) {
+      for (uint k; k < _validatorSet.length; ++k) {
         if (_validatorSet[k].consensusAddress == validator) {
           _validatorSet[k].jailed = true;
           numOfFelony++;
@@ -747,7 +749,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // 2. get unjailed validators from validatorSet
     unjailedValidatorSet = new Validator[](_validatorSet.length - numOfFelony);
     i = 0;
-    for (uint index = 0; index < _validatorSet.length; ++index) {
+    for (uint index; index < _validatorSet.length; ++index) {
       if (!_validatorSet[index].jailed) {
         unjailedValidatorSet[i] = _validatorSet[index];
         i++;
@@ -816,7 +818,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       } else if (idx == 1) {
         RLPDecode.RLPItem[] memory items = iter.next().toList();
         validatorSetPkg.validatorSet =new Validator[](items.length);
-        for (uint j = 0;j<items.length;++j) {
+        for (uint j;j<items.length;++j) {
           (Validator memory val, bool ok) = decodeValidator(items[j]);
           if (!ok) {
             return (validatorSetPkg, false);

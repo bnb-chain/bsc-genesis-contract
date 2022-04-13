@@ -107,10 +107,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   modifier initValidatorExtraSet() {
-    uint256 validatorsNum = currentValidatorSet.length;
-    if (validatorsNum == 0) {
+    if (validatorExtraSet.length == 0) {
       ValidatorExtra memory validatorExtra;
       // init validatorExtraSet
+      uint256 validatorsNum = currentValidatorSet.length;
       for (uint i; i < validatorsNum; ++i) {
         validatorExtraSet.push(validatorExtra);
       }
