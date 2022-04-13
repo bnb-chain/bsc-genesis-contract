@@ -22,6 +22,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   address[] public validators;
   mapping(address => Indicator) public indicators;
   uint256 public previousHeight;
+
+  // The BSC validators assign proper values for `misdemeanorThreshold` and `felonyThreshold` through governance.
+  // The proper values depends on BSC network's tolerance for continuous missing blocks.
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
 
