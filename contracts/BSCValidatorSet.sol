@@ -452,6 +452,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
+  function getWorkingValidatorCount() public view returns(uint256 workingValidatorCount) {
+    workingValidatorCount = getValidators().length;
+    uint256 _numOfCabinets = numOfCabinets > 0 ? numOfCabinets : INIT_NUM_OF_CABINETS;
+    if (workingValidatorCount > _numOfCabinets) {
+      workingValidatorCount = _numOfCabinets;
+    }
+    if (workingValidatorCount == 0) {
+      workingValidatorCount = 1;
+    }
+  }
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash initValidatorExtraSet override {
     uint256 validatorIndex = _misdemeanor(validator);
@@ -523,7 +533,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // jailed validators are allowed to exit maintenance
     require(validatorExtraSet[index].isMaintaining, "not in maintenance");
-    _exitMaintenance(msg.sender, index);
+    uint256 workingValidatorCount = getWorkingValidatorCount();
+    _exitMaintenance(msg.sender, index, workingValidatorCount);
   }
 
   /*********************** Param update ********************************/
@@ -719,6 +730,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // 1. validators exit maintenance
     uint256 i;
+    // caution: it must calculate workingValidatorCount before _exitMaintenance loop
+    // because the workingValidatorCount will be changed in _exitMaintenance
+    uint256 workingValidatorCount = getWorkingValidatorCount();
     // caution: it must loop from the endIndex to startIndex in currentValidatorSet
     // because the validators order in currentValidatorSet may be changed by _felony(validator)
     for (uint index = currentValidatorSet.length; index > 0; --index) {
@@ -731,7 +745,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       validator = currentValidatorSet[i].consensusAddress;
 
       // exit maintenance
-      isFelony = _exitMaintenance(validator, i);
+      isFelony = _exitMaintenance(validator, i, workingValidatorCount);
       if (!isFelony || numOfFelony >= _validatorSet.length - 1) {
         continue;
       }
@@ -766,13 +780,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     emit validatorEnterMaintenance(validator);
   }
 
-  function _exitMaintenance(address validator, uint index) private returns (bool isFelony){
-    uint256 workingValidatorCount = getValidators().length;
-
-    uint256 _numOfCabinets = numOfCabinets > 0 ? numOfCabinets : INIT_NUM_OF_CABINETS;
-    if (workingValidatorCount > _numOfCabinets) {
-      workingValidatorCount = _numOfCabinets;
-    }
+  function _exitMaintenance(address validator, uint index, uint256 workingValidatorCount) private returns (bool isFelony){
     if (maintainSlashScale == 0 || workingValidatorCount == 0 || numOfMaintaining == 0) {
       // should not happen, still protect
       return false;
