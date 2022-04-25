@@ -346,7 +346,7 @@ contract("Clean SlashIndicator", (accounts) => {
 });
 
 contract("finality slash SlashIndicator", (accounts) => {
-  it("valid finality evidence", async () => {
+  it("valid finality evidence: same target block", async () => {
     const slashInstance = await SlashIndicator.deployed();
     const systemRewardInstance = await SystemReward.deployed();
     let relayerAccount = accounts[8];
@@ -355,18 +355,88 @@ contract("finality slash SlashIndicator", (accounts) => {
     await systemRewardInstance.addOperator(slashInstance.address);
 
     let currentNumber = await web3.eth.getBlockNumber();
-    let blockNumberA = currentNumber - 5;
-    let blockHashA = await web3.eth.getBlock(blockNumberA).then((x) => {
+    let srcNumA = currentNumber - 20;
+    let tarNumA = currentNumber - 10;
+    let srcNumB = currentNumber - 15;
+    let tarNumB = tarNumA;
+    let srcHashA = await web3.eth.getBlock(srcNumA).then((x) => {
+      return x.hash;
+    });
+    let tarHashA = await web3.eth.getBlock(tarNumA).then((x) => {
+      return x.hash;
+    });
+    let srcHashB = await web3.eth.getBlock(srcNumB).then((x) => {
+      return x.hash;
+    });
+    let tarHashB = tarHashA;
+
+    let voteDataA = {
+      srcNum: srcNumA,
+      tarNum: tarNumA,
+      srcHash: srcHashA,
+      tarHash: tarHashA,
+      sig: Buffer.from("sigA")
+    }
+    let voteDataB = {
+      srcNum: srcNumB,
+      tarNum: tarNumB,
+      srcHash: srcHashB,
+      tarHash: tarHashB,
+      sig: Buffer.from("sigB")
+    }
+    let evidence = {
+      voteA: voteDataA,
+      voteB: voteDataB,
+      valAddr: accounts[0],
+    };
+
+    let tx = await slashInstance.submitFinalityViolationEvidence(evidence, {
+      from: relayerAccount,
+    });
+    truffleAssert.eventEmitted(tx, "validatorSlashed", (ev) => {
+      return ev.validator === accounts[0];
+    });
+  });
+
+  it("valid finality evidence: vote within span", async () => {
+    const slashInstance = await SlashIndicator.deployed();
+    let relayerAccount = accounts[8];
+
+    let currentNumber = await web3.eth.getBlockNumber();
+    let srcNumA = currentNumber - 20;
+    let tarNumA = currentNumber - 10;
+    let srcNumB = currentNumber - 18;
+    let tarNumB = currentNumber - 15;
+    let srcHashA = await web3.eth.getBlock(srcNumA).then((x) => {
+      return x.hash;
+    });
+    let tarHashA = await web3.eth.getBlock(tarNumA).then((x) => {
+      return x.hash;
+    });
+    let srcHashB = await web3.eth.getBlock(srcNumA).then((x) => {
+      return x.hash;
+    });
+    let tarHashB = await web3.eth.getBlock(tarNumB).then((x) => {
       return x.hash;
     });
 
+    let voteDataA = {
+      srcNum: srcNumA,
+      tarNum: tarNumA,
+      srcHash: srcHashA,
+      tarHash: tarHashA,
+      sig: Buffer.from("sigA")
+    }
+    let voteDataB = {
+      srcNum: srcNumB,
+      tarNum: tarNumB,
+      srcHash: srcHashB,
+      tarHash: tarHashB,
+      sig: Buffer.from("sigB")
+    }
     let evidence = {
-      numA: blockNumberA,
-      headerA: blockHashA,
-      sigA: Buffer.from("sigA"),
-      numB: currentNumber - 10,
-      headerB: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigB: Buffer.from("sigB"),
+      voteA: voteDataA,
+      voteB: voteDataB,
       valAddr: accounts[0],
     };
 
@@ -383,83 +453,78 @@ contract("finality slash SlashIndicator", (accounts) => {
     let relayerAccount = accounts[8];
 
     let currentNumber = await web3.eth.getBlockNumber();
-    let blockNumberA = currentNumber - 5;
-    let blockHashA = await web3.eth.getBlock(blockNumberA).then((x) => {
+    let srcNumA = currentNumber - 20;
+    let tarNumA = currentNumber - 10;
+    let srcNumB = currentNumber - 18;
+    let tarNumB = currentNumber - 12;
+    let srcHashA = await web3.eth.getBlock(srcNumA).then((x) => {
       return x.hash;
     });
-    let evidence1 = {
-      numA: blockNumberA,
-      headerA: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigA: Buffer.from("sigA"),
-      numB: currentNumber - 10,
-      headerB: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigB: Buffer.from("sigB"),
-      valAddr: accounts[0],
-    };
-    let evidence2 = {
-      numA: blockNumberA,
-      headerA: blockHashA,
-      sigA: Buffer.from("sigA"),
-      numB: blockNumberA - 15,
-      headerB: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigB: Buffer.from("sigB"),
-      valAddr: accounts[0],
-    };
-    let evidence3 = {
-      numA: blockNumberA,
-      headerA: blockHashA,
-      sigA: Buffer.from("sigA"),
-      numB: currentNumber - 10,
-      headerB: await web3.eth.getBlock(currentNumber - 10).then((x) => {
-        return x.hash;
-      }),
-      sigB: Buffer.from("sigB"),
-      valAddr: accounts[0],
-    };
-    let evidence4 = {
-      numA: currentNumber - 257,
-      headerA: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigA: Buffer.from("sigA"),
-      numB: currentNumber - 258,
-      headerB: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      sigB: Buffer.from("sigB"),
+    let tarHashA = await web3.eth.getBlock(tarNumA).then((x) => {
+      return x.hash;
+    });
+    let srcHashB = await web3.eth.getBlock(srcNumA).then((x) => {
+      return x.hash;
+    });
+    let tarHashB = await web3.eth.getBlock(tarNumB).then((x) => {
+      return x.hash;
+    });
+
+    let voteDataA = {
+      srcNum: srcNumA,
+      tarNum: tarNumA,
+      srcHash: srcHashA,
+      tarHash: tarHashA,
+      sig: Buffer.from("sigA")
+    }
+    let voteDataB = {
+      srcNum: srcNumB,
+      tarNum: tarNumB,
+      srcHash: srcHashB,
+      tarHash: tarHashB,
+      sig: Buffer.from("sigB")
+    }
+    let evidence = {
+      voteA: voteDataA,
+      voteB: voteDataB,
       valAddr: accounts[0],
     };
 
+    evidence.voteA.tarNum = evidence.voteA.srcNum - 1;
+    let evidence1 = evidence;
     try {
       await slashInstance.submitFinalityViolationEvidence(evidence1, { from: relayerAccount });
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("neither header is in local fork"),
-        "two headers from other fork should not be ok"
+        error.toString().includes("source number bigger than target number"),
+        "source number must smaller than target number"
       );
     }
+
+    evidence.voteA.tarNum = currentNumber - 10;
+    evidence.voteB.tarNum = currentNumber - 8;
+    let evidence2 = evidence;
     try {
       await slashInstance.submitFinalityViolationEvidence(evidence2, { from: relayerAccount });
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("too long distance between blocks"),
-        "two blocks' number larger than 11 should not be ok"
+        error.toString().includes("no violation of vote rules"),
+        "no violation of vote rules"
       );
     }
+
+    evidence.voteB.tarNum = currentNumber - 12;
+    evidence.valAddr = accounts[1];
+    let evidence3 = evidence;
     try {
       await slashInstance.submitFinalityViolationEvidence(evidence3, { from: relayerAccount });
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("both headers are in local fork"),
-        "two headers from one fork should not be ok"
-      );
-    }
-    try {
-      await slashInstance.submitFinalityViolationEvidence(evidence4, { from: relayerAccount });
-      assert.fail();
-    } catch (error) {
-      assert.ok(
-        error.toString().includes("block number out of range"),
-        "256 block before current height should not be ok"
+        error.toString().includes("validator not exist"),
+        "validator not exist"
       );
     }
   });

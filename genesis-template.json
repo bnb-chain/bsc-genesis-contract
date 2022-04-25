@@ -13,6 +13,11 @@
     "muirGlacierBlock": 0,
     "ramanujanBlock": 0,
     "nielsBlock": 0,
+    "eulerBlock": 0,
+    "brunoBlock": 0,
+    "mirrorSyncBlock": 0,
+    "bonehBlock": 0,
+    "lynnBlock": 0,
     "parlia": {
       "period": 3,
       "epoch": 200

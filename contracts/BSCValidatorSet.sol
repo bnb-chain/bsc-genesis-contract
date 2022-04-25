@@ -33,7 +33,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
   uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
 
-  bytes public constant INIT_VALIDATORSET_BYTES = hex"f84580f842f840949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164";
+  bytes public constant INIT_VALIDATORSET_BYTES = hex"f87680f873f871949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164b085e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588";
 
   uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
   uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
@@ -77,7 +77,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public constant FINALITY_REWARD_RATIO = 10;
+  uint256 public constant INIT_FINALITY_REWARD_RATIO = 10;
 
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
@@ -131,7 +131,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   modifier oncePerBlock() {
-    require(block.number > previousHeight, "can not distribute finality reward twice in one block");
+    require(block.number > previousHeight, "can not do this twice in one block");
     _;
     previousHeight = block.number;
   }
@@ -519,7 +519,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
     if (finalityRewardRatio == 0) {
-      finalityRewardRatio = FINALITY_REWARD_RATIO;
+      finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
     }
 
     uint256 totalValue;
@@ -685,7 +685,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
       require(value.length == 32, "length of finalityRewardRatio mismatch");
       uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 10 && newFinalityRewardRatio < 100, "the finality reward ratio out of range!");
+      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio < 100, "the finality reward ratio out of range!");
       finalityRewardRatio = newFinalityRewardRatio;
     } else {
       require(false, "unknown param");

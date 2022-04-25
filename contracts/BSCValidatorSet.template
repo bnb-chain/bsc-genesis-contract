@@ -76,7 +76,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public constant FINALITY_REWARD_RATIO = 10;
+  uint256 public constant INIT_FINALITY_REWARD_RATIO = 10;
 
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
@@ -130,7 +130,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   modifier oncePerBlock() {
-    require(block.number > previousHeight, "can not distribute finality reward twice in one block");
+    require(block.number > previousHeight, "can not do this twice in one block");
     _;
     previousHeight = block.number;
   }
@@ -518,7 +518,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
     if (finalityRewardRatio == 0) {
-      finalityRewardRatio = FINALITY_REWARD_RATIO;
+      finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
     }
 
     uint256 totalValue;
@@ -684,7 +684,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
       require(value.length == 32, "length of finalityRewardRatio mismatch");
       uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 10 && newFinalityRewardRatio < 100, "the finality reward ratio out of range!");
+      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio < 100, "the finality reward ratio out of range!");
       finalityRewardRatio = newFinalityRewardRatio;
     } else {
       require(false, "unknown param");

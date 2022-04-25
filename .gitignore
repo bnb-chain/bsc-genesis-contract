@@ -1,17 +1,17 @@
 node_modules/
 build/
-.idea
-pids
-logs
 .idea/
+pids/
+logs/
 contracts/flattened/*.sol
 
 #Hardhat files
-cache
-artifacts
+cache/
+artifacts/
+contracts/artifacts/
 
 .env
 .DS_Store
 
-types
-typechain-types
+types/
+typechain-types/

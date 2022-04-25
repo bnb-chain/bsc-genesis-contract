@@ -10,44 +10,50 @@ const validators = [
     votingPower: 0x0000000000000064
   }
 ];
+const bLSPublicKeys = [
+   "0x85e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588",
+];
 
 // ===============  Do not edit below ====
-function generateExtradata(validators) {
-  let extraVanity =Buffer.alloc(32);
-  let validatorsBytes = extraDataSerialize(validators);
-  let extraSeal =Buffer.alloc(65);
-  return Buffer.concat([extraVanity,validatorsBytes,extraSeal]);
+function generateExtradata(validators, bLSPublicKeys) {
+  let extraVanity = Buffer.alloc(32);
+  let validatorsBytes = extraDataSerialize(validators, bLSPublicKeys);
+  let extraSeal = Buffer.alloc(65);
+  return Buffer.concat([extraVanity, validatorsBytes, extraSeal]);
 }
 
-function extraDataSerialize(validators) {
+function extraDataSerialize(validators, bLSPublicKeys) {
   let n = validators.length;
   let arr = [];
-  for(let i = 0;i<n;i++){
+  for (let i = 0; i < n; i++) {
     let validator = validators[i];
+    let BLSPublicKey = bLSPublicKeys[i];
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
+    arr.push(Buffer.from(web3.utils.hexToBytes(BLSPublicKey)));
   }
   return Buffer.concat(arr);
 }
 
-function validatorUpdateRlpEncode(validators) {
+function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
   let n = validators.length;
   let vals = [];
-  for(let i = 0;i<n;i++) {
+  for (let i = 0; i < n; i++) {
     vals.push([
       validators[i].consensusAddr,
       validators[i].bscFeeAddr,
       validators[i].feeAddr,
       validators[i].votingPower,
+      bLSPublicKeys[i]
     ]);
   }
   let pkg = [0x00, vals];
   return web3.utils.bytesToHex(RLP.encode(pkg));
 }
 
-extraValidatorBytes = generateExtradata(validators);
-validatorSetBytes = validatorUpdateRlpEncode(validators);
+extraValidatorBytes = generateExtradata(validators, bLSPublicKeys);
+validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,
   validatorSetBytes: validatorSetBytes,
-}
+};

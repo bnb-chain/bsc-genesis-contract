@@ -3,7 +3,6 @@ pragma experimental ABIEncoderV2;
 
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
-import "./lib/BytesLib.sol";
 import "./lib/TypesToBytes.sol";
 import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
@@ -34,10 +33,8 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
   uint256 public  felonyThreshold;
 
   // BEP-126 Fast Finality
-  uint256 public constant FINALITY_DISTANCE = 11;
-  uint256 public constant FINALITY_SLASH_REWARD_RATIO = 20;
+  uint256 public constant INIT_FINALITY_SLASH_REWARD_RATIO = 20;
 
-  uint256 public finalityDistance;
   uint256 public finalitySlashRewardRatio;
 
   event validatorSlashed(address indexed validator);
@@ -55,13 +52,17 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
   }
 
   // Proof that a validator misbehaved in fast finality
+  struct VoteData {
+    uint256 srcNum;
+    bytes32 srcHash;
+    uint256 tarNum;
+    bytes32 tarHash;
+    bytes sig;
+  }
+
   struct FinalityEvidence {
-    uint256 numA;
-    bytes32 headerA;
-    bytes sigA;
-    uint256 numB;
-    bytes32 headerB;
-    bytes sigB;
+    VoteData voteA;
+    VoteData voteB;
     address valAddr;
   }
 
@@ -190,28 +191,23 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
   }
 
   function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
-    if (finalityDistance == 0 || finalitySlashRewardRatio == 0) {
-      finalityDistance = FINALITY_DISTANCE;
-      finalitySlashRewardRatio = FINALITY_SLASH_REWARD_RATIO;
+    if (finalitySlashRewardRatio == 0) {
+      finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
     }
+    uint256 srcNumA = _evidence.voteA.srcNum;
+    uint256 tarNumA = _evidence.voteA.tarNum;
+    uint256 srcNumB = _evidence.voteB.srcNum;
+    uint256 tarNumB = _evidence.voteB.tarNum;
 
-    require(
-      (_evidence.numA < _evidence.numB && _evidence.numA + finalityDistance >= _evidence.numB) ||
-      (_evidence.numB < _evidence.numA && _evidence.numB + finalityDistance >= _evidence.numA),
-      "too long distance between blocks"
-    );
-    require(
-      _evidence.numA < block.number && _evidence.numA + 256 > block.number &&
-      _evidence.numB < block.number && _evidence.numB + 256 > block.number,
-      "block number out of range"
-    );
+    require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
+    _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
+    require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
 
-    bytes32 _headerA = blockhash(_evidence.numA);
-    bytes32 _headerB = blockhash(_evidence.numB);
-    if (_headerA != _evidence.headerA && _headerB != _evidence.headerB) {
-      revert(string(abi.encodePacked("neither header is in local fork")));
-    } else if (_headerA == _evidence.headerA && _headerB == _evidence.headerB) {
-      revert(string(abi.encodePacked("both headers are in local fork")));
+    // Vote rules check
+    if (!((srcNumA < srcNumB && srcNumB < tarNumB && tarNumB < tarNumA) ||
+    (srcNumB < srcNumA && srcNumA < tarNumA && tarNumA < tarNumB)) &&
+    !(tarNumA == tarNumB)) {
+      revert(string(abi.encodePacked("no violation of vote rules")));
     }
 
     // BLS verification
@@ -232,21 +228,26 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
     // to avoid too deep stack
     {
-      bytes memory bytesNumA;
-      bytes memory bytesNumB;
-      bytes memory bytesHeaderA;
-      bytes memory bytesHeaderB;
-      TypesToBytes.uintToBytes(32, _evidence.numA, bytesNumA);
-      TypesToBytes.bytes32ToBytes(32, _evidence.headerA, bytesHeaderA);
-      TypesToBytes.uintToBytes(32, _evidence.numB, bytesNumB);
-      TypesToBytes.bytes32ToBytes(32, _evidence.headerB, bytesHeaderB);
-
-      input = BytesLib.concat(bytesNumA, bytesHeaderA);
-      input = BytesLib.concat(input, _evidence.sigA);
-      input = BytesLib.concat(input, bytesNumB);
-      input = BytesLib.concat(input, bytesHeaderB);
-      input = BytesLib.concat(input, _evidence.sigB);
-      input = BytesLib.concat(input, voteAddress);
+      bytes memory pre = new bytes(32);
+      bytes memory cur = new bytes(32);
+      TypesToBytes.uintToBytes(32, srcNumA, pre);
+      TypesToBytes.uintToBytes(32, tarNumA, cur);
+      input = abi.encodePacked(pre, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, cur);
+      input = abi.encodePacked(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
+      input = abi.encodePacked(input, cur);
+      input = abi.encodePacked(input, _evidence.voteA.sig);
+      TypesToBytes.uintToBytes(32, srcNumB, cur);
+      input = abi.encodePacked(input, cur);
+      TypesToBytes.uintToBytes(32, tarNumB, cur);
+      input = abi.encodePacked(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, cur);
+      input = abi.encodePacked(input, cur);
+      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
+      input = abi.encodePacked(input, cur);
+      input = abi.encodePacked(input, _evidence.voteB.sig);
+      input = abi.encodePacked(input, voteAddress);
     }
 
     // call the precompiled contract to verify the BLS signature
@@ -263,7 +264,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
     emit validatorSlashed(_evidence.valAddr);
-
   }
 
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
@@ -282,11 +282,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
-    } else if (Memory.compareStrings(key, "finalityDistance")) {
-      require(value.length == 32, "length of finalityDistance mismatch");
-      uint256 newFinalityDistance = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityDistance >= 1 && newFinalityDistance <= 21, "the finality distance out of range");
-      finalityDistance = newFinalityDistance;
     } else if (Memory.compareStrings(key, "finalitySlashRewardRatio")) {
       require(value.length == 32, "length of finalitySlashRewardRatio mismatch");
       uint256 newFinalitySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);

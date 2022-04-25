@@ -40,7 +40,7 @@ Run truffle test:
 ```shell script
 truffle compile
 truffle migrate
-truffle test
+npm run truffle:test
 ```
 
 Run hardhat test:

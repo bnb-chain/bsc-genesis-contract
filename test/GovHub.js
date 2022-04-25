@@ -536,21 +536,6 @@ contract("GovHub others", (accounts) => {
     tx = await govHubInstance.handleSynPackage(
       GOV_CHANNEL_ID,
       serialize(
-        "finalityDistance",
-        "0x000000000000000000000000000000000000000000000000000000000000000f",
-        slashIndicator.address
-      ),
-      { from: relayerAccount }
-    );
-    truffleAssert.eventEmitted(tx, "paramChange", (ev) => {
-      return ev.key === "finalityDistance";
-    });
-    let finalityDistance = await slashIndicator.finalityDistance.call();
-    assert.equal(finalityDistance.toNumber(), 15, "value not equal");
-
-    tx = await govHubInstance.handleSynPackage(
-      GOV_CHANNEL_ID,
-      serialize(
         "finalitySlashRewardRatio",
         "0x0000000000000000000000000000000000000000000000000000000000000032",
         slashIndicator.address
