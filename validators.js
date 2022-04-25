@@ -25,7 +25,7 @@ function generateExtradata(validators, bLSPublicKeys) {
 function extraDataSerialize(validators, bLSPublicKeys) {
   let n = validators.length;
   let arr = [];
-  for (let i = 0; i < n; i++) {
+  for(let i = 0;i<n;i++){
     let validator = validators[i];
     let BLSPublicKey = bLSPublicKeys[i];
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
@@ -37,7 +37,7 @@ function extraDataSerialize(validators, bLSPublicKeys) {
 function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
   let n = validators.length;
   let vals = [];
-  for (let i = 0; i < n; i++) {
+  for(let i = 0;i<n;i++) {
     vals.push([
       validators[i].consensusAddr,
       validators[i].bscFeeAddr,
@@ -56,4 +56,4 @@ validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,
   validatorSetBytes: validatorSetBytes,
-};
+}
