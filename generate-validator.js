@@ -1,5 +1,5 @@
 const fs = require("fs");
-const readline = require("readline");
+const readline = require('readline');
 const nunjucks = require("nunjucks");
 const BLSKeys = require("./BLSkeystore.json");
 
@@ -9,12 +9,12 @@ async function processValidatorConf() {
 
   const rl = readline.createInterface({
     input: fileStream,
-    crlfDelay: Infinity,
+    crlfDelay: Infinity
   });
   let validators = [];
   for await (const line of rl) {
     // Each line in input.txt will be successively available here as `line`.
-    let vs = line.split(",");
+    let vs = line.split(",")
     validators.push({
       consensusAddr: vs[0],
       feeAddr: vs[1],
@@ -31,8 +31,8 @@ processValidatorConf().then(function (validators, bLSPublicKeys) {
     validators: validators,
     bLSPublicKeys: bLSPublicKeys,
   };
-  const templateString = fs.readFileSync(__dirname + "/validators.template").toString();
+  const templateString = fs.readFileSync(__dirname + '/validators.template').toString();
   const resultString = nunjucks.renderString(templateString, data);
-  fs.writeFileSync(__dirname + "/validators.js", resultString);
+  fs.writeFileSync(__dirname + '/validators.js', resultString);
   console.log("BSCValidatorSet file updated.");
-});
+})

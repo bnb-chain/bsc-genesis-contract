@@ -29,12 +29,13 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
   event paramChange(string key, bytes value);
 
 
-  receive() external payable {
-    if (msg.value > 0) {
+  receive() external payable{
+    if (msg.value>0) {
       emit receiveDeposit(msg.sender, msg.value);
     }
   }
 
+  
   function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit returns (uint256) {
     if (!operators[msg.sender]) {
       return 0;
@@ -44,7 +45,7 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
     }
-    if (actualAmount > 0) {
+    if (actualAmount>0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
     } else {
