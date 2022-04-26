@@ -223,7 +223,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     require(exist, "validator not exist");
 {% if mock %}{% else %}
-    bytes memory input;
+    bytes memory inputA;
+    bytes memory inputB;
     bytes memory output;
 
     // to avoid too deep stack
@@ -232,29 +233,39 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       bytes memory cur = new bytes(32);
       TypesToBytes.uintToBytes(32, srcNumA, pre);
       TypesToBytes.uintToBytes(32, tarNumA, cur);
-      input = abi.encodePacked(pre, cur);
+      inputA = abi.encodePacked(pre, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, cur);
-      input = abi.encodePacked(input, cur);
+      inputA = abi.encodePacked(inputA, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
-      input = abi.encodePacked(input, cur);
-      input = abi.encodePacked(input, _evidence.voteA.sig);
-      TypesToBytes.uintToBytes(32, srcNumB, cur);
-      input = abi.encodePacked(input, cur);
+      inputA = abi.encodePacked(inputA, cur);
+      inputA = abi.encodePacked(inputA, _evidence.voteA.sig);
+      inputA = abi.encodePacked(inputA, voteAddress);
+    }
+    {
+      bytes memory pre = new bytes(32);
+      bytes memory cur = new bytes(32);
+      TypesToBytes.uintToBytes(32, srcNumB, pre);
       TypesToBytes.uintToBytes(32, tarNumB, cur);
-      input = abi.encodePacked(input, cur);
+      inputB = abi.encodePacked(pre, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, cur);
-      input = abi.encodePacked(input, cur);
+      inputB = abi.encodePacked(inputB, cur);
       TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
-      input = abi.encodePacked(input, cur);
-      input = abi.encodePacked(input, _evidence.voteB.sig);
-      input = abi.encodePacked(input, voteAddress);
+      inputB = abi.encodePacked(inputB, cur);
+      inputB = abi.encodePacked(inputB, _evidence.voteB.sig);
+      inputB = abi.encodePacked(inputB, voteAddress);
     }
 
     // call the precompiled contract to verify the BLS signature
     // the precompiled contract's address is 0x64
     assembly {
-      let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
+      let len := mload(inputA)
+      if iszero(call(not(0), 0x64, 0, inputA, len, output, 0x20)) {
+        revert(0, 0)
+      }
+    }
+    assembly {
+      let len := mload(inputB)
+      if iszero(call(not(0), 0x64, 0, inputB, len, output, 0x20)) {
         revert(0, 0)
       }
     }
