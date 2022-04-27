@@ -9,6 +9,12 @@ Install dependency:
 npm install
 ``` 
 
+Node: v12.18.3
+Truffle: Truffle v5.1.31 
+Solc: 0.6.4+commit.1dca32f3.Darwin.appleclang
+Ganache-cli: v6.10.1
+
+
 ## unit test
 
 Generate contracts for testing:
@@ -27,7 +33,7 @@ node generate-relayerincentivizecontract.js --roundSize 30 --maximumWeight 3 --m
 
 Start ganache:
 ```shell script
-ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 13000000  -e 10000
+ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 100000000  -e 10000 --allowUnlimitedContractSize
 ```
 
 Run truffle test:
@@ -35,6 +41,12 @@ Run truffle test:
 truffle compile
 truffle migrate
 truffle test
+```
+
+Run hardhat test:
+```shell script
+npx hardhat compile
+npx hardhat test  --network development 
 ```
 
 Flatten all system contracts:
