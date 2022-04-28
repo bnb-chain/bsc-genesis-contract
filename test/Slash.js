@@ -11,67 +11,77 @@ const STAKE_CHANNEL_ID = 0x08;
 contract('SlashIndicator', (accounts) => {
   it('slash success', async () => {
     const slashInstance = await SlashIndicator.deployed();
+    const validatorInstance = await BSCValidatorSet.deployed();
+
     const accountOne = accounts[0];
-    
-    let validatorAccount = web3.eth.accounts.create();
+
+    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccount = validatorAccounts[0];
+
     for (let i =1; i<10; i++){
-      await slashInstance.slash(validatorAccount.address, { from: accountOne });
-      let res= (await slashInstance.getSlashIndicator.call(validatorAccount.address));
+      await slashInstance.slash(validatorAccount, { from: accountOne });
+      let res= (await slashInstance.getSlashIndicator.call(validatorAccount));
       let count =res[1].toNumber();
       assert.equal(count, i, "slash num is not correct");
     }
   });
-  
+
   it('slash from no system account', async () => {
     const slashInstance = await SlashIndicator.deployed();
+    const validatorInstance = await BSCValidatorSet.deployed();
 
     const nonSystemAccount = accounts[1];
-    let validatorAccount = web3.eth.accounts.create();
-
+    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccount = validatorAccounts[0];
     // first slash
     try{
-      await slashInstance.slash(validatorAccount.address, { from: nonSystemAccount });
+      await slashInstance.slash(validatorAccount, { from: nonSystemAccount });
       assert.fail();
     }catch (error) {
       assert.ok(error.toString().includes("the message sender must be the block producer"), "slash from no system account should not be ok");
     }
   });
+});
 
-  it('catch emit event', async () => {
-    const slashInstance = await SlashIndicator.deployed();
-
-    const accountOne = accounts[0];
-    let validatorAccount = web3.eth.accounts.create();
-    for (let i =1; i<50; i++){
-      let tx = await slashInstance.slash(validatorAccount.address, { from: accountOne });
-      truffleAssert.eventEmitted(tx, "validatorSlashed",(ev) => {
-        return ev.validator === validatorAccount.address;
-      });
-    }
-  });
-
-
+contract('SlashIndicator: isOperator works', (accounts) => {
   it('isOperator works', async () => {
     const slashInstance = await SlashIndicator.deployed();
+    const validatorInstance = await BSCValidatorSet.deployed();
 
     const accountOne = accounts[0];
-    let validatorAccount1 = web3.eth.accounts.create();
-    let validatorAccount2 = web3.eth.accounts.create();
+    let validatorAccounts = await validatorInstance.getMiningValidators.call();
+    let validatorAccount = validatorAccounts[0];
 
     // slash afterward
     for (let i =1; i<10; i++){
-      await slashInstance.slash(validatorAccount1.address, { from: accountOne });
-      let res= (await slashInstance.getSlashIndicator.call(validatorAccount1.address));
+      await slashInstance.slash(validatorAccount, { from: accountOne });
+      let res= (await slashInstance.getSlashIndicator.call(validatorAccount));
       let count =res[1].toNumber();
-      assert.equal(count, i, "slash num is not correct for validator 1");
-
-      await slashInstance.slash(validatorAccount2.address, { from: accountOne });
-      res= (await slashInstance.getSlashIndicator.call(validatorAccount2.address));
-      count =res[1].toNumber();
-      assert.equal(count, i, "slash num is not correct for validator 2");
+      assert.equal(count, i, "slash num is not correct for validator");
     }
   });
+});
 
+
+contract('SlashIndicator: catch emit event', (accounts) => {
+  it('catch emit event', async () => {
+      const slashInstance = await SlashIndicator.deployed();
+      const validatorInstance = await BSCValidatorSet.deployed();
+  
+      const accountOne = accounts[0];
+      let validatorAccounts = await validatorInstance.getMiningValidators.call();
+      let validatorAccount = validatorAccounts[0];
+      for (let i =1; i<50; i++){
+        let tx = await slashInstance.slash(validatorAccount, { from: accountOne });
+        truffleAssert.eventEmitted(tx, "validatorSlashed",(ev) => {
+          return ev.validator === validatorAccount;
+        });
+      }
+    });
+});
+
+
+contract('SlashIndicator', (accounts) => {
   it('trigger misdemeanor', async () => {
     const slashInstance = await SlashIndicator.deployed();
     const validatorSetInstance = await BSCValidatorSet.deployed();
@@ -113,7 +123,6 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString())
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
     assert.equal(amount.toString(),web3.utils.toBN(1e18).toString())
-    
 
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 1e18 });
@@ -144,7 +153,6 @@ contract('SlashIndicator', (accounts) => {
     assert.equal(amount.toNumber(),0);
 
   });
-
 });
 
 contract('felony SlashIndicator', (accounts) => {
@@ -163,23 +171,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(validator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case1: incoming of account1 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(validator, { from: systemAccount });
     }
 
     let res= (await slashInstance.getSlashIndicator.call(validator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case1: slash indicator of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case1: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    let consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],thirdValidator);
-    assert.equal(consensusAddres[1],secondValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case1: incoming of account3 is wrong");
+    let consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case1: length of validators should be 2");
+    assert.equal(consensusAddress[0],secondValidator, "case1: index 0 of validators should be account2");
+    assert.equal(consensusAddress[1],thirdValidator, "case1: index 1 of validators should be account3");
 
     packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
@@ -187,23 +195,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(secondValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case2: incoming of account2 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(secondValidator, { from: systemAccount });
     }
 
     res= (await slashInstance.getSlashIndicator.call(secondValidator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case2: slash indicator of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case2: incoming of account2 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],validator);
-    assert.equal(consensusAddres[1],thirdValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case2: incoming of account3 is wrong");
+    consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case2: length of validators should be 2");
+    assert.equal(consensusAddress[0],validator, "case2: index 0 of validators should be account1");
+    assert.equal(consensusAddress[1],thirdValidator, "case2: index 1 of validators should be account3");
 
     packageBytes = validatorUpdateRlpEncode([validator,secondValidator,thirdValidator],
         [validator,secondValidator,thirdValidator],[validator,secondValidator,thirdValidator]);
@@ -211,23 +219,23 @@ contract('felony SlashIndicator', (accounts) => {
 
     await validatorSetInstance.deposit(thirdValidator, {from: systemAccount, value: 2e18 });
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString())
+    assert.equal(amount.toString(),web3.utils.toBN(2e18).toString(), "case3: incoming of account3 is wrong")
     for (let i =1; i<=150; i++){
       await slashInstance.slash(thirdValidator, { from: systemAccount });
     }
 
     res= (await slashInstance.getSlashIndicator.call(thirdValidator));
-    assert.equal(res[1].toNumber(),0);
+    assert.equal(res[1].toNumber(),0, "case3: slash indicator of account3 is wrong");
     amount = await validatorSetInstance.getIncoming.call(thirdValidator);
-    assert.equal(amount.toNumber(),0);
+    assert.equal(amount.toNumber(),0, "case3: incoming of account3 is wrong");
     amount = await validatorSetInstance.getIncoming.call(validator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account1 is wrong");
     amount = await validatorSetInstance.getIncoming.call(secondValidator);
-    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString());
-    consensusAddres = await validatorSetInstance.getValidators.call();
-    assert.equal(consensusAddres.length,2);
-    assert.equal(consensusAddres[0],validator);
-    assert.equal(consensusAddres[1],secondValidator);
+    assert.equal(amount.toString(),web3.utils.toBN(1e18).toString(), "case3: incoming of account2 is wrong");
+    consensusAddress = await validatorSetInstance.getValidators.call();
+    assert.equal(consensusAddress.length,2, "case3: length of validators should be 2");
+    assert.equal(consensusAddress[0],validator, "case3: index 0 of validators should be account1");
+    assert.equal(consensusAddress[1],secondValidator, "case3: index 0 of validators should be account2");
 
   });
 });
@@ -245,12 +253,16 @@ contract('Clean SlashIndicator', (accounts) => {
     for(let i =0;i <20; i++){
       validators.push(web3.eth.accounts.create().address);
     }
+    // Do init
+    let packageBytes = validatorUpdateRlpEncode(validators,
+        validators,validators);
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
+
     for(let i =0;i <20;i++){
       await slashInstance.slash(validators[i], { from: accountOne });
     }
+
     // doclean
-    let packageBytes = validatorUpdateRlpEncode([newValidator.address],
-        [newValidator.address],[newValidator.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     let res= (await slashInstance.getSlashValidators.call());
@@ -271,8 +283,6 @@ contract('Clean SlashIndicator', (accounts) => {
       }
     }
     // doclean
-    packageBytes = validatorUpdateRlpEncode([newValidator.address],
-        [newValidator.address],[newValidator.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     res= (await slashInstance.getSlashValidators.call());
     assert.equal(res.length, 20);
@@ -290,8 +300,6 @@ contract('Clean SlashIndicator', (accounts) => {
       await slashInstance.slash(validators[2*i+1], { from: accountOne });
     }
     // doclean
-    packageBytes = validatorUpdateRlpEncode([newValidator.address],
-        [newValidator.address],[newValidator.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     res= (await slashInstance.getSlashValidators.call());
     assert.equal(res.length, 10);
@@ -313,8 +321,6 @@ contract('Clean SlashIndicator', (accounts) => {
       await slashInstance.slash(validators[2*i], { from: accountOne });
     }
     // doclean
-    packageBytes = validatorUpdateRlpEncode([newValidator.address],
-        [newValidator.address],[newValidator.address]);
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     res= (await slashInstance.getSlashValidators.call());
     assert.equal(res.length, 10);
