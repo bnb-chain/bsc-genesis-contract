@@ -46,7 +46,7 @@ truffle test
 Run hardhat test:
 ```shell script
 npx hardhat compile
-npx hardhat test  --network development 
+npx hardhat test
 ```
 
 Flatten all system contracts:
