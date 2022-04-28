@@ -815,8 +815,8 @@ contract('BSCValidatorSet', (accounts) => {
     }
 
     miningValidators = (await validatorSetInstance.getMiningValidators.call())["0"];
-    let exceptValues = validators.slice(0, numOfCabinets);
-    let outValidator = miningValidators.filter((addr) => {
+    let exceptValues = validators.slice(0,numOfCabinets);
+    let outValidator = miningValidators.filter((addr)=>{
       return !exceptValues.includes(addr);
     });
     // TODO, this is not always true, but as the epoch number is fixed during UT, the result is fixed.

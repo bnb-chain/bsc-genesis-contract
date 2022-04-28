@@ -16,10 +16,10 @@ const bLSPublicKeys = [
 
 // ===============  Do not edit below ====
 function generateExtradata(validators, bLSPublicKeys) {
-  let extraVanity = Buffer.alloc(32);
+  let extraVanity =Buffer.alloc(32);
   let validatorsBytes = extraDataSerialize(validators, bLSPublicKeys);
-  let extraSeal = Buffer.alloc(65);
-  return Buffer.concat([extraVanity, validatorsBytes, extraSeal]);
+  let extraSeal =Buffer.alloc(65);
+  return Buffer.concat([extraVanity,validatorsBytes,extraSeal]);
 }
 
 function extraDataSerialize(validators, bLSPublicKeys) {

@@ -126,7 +126,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         validatorExtraSet.push(validatorExtra);
       }
     }
+
     _;
+
   }
 
   modifier oncePerBlock() {
@@ -157,12 +159,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event validatorExitMaintenance(address indexed validator);
 
   /*********************** init **************************/
-  function init() external onlyNotInit {
-    (IbcValidatorSetPackage memory validatorSetPkg, bool valid) = decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
+  function init() external onlyNotInit{
+    (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
     for (uint i;i<validatorSetPkg.validatorSet.length;++i) {
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
-      currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i + 1;
+      currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i+1;
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;
@@ -171,7 +173,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   receive() external payable {}
 
   /*********************** Cross Chain App Implement **************************/
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract initValidatorExtraSet external override returns (bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract initValidatorExtraSet external override returns(bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
     if (!ok) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
@@ -207,7 +209,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit {
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
@@ -391,8 +393,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function shuffle(address[] memory validators, bytes[] memory voteAddrs, uint256 epochNumber, uint startIdx, uint offset, uint limit, uint modNumber) internal pure {
     for (uint i; i<limit; ++i) {
-      uint random = uint(keccak256(abi.encodePacked(epochNumber, startIdx + i))) % modNumber;
-      if ((startIdx+i) != (offset+random)) {
+      uint random = uint(keccak256(abi.encodePacked(epochNumber, startIdx+i))) % modNumber;
+      if ( (startIdx+i) != (offset+random) ) {
         address tmpAddr = validators[startIdx+i];
         bytes memory tmpBLS = voteAddrs[startIdx+i];
         validators[startIdx+i] = validators[offset+random];
@@ -433,7 +435,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (consensusAddrs, voteAddrs);
   }
 
-  function getMiningValidators() external view override returns (address[] memory, bytes[] memory) {
+  function getMiningValidators() external view override returns(address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
     if (_numOfCabinets == 0 ){
@@ -452,9 +454,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     if (_maxNumOfWorkingCandidates > 0) {
       uint256 epochNumber = block.number / EPOCH;
-      shuffle(validators, voteAddrs, epochNumber, _numOfCabinets - _maxNumOfWorkingCandidates, 0, _maxNumOfWorkingCandidates, _numOfCabinets);
-      shuffle(validators, voteAddrs, epochNumber, _numOfCabinets - _maxNumOfWorkingCandidates, _numOfCabinets - _maxNumOfWorkingCandidates,
-        _maxNumOfWorkingCandidates, validators.length - _numOfCabinets + _maxNumOfWorkingCandidates);
+      shuffle(validators, voteAddrs, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, 0, _maxNumOfWorkingCandidates, _numOfCabinets);
+      shuffle(validators, voteAddrs, epochNumber, _numOfCabinets-_maxNumOfWorkingCandidates, _numOfCabinets-_maxNumOfWorkingCandidates,
+        _maxNumOfWorkingCandidates, validators.length - _numOfCabinets+_maxNumOfWorkingCandidates);
     }
     address[] memory miningValidators = new address[](_numOfCabinets);
     bytes[] memory miningVoteAddrs = new bytes[](_numOfCabinets);
@@ -465,7 +467,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (miningValidators, miningVoteAddrs);
   }
 
-  function getValidators() public view returns (address[] memory) {
+  function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
     for (uint i; i<n; ++i) {
@@ -497,7 +499,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return !currentValidatorSet[index].jailed && !validatorExtraSet[index].isMaintaining;
   }
 
-  function getIncoming(address validator) external view returns (uint256) {
+  function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0) {
       return 0;
@@ -561,6 +563,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   }
 
+  function getWorkingValidatorCount() public view returns(uint256 workingValidatorCount) {
+    workingValidatorCount = getValidators().length;
+    uint256 _numOfCabinets = numOfCabinets > 0 ? numOfCabinets : INIT_NUM_OF_CABINETS;
+    if (workingValidatorCount > _numOfCabinets) {
+      workingValidatorCount = _numOfCabinets;
+    }
+    if (workingValidatorCount == 0) {
+      workingValidatorCount = 1;
+    }
+  }
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash initValidatorExtraSet override {
     uint256 validatorIndex = _misdemeanor(validator);
@@ -698,7 +710,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint m = validatorSet.length;
 
     for (uint i; i<n; ++i) {
-      bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
       delete currentValidatorSetMap[oldValidator.consensusAddress];
     }
@@ -737,14 +748,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function getVoteAddresses(uint length) internal view returns (bytes[] memory) {
+  function getVoteAddresses(uint length) internal view returns(bytes[] memory) {
     uint n = currentValidatorSet.length;
     bytes[] memory voteAddrs = new bytes[](length);
     if (validatorExtraSet.length != n) {
       return voteAddrs;
     }
     uint index = 0;
-    for (uint i = 0; i < n; i++) {
+    for (uint i; i<n; ++i) {
       if (isWorkingValidator(i)) {
         voteAddrs[index] = validatorExtraSet[i].voteAddress;
         index ++;
@@ -909,7 +920,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   //rlp encode & decode function
-  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns (IbcValidatorSetPackage memory, bool) {
+  function decodeValidatorSetSynPackage(bytes memory msgBytes) internal pure returns(IbcValidatorSetPackage memory, bool) {
     IbcValidatorSetPackage memory validatorSetPkg;
 
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();

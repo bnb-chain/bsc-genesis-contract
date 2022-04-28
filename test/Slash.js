@@ -333,6 +333,7 @@ contract('Clean SlashIndicator', (accounts) => {
         assert.equal(count, 1);
       }
     }
+
   });
 });
 

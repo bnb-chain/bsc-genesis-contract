@@ -314,7 +314,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return elements.encodeList();
   }
 
-  function getSlashThresholds() external view override(ISlashIndicator) returns (uint256, uint256) {
+  function getSlashThresholds() override(ISlashIndicator) external view returns (uint256, uint256) {
     return (misdemeanorThreshold, felonyThreshold);
   }
 }
