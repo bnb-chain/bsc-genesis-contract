@@ -62,7 +62,6 @@ contract('SlashIndicator: isOperator works', (accounts) => {
   });
 });
 
-
 contract('SlashIndicator: catch emit event', (accounts) => {
   it('catch emit event', async () => {
       const slashInstance = await SlashIndicator.deployed();
@@ -79,7 +78,6 @@ contract('SlashIndicator: catch emit event', (accounts) => {
       }
     });
 });
-
 
 contract('SlashIndicator', (accounts) => {
   it('trigger misdemeanor', async () => {
@@ -482,10 +480,33 @@ contract("finality slash SlashIndicator", (accounts) => {
       valAddr: accounts[0],
     };
 
-    evidence.voteA.tarNum = evidence.voteA.srcNum - 1;
-    let evidence1 = evidence;
+    evidence.voteA.srcNum = currentNumber - 257;
     try {
-      await slashInstance.submitFinalityViolationEvidence(evidence1, { from: relayerAccount });
+      await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes("too old block involved in the evidence"),
+        "the vote must happen recently"
+      );
+    }
+
+    evidence.voteA.srcNum = currentNumber - 20;
+    evidence.voteB = voteDataA;
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
+      assert.fail();
+    } catch (error) {
+      assert.ok(
+        error.toString().includes("two identical votes"),
+        "two votes must be different"
+      );
+    }
+
+    evidence.voteB = voteDataB;
+    evidence.voteA.tarNum = evidence.voteA.srcNum - 1;
+    try {
+      await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
     } catch (error) {
       assert.ok(
@@ -496,28 +517,20 @@ contract("finality slash SlashIndicator", (accounts) => {
 
     evidence.voteA.tarNum = currentNumber - 10;
     evidence.voteB.tarNum = currentNumber - 8;
-    let evidence2 = evidence;
     try {
-      await slashInstance.submitFinalityViolationEvidence(evidence2, { from: relayerAccount });
+      await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
     } catch (error) {
-      assert.ok(
-        error.toString().includes("no violation of vote rules"),
-        "no violation of vote rules"
-      );
+      assert.ok(error.toString().includes("no violation of vote rules"), "no violation of vote rules");
     }
 
     evidence.voteB.tarNum = currentNumber - 12;
     evidence.valAddr = accounts[1];
-    let evidence3 = evidence;
     try {
-      await slashInstance.submitFinalityViolationEvidence(evidence3, { from: relayerAccount });
+      await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
     } catch (error) {
-      assert.ok(
-        error.toString().includes("validator not exist"),
-        "validator not exist"
-      );
+      assert.ok(error.toString().includes("validator not exist"), "validator not exist");
     }
   });
 });

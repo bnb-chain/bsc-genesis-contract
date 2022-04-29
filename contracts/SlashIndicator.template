@@ -199,14 +199,14 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     uint256 srcNumB = _evidence.voteB.srcNum;
     uint256 tarNumB = _evidence.voteB.tarNum;
 
+    // Basic check
+    require(srcNumA+256 > block.number && srcNumB+256 > block.number, "too old block involved in the evidence");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
     _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
 
     // Vote rules check
-    if (!((srcNumA < srcNumB && srcNumB < tarNumB && tarNumB < tarNumA) ||
-    (srcNumB < srcNumA && srcNumA < tarNumA && tarNumA < tarNumB)) &&
-    !(tarNumA == tarNumB)) {
+    if (!((srcNumA<srcNumB && tarNumB<tarNumA) || (srcNumB<srcNumA && tarNumA<tarNumB)) && tarNumA != tarNumB) {
       revert(string(abi.encodePacked("no violation of vote rules")));
     }
 

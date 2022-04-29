@@ -275,7 +275,6 @@ contract('GovHub others', (accounts) => {
         assert.equal(batchSizeForOracle, 100, "value not equal");
     });
 
-
     it('Gov SlashIndicator', async () => {
         const govHubInstance = await GovHub.deployed();
         const slashIndicator =await SlashIndicator.deployed();
