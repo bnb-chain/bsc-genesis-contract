@@ -71,6 +71,12 @@
     "0x0000000000000000000000000000000000002000": {
       "balance": "0x0",
       "code": "0x{{crossChain}}"
+    },
+    "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD": {
+      "balance": "0x100000000000000000000"
+    },
+    "0x42D596440775C90db8d9187b47650986E1063493": {
+      "balance": "0x1000000000000000000000"
     }{% for v in initHolders %},
     "{{ v.address.replace('0x', '') }}": {
       "balance": "0x{{ v.balance }}"
