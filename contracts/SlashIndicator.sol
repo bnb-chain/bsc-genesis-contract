@@ -4,6 +4,7 @@ pragma experimental ABIEncoderV2;
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
 import "./lib/TypesToBytes.sol";
+import "./lib/BytesLib.sol";
 import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IApplication.sol";
@@ -63,7 +64,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   struct FinalityEvidence {
     VoteData voteA;
     VoteData voteB;
-    address valAddr;
+    bytes voteAddr;
   }
 
   modifier oncePerBlock() {
@@ -207,12 +208,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     // BLS verification
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
-    bytes memory voteAddress;
+    address valAddr;
+    bytes memory voteAddr = _evidence.voteAddr;
     bool exist;
-    for (uint i = 0; i < vals.length; i++) {
-      if (vals[i] == _evidence.valAddr) {
+    for (uint i; i < voteAddrs.length; ++i) {
+      if (BytesLib.equal(voteAddrs[i],  voteAddr)) {
         exist = true;
-        voteAddress = voteAddrs[i];
+        valAddr = vals[i];
         break;
       }
     }
@@ -233,7 +235,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
       input = abi.encodePacked(input, cur);
       input = abi.encodePacked(input, _evidence.voteA.sig);
-      input = abi.encodePacked(input, voteAddress);
+      input = abi.encodePacked(input, voteAddr);
     }
     {
       bytes memory pre = new bytes(32);
@@ -246,7 +248,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
       input = abi.encodePacked(input, cur);
       input = abi.encodePacked(input, _evidence.voteB.sig);
-      input = abi.encodePacked(input, voteAddress);
+      input = abi.encodePacked(input, voteAddr);
     }
 
     // call the precompiled contract to verify the BLS signature
@@ -266,9 +268,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(_evidence.valAddr);
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(_evidence.valAddr), 0);
-    emit validatorSlashed(_evidence.valAddr);
+    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valAddr);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(valAddr), 0);
+    emit validatorSlashed(valAddr);
   }
 
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
