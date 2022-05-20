@@ -145,12 +145,12 @@ contract("BSCValidatorSet", (accounts) => {
     });
 
     for (let i = 0; i < 10; i++) {
-      truffleAssert.eventEmitted(tx, "validatorDeposit", (ev) => {
+      truffleAssert.eventEmitted(tx, "finalityRewardDeposit", (ev) => {
         return ev.validator === valAddrs[i] && ev.amount.toNumber() === 5e7;
       });
     }
     for (let i = 0; i < 10; i++) {
-      truffleAssert.eventEmitted(tx, "deprecatedDeposit", (ev) => {
+      truffleAssert.eventEmitted(tx, "deprecatedFinalityRewardDeposit", (ev) => {
         return ev.validator === valAddrs[i + 10] && ev.amount.toNumber() === 5e7;
       });
     }
@@ -319,7 +319,6 @@ contract('BSCValidatorSet', (accounts) => {
   });
 });
 
-
 contract('BSCValidatorSet', (accounts) => {
   it('failed to update', async () => {
     const validatorSetInstance = await BSCValidatorSet.deployed();
@@ -441,7 +440,6 @@ contract('BSCValidatorSet', (accounts) => {
     });
   });
 });
-
 
 contract('BSCValidatorSet', (accounts) => {
   it('complicate distribute when one validar fee addr is contract', async () => {

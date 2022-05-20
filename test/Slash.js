@@ -339,10 +339,22 @@ contract("finality slash SlashIndicator", (accounts) => {
   it("valid finality evidence: same target block", async () => {
     const slashInstance = await SlashIndicator.deployed();
     const systemRewardInstance = await SystemReward.deployed();
+    const validatorSetInstance = await BSCValidatorSet.deployed();
     let relayerAccount = accounts[8];
 
     await systemRewardInstance.send(web3.utils.toBN(1e18), { from: accounts[1] });
     await systemRewardInstance.addOperator(slashInstance.address);
+
+    // add vote address
+    let packageBytes = newValidatorUpdateRlpEncode(
+      [accounts[0]],
+      [accounts[0]],
+      [accounts[0]],
+      [Buffer.from("voteAddr")]
+    );
+    await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID, packageBytes, {
+      from: relayerAccount,
+    });
 
     let currentNumber = await web3.eth.getBlockNumber();
     let srcNumA = currentNumber - 20;
@@ -377,7 +389,7 @@ contract("finality slash SlashIndicator", (accounts) => {
     let evidence = {
       voteA: voteDataA,
       voteB: voteDataB,
-      valAddr: accounts[0],
+      voteAddr: Buffer.from("voteAddr"),
     };
 
     let tx = await slashInstance.submitFinalityViolationEvidence(evidence, {
@@ -427,7 +439,7 @@ contract("finality slash SlashIndicator", (accounts) => {
     let evidence = {
       voteA: voteDataA,
       voteB: voteDataB,
-      valAddr: accounts[0],
+      voteAddr: Buffer.from("voteAddr"),
     };
 
     let tx = await slashInstance.submitFinalityViolationEvidence(evidence, {
@@ -477,7 +489,7 @@ contract("finality slash SlashIndicator", (accounts) => {
     let evidence = {
       voteA: voteDataA,
       voteB: voteDataB,
-      valAddr: accounts[0],
+      voteAddr: Buffer.from("voteAddr"),
     };
 
     evidence.voteA.srcNum = currentNumber - 257;
@@ -525,7 +537,7 @@ contract("finality slash SlashIndicator", (accounts) => {
     }
 
     evidence.voteB.tarNum = currentNumber - 12;
-    evidence.valAddr = accounts[1];
+    evidence.voteAddr = Buffer.from("wrongVoteAddr");
     try {
       await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
@@ -550,4 +562,22 @@ function validatorUpdateRlpEncode(consensusAddrList,feeAddrList, bscFeeAddrList)
   }
   pkg.push(vals);
   return RLP.encode(pkg)
+}
+
+function newValidatorUpdateRlpEncode(consensusAddrList, feeAddrList, bscFeeAddrList, voteAddrList) {
+  let pkg = [];
+  pkg.push(0x00);
+  let n = consensusAddrList.length;
+  let vals = [];
+  for (let i = 0; i < n; i++) {
+    vals.push([
+      consensusAddrList[i].toString(),
+      feeAddrList[i].toString(),
+      bscFeeAddrList[i].toString(),
+      0x0000000000000064,
+      voteAddrList[i],
+    ]);
+  }
+  pkg.push(vals);
+  return RLP.encode(pkg);
 }

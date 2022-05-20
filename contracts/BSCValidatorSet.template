@@ -157,6 +157,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event feeBurned(uint256 amount);
   event validatorEnterMaintenance(address indexed validator);
   event validatorExitMaintenance(address indexed validator);
+  event finalityRewardDeposit(address indexed validator, uint256 amount);
+  event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -549,15 +551,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (index > 0) {
         Validator storage validator = currentValidatorSet[index - 1];
         if (validator.jailed) {
-          emit deprecatedDeposit(valAddr, value);
+          emit deprecatedFinalityRewardDeposit(valAddr, value);
         } else {
           totalInComing = totalInComing.add(value);
           validator.incoming = validator.incoming.add(value);
-          emit validatorDeposit(valAddr, value);
+          emit finalityRewardDeposit(valAddr, value);
         }
       } else {
         // get incoming from deprecated validator;
-        emit deprecatedDeposit(valAddr, value);
+        emit deprecatedFinalityRewardDeposit(valAddr, value);
       }
     }
 
