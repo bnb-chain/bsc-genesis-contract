@@ -195,19 +195,15 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
     }
-    uint256 srcNumA = _evidence.voteA.srcNum;
-    uint256 tarNumA = _evidence.voteA.tarNum;
-    uint256 srcNumB = _evidence.voteB.srcNum;
-    uint256 tarNumB = _evidence.voteB.tarNum;
 
     // Basic check
-    require(srcNumA+256 > block.number && srcNumB+256 > block.number, "too old block involved in the evidence");
+    require(_evidence.voteA.srcNum+256 > block.number && _evidence.voteB.srcNum+256 > block.number, "too old block involved in the evidence");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
     _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
-    require(srcNumA < tarNumA && srcNumB < tarNumB, "source number bigger than target number");
+    require(_evidence.voteA.srcNum < _evidence.voteA.tarNum && _evidence.voteB.srcNum < _evidence.voteB.tarNum, "source number bigger than target number");
 
     // Vote rules check
-    if (!((srcNumA<srcNumB && tarNumB<tarNumA) || (srcNumB<srcNumA && tarNumA<tarNumB)) && tarNumA != tarNumB) {
+    if (!((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) || (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum)) && _evidence.voteA.tarNum != _evidence.voteB.tarNum) {
       revert(string(abi.encodePacked("no violation of vote rules")));
     }
 
@@ -225,57 +221,45 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     require(exist, "validator not exist");
 {% if mock %}{% else %}
-    bytes memory input;
-    bytes memory output;
-
-    // to avoid too deep stack
-    {
-      bytes memory pre = new bytes(32);
-      bytes memory cur = new bytes(32);
-      TypesToBytes.uintToBytes(32, srcNumA, pre);
-      TypesToBytes.uintToBytes(32, tarNumA, cur);
-      input = abi.encodePacked(pre, cur);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.srcHash, cur);
-      input = abi.encodePacked(input, cur);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteA.tarHash, cur);
-      input = abi.encodePacked(input, cur);
-      input = abi.encodePacked(input, _evidence.voteA.sig);
-      input = abi.encodePacked(input, voteAddr);
-    }
-    {
-      bytes memory pre = new bytes(32);
-      bytes memory cur = new bytes(32);
-      TypesToBytes.uintToBytes(32, srcNumB, pre);
-      TypesToBytes.uintToBytes(32, tarNumB, cur);
-      input = abi.encodePacked(pre, cur);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.srcHash, cur);
-      input = abi.encodePacked(input, cur);
-      TypesToBytes.bytes32ToBytes(32, _evidence.voteB.tarHash, cur);
-      input = abi.encodePacked(input, cur);
-      input = abi.encodePacked(input, _evidence.voteB.sig);
-      input = abi.encodePacked(input, voteAddr);
-    }
-
-    // call the precompiled contract to verify the BLS signature
-    // the precompiled contract's address is 0x64
-    assembly {
-      let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
-        revert(0, 0)
-      }
-    }
-    assembly {
-      let len := mload(input)
-      if iszero(call(not(0), 0x64, 0, input, len, output, 0x20)) {
-        revert(0, 0)
-      }
-    }
+    require(verifyBLSSignature(_evidence.voteA.srcNum, _evidence.voteA.srcHash, _evidence.voteA.tarNum, _evidence.voteA.tarHash, _evidence.voteA.sig, _evidence.voteAddr) &&
+      verifyBLSSignature(_evidence.voteB.srcNum, _evidence.voteB.srcHash, _evidence.voteB.tarNum, _evidence.voteB.tarHash, _evidence.voteB.sig, _evidence.voteAddr),
+      "verify signature failed");
 {% endif %}
     uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valAddr);
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(valAddr), 0);
     emit validatorSlashed(valAddr);
+  }
+
+  function verifyBLSSignature(uint256 srcNum, bytes32 srcHash, uint256 tarNum, bytes32 tarHash, bytes memory sig, bytes memory voteAddr) internal view returns(bool) {
+    bytes memory input;
+    bytes memory output = new bytes(1);
+
+    bytes memory pre = new bytes(32);
+    bytes memory cur = new bytes(32);
+    TypesToBytes.uintToBytes(32, srcNum, pre);
+    TypesToBytes.uintToBytes(32, tarNum, cur);
+    input = abi.encodePacked(pre, cur);
+    TypesToBytes.bytes32ToBytes(32, srcHash, cur);
+    input = abi.encodePacked(input, cur);
+    TypesToBytes.bytes32ToBytes(32, tarHash, cur);
+    input = abi.encodePacked(input, cur);
+    input = abi.encodePacked(input, sig);
+    input = abi.encodePacked(input, voteAddr);
+
+    // call the precompiled contract to verify the BLS signature
+    // the precompiled contract's address is 0x64
+    assembly {
+      let len := mload(input)
+      if iszero(staticcall(not(0), 0x64, add(input, 0x20), len, add(output, 0x20), 0x01)) {
+        revert(0, 0)
+      }
+    }
+    if (BytesLib.toUint8(output, 0) != uint8(1)) {
+      return false;
+    }
+    return true;
   }
 
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
