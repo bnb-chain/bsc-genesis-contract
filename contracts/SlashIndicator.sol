@@ -192,15 +192,17 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
 
     // Basic check
-    require(_evidence.voteA.srcNum+256 > block.number && _evidence.voteB.srcNum+256 > block.number, "too old block involved in the evidence");
+    require(_evidence.voteA.srcNum+256 > block.number &&
+      _evidence.voteB.srcNum+256 > block.number, "too old block involved in the evidence");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
     _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
-    require(_evidence.voteA.srcNum < _evidence.voteA.tarNum && _evidence.voteB.srcNum < _evidence.voteB.tarNum, "source number bigger than target number");
+    require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
+      _evidence.voteB.srcNum < _evidence.voteB.tarNum, "source number bigger than target number");
 
     // Vote rules check
-    if (!((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) || (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum)) && _evidence.voteA.tarNum != _evidence.voteB.tarNum) {
-      revert(string(abi.encodePacked("no violation of vote rules")));
-    }
+    require((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) ||
+    (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
+    _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
 
     // BLS verification
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
@@ -229,22 +231,22 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   function verifyBLSSignature(uint256 srcNum, bytes32 srcHash, uint256 tarNum, bytes32 tarHash, bytes memory sig, bytes memory voteAddr) internal view returns(bool) {
     bytes memory input;
-    bytes memory output = new bytes(1);
 
-    bytes memory pre = new bytes(32);
-    bytes memory cur = new bytes(32);
-    TypesToBytes.uintToBytes(32, srcNum, pre);
-    TypesToBytes.uintToBytes(32, tarNum, cur);
-    input = abi.encodePacked(pre, cur);
-    TypesToBytes.bytes32ToBytes(32, srcHash, cur);
-    input = abi.encodePacked(input, cur);
-    TypesToBytes.bytes32ToBytes(32, tarHash, cur);
-    input = abi.encodePacked(input, cur);
+    bytes memory _preBytes = new bytes(32);
+    bytes memory _postBytes = new bytes(32);
+    TypesToBytes.uintToBytes(32, srcNum, _preBytes);
+    TypesToBytes.uintToBytes(32, tarNum, _postBytes);
+    input = abi.encodePacked(_preBytes, _postBytes);
+    TypesToBytes.bytes32ToBytes(32, srcHash, _postBytes);
+    input = abi.encodePacked(input, _postBytes);
+    TypesToBytes.bytes32ToBytes(32, tarHash, _postBytes);
+    input = abi.encodePacked(input, _postBytes);
     input = abi.encodePacked(input, sig);
     input = abi.encodePacked(input, voteAddr);
 
     // call the precompiled contract to verify the BLS signature
     // the precompiled contract's address is 0x64
+    bytes memory output = new bytes(1);
     assembly {
       let len := mload(input)
       if iszero(staticcall(not(0), 0x64, add(input, 0x20), len, add(output, 0x20), 0x01)) {
