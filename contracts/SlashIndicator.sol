@@ -186,7 +186,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence calldata _evidence) external onlyInit onlyRelayer {
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
     }
@@ -218,9 +218,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     require(exist, "validator not exist");
 
-    require(verifyBLSSignature(_evidence.voteA.srcNum, _evidence.voteA.srcHash, _evidence.voteA.tarNum, _evidence.voteA.tarHash, _evidence.voteA.sig, _evidence.voteAddr) &&
-      verifyBLSSignature(_evidence.voteB.srcNum, _evidence.voteB.srcHash, _evidence.voteB.tarNum, _evidence.voteB.tarHash, _evidence.voteB.sig, _evidence.voteAddr),
-      "verify signature failed");
+    require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
+      verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
 
     uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
@@ -229,20 +228,25 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit validatorSlashed(valAddr);
   }
 
-  function verifyBLSSignature(uint256 srcNum, bytes32 srcHash, uint256 tarNum, bytes32 tarHash, bytes memory sig, bytes memory voteAddr) internal view returns(bool) {
-    bytes memory input;
+  function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+  }
 
-    bytes memory _preBytes = new bytes(32);
-    bytes memory _postBytes = new bytes(32);
-    TypesToBytes.uintToBytes(32, srcNum, _preBytes);
-    TypesToBytes.uintToBytes(32, tarNum, _postBytes);
-    input = abi.encodePacked(_preBytes, _postBytes);
-    TypesToBytes.bytes32ToBytes(32, srcHash, _postBytes);
-    input = abi.encodePacked(input, _postBytes);
-    TypesToBytes.bytes32ToBytes(32, tarHash, _postBytes);
-    input = abi.encodePacked(input, _postBytes);
-    input = abi.encodePacked(input, sig);
-    input = abi.encodePacked(input, voteAddr);
+  function verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal returns(bool) {
+
+    // assemble input data
+    bytes memory input = new bytes(272);
+    bytes memory _bytes = new bytes(32);
+    TypesToBytes.uintToBytes(32, vote.srcNum, _bytes);
+    bytesConcat(input, _bytes, 0, 32);
+    TypesToBytes.uintToBytes(32, vote.tarNum, _bytes);
+    bytesConcat(input, _bytes, 32, 32);
+    TypesToBytes.bytes32ToBytes(32, vote.srcHash, _bytes);
+    bytesConcat(input, _bytes, 64, 32);
+    TypesToBytes.bytes32ToBytes(32, vote.tarHash, _bytes);
+    bytesConcat(input, _bytes, 96, 32);
+    bytesConcat(input, vote.sig, 128, 96);
+    bytesConcat(input, voteAddr, 224, 48);
 
     // call the precompiled contract to verify the BLS signature
     // the precompiled contract's address is 0x64
@@ -259,8 +263,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return true;
   }
 
-  function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+  function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal {
+    for (uint i; i<len; ++i) {
+      data[index++] = _bytes[i];
+    }
   }
 
   /*********************** Param update ********************************/
