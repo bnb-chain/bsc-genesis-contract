@@ -195,14 +195,14 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(_evidence.voteA.srcNum+256 > block.number &&
       _evidence.voteB.srcNum+256 > block.number, "too old block involved in the evidence");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
-    _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
+      _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
       _evidence.voteB.srcNum < _evidence.voteB.tarNum, "source number bigger than target number");
 
     // Vote rules check
     require((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) ||
-    (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
-    _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
+      (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
+      _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
 
     // BLS verification
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
