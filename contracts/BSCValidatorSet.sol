@@ -697,7 +697,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
       require(value.length == 32, "length of finalityRewardRatio mismatch");
       uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio < 100, "the finality reward ratio out of range!");
+      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio < 100, "the finalityRewardRatio is out of range");
       finalityRewardRatio = newFinalityRewardRatio;
     } else {
       require(false, "unknown param");
