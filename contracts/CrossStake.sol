@@ -1,9 +1,12 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
+import "./lib/Memory.sol";
+import "./lib/BytesToTypes.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IApplication.sol";
+import "./lib/CmnPkg.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
@@ -42,22 +45,47 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     _;
   }
 
-  function stake(address validator) payable initRelayerFee {
+  /*********************** events **************************/
+  event stake(address indexed delAddr, address indexed validator, uint256 amount);
+  event unstake(address indexed delAddr, address indexed validator, uint256 amount);
+  event claimReward(address indexed receiver);
+  event claimUnstake(address indexed receiver);
+  event restake(address indexed delAddr, address indexed validator, uint256 amount);
+  event paramChange(string key, bytes value);
+  event unexpectedPackage(uint8 channelId, bytes msgBytes);
+
+  /*********************** Implement cross chain app ********************************/
+  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns(bytes memory) {
+    require(false, "receive unexpected syn package");
+  }
+
+  function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
+    // should not happen
+    emit unexpectedPackage(channelId, msgBytes);
+  }
+
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override {
+    // should not happen
+    emit unexpectedPackage(channelId, msgBytes);
+  }
+
+  function stakeTo(address validator, uint256 _oracleRelayerFee) external payable initRelayerFee {
     uint256 amount = msg.value;
-    require(amount > oracleRelayerFee, "Send value cannot cover the relayer fee or stake value is zero");
+    require(amount > _oracleRelayerFee && _oracleRelayerFee >= oracleRelayerFee, "Send value cannot cover the relayer fee or stake value is zero");
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = EVENT_STAKE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validator.encodeAddress();
-    elements[3] = amount.encodeUint();
+    elements[3] = (amount-_oracleRelayerFee).encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain.sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
+    emit stake(msg.sender, validator, amount-_oracleRelayerFee);
   }
 
-  function unstake(address validator, uint256 amount) payable initRelayerFee {
-    uint256 _amount = msg.value;
-    require(_amount >= oracleRelayerFee, "Send value cannot cover the relayer fee");
+  function unstakeFrom(address validator, uint256 amount) external payable initRelayerFee {
+    uint256 _oracleRelayerFee = msg.value;
+    require(_oracleRelayerFee >= oracleRelayerFee, "Send value cannot cover the relayer fee");
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = EVENT_UNSTAKE.encodeUint();
@@ -65,38 +93,41 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     elements[2] = validator.encodeAddress();
     elements[3] = amount.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain.sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _amount);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
+    emit unstake(msg.sender, validator, amount);
   }
 
-  function claimReward(address receiver) payable initRelayerFee noReentrant {
+  function claimRewardTo(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
     uint256 amount = msg.value;
-    require(amount >= oracleRelayerFee+BSCRelayerFee, "Send value cannot cover the relayer fee");
+    require(amount >= _oracleRelayerFee+BSCRelayerFee && _oracleRelayerFee >= oracleRelayerFee, "Send value cannot cover the relayer fee");
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = EVENT_CLAIM_REWARD.encodeUint();
     elements[1] = receiver.encodeAddress();
-    uint256 _bSCRelayerFee = amount-oracleRelayerFee;
+    uint256 _bSCRelayerFee = amount-_oracleRelayerFee;
     elements[2] = _bSCRelayerFee.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain.sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
+    emit claimReward(receiver);
   }
 
-  function claimUnstake(address receiver) payable initRelayerFee noReentrant {
+  function claimUnstakeTo(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
     uint256 amount = msg.value;
-    require(amount >= oracleRelayerFee+BSCRelayerFee, "Send value cannot cover the relayer fee");
+    require(amount >= _oracleRelayerFee+BSCRelayerFee && _oracleRelayerFee >= oracleRelayerFee, "Send value cannot cover the relayer fee");
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = EVENT_CLAIM_UNSTAKE.encodeUint();
     elements[1] = receiver.encodeAddress();
-    uint256 _bSCRelayerFee = amount-oracleRelayerFee;
+    uint256 _bSCRelayerFee = amount-_oracleRelayerFee;
     elements[2] = _bSCRelayerFee.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain.sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
+    emit claimUnstake(receiver);
   }
 
-  function reStake(address validator, uint256 amount) payable initRelayerFee {
-    uint256 _amount = msg.value;
-    require(amount >= oracleRelayerFee, "Send value cannot cover the relayer fee");
+  function restakeTo(address validator, uint256 amount) external payable initRelayerFee {
+    uint256 _oracleRelayerFee = msg.value;
+    require(_oracleRelayerFee >= oracleRelayerFee, "Send value cannot cover the relayer fee");
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = EVENT_RESTAKE.encodeUint();
@@ -104,7 +135,8 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     elements[2] = validator.encodeAddress();
     elements[3] = amount.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain.sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _amount);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
+    emit restake(msg.sender, validator, amount);
   }
 
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
