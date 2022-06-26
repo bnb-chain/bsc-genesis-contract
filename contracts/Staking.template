@@ -48,12 +48,12 @@ contract CrossStake is System, IParamSubscriber, IApplication {
   }
 
   /*********************** events **************************/
-  event delegateSuccess(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event undelegateSuccess(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event claimRewardSuccess(address indexed receiver, uint256 oracleRelayerFee, uint256 BSCRelayerFee);
-  event claimUndelegatedSuccess(address indexed receiver, uint256 oracleRelayerFee, uint256 BSCRelayerFee);
-  event reinvestSuccess(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event redelegateSuccess(address indexed delAddr, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
+  event delegateSubmit(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
+  event undelegateSubmit(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
+  event claimRewardSubmit(address indexed receiver, uint256 oracleRelayerFee, uint256 BSCRelayerFee);
+  event claimUndelegatedSubmit(address indexed receiver, uint256 oracleRelayerFee, uint256 BSCRelayerFee);
+  event reinvestSubmit(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
+  event redelegateSubmit(address indexed delAddr, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
   event paramChange(string key, bytes value);
 
   /*********************** Implement cross chain app ********************************/
@@ -70,6 +70,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     //TODO
   }
 
+  /*********************** External Functions **************************/
   function delegate(address validator, uint256 amount) external payable initRelayerFee {
     require(msg.value >= amount.add(oracleRelayerFee), "received BNB amount should be no less than the sum of stake amount and minimum oracleRelayerFee");
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
@@ -84,7 +85,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit delegateSuccess(msg.sender, validator, amount, _oracleRelayerFee);
+    emit delegateSubmit(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
   function undelegate(address validator, uint256 amount) external payable initRelayerFee {
@@ -99,7 +100,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit undelegateSuccess(msg.sender, validator, amount, _oracleRelayerFee);
+    emit undelegateSubmit(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
   function claimReward(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
@@ -115,7 +116,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit claimRewardSuccess(receiver, _oracleRelayerFee, _bSCRelayerFee);
+    emit claimRewardSubmit(receiver, _oracleRelayerFee, _bSCRelayerFee);
   }
 
   function claimUndeldegated(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
@@ -131,7 +132,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit claimUndelegatedSuccess(receiver, _oracleRelayerFee, _bSCRelayerFee);
+    emit claimUndelegatedSubmit(receiver, _oracleRelayerFee, _bSCRelayerFee);
   }
 
   function reinvest(address validator, uint256 amount) external payable initRelayerFee {
@@ -146,7 +147,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit reinvestSuccess(msg.sender, validator, amount, _oracleRelayerFee);
+    emit reinvestSubmit(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) external payable initRelayerFee {
@@ -162,9 +163,10 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee);
     address(TOKEN_HUB_ADDR).transfer(msg.value);
-    emit redelegateSuccess(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
+    emit redelegateSubmit(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
   }
 
+  /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
     if (Memory.compareStrings(key, "oracleRelayerFee")) {
       require(value.length == 32, "length of oracleRelayerFee mismatch");
