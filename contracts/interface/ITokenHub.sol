@@ -19,6 +19,7 @@ interface ITokenHub {
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
     uint64 expireTime) external payable returns (bool);
 
+  function withdrawStakingBNB(uint256 amount) external payable;
 }
 
 

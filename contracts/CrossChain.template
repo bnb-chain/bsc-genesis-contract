@@ -128,7 +128,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     alreadyInit=true;
   }
 
-function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
+  function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
     uint256 payloadLength = msgBytes.length + 33;
     bytes memory payload = new bytes(payloadLength);
     uint256 ptr;

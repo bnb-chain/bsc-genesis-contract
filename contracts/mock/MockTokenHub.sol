@@ -37,6 +37,12 @@ contract MockTokenHub is ITokenHub {
   function setPanicBatchTransferOut(bool doPanic)external{
     panicBatchTransferOut = doPanic;
   }
+
+  function transferStakingBNB() external override payable {
+    require(msg.sender == STAKING_CONTRACT_ADDR, "only staking system contract can call this function");
+
+    totalStakingBNB += msg.value;
+  }
 }
 
 

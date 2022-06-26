@@ -79,6 +79,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   uint256 public relayFee;
 
+  uint256 public totalStakingBNB;
+
   mapping(address => uint256) public bep20ContractDecimals;
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
@@ -560,5 +562,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         bep2Symbol[j] = bep2SymbolBytes[j];
     }
     return string(bep2Symbol);
+  }
+
+  function withdrawStakingBNB(uint256 amount) external override payable {
+    require(msg.sender == STAKING_CONTRACT_ADDR, "only staking system contract can call this function");
+    address(STAKING_CONTRACT_ADDR).transfer(amount);
   }
 }

@@ -5,14 +5,14 @@ const nunjucks = require("nunjucks");
 program.version("0.0.1");
 program.option(
 	"-t, --template <template>",
-	"crossStake template file",
-	"./contracts/CrossStake.template"
+	"staking template file",
+	"./contracts/Staking.template"
 );
 
 program.option(
 	"-o, --output <output-file>",
-	"CrossStake.sol",
-	"./contracts/CrossStake.sol"
+	"Staking.sol",
+	"./contracts/Staking.sol"
 )
 
 program.option("--mock <mock>",
