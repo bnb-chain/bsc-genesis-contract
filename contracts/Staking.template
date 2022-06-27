@@ -11,8 +11,9 @@ import "./lib/CmnPkg.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
+import "./interface/IStaking.sol";
 
-contract CrossStake is System, IParamSubscriber, IApplication {
+contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   using SafeMath for uint256;
   using RLPEncode for *;
 
@@ -71,7 +72,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
   }
 
   /*********************** External Functions **************************/
-  function delegate(address validator, uint256 amount) external payable initRelayerFee {
+  function delegate(address validator, uint256 amount) override external payable initRelayerFee {
     require(msg.value >= amount.add(oracleRelayerFee), "received BNB amount should be no less than the sum of stake amount and minimum oracleRelayerFee");
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
     require(amount%TEN_DECIMALS==0, "invalid stake amount: precision loss in amount conversion");
@@ -88,7 +89,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     emit delegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
-  function undelegate(address validator, uint256 amount) external payable initRelayerFee {
+  function undelegate(address validator, uint256 amount) override external payable initRelayerFee {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
 
@@ -103,7 +104,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
-  function claimReward(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
+  function claimReward(address receiver, uint256 _oracleRelayerFee) override external payable initRelayerFee noReentrant {
     uint256 _bSCRelayerFee = (msg.value).sub(_oracleRelayerFee);
     require(_bSCRelayerFee >= BSCRelayerFee && _oracleRelayerFee >= oracleRelayerFee,
       "received BNB amount should be no less than the sum of the minimum BSCRelayerFee and the minimum oracleRelayerFee");
@@ -119,7 +120,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     emit claimRewardSubmitted(receiver, _oracleRelayerFee, _bSCRelayerFee);
   }
 
-  function claimUndeldegated(address receiver, uint256 _oracleRelayerFee) external payable initRelayerFee noReentrant {
+  function claimUndeldegated(address receiver, uint256 _oracleRelayerFee) override external payable initRelayerFee noReentrant {
     uint256 _bSCRelayerFee = (msg.value).sub(_oracleRelayerFee);
     require(_bSCRelayerFee >= BSCRelayerFee && _oracleRelayerFee >= oracleRelayerFee,
       "received BNB amount should be no less than the sum of the minimum BSCRelayerFee and the minimum oracleRelayerFee");
@@ -135,7 +136,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     emit claimUndelegatedSubmitted(receiver, _oracleRelayerFee, _bSCRelayerFee);
   }
 
-  function reinvest(address validator, uint256 amount) external payable initRelayerFee {
+  function reinvest(address validator, uint256 amount) override external payable initRelayerFee {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
 
@@ -150,7 +151,7 @@ contract CrossStake is System, IParamSubscriber, IApplication {
     emit reinvestSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) external payable initRelayerFee {
+  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable initRelayerFee {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
 
