@@ -2,15 +2,19 @@ pragma solidity 0.6.4;
 
 interface IStaking {
 
-  function delegate(address validator, uint256 amount) external;
+  function delegate(address validator, uint256 amount) external payable;
 
-  function undelegate(address validator, uint256 amount) external;
+  function undelegate(address validator, uint256 amount) external payable;
 
-  function claimReward(address receiver, uint256 _oracleRelayerFee) external;
+  function redelegate(address validatorSrc, address validatorDst, uint256 amount) external payable;
 
-  function claimUndeldegated(address receiver, uint256 _oracleRelayerFee) external;
+  function claimReward() external returns(uint256);
 
-  function reinvest(address validator, uint256 amount) external;
+  function claimUndeldegated() external returns(uint256);
 
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) external;
+  function getPendingReward() external view returns(uint256);
+
+  function getPendingUndelegated() external view returns(uint256);
+
+  function getOracleRelayerFee() external view returns(uint256);
 }

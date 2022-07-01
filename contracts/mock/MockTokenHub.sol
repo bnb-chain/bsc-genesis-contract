@@ -38,10 +38,12 @@ contract MockTokenHub is ITokenHub {
     panicBatchTransferOut = doPanic;
   }
 
-  function transferStakingBNB() external override payable {
-    require(msg.sender == STAKING_CONTRACT_ADDR, "only staking system contract can call this function");
-
-    totalStakingBNB += msg.value;
+  function withdrawStakingBNB(uint256 amount) external override returns(bool) {
+    address STAKING_CONTRACT_ADDR = address(0x0000000000000000000000000000000000002001);
+    require(msg.sender == STAKING_CONTRACT_ADDR,
+      "only staking system contract can call this function");
+    payable(STAKING_CONTRACT_ADDR).transfer(amount);
+    return true;
   }
 }
 
