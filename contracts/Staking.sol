@@ -22,11 +22,13 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   uint8 public constant EVENT_DELEGATE = 0x01;
   uint8 public constant EVENT_UNDELEGATE = 0x02;
   uint8 public constant EVENT_REDELEGATE = 0x03;
+  uint8 public constant EVENT_CLAIM_REWARD = 0x04;
+  uint8 public constant EVENT_CLAIM_UNDELEGATED = 0x05;
 
   uint256 constant public TEN_DECIMALS = 1e10;
 
   uint256 public constant INIT_ORACLE_RELAYER_FEE = 2e15; //TODO
-  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e18;
+  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e19;
   uint256 public constant INIT_CALLBACK_GAS_LIMIT = 23000;
 
   uint256 public oracleRelayerFee;
@@ -34,13 +36,15 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   uint256 public callbackGasLimit;
 
   mapping(address => uint256) stakingRecord;
+  mapping(address => mapping(address => uint256)) stakingValidatorsMap;
   mapping(address => uint256) pendingReward;
+  mapping(address => uint256) lockedUndelegated;
   mapping(address => uint256) pendingUndelegated;
 
   bool internal locked;
 
   modifier noReentrant() {
-    require(!locked, "No re-entrance");
+    require(!locked, "No re-entrancy");
     locked = true;
     _;
     locked = false;
@@ -115,14 +119,18 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(msg.value);
+
     stakingRecord[msg.sender] = stakingRecord[msg.sender].add(amount);
+    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].add(amount);
+
     emit delegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision initParams {
-    require(amount <= stakingRecord[msg.sender], "not enough stake funds to undelegate");
+    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].sub(amount, "not enough funds to undelegate");
+    amount = amount != 0 ? amount : stakingValidatorsMap[msg.sender][validator];
     if (amount < minDelegationChange) {
-      if (amount != stakingRecord[msg.sender]) {
+      if (amount != stakingValidatorsMap[msg.sender][validator]) {
         require(false, "the amount must not be less than minDelegationChange, or the amount is all the remaining delegation");
       }
     }
@@ -140,11 +148,21 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+
     stakingRecord[msg.sender] = stakingRecord[msg.sender].sub(amount);
+    lockedUndelegated[msg.sender] = lockedUndelegated[msg.sender].add(amount);
+
     emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision initParams {
+    stakingValidatorsMap[msg.sender][validatorSrc] = stakingValidatorsMap[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
+    amount = amount != 0 ? amount : stakingValidatorsMap[msg.sender][validatorSrc];
+    if (amount < minDelegationChange) {
+      if (amount != stakingValidatorsMap[msg.sender][validator]) {
+        require(false, "the amount must not be less than minDelegationChange, or the amount is all the remaining delegation");
+      }
+    }
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     require(amount%TEN_DECIMALS==0, "invalid redelegate amount: precision loss in amount conversion");
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
@@ -160,11 +178,13 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+
+    stakingValidatorsMap[msg.sender][validatorDst] = stakingValidatorsMap[msg.sender][validatorDst].add(amount);
+
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
   }
 
   function claimReward() override external noReentrant returns(uint256 amount) {
-    //TODO
     require(pendingReward[msg.sender] > 0, "no pending reward");
 
     amount = pendingReward[msg.sender];
@@ -182,12 +202,20 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     emit undelegatedClaimed(msg.sender, amount);
   }
 
-  function getPendingReward() override external view returns(uint256) {
-    return pendingReward[msg.sender];
+  function getDelegated(address delegator, address validator) override external view returns(uint256) {
+    return stakingValidatorsMap[delegator][validator];
   }
 
-  function getPendingUndelegated() override external view returns(uint256) {
-    return pendingUndelegated[msg.sender];
+  function getPendingReward(address delegator) override external view returns(uint256) {
+    return pendingReward[delegator];
+  }
+
+  function getPendingUndelegated(address delegator) override external view returns(uint256) {
+    return pendingUndelegated[delegator];
+  }
+
+  function getLockedUndelegated(address delegator) override external view returns(uint256) {
+    return lockedUndelegated[delegator];
   }
 
   function getOracleRelayerFee() override external view returns(uint256) {
@@ -247,8 +275,11 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     }
     require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw funds from tokenhub failed");
     delegator.call{value: amount, gas: callbackGasLimit}("");
+
     stakingRecord[delegator] = stakingRecord[delegator].sub(amount);
-    emit failedDelegate(delegator, validator, amount, err);
+    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].sub(amount);
+
+  emit failedDelegate(delegator, validator, amount, err);
   }
 
   function _handleUndelegateAckPackage(RLPDecode.Iterator memory iter) internal {
@@ -278,7 +309,10 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     if (!success) {
       require(false, "rlp decode ack package failed");
     }
+
     stakingRecord[delegator] = stakingRecord[delegator].add(amount);
+    lockedUndelegated[msg.sender] = lockedUndelegated[msg.sender].sub(amount);
+
     emit failedUndelegate(delegator, validator, amount, err);
   }
 
@@ -312,6 +346,10 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     if (!success) {
       require(false, "rlp decode ack package failed");
     }
-    emit failedRedelegate(delegator, valSrc, valDst, amount, err);
+
+    stakingValidatorsMap[msg.sender][valSrc] = stakingValidatorsMap[msg.sender][valSrc].add(amount);
+    stakingValidatorsMap[msg.sender][valDst] = stakingValidatorsMap[msg.sender][valDst].sub(amount);
+
+  emit failedRedelegate(delegator, valSrc, valDst, amount, err);
   }
 }
