@@ -18,12 +18,49 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   using RLPEncode for *;
   using RLPDecode for *;
 
+  struct DelegateAckPackage {
+    address delegator;
+    address validator;
+    uint256 amount;
+    uint8 errCode;
+  }
+
+  struct UndelegateAckPackage {
+    address delegator;
+    address validator;
+    uint256 amount;
+    uint8 errCode;
+  }
+
+  struct RedelegateAckPackage {
+    address delegator;
+    address valSrc;
+    address valDst;
+    uint256 amount;
+    uint8 errCode;
+  }
+
+  struct TransferInRewardSynPackage {
+    uint256[] amounts;
+    address[] recipients;
+    address[] refundAddrs;
+  }
+
+  struct TransferInUndelegatedSynPackage {
+    uint256 amount;
+    address recipient;
+    address refundAddr;
+  }
+
   // Cross-Chain Stake Event type
   uint8 public constant EVENT_DELEGATE = 0x01;
   uint8 public constant EVENT_UNDELEGATE = 0x02;
   uint8 public constant EVENT_REDELEGATE = 0x03;
-  uint8 public constant EVENT_CLAIM_REWARD = 0x04;
-  uint8 public constant EVENT_CLAIM_UNDELEGATED = 0x05;
+  uint8 public constant EVENT_TRANSFER_IN_REWARD = 0x04;
+  uint8 public constant EVENT_TRANSFER_IN_UNDELEGATED = 0x05;
+
+  uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
+  uint32 public constant ERROR_WITHDRAW_BNB = 102;
 
   uint256 constant public TEN_DECIMALS = 1e10;
 
@@ -66,20 +103,37 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /*********************** events **************************/
-  event delegateSubmitted(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event undelegateSubmitted(address indexed delAddr, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event redelegateSubmitted(address indexed delAddr, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
+  event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
+  event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
+  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
+  event rewardReceived(address indexed delegator, uint256 amount);
   event rewardClaimed(address indexed delegator, uint256 amount);
+  event undelegatedReceived(address indexed delegator, uint256 amount);
   event undelegatedClaimed(address indexed delegator, uint256 amount);
-  event failedDelegate(address indexed delAddr, address indexed validator, uint256 amount, string err);
-  event failedUndelegate(address indexed delAddr, address indexed validator, uint256 amount, string err);
-  event failedRedelegate(address indexed delAddr, address indexed valSrc, address indexed valDst, uint256 amount, string err);
+  event failedDelegate(address indexed delAddr, address indexed validator, uint256 amount, uint8 errCode);
+  event failedUndelegate(address indexed delAddr, address indexed validator, uint256 amount, uint8 errCode);
+  event failedRedelegate(address indexed delAddr, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
   event paramChange(string key, bytes value);
   event crashResponse();
 
   /*********************** Implement cross chain app ********************************/
-  function handleSynPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override returns(bytes memory) {
-    require(false, "receive unexpected syn package");
+  function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override returns(bytes memory) {
+    RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+    uint8 eventCode = uint8(iter.next().toUint());
+    uint32 resCode;
+    if (eventCode == EVENT_TRANSFER_IN_REWARD) {
+      resCode = _handleTransferInRewardSynPackage(iter);
+    } else if (eventCode == EVENT_TRANSFER_IN_UNDELEGATED) {
+      resCode = _handleTransferInUndelegatedSynPackage(iter);
+    } else {
+      resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
+    }
+
+    if (resCode == CODE_OK) {
+      return new bytes(0);
+    } else {
+      return CmnPkg.encodeCommonAckPackage(resCode);
+    }
   }
 
   function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
@@ -97,7 +151,7 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     return;
   }
 
-  function handleFailAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override {
     emit crashResponse();
     return;
   }
@@ -111,11 +165,13 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
 
-    bytes[] memory elements = new bytes[](4);
+    bytes[] memory elements = new bytes[](5);
+    uint256 expireTime = block.timestamp + 150;
     elements[0] = EVENT_DELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
+    elements[4] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(msg.value);
@@ -140,11 +196,13 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
 
-    bytes[] memory elements = new bytes[](4);
+    bytes[] memory elements = new bytes[](5);
+    uint256 expireTime = block.timestamp + 150;
     elements[0] = EVENT_UNDELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
+    elements[4] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
@@ -159,7 +217,7 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     stakingValidatorsMap[msg.sender][validatorSrc] = stakingValidatorsMap[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
     amount = amount != 0 ? amount : stakingValidatorsMap[msg.sender][validatorSrc];
     if (amount < minDelegationChange) {
-      if (amount != stakingValidatorsMap[msg.sender][validator]) {
+      if (amount != stakingValidatorsMap[msg.sender][validatorSrc]) {
         require(false, "the amount must not be less than minDelegationChange, or the amount is all the remaining delegation");
       }
     }
@@ -169,12 +227,14 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
 
-    bytes[] memory elements = new bytes[](5);
+    bytes[] memory elements = new bytes[](6);
+    uint256 expireTime = block.timestamp + 150;
     elements[0] = EVENT_REDELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validatorSrc.encodeAddress();
     elements[3] = validatorDst.encodeAddress();
     elements[4] = convertedAmount.encodeUint();
+    elements[5] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
@@ -222,6 +282,10 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     return oracleRelayerFee;
   }
 
+  function getMinDelegationChange() override external view returns(uint256) {
+    return minDelegationChange;
+  }
+
   /*********************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
     if (Memory.compareStrings(key, "oracleRelayerFee")) {
@@ -245,98 +309,122 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     emit paramChange(key, value);
   }
 
-  /*********************** Handle ack package ********************************/
+  /*********************** Handle cross-chain package ********************************/
   function _handleDelegateAckPackage(RLPDecode.Iterator memory iter) internal {
+    DelegateAckPackage memory pack;
+
     bool success = false;
     uint256 idx = 0;
-    address delegator;
-    address validator;
-    uint256 amount;
-    string memory err;
     while (iter.hasNext()) {
       if (idx == 0) {
-        continue;
+        pack.delegator = address(uint160(iter.next().toAddress()));
       } else if (idx == 1) {
-        delegator = address(uint160(iter.next().toAddress()));
+        pack.validator = address(uint160(iter.next().toAddress()));
       } else if (idx == 2) {
-        validator = address(uint160(iter.next().toAddress()));
+        pack.amount = uint256(iter.next().toUint());
       } else if (idx == 3) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 4) {
-        err = string(iter.next().toBytes());
+        pack.errCode = uint8(iter.next().toUint());
         success = true;
       } else {
         break;
       }
       idx++;
     }
-    if (!success) {
-      require(false, "rlp decode ack package failed");
-    }
-    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw funds from tokenhub failed");
-    delegator.call{value: amount, gas: callbackGasLimit}("");
+    require(success, "rlp decode ack package failed");
 
-    stakingRecord[delegator] = stakingRecord[delegator].sub(amount);
-    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].sub(amount);
+    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(pack.amount), "withdraw funds from tokenhub failed");
 
-  emit failedDelegate(delegator, validator, amount, err);
+    stakingRecord[pack.delegator] = stakingRecord[pack.delegator].sub(pack.amount);
+    pendingUndelegated[pack.delegator] = pendingUndelegated[pack.delegator].add(pack.amount);
+    stakingValidatorsMap[msg.sender][pack.validator] = stakingValidatorsMap[msg.sender][pack.validator].sub(pack.amount);
+
+  emit failedDelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
   }
 
   function _handleUndelegateAckPackage(RLPDecode.Iterator memory iter) internal {
+    UndelegateAckPackage memory pack;
+
     bool success = false;
     uint256 idx = 0;
-    address delegator;
-    address validator;
-    uint256 amount;
-    string memory err;
     while (iter.hasNext()) {
       if (idx == 0) {
-        continue;
+        pack.delegator = address(uint160(iter.next().toAddress()));
       } else if (idx == 1) {
-        delegator = address(uint160(iter.next().toAddress()));
+        pack.validator = address(uint160(iter.next().toAddress()));
       } else if (idx == 2) {
-        validator = address(uint160(iter.next().toAddress()));
+        pack.amount = uint256(iter.next().toUint());
       } else if (idx == 3) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 4) {
-        err = string(iter.next().toBytes());
+        pack.errCode = uint8(iter.next().toUint());
         success = true;
       } else {
         break;
       }
       idx++;
     }
-    if (!success) {
-      require(false, "rlp decode ack package failed");
-    }
+    require(success, "rlp decode ack package failed");
 
-    stakingRecord[delegator] = stakingRecord[delegator].add(amount);
-    lockedUndelegated[msg.sender] = lockedUndelegated[msg.sender].sub(amount);
+    stakingRecord[pack.delegator] = stakingRecord[pack.delegator].add(pack.amount);
+    lockedUndelegated[msg.sender] = lockedUndelegated[msg.sender].sub(pack.amount);
 
-    emit failedUndelegate(delegator, validator, amount, err);
+    emit failedUndelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
   }
 
   function _handleRedelegateAckPackage(RLPDecode.Iterator memory iter) internal {
+    RedelegateAckPackage memory pack;
+
     bool success = false;
-    uint256 idx=0;
-    address delegator;
-    address valSrc;
-    address valDst;
-    uint256 amount;
-    string memory err;
+    uint256 idx = 0;
     while (iter.hasNext()) {
       if (idx == 0) {
-        continue;
+        pack.delegator = address(uint160(iter.next().toAddress()));
       } else if (idx == 1) {
-        delegator = address(uint160(iter.next().toAddress()));
+        pack.valSrc = address(uint160(iter.next().toAddress()));
       } else if (idx == 2) {
-        valSrc = address(uint160(iter.next().toAddress()));
+        pack.valDst = address(uint160(iter.next().toAddress()));
       } else if (idx == 3) {
-        valDst = address(uint160(iter.next().toAddress()));
+        pack.amount = uint256(iter.next().toUint());
       } else if (idx == 4) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 5) {
-        err = string(iter.next().toBytes());
+        pack.errCode = uint8(iter.next().toUint());
+        success = true;
+      } else {
+        break;
+      }
+      idx++;
+    }
+    require(success, "rlp decode ack package failed");
+
+    stakingValidatorsMap[msg.sender][pack.valSrc] = stakingValidatorsMap[msg.sender][pack.valSrc].add(pack.amount);
+    stakingValidatorsMap[msg.sender][pack.valDst] = stakingValidatorsMap[msg.sender][pack.valDst].sub(pack.amount);
+
+  emit failedRedelegate(pack.delegator, pack.valSrc, pack.valDst, pack.amount, pack.errCode);
+  }
+
+  function _handleTransferInRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
+    TransferInRewardSynPackage memory pack;
+
+    uint256 totalAmount;
+    bool success = false;
+    uint256 idx = 0;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        RLPDecode.RLPItem[] memory items = iter.next().toList();
+        pack.amounts = new uint256[](items.length);
+        for (uint i;i<items.length;++i) {
+          pack.amounts[i] = uint256(items[i].toUint());
+          totalAmount += pack.amounts[i];
+        }
+      } else if (idx == 1) {
+        RLPDecode.RLPItem[] memory items = iter.next().toList();
+        pack.recipients = new address[](items.length);
+        for (uint j;j<items.length;++j) {
+          pack.recipients[j] = address(uint160(items[j].toUint()));
+        }
+      } else if (idx == 2) {
+        RLPDecode.RLPItem[] memory items = iter.next().toList();
+        pack.refundAddrs = new address[](items.length);
+        for (uint k;k<items.length;++k) {
+          pack.refundAddrs[k] = address(uint160(items[k].toUint()));
+        }
         success = true;
       } else {
         break;
@@ -344,12 +432,53 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
       idx++;
     }
     if (!success) {
-      require(false, "rlp decode ack package failed");
+      return ERROR_FAIL_DECODE;
     }
 
-    stakingValidatorsMap[msg.sender][valSrc] = stakingValidatorsMap[msg.sender][valSrc].add(amount);
-    stakingValidatorsMap[msg.sender][valDst] = stakingValidatorsMap[msg.sender][valDst].sub(amount);
+    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(totalAmount);
+    if (!ok) {
+      return ERROR_WITHDRAW_BNB;
+    }
 
-  emit failedRedelegate(delegator, valSrc, valDst, amount, err);
+    for (uint l;l<pack.recipients.length;++l) {
+      pendingReward[pack.recipients[l]] = pendingReward[pack.recipients[l]].add(pack.amounts[l]);
+      emit rewardReceived(pack.recipients[l], pack.amounts[l]);
+    }
+
+    return CODE_OK;
+  }
+
+  function _handleTransferInUndelegatedSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
+    TransferInUndelegatedSynPackage memory pack;
+
+    bool success = false;
+    uint256 idx = 0;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        pack.amount = uint256(iter.next().toUint());
+      } else if (idx == 1) {
+        pack.recipient = address(uint160(iter.next().toAddress()));
+      } else if (idx == 2) {
+        pack.refundAddr = address(uint160(iter.next().toAddress()));
+        success = true;
+      } else {
+        break;
+      }
+      idx++;
+    }
+    if (!success) {
+      return ERROR_FAIL_DECODE;
+    }
+
+    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(pack.amount);
+    if (!ok) {
+      return ERROR_WITHDRAW_BNB;
+    }
+
+    lockedUndelegated[pack.recipient] = lockedUndelegated[pack.recipient].sub(pack.amount);
+    pendingUndelegated[pack.recipient] = pendingUndelegated[pack.recipient].add(pack.amount);
+
+    emit undelegatedReceived(pack.recipient, pack.amount);
+    return CODE_OK;
   }
 }
