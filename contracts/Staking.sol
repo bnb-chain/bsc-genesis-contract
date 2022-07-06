@@ -13,7 +13,7 @@ import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
 import "./interface/IStaking.sol";
 
-contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
+contract Staking is IStaking, System, IParamSubscriber, IApplication {
   using SafeMath for uint256;
   using RLPEncode for *;
   using RLPDecode for *;
@@ -87,17 +87,20 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     locked = false;
   }
 
-  modifier tenDecimalPrecision() {
+  modifier tenDecimalPrecision(uint256 amount) {
     require(msg.value%TEN_DECIMALS==0,
-      "invalid received BNB amount: precision loss in amount conversion");
+      "invalid received value: precision loss in amount conversion");
+    require(amount%TEN_DECIMALS==0,
+      "invalid amount: precision loss in amount conversion");
     _;
   }
 
   modifier initParams() {
-    if (oracleRelayerFee == 0 || minDelegationChange == 0 || callbackGasLimit == 0) {
+    if (!alreadyInit) {
       oracleRelayerFee = INIT_ORACLE_RELAYER_FEE;
       minDelegationChange = INIT_MIN_DELEGATION_CHANGE;
       callbackGasLimit = INIT_CALLBACK_GAS_LIMIT;
+      alreadyInit = true;
     }
     _;
   }
@@ -110,11 +113,13 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   event rewardClaimed(address indexed delegator, uint256 amount);
   event undelegatedReceived(address indexed delegator, uint256 amount);
   event undelegatedClaimed(address indexed delegator, uint256 amount);
-  event failedDelegate(address indexed delAddr, address indexed validator, uint256 amount, uint8 errCode);
-  event failedUndelegate(address indexed delAddr, address indexed validator, uint256 amount, uint8 errCode);
-  event failedRedelegate(address indexed delAddr, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
+  event failedDelegate(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
+  event failedUndelegate(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
+  event failedRedelegate(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
   event paramChange(string key, bytes value);
   event crashResponse();
+
+  receive() external payable {}
 
   /*********************** Implement cross chain app ********************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override returns(bytes memory) {
@@ -157,11 +162,11 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /*********************** External Functions **************************/
-  function delegate(address validator, uint256 amount) override external payable tenDecimalPrecision initParams {
-    require(amount >= minDelegationChange, "delegate amount is too small");
-    require(msg.value >= amount.add(oracleRelayerFee), "received BNB amount should be no less than the sum of stake amount and minimum oracleRelayerFee");
+  function delegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
+    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
+    require(msg.value >= amount.add(oracleRelayerFee), "received value should be no less than the sum of stake amount and minimum oracleRelayerFee");
+
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    require(amount%TEN_DECIMALS==0, "invalid delegate amount: precision loss in amount conversion");
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
 
@@ -182,19 +187,18 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     emit delegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
-  function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision initParams {
-    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].sub(amount, "not enough funds to undelegate");
+  function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     amount = amount != 0 ? amount : stakingValidatorsMap[msg.sender][validator];
     if (amount < minDelegationChange) {
-      if (amount != stakingValidatorsMap[msg.sender][validator]) {
-        require(false, "the amount must not be less than minDelegationChange, or the amount is all the remaining delegation");
-      }
+      require(amount == stakingValidatorsMap[msg.sender][validator],
+        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
     }
+    stakingValidatorsMap[msg.sender][validator] = stakingValidatorsMap[msg.sender][validator].sub(amount, "not enough funds to undelegate");
+
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    require(amount%TEN_DECIMALS==0, "invalid undelegate amount: precision loss in amount conversion");
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
     uint256 _oracleRelayerFee = msg.value;
-    require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
+    require(_oracleRelayerFee >= oracleRelayerFee, "received value should be no less than the minimum oracleRelayerFee");
 
     bytes[] memory elements = new bytes[](5);
     uint256 expireTime = block.timestamp + 150;
@@ -213,19 +217,20 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
 
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision initParams {
-    stakingValidatorsMap[msg.sender][validatorSrc] = stakingValidatorsMap[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
+  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
+    require(validatorSrc!=validatorDst, "invalid redelegation");
     amount = amount != 0 ? amount : stakingValidatorsMap[msg.sender][validatorSrc];
     if (amount < minDelegationChange) {
-      if (amount != stakingValidatorsMap[msg.sender][validatorSrc]) {
-        require(false, "the amount must not be less than minDelegationChange, or the amount is all the remaining delegation");
-      }
+      require(amount == stakingValidatorsMap[msg.sender][validatorSrc],
+        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
     }
+    stakingValidatorsMap[msg.sender][validatorSrc] = stakingValidatorsMap[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
+    stakingValidatorsMap[msg.sender][validatorDst] = stakingValidatorsMap[msg.sender][validatorDst].add(amount);
+
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    require(amount%TEN_DECIMALS==0, "invalid redelegate amount: precision loss in amount conversion");
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
     uint256 _oracleRelayerFee = msg.value;
-    require(_oracleRelayerFee >= oracleRelayerFee, "received BNB amount should be no less than the minimum oracleRelayerFee");
+    require(_oracleRelayerFee >= oracleRelayerFee, "received value should be no less than the minimum oracleRelayerFee");
 
     bytes[] memory elements = new bytes[](6);
     uint256 expireTime = block.timestamp + 150;
@@ -238,8 +243,6 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
-
-    stakingValidatorsMap[msg.sender][validatorDst] = stakingValidatorsMap[msg.sender][validatorDst].add(amount);
 
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
   }
@@ -254,7 +257,7 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function claimUndeldegated() override external noReentrant returns(uint256 amount) {
-    require(pendingUndelegated[msg.sender] > 0, "no pending reward");
+    require(pendingUndelegated[msg.sender] > 0, "no pending undelegated");
 
     amount = pendingUndelegated[msg.sender];
     payable(msg.sender).transfer(amount);
@@ -336,9 +339,9 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
 
     stakingRecord[pack.delegator] = stakingRecord[pack.delegator].sub(pack.amount);
     pendingUndelegated[pack.delegator] = pendingUndelegated[pack.delegator].add(pack.amount);
-    stakingValidatorsMap[msg.sender][pack.validator] = stakingValidatorsMap[msg.sender][pack.validator].sub(pack.amount);
+    stakingValidatorsMap[pack.delegator][pack.validator] = stakingValidatorsMap[pack.delegator][pack.validator].sub(pack.amount);
 
-  emit failedDelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
+    emit failedDelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
   }
 
   function _handleUndelegateAckPackage(RLPDecode.Iterator memory iter) internal {
@@ -364,7 +367,7 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     require(success, "rlp decode ack package failed");
 
     stakingRecord[pack.delegator] = stakingRecord[pack.delegator].add(pack.amount);
-    lockedUndelegated[msg.sender] = lockedUndelegated[msg.sender].sub(pack.amount);
+    lockedUndelegated[pack.delegator] = lockedUndelegated[pack.delegator].sub(pack.amount);
 
     emit failedUndelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
   }
@@ -393,8 +396,8 @@ contract CrossStake is IStaking, System, IParamSubscriber, IApplication {
     }
     require(success, "rlp decode ack package failed");
 
-    stakingValidatorsMap[msg.sender][pack.valSrc] = stakingValidatorsMap[msg.sender][pack.valSrc].add(pack.amount);
-    stakingValidatorsMap[msg.sender][pack.valDst] = stakingValidatorsMap[msg.sender][pack.valDst].sub(pack.amount);
+    stakingValidatorsMap[pack.delegator][pack.valSrc] = stakingValidatorsMap[pack.delegator][pack.valSrc].add(pack.amount);
+    stakingValidatorsMap[pack.delegator][pack.valDst] = stakingValidatorsMap[pack.delegator][pack.valDst].sub(pack.amount);
 
   emit failedRedelegate(pack.delegator, pack.valSrc, pack.valDst, pack.amount, pack.errCode);
   }

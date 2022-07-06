@@ -79,6 +79,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   uint256 public relayFee;
 
+  uint256 public totalStakingBNB;
+
   mapping(address => uint256) public bep20ContractDecimals;
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
