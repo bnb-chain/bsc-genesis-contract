@@ -14,11 +14,11 @@ interface IStaking {
 
   function getDelegated(address delegator, address validator) external view returns(uint256);
 
-  function getPendingReward(address delegator) external view returns(uint256);
+  function getDistributedReward(address delegator) external view returns(uint256);
+
+  function getUndelegated(address delegator) external view returns(uint256);
 
   function getPendingUndelegated(address delegator) external view returns(uint256);
-
-  function getLockedUndelegated(address delegator) external view returns(uint256);
 
   function getOracleRelayerFee() external view returns(uint256);
 

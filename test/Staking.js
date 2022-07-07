@@ -52,7 +52,7 @@ contract('Staking', (accounts) => {
 			});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("invalid received value: precision loss in amount conversion"));
+			assert.ok(error.toString().includes("invalid msg value: precision loss in amount conversion"));
 		}
 
 		try {
@@ -77,7 +77,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("received value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
+			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
 		}
 
 		relayFee = web3.utils.toBN(1e16);
@@ -85,7 +85,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("received value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
+			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
 		}
 
 		let tx = await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
@@ -107,7 +107,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.undelegate(validator, amount, { from: delegator, value: relayFee.add(web3.utils.toBN(1))});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("invalid received value: precision loss in amount conversion"));
+			assert.ok(error.toString().includes("invalid msg value: precision loss in amount conversion"));
 		}
 
 		try {
@@ -132,7 +132,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("received value should be no less than the minimum oracleRelayerFee"));
+			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
 		relayFee = web3.utils.toBN(1e16);
@@ -146,7 +146,7 @@ contract('Staking', (accounts) => {
 		let tx = await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		truffleAssert.eventEmitted(tx, "undelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee); });
-		let lockedUndelegated = await stakingInstance.getLockedUndelegated.call(delegator);
+		let lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
 		assert.equal(lockedUndelegated.toString(), amount.toString());
 
 		amount = web3.utils.toBN(1e18);
@@ -154,7 +154,7 @@ contract('Staking', (accounts) => {
 		truffleAssert.eventEmitted(tx, "undelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
 		});
-		lockedUndelegated = await stakingInstance.getLockedUndelegated.call(delegator);
+		lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
 		assert.equal(lockedUndelegated.toString(), amount.add(web3.utils.toBN(1e19)).toString());
 	});
 
@@ -179,7 +179,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, { from: delegator, value: relayFee.add(web3.utils.toBN(1)) });
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("invalid received value: precision loss in amount conversion"));
+			assert.ok(error.toString().includes("invalid msg value: precision loss in amount conversion"));
 		}
 
 		try {
@@ -204,7 +204,7 @@ contract('Staking', (accounts) => {
 			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("received value should be no less than the minimum oracleRelayerFee"));
+			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
 		relayFee = web3.utils.toBN(1e16);
@@ -279,7 +279,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const expectedReward = web3.utils.toBN(1e18);
 
-		let pendingReward = await stakingInstance.getPendingReward.call(delegator);
+		let pendingReward = await stakingInstance.getDistributedReward.call(delegator);
 		assert.equal(pendingReward.toString(), expectedReward.toString());
 
 		let tx = await stakingInstance.claimReward({from: delegator});
@@ -288,7 +288,7 @@ contract('Staking', (accounts) => {
 			return ev.amount.eq(expectedReward) && ev.delegator == delegator;
 		});
 
-		pendingReward = await stakingInstance.getPendingReward.call(delegator);
+		pendingReward = await stakingInstance.getDistributedReward.call(delegator);
 		assert.equal(pendingReward.toString(), web3.utils.toBN(0).toString());
 	})
 
@@ -311,7 +311,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const expectedUndelegated = web3.utils.toBN(1e18);
 
-		let pendingUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
+		let pendingUndelegated = await stakingInstance.getUndelegated.call(delegator);
 		assert.equal(pendingUndelegated.toString(), expectedUndelegated.toString());
 
 		let tx = await stakingInstance.claimUndeldegated({from: delegator});
@@ -320,7 +320,7 @@ contract('Staking', (accounts) => {
 			return ev.amount.eq(pendingUndelegated) && ev.delegator == delegator;
 		});
 
-		pendingUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
+		pendingUndelegated = await stakingInstance.getUndelegated.call(delegator);
 		assert.equal(pendingUndelegated.toString(), web3.utils.toBN(0).toString());
 	})
 })
