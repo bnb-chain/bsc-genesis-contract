@@ -178,13 +178,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
 
-    bytes[] memory elements = new bytes[](5);
-    uint256 expireTime = block.timestamp + 150;
+    bytes[] memory elements = new bytes[](4);
     elements[0] = EVENT_DELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
-    elements[4] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(msg.value);
@@ -208,13 +206,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "the msg value should be no less than the minimum oracleRelayerFee");
 
-    bytes[] memory elements = new bytes[](5);
-    uint256 expireTime = block.timestamp + 150;
+    bytes[] memory elements = new bytes[](4);
     elements[0] = EVENT_UNDELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
-    elements[4] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
@@ -240,14 +236,12 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint256 _oracleRelayerFee = msg.value;
     require(_oracleRelayerFee >= oracleRelayerFee, "the msg value should be no less than the minimum oracleRelayerFee");
 
-    bytes[] memory elements = new bytes[](6);
-    uint256 expireTime = block.timestamp + 150;
+    bytes[] memory elements = new bytes[](5);
     elements[0] = EVENT_REDELEGATE.encodeUint();
     elements[1] = msg.sender.encodeAddress();
     elements[2] = validatorSrc.encodeAddress();
     elements[3] = validatorDst.encodeAddress();
     elements[4] = convertedAmount.encodeUint();
-    elements[5] = expireTime.encodeUint();
     bytes memory msgBytes = elements.encodeList();
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
