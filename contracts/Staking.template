@@ -105,7 +105,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     _;
   }
 
-  /*********************** events **************************/
+  /*********************************** Events **********************************/
   event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
   event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
   event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
@@ -129,7 +129,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 {% endif %}
   receive() external payable {}
 
-  /*********************** Implement cross chain app ********************************/
+  /************************* Implement cross chain app *************************/
   function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override returns(bytes memory) {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventCode = uint8(iter.next().toUint());
@@ -169,7 +169,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return;
   }
 
-  /*********************** External Functions **************************/
+  /***************************** External functions *****************************/
   function delegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
     require(msg.value >= amount.add(oracleRelayerFee), "the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee");
@@ -184,7 +184,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_DELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(msg.value);
 
     delegated[msg.sender] = delegated[msg.sender].add(amount);
@@ -212,7 +212,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     elements[2] = validator.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_UNDELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
     delegated[msg.sender] = delegated[msg.sender].sub(amount);
@@ -243,7 +243,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     elements[3] = validatorDst.encodeAddress();
     elements[4] = convertedAmount.encodeUint();
     bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_REDELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
@@ -291,7 +291,15 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return minDelegationChange;
   }
 
-  /*********************** Param update ********************************/
+  /***************************** Internal functions *****************************/
+  function _RLPEncode(uint8 eventType, bytes memory msgBytes) internal returns(bytes memory out) {
+    bytes[] memory elements = new bytes[](2);
+    elements[0] = eventType.encodeUint();
+    elements[1] = msgBytes.encodeBytes();
+    out = elements.encodeList();
+  }
+
+  /******************************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
     if (Memory.compareStrings(key, "oracleRelayerFee")) {
       require(value.length == 32, "length of oracleRelayerFee mismatch");
@@ -314,7 +322,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     emit paramChange(key, value);
   }
 
-  /*********************** Handle cross-chain package ********************************/
+  /************************* Handle cross-chain package *************************/
   function _handleDelegateAckPackage(RLPDecode.Iterator memory iter) internal {
     DelegateAckPackage memory pack;
 
