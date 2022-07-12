@@ -983,6 +983,11 @@
         "internalType": "address",
         "name": "delegator",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
       }
     ],
     "name": "getPendingUndelegated",

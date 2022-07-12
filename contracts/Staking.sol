@@ -50,6 +50,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint256 amount;
     address recipient;
     address refundAddr;
+    address validator;
   }
 
   // Cross-Chain Stake Event type
@@ -75,7 +76,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   mapping(address => uint256) delegated;
   mapping(address => mapping(address => uint256)) delegatedOfValidator;
   mapping(address => uint256) distributedReward;
-  mapping(address => uint256) pendingUndelegated;
+  mapping(address => mapping(address => uint256)) pendingUndelegated;
   mapping(address => uint256) undelegated;
 
   bool internal locked;
@@ -186,6 +187,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
+    require(pendingUndelegated[msg.sender][validator] == 0, "pending undelegation exist");
     amount = amount != 0 ? amount : delegatedOfValidator[msg.sender][validator];
     if (amount < minDelegationChange) {
       require(amount == delegatedOfValidator[msg.sender][validator],
@@ -208,7 +210,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
     delegated[msg.sender] = delegated[msg.sender].sub(amount);
-    pendingUndelegated[msg.sender] = pendingUndelegated[msg.sender].add(amount);
+    pendingUndelegated[msg.sender][validator] = amount;
 
     emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
@@ -271,8 +273,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return undelegated[delegator];
   }
 
-  function getPendingUndelegated(address delegator) override external view returns(uint256) {
-    return pendingUndelegated[delegator];
+  function getPendingUndelegated(address delegator, address validator) override external view returns(uint256) {
+    return pendingUndelegated[delegator][validator];
   }
 
   function getOracleRelayerFee() override external view returns(uint256) {
@@ -284,7 +286,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /***************************** Internal functions *****************************/
-  function _RLPEncode(uint8 eventType, bytes memory msgBytes) internal returns(bytes memory out) {
+  function _RLPEncode(uint8 eventType, bytes memory msgBytes) internal pure returns(bytes memory out) {
     bytes[] memory elements = new bytes[](2);
     elements[0] = eventType.encodeUint();
     elements[1] = msgBytes.encodeBytes();
@@ -369,7 +371,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     require(success, "rlp decode ack package failed");
 
     delegated[pack.delegator] = delegated[pack.delegator].add(pack.amount);
-    pendingUndelegated[pack.delegator] = pendingUndelegated[pack.delegator].sub(pack.amount);
+    pendingUndelegated[pack.delegator][pack.validator] = 0;
 
     emit failedUndelegate(pack.delegator, pack.validator, pack.amount, pack.errCode);
   }
@@ -465,6 +467,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
         pack.recipient = address(uint160(iter.next().toAddress()));
       } else if (idx == 2) {
         pack.refundAddr = address(uint160(iter.next().toAddress()));
+      } else if (idx == 3) {
+        pack.validator = address(uint160(iter.next().toAddress()));
         success = true;
       } else {
         break;
@@ -480,7 +484,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       return ERROR_WITHDRAW_BNB;
     }
 
-    pendingUndelegated[pack.recipient] = pendingUndelegated[pack.recipient].sub(pack.amount);
+    pendingUndelegated[pack.recipient][pack.validator] = 0;
     undelegated[pack.recipient] = undelegated[pack.recipient].add(pack.amount);
 
     emit undelegatedReceived(pack.recipient, pack.amount);
