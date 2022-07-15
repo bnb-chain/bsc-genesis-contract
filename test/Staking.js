@@ -43,7 +43,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validator = accounts[0];
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 
 		try {
 			await stakingInstance.delegate(validator, amount, {
@@ -80,7 +80,7 @@ contract('Staking', (accounts) => {
 			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
 		}
 
-		relayFee = web3.utils.toBN(1e16);
+		relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount});
 			assert.fail();
@@ -89,6 +89,7 @@ contract('Staking', (accounts) => {
 		}
 
 		let tx = await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
+		console.log(JSON.stringify(tx, null, 2))
 		truffleAssert.eventEmitted(tx, "delegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
 		});
@@ -102,7 +103,7 @@ contract('Staking', (accounts) => {
 		const validator = accounts[0];
 
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.undelegate(validator, amount, { from: delegator, value: relayFee.add(web3.utils.toBN(1))});
 			assert.fail();
@@ -135,7 +136,7 @@ contract('Staking', (accounts) => {
 			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
-		relayFee = web3.utils.toBN(1e16);
+		relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.undelegate(accounts[1], amount, {from: delegator, value: relayFee});
 			assert.fail();
@@ -165,7 +166,7 @@ contract('Staking', (accounts) => {
 		const validatorDst = accounts[1];
 
 		let amount = web3.utils.toBN(1.1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validatorSrc, amount, {from: delegator, value: amount.add(relayFee)});
 
 		try {
@@ -207,7 +208,7 @@ contract('Staking', (accounts) => {
 			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
-		relayFee = web3.utils.toBN(1e16);
+		relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.redelegate(accounts[3], validatorDst, amount, {from: delegator, value: relayFee});
 			assert.fail();
@@ -247,7 +248,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validator = accounts[0];
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,
@@ -344,7 +345,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validator = accounts[0];
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,
 			LightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address,
@@ -377,7 +378,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validator = accounts[0];
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,
@@ -412,7 +413,7 @@ contract('Staking', (accounts) => {
 		const validatorSrc = accounts[0];
 		const validatorDst = accounts[1];
 		let amount = web3.utils.toBN(1e19);
-		let relayFee = web3.utils.toBN(1e16);
+		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validatorSrc, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,

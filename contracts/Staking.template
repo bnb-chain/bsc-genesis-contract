@@ -123,7 +123,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function init() external onlyNotInit {
     oracleRelayerFee = INIT_ORACLE_RELAYER_FEE;
     minDelegationChange = INIT_MIN_DELEGATION_CHANGE;
-    callbackGasLimit = INIT_CALLBACK_GAS_LIMIT;
     alreadyInit = true;
   }
 {% endif %}
