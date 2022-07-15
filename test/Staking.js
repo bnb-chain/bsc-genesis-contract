@@ -146,16 +146,16 @@ contract('Staking', (accounts) => {
 		let tx = await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		truffleAssert.eventEmitted(tx, "undelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee); });
-		let lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
+		let lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator, validator);
 		assert.equal(lockedUndelegated.toString(), amount.toString());
 
 		amount = web3.utils.toBN(1e18);
-		tx = await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
-		truffleAssert.eventEmitted(tx, "undelegateSubmitted", (ev) => {
-			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
-		});
-		lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator);
-		assert.equal(lockedUndelegated.toString(), amount.add(web3.utils.toBN(1e19)).toString());
+		try {
+			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
+			assert.fail();
+		} catch (error) {
+			assert.ok(error.toString().includes("pending undelegation exist"));
+		}
 	});
 
 	it('Redelegate', async () => {
@@ -220,7 +220,7 @@ contract('Staking', (accounts) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
 		});
 
-		amount = web3.utils.toBN(1e18);
+		amount = web3.utils.toBN(2e18);
 		tx = await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
 		truffleAssert.eventEmitted(tx, "redelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
@@ -298,7 +298,7 @@ contract('Staking', (accounts) => {
 
 		const undelegated = web3.utils.toBN(1e18);
 		const delegator = accounts[2];
-		let packageBytes = transferInUndelegatedRlpEncode(EVENT_TRANSFER_IN_UNDELEGATED, undelegated, delegator);
+		let packageBytes = transferInUndelegatedRlpEncode(EVENT_TRANSFER_IN_UNDELEGATED, undelegated, delegator, accounts[0]);
 		let tx = await stakingInstance.handleSynPackage(CROSS_STAKE_CHANNELID, packageBytes, {from: relayerAccount});
 		truffleAssert.eventEmitted(tx, "undelegatedReceived", (ev) => {
 			return ev.amount.eq(undelegated) && ev.delegator == delegator;
@@ -311,17 +311,17 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const expectedUndelegated = web3.utils.toBN(1e18);
 
-		let pendingUndelegated = await stakingInstance.getUndelegated.call(delegator);
-		assert.equal(pendingUndelegated.toString(), expectedUndelegated.toString());
+		let undelegated = await stakingInstance.getUndelegated.call(delegator);
+		assert.equal(undelegated.toString(), expectedUndelegated.toString());
 
 		let tx = await stakingInstance.claimUndeldegated({from: delegator});
 		assert.equal(tx.logs[0].args.amount.toString(), expectedUndelegated.toString());
 		truffleAssert.eventEmitted(tx, "undelegatedClaimed", (ev) => {
-			return ev.amount.eq(pendingUndelegated) && ev.delegator == delegator;
+			return ev.amount.eq(undelegated) && ev.delegator == delegator;
 		});
 
-		pendingUndelegated = await stakingInstance.getUndelegated.call(delegator);
-		assert.equal(pendingUndelegated.toString(), web3.utils.toBN(0).toString());
+		undelegated = await stakingInstance.getUndelegated.call(delegator);
+		assert.equal(undelegated.toString(), web3.utils.toBN(0).toString());
 	})
 })
 
@@ -439,12 +439,13 @@ function serialize(key, value, target, extra) {
 	return RLP.encode(pkg);
 }
 
-function transferInUndelegatedRlpEncode(eventCode, amount, recipient) {
+function transferInUndelegatedRlpEncode(eventCode, amount, recipient, validator) {
 	let pkg = [];
 	pkg.push(eventCode);
 	pkg.push(amount);
 	pkg.push(recipient);
 	pkg.push(recipient);
+	pkg.push(validator);
 	return RLP.encode(pkg)
 }
 

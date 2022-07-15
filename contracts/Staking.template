@@ -65,13 +65,12 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   uint256 constant public TEN_DECIMALS = 1e10;
 
-  uint256 public constant INIT_ORACLE_RELAYER_FEE = 2e15; //TODO
+  uint256 public constant INIT_ORACLE_RELAYER_FEE = 2e16; //TODO
   uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e19;
   uint256 public constant INIT_CALLBACK_GAS_LIMIT = 23000;
 
   uint256 public oracleRelayerFee;
   uint256 public minDelegationChange;
-  uint256 public callbackGasLimit;
 
   mapping(address => uint256) delegated;
   mapping(address => mapping(address => uint256)) delegatedOfValidator;
@@ -100,7 +99,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     if (!alreadyInit) {
       oracleRelayerFee = INIT_ORACLE_RELAYER_FEE;
       minDelegationChange = INIT_MIN_DELEGATION_CHANGE;
-      callbackGasLimit = INIT_CALLBACK_GAS_LIMIT;
       alreadyInit = true;
     }
     _;
@@ -118,6 +116,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   event failedUndelegate(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
   event failedRedelegate(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
   event paramChange(string key, bytes value);
+  event failedSynPackage(uint256 errCode);
   event crashResponse();
 {% if mock %}
   /*********************** init **************************/
@@ -146,7 +145,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     if (resCode == CODE_OK) {
       return new bytes(0);
     } else {
-      return CmnPkg.encodeCommonAckPackage(resCode);
+      emit failedSynPackage(resCode);
+      return msgBytes;
     }
   }
 
@@ -313,11 +313,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       uint256 newMinDelegationChange = BytesToTypes.bytesToUint256(32, value);
       require(newMinDelegationChange > 0, "the minDelegationChange must be greater than 0");
       minDelegationChange = newMinDelegationChange;
-    } else if (Memory.compareStrings(key, "callbackGasLimit")) {
-      require(value.length == 32, "length of callbackGasLimit mismatch");
-      uint256 newCallbackGasLimit = BytesToTypes.bytesToUint256(32, value);
-      require(newCallbackGasLimit > 0, "the callbackGasLimit must be greater than 0");
-      callbackGasLimit = newCallbackGasLimit;
     } else {
       require(false, "unknown param");
     }

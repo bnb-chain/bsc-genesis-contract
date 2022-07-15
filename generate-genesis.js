@@ -144,7 +144,7 @@ Promise.all([
   compileContract(
     "staking",
     "contracts/Staking.sol",
-    "Sta"
+    "Staking"
   )
 ]).then(result => {
 
