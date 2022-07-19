@@ -131,9 +131,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint8 eventCode = uint8(iter.next().toUint());
     uint32 resCode;
     if (eventCode == EVENT_TRANSFER_IN_REWARD) {
-      resCode = _handleTransferInRewardSynPackage(iter);
+      resCode = _handleDistributeRewardSynPackage(iter);
     } else if (eventCode == EVENT_TRANSFER_IN_UNDELEGATED) {
-      resCode = _handleTransferInUndelegatedSynPackage(iter);
+      resCode = _handleDistributeUndelegatedSynPackage(iter);
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
     }
@@ -400,7 +400,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   emit failedRedelegate(pack.delegator, pack.valSrc, pack.valDst, pack.amount, pack.errCode);
   }
 
-  function _handleTransferInRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
+  function _handleDistributeRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
     DistributeRewardSynPackage memory pack;
 
     uint256 totalAmount;
@@ -432,7 +432,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return CODE_OK;
   }
 
-  function _handleTransferInUndelegatedSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
+  function _handleDistributeUndelegatedSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
     DistributeUndelegatedSynPackage memory pack;
 
     bool success = false;
