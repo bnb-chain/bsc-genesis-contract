@@ -40,16 +40,14 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint8 errCode;
   }
 
-  struct TransferInRewardSynPackage {
-    uint256[] amounts;
-    address[] recipients;
-    address[] refundAddrs;
-  }
-
-  struct TransferInUndelegatedSynPackage {
+  struct DistributeRewardSynPackage {
     uint256 amount;
     address recipient;
-    address refundAddr;
+  }
+
+  struct DistributeUndelegatedSynPackage {
+    uint256 amount;
+    address recipient;
     address validator;
   }
 
@@ -57,8 +55,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint8 public constant EVENT_DELEGATE = 0x01;
   uint8 public constant EVENT_UNDELEGATE = 0x02;
   uint8 public constant EVENT_REDELEGATE = 0x03;
-  uint8 public constant EVENT_TRANSFER_IN_REWARD = 0x04;
-  uint8 public constant EVENT_TRANSFER_IN_UNDELEGATED = 0x05;
+  uint8 public constant EVENT_DISTRIBUTE_REWARD = 0x04;
+  uint8 public constant EVENT_DISTRIBUTE_UNDELEGATED = 0x05;
 
   uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
   uint32 public constant ERROR_WITHDRAW_BNB = 102;
@@ -66,8 +64,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 constant public TEN_DECIMALS = 1e10;
 
   uint256 public constant INIT_ORACLE_RELAYER_FEE = 2e16; //TODO
-  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e19;
-  uint256 public constant INIT_CALLBACK_GAS_LIMIT = 23000;
+  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e20;
 
   uint256 public oracleRelayerFee;
   uint256 public minDelegationChange;
@@ -122,7 +119,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   receive() external payable {}
 
   /************************* Implement cross chain app *************************/
-  function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override returns(bytes memory) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract initParams override returns(bytes memory) {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventCode = uint8(iter.next().toUint());
     uint32 resCode;
@@ -142,7 +139,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     }
   }
 
-  function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract onlyInit override {
+  function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract initParams override {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventCode = uint8(iter.next().toUint());
     if (eventCode == EVENT_DELEGATE) {
@@ -157,7 +154,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return;
   }
 
-  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract onlyInit override {
+  function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract initParams override {
     emit crashResponse();
     return;
   }
@@ -188,9 +185,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(pendingUndelegated[msg.sender][validator] == 0, "pending undelegation exist");
-    amount = amount != 0 ? amount : delegatedOfValidator[msg.sender][validator];
     if (amount < minDelegationChange) {
-      require(amount == delegatedOfValidator[msg.sender][validator],
+      require(amount == delegatedOfValidator[msg.sender][validator] && amount > 0,
         "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
     }
     delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds to undelegate");
@@ -217,11 +213,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc!=validatorDst, "invalid redelegation");
-    amount = amount != 0 ? amount : delegatedOfValidator[msg.sender][validatorSrc];
-    if (amount < minDelegationChange) {
-      require(amount == delegatedOfValidator[msg.sender][validatorSrc],
-        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
-    }
+    require(amount < minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
     delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
 
@@ -247,8 +239,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     require(distributedReward[msg.sender] > 0, "no pending reward");
 
     amount = distributedReward[msg.sender];
-    payable(msg.sender).transfer(amount);
     distributedReward[msg.sender] = 0;
+    payable(msg.sender).transfer(amount);
     emit rewardClaimed(msg.sender, amount);
   }
 
@@ -256,8 +248,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     require(undelegated[msg.sender] > 0, "no undelegated funds");
 
     amount = undelegated[msg.sender];
-    payable(msg.sender).transfer(amount);
     undelegated[msg.sender] = 0;
+    payable(msg.sender).transfer(amount);
     emit undelegatedClaimed(msg.sender, amount);
   }
 
@@ -402,31 +394,16 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function _handleTransferInRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
-    TransferInRewardSynPackage memory pack;
+    DistributeRewardSynPackage memory pack;
 
     uint256 totalAmount;
     bool success = false;
     uint256 idx = 0;
     while (iter.hasNext()) {
       if (idx == 0) {
-        RLPDecode.RLPItem[] memory items = iter.next().toList();
-        pack.amounts = new uint256[](items.length);
-        for (uint i;i<items.length;++i) {
-          pack.amounts[i] = uint256(items[i].toUint());
-          totalAmount += pack.amounts[i];
-        }
+        pack.amount = uint256(iter.next().toUint());
       } else if (idx == 1) {
-        RLPDecode.RLPItem[] memory items = iter.next().toList();
-        pack.recipients = new address[](items.length);
-        for (uint j;j<items.length;++j) {
-          pack.recipients[j] = address(uint160(items[j].toUint()));
-        }
-      } else if (idx == 2) {
-        RLPDecode.RLPItem[] memory items = iter.next().toList();
-        pack.refundAddrs = new address[](items.length);
-        for (uint k;k<items.length;++k) {
-          pack.refundAddrs[k] = address(uint160(items[k].toUint()));
-        }
+        pack.recipient = address(uint160(iter.next().toAddress()));
         success = true;
       } else {
         break;
@@ -442,16 +419,14 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       return ERROR_WITHDRAW_BNB;
     }
 
-    for (uint l;l<pack.recipients.length;++l) {
-      distributedReward[pack.recipients[l]] = distributedReward[pack.recipients[l]].add(pack.amounts[l]);
-      emit rewardReceived(pack.recipients[l], pack.amounts[l]);
-    }
+    distributedReward[pack.recipient] = distributedReward[pack.recipient].add(pack.amount);
+    emit rewardReceived(pack.recipient, pack.amount);
 
     return CODE_OK;
   }
 
   function _handleTransferInUndelegatedSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
-    TransferInUndelegatedSynPackage memory pack;
+    DistributeUndelegatedSynPackage memory pack;
 
     bool success = false;
     uint256 idx = 0;
@@ -461,8 +436,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       } else if (idx == 1) {
         pack.recipient = address(uint160(iter.next().toAddress()));
       } else if (idx == 2) {
-        pack.refundAddr = address(uint160(iter.next().toAddress()));
-      } else if (idx == 3) {
         pack.validator = address(uint160(iter.next().toAddress()));
         success = true;
       } else {
