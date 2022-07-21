@@ -123,9 +123,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventCode = uint8(iter.next().toUint());
     uint32 resCode;
-    if (eventCode == EVENT_TRANSFER_IN_REWARD) {
+    if (eventCode == EVENT_DISTRIBUTE_REWARD) {
       resCode = _handleDistributeRewardSynPackage(iter);
-    } else if (eventCode == EVENT_TRANSFER_IN_UNDELEGATED) {
+    } else if (eventCode == EVENT_DISTRIBUTE_UNDELEGATED) {
       resCode = _handleDistributeUndelegatedSynPackage(iter);
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
@@ -213,7 +213,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc!=validatorDst, "invalid redelegation");
-    require(amount < minDelegationChange, "the amount must not be less than minDelegationChange");
+    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
     delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
 

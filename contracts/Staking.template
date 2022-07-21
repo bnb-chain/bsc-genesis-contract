@@ -130,9 +130,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventCode = uint8(iter.next().toUint());
     uint32 resCode;
-    if (eventCode == EVENT_TRANSFER_IN_REWARD) {
+    if (eventCode == EVENT_DISTRIBUTE_REWARD) {
       resCode = _handleDistributeRewardSynPackage(iter);
-    } else if (eventCode == EVENT_TRANSFER_IN_UNDELEGATED) {
+    } else if (eventCode == EVENT_DISTRIBUTE_UNDELEGATED) {
       resCode = _handleDistributeUndelegatedSynPackage(iter);
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
@@ -192,10 +192,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(pendingUndelegated[msg.sender][validator] == 0, "pending undelegation exist");
-    if (amount < minDelegationChange) {
-      require(amount == delegatedOfValidator[msg.sender][validator] && amount > 0,
-        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
-    }
+    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds to undelegate");
 
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
