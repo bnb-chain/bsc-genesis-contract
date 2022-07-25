@@ -400,7 +400,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function _handleDistributeRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
     DistributeRewardSynPackage memory pack;
 
-    uint256 totalAmount;
     bool success = false;
     uint256 idx = 0;
     while (iter.hasNext()) {
@@ -418,7 +417,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       return ERROR_FAIL_DECODE;
     }
 
-    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(totalAmount);
+    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(pack.amount);
     if (!ok) {
       return ERROR_WITHDRAW_BNB;
     }

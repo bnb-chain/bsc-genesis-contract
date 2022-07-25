@@ -21,5 +21,3 @@ interface ITokenHub {
 
   function withdrawStakingBNB(uint256 amount) external returns(bool);
 }
-
-

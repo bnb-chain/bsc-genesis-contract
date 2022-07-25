@@ -185,10 +185,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(pendingUndelegated[msg.sender][validator] == 0, "pending undelegation exist");
-    if (amount < minDelegationChange) {
-      require(amount == delegatedOfValidator[msg.sender][validator] && amount > 0,
-        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
-    }
+    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds to undelegate");
 
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
@@ -213,7 +210,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc!=validatorDst, "invalid redelegation");
-    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
+    require(amount < minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
     delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
 
@@ -396,7 +393,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function _handleDistributeRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
     DistributeRewardSynPackage memory pack;
 
-    uint256 totalAmount;
     bool success = false;
     uint256 idx = 0;
     while (iter.hasNext()) {
@@ -414,7 +410,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       return ERROR_FAIL_DECODE;
     }
 
-    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(totalAmount);
+    bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(pack.amount);
     if (!ok) {
       return ERROR_WITHDRAW_BNB;
     }
