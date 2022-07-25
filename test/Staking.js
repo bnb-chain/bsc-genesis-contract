@@ -12,18 +12,16 @@ const BSCValidatorSet = artifacts.require("BSCValidatorSet");
 
 const RLP = require('rlp');
 const Web3 = require('web3');
-const sleep = require("await-sleep");
 const truffleAssert = require('truffle-assertions');
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
-
-const GOV_CHANNEL_ID = 0x09;
-const CROSS_STAKE_CHANNELID = 0x10;
 
 const EVENT_DELEGATE = 0x01;
 const EVENT_UNDELEGATE = 0x02;
 const EVENT_REDELEGATE = 0x03;
 const EVENT_TRANSFER_IN_REWARD = 0x04;
 const EVENT_TRANSFER_IN_UNDELEGATED = 0x05;
+const GOV_CHANNEL_ID = 0x09;
+const CROSS_STAKE_CHANNELID = 0x10;
 
 contract('Staking', (accounts) => {
 	it('Delegate', async () => {
@@ -36,13 +34,13 @@ contract('Staking', (accounts) => {
 			serialize("addOrUpdateChannel",
 				web3.utils.bytesToHex(Buffer.concat(
 					[Buffer.from(web3.utils.hexToBytes("0x10")),
-						Buffer.from(web3.utils.hexToBytes("0x00")),
+						Buffer.from(web3.utils.hexToBytes("0x01")),
 						Buffer.from(web3.utils.hexToBytes(stakingInstance.address))])),
 				crossChainInstance.address), {from: relayerAccount});
 
 		const delegator = accounts[2];
 		const validator = accounts[0];
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(2e20);
 		let relayFee = web3.utils.toBN(2e16);
 
 		try {
@@ -56,7 +54,7 @@ contract('Staking', (accounts) => {
 		}
 
 		try {
-			const wrongAmount = web3.utils.toBN(1e19).add(web3.utils.toBN(1));
+			const wrongAmount = web3.utils.toBN(1e20).add(web3.utils.toBN(1));
 			await stakingInstance.delegate(validator, wrongAmount, {from: delegator, value: amount.add(relayFee)});
 			assert.fail();
 		} catch (error) {
@@ -64,23 +62,13 @@ contract('Staking', (accounts) => {
 		}
 
 		try {
-			amount = web3.utils.toBN(1e18);
-			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
+			const wrongAmount = web3.utils.toBN(1e18);
+			await stakingInstance.delegate(validator, wrongAmount, {from: delegator, value: wrongAmount.add(relayFee)});
 			assert.fail();
 		} catch (error) {
 			assert.ok(error.toString().includes("the amount must not be less than minDelegationChange"));
 		}
 
-		amount = web3.utils.toBN(1.1e19);
-		try {
-			relayFee = web3.utils.toBN(1e15);
-			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
-			assert.fail();
-		} catch (error) {
-			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
-		}
-
-		relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount});
 			assert.fail();
@@ -88,11 +76,19 @@ contract('Staking', (accounts) => {
 			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
 		}
 
+		try {
+			const wrongRelayFee = web3.utils.toBN(1e15);
+			await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(wrongRelayFee)});
+			assert.fail();
+		} catch (error) {
+			assert.ok(error.toString().includes("the msg value should be no less than the sum of stake amount and minimum oracleRelayerFee"));
+		}
+
 		let tx = await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
-		console.log(JSON.stringify(tx, null, 2))
 		truffleAssert.eventEmitted(tx, "delegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
 		});
+
 		let delegated = await stakingInstance.getDelegated.call(delegator, validator);
 		assert.equal(delegated.toString(), amount.toString());
 	});
@@ -102,17 +98,17 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validator = accounts[0];
 
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(1e20);
 		let relayFee = web3.utils.toBN(2e16);
 		try {
-			await stakingInstance.undelegate(validator, amount, { from: delegator, value: relayFee.add(web3.utils.toBN(1))});
+			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee.add(web3.utils.toBN(1))});
 			assert.fail();
 		} catch (error) {
 			assert.ok(error.toString().includes("invalid msg value: precision loss in amount conversion"));
 		}
 
 		try {
-			const wrongAmount = web3.utils.toBN(1e19).add(web3.utils.toBN(1));
+			const wrongAmount = web3.utils.toBN(1e20).add(web3.utils.toBN(1));
 			await stakingInstance.undelegate(validator, wrongAmount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
@@ -120,23 +116,21 @@ contract('Staking', (accounts) => {
 		}
 
 		try {
-			amount = web3.utils.toBN(1e18);
-			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
+			const wrongAmount = web3.utils.toBN(1e18);
+			await stakingInstance.undelegate(validator, wrongAmount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
 			assert.ok(error.toString().includes("the amount must not be less than minDelegationChange, or else equal to the remaining delegation"));
 		}
 
-		amount = web3.utils.toBN(1e19);
 		try {
-			relayFee = web3.utils.toBN(1e15);
-			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
+			const wrongRelayFee = web3.utils.toBN(1e15);
+			await stakingInstance.undelegate(validator, amount, {from: delegator, value: wrongRelayFee});
 			assert.fail();
 		} catch (error) {
 			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
-		relayFee = web3.utils.toBN(2e16);
 		try {
 			await stakingInstance.undelegate(accounts[1], amount, {from: delegator, value: relayFee});
 			assert.fail();
@@ -147,10 +141,10 @@ contract('Staking', (accounts) => {
 		let tx = await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		truffleAssert.eventEmitted(tx, "undelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee); });
+
 		let lockedUndelegated = await stakingInstance.getPendingUndelegated.call(delegator, validator);
 		assert.equal(lockedUndelegated.toString(), amount.toString());
 
-		amount = web3.utils.toBN(1e18);
 		try {
 			await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 			assert.fail();
@@ -165,7 +159,7 @@ contract('Staking', (accounts) => {
 		const validatorSrc = accounts[0];
 		const validatorDst = accounts[1];
 
-		let amount = web3.utils.toBN(1.1e19);
+		let amount = web3.utils.toBN(2e20);
 		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validatorSrc, amount, {from: delegator, value: amount.add(relayFee)});
 
@@ -173,7 +167,14 @@ contract('Staking', (accounts) => {
 			await stakingInstance.redelegate(validatorSrc, validatorSrc, amount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("invalid redelegation"));
+			assert.ok(error.toString().includes("invalid redelegation, source validator is the same as dest validator"));
+		}
+
+		try {
+			await stakingInstance.redelegate(accounts[3], validatorDst, amount, {from: delegator, value: relayFee});
+			assert.fail();
+		} catch (error) {
+			assert.ok(error.toString().includes("not enough funds to redelegate"));
 		}
 
 		try {
@@ -184,7 +185,7 @@ contract('Staking', (accounts) => {
 		}
 
 		try {
-			const wrongAmount = web3.utils.toBN(1e19).add(web3.utils.toBN(1));
+			const wrongAmount = web3.utils.toBN(1e20).add(web3.utils.toBN(1));
 			await stakingInstance.redelegate(validatorSrc, validatorDst, wrongAmount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
@@ -192,40 +193,33 @@ contract('Staking', (accounts) => {
 		}
 
 		try {
-			amount = web3.utils.toBN(1e18);
-			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
+			const wrongAmount = web3.utils.toBN(1e18);
+			await stakingInstance.redelegate(validatorSrc, validatorDst, wrongAmount, {from: delegator, value: relayFee});
 			assert.fail();
 		} catch (error) {
-			assert.ok(error.toString().includes("the amount must not be less than minDelegationChange, or else equal to the remaining delegation"));
+			assert.ok(error.toString().includes("the amount must not be less than minDelegationChange"));
 		}
 
-		amount = web3.utils.toBN(1e19);
 		try {
-			relayFee = web3.utils.toBN(1e15);
-			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
+			const wrongRelayFee = web3.utils.toBN(1e15);
+			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: wrongRelayFee});
 			assert.fail();
 		} catch (error) {
 			assert.ok(error.toString().includes("the msg value should be no less than the minimum oracleRelayerFee"));
 		}
 
-		relayFee = web3.utils.toBN(2e16);
-		try {
-			await stakingInstance.redelegate(accounts[3], validatorDst, amount, {from: delegator, value: relayFee});
-			assert.fail();
-		} catch (error) {
-			assert.ok(error.toString().includes("not enough funds to redelegate"));
-		}
-
+		amount = web3.utils.toBN(1e20);
 		let tx = await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
 		truffleAssert.eventEmitted(tx, "redelegateSubmitted", (ev) => {
 			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
 		});
 
-		amount = web3.utils.toBN(2e18);
-		tx = await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
-		truffleAssert.eventEmitted(tx, "redelegateSubmitted", (ev) => {
-			return ev.amount.eq(amount) && ev.oracleRelayerFee.eq(relayFee);
-		});
+		try {
+			await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
+			assert.fail();
+		} catch (error) {
+			assert.ok(error.toString().includes("conflicting redelegation from this source validator to this dest validator already exists, you must wait for it to finish"));
+		}
 	});
 })
 
@@ -247,31 +241,19 @@ contract('Staking', (accounts) => {
 
 		const delegator = accounts[2];
 		const validator = accounts[0];
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(1e20);
 		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
-		await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,
 			LightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address,
 			TokenManager.address, relayerAccount, Staking.address);
 
-		let rewards = [];
-		let delegators = [];
-		for (let i=0; i<5; i++) {
-			rewards.push(web3.utils.toBN(1e18).mul(web3.utils.toBN(i+1)));
-			delegators.push(web3.eth.accounts.create().address);
-		}
-		rewards.push(web3.utils.toBN(1e18));
-		delegators.push(delegator);
-
-		let packageBytes = transferInRewardRlpEncode(EVENT_TRANSFER_IN_REWARD, rewards, delegators);
+		let reward = web3.utils.toBN(1e18);
+		let packageBytes = transferInRewardRlpEncode(EVENT_TRANSFER_IN_REWARD, reward, delegator);
 		let tx = await stakingInstance.handleSynPackage(CROSS_STAKE_CHANNELID, packageBytes, {from: relayerAccount});
-
-		for (let i=0; i<rewards.length; i++) {
-			truffleAssert.eventEmitted(tx, "rewardReceived", (ev) => {
-				return ev.amount.eq(rewards[i]) && ev.delegator == delegators[i];
-			});
-		}
+		truffleAssert.eventEmitted(tx, "rewardReceived", (ev) => {
+			return ev.amount.eq(reward) && ev.delegator == delegator;
+		});
 	});
 
 	it('ClaimReward', async () => {
@@ -299,6 +281,7 @@ contract('Staking', (accounts) => {
 
 		const undelegated = web3.utils.toBN(1e18);
 		const delegator = accounts[2];
+
 		let packageBytes = transferInUndelegatedRlpEncode(EVENT_TRANSFER_IN_UNDELEGATED, undelegated, delegator, accounts[0]);
 		let tx = await stakingInstance.handleSynPackage(CROSS_STAKE_CHANNELID, packageBytes, {from: relayerAccount});
 		truffleAssert.eventEmitted(tx, "undelegatedReceived", (ev) => {
@@ -344,7 +327,7 @@ contract('Staking', (accounts) => {
 
 		const delegator = accounts[2];
 		const validator = accounts[0];
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(1e20);
 		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address,
@@ -377,7 +360,7 @@ contract('Staking', (accounts) => {
 
 		const delegator = accounts[2];
 		const validator = accounts[0];
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(1e20);
 		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validator, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.undelegate(validator, amount, {from: delegator, value: relayFee});
@@ -412,7 +395,7 @@ contract('Staking', (accounts) => {
 		const delegator = accounts[2];
 		const validatorSrc = accounts[0];
 		const validatorDst = accounts[1];
-		let amount = web3.utils.toBN(1e19);
+		let amount = web3.utils.toBN(1e20);
 		let relayFee = web3.utils.toBN(2e16);
 		await stakingInstance.delegate(validatorSrc, amount, {from: delegator, value: amount.add(relayFee)});
 		await stakingInstance.redelegate(validatorSrc, validatorDst, amount, {from: delegator, value: relayFee});
@@ -445,22 +428,15 @@ function transferInUndelegatedRlpEncode(eventCode, amount, recipient, validator)
 	pkg.push(eventCode);
 	pkg.push(amount);
 	pkg.push(recipient);
-	pkg.push(recipient);
 	pkg.push(validator);
 	return RLP.encode(pkg)
 }
 
-function transferInRewardRlpEncode(eventCode, rewards, recipients) {
+function transferInRewardRlpEncode(eventCode, reward, recipient) {
 	let pkg = [];
 	pkg.push(eventCode);
-	let n = rewards.length;
-	let addrs = [];
-	for (let i=0; i<n; i++) {
-		addrs.push(recipients[i].toString());
-	}
-	pkg.push(rewards);
-	pkg.push(addrs);
-	pkg.push(addrs);
+	pkg.push(reward);
+	pkg.push(recipient);
 	return RLP.encode(pkg)
 }
 

@@ -74,6 +74,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   mapping(address => uint256) distributedReward;
   mapping(address => mapping(address => uint256)) pendingUndelegated;
   mapping(address => uint256) undelegated;
+  mapping(address => mapping(address => mapping(address => uint256))) pendingRedelegate;
 
   bool internal locked;
 
@@ -185,7 +186,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(pendingUndelegated[msg.sender][validator] == 0, "pending undelegation exist");
-    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
+    if (amount < minDelegationChange) {
+      require(amount == delegatedOfValidator[msg.sender][validator],
+        "the amount must not be less than minDelegationChange, or else equal to the remaining delegation");
+    }
     delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds to undelegate");
 
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
@@ -209,10 +213,14 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
-    require(validatorSrc!=validatorDst, "invalid redelegation");
-    require(amount < minDelegationChange, "the amount must not be less than minDelegationChange");
+    require(validatorSrc!=validatorDst, "invalid redelegation, source validator is the same as dest validator");
+    require(pendingRedelegate[msg.sender][validatorSrc][validatorDst] == 0 ||
+      block.timestamp >= pendingRedelegate[msg.sender][validatorSrc][validatorDst],
+      "conflicting redelegation from this source validator to this dest validator already exists, you must wait for it to finish");
+    require(amount >= minDelegationChange, "the amount must not be less than minDelegationChange");
     delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
     delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
+    pendingRedelegate[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(7*24*3600);
 
     // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 convertedAmount = amount.div(TEN_DECIMALS);
@@ -386,8 +394,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     delegatedOfValidator[pack.delegator][pack.valSrc] = delegatedOfValidator[pack.delegator][pack.valSrc].add(pack.amount);
     delegatedOfValidator[pack.delegator][pack.valDst] = delegatedOfValidator[pack.delegator][pack.valDst].sub(pack.amount);
+    pendingRedelegate[pack.delegator][pack.valSrc][pack.valDst] = 0;
 
-  emit failedRedelegate(pack.delegator, pack.valSrc, pack.valDst, pack.amount, pack.errCode);
+    emit failedRedelegate(pack.delegator, pack.valSrc, pack.valDst, pack.amount, pack.errCode);
   }
 
   function _handleDistributeRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32) {
