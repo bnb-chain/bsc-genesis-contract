@@ -64,7 +64,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 constant public TEN_DECIMALS = 1e10;
 
   uint256 public constant INIT_ORACLE_RELAYER_FEE = 2e16; //TODO
-  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1e20;
+  uint256 public constant INIT_MIN_DELEGATION_CHANGE = 100 * 1e18;
 
   uint256 public oracleRelayerFee;
   uint256 public minDelegationChange;
@@ -369,6 +369,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     }
     require(success, "rlp decode ack package failed");
 
+    require(pendingUndelegated[pack.delegator][pack.validator] == pack.amount, "wrong undelegate amount");
     delegated[pack.delegator] = delegated[pack.delegator].add(pack.amount);
     pendingUndelegated[pack.delegator][pack.validator] = 0;
 
