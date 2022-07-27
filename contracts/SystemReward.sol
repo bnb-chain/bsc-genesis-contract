@@ -45,7 +45,7 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
     }
-    if (actualAmount>0) {
+    if (actualAmount != 0) {
       to.transfer(actualAmount);
       emit rewardTo(to, actualAmount);
     } else {

@@ -270,8 +270,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("the number of validators exceed the limit");
         return ERROR_FAIL_CHECK_VALIDATORS;
       }
-      for (uint i = 0; i < validatorSet.length; i++) {
-        for (uint j = 0; j < i; j++) {
+      for (uint i; i < validatorSet.length; ++i) {
+        for (uint j; j < i; ++j) {
           if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
             emit failReasonWithStr("duplicate consensus address of validatorSet");
             return ERROR_FAIL_CHECK_VALIDATORS;
@@ -444,7 +444,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     address[] memory validators = getValidators();
-    bytes[] memory voteAddrs = getVoteAddresses(validators.length);
+    bytes[] memory voteAddrs = getVoteAddresses(validators);
 
     if (validators.length <= _numOfCabinets) {
       return (validators, voteAddrs);
@@ -749,17 +749,20 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function getVoteAddresses(uint length) internal view returns(bytes[] memory) {
+  function getVoteAddresses(address[] memory validators) internal view returns(bytes[] memory) {
+    // check if validatorExtraSet has been initialized
     uint n = currentValidatorSet.length;
-    bytes[] memory voteAddrs = new bytes[](length);
     if (validatorExtraSet.length != n) {
       return voteAddrs;
     }
-    uint index = 0;
-    for (uint i; i<n; ++i) {
-      if (isWorkingValidator(i)) {
-        voteAddrs[index] = validatorExtraSet[i].voteAddress;
-        index ++;
+
+    uint index;
+    uint length = validators.length;
+    bytes[] memory voteAddrs = new bytes[](length);
+    for (uint i; i<length; ++i) {
+      index = currentValidatorSetMap[validators[i]];
+      if (isWorkingValidator(index)) {
+        voteAddrs[i] = validatorExtraSet[index].voteAddress;
       }
     }
     return voteAddrs;
