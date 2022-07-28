@@ -22,5 +22,5 @@ interface IStaking {
 
   function getOracleRelayerFee() external view returns(uint256);
 
-  function getMinDelegationChange() external view returns(uint256);
+  function getMinDelegation() external view returns(uint256);
 }
