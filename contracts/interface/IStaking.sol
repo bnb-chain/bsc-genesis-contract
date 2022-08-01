@@ -16,9 +16,11 @@ interface IStaking {
 
   function getDistributedReward(address delegator) external view returns(uint256);
 
+  function getPendingRedelegateTime(address delegator, address valSrc, address valDst)  external view returns(uint256);
+
   function getUndelegated(address delegator) external view returns(uint256);
 
-  function getPendingUndelegated(address delegator, address validator) external view returns(uint256);
+  function getPendingUndelegateTime(address delegator, address validator) external view returns(uint256);
 
   function getOracleRelayerFee() external view returns(uint256);
 

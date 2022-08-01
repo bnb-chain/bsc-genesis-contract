@@ -235,11 +235,15 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return distributedReward[delegator];
   }
 
+  function getPendingRedelegateTime(address delegator, address valSrc, address valDst) override external view returns(uint256) {
+    return pendingRedelegateTime[delegator][valSrc][valDst];
+  }
+
   function getUndelegated(address delegator) override external view returns(uint256) {
     return undelegated[delegator];
   }
 
-  function getPendingUndelegated(address delegator, address validator) override external view returns(uint256) {
+  function getPendingUndelegateTime(address delegator, address validator) override external view returns(uint256) {
     return pendingUndelegateTime[delegator][validator];
   }
 
