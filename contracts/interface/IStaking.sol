@@ -14,6 +14,8 @@ interface IStaking {
 
   function getDelegated(address delegator, address validator) external view returns(uint256);
 
+  function getTotalDelegated(address delegator) external view returns(uint256);
+
   function getDistributedReward(address delegator) external view returns(uint256);
 
   function getPendingRedelegateTime(address delegator, address valSrc, address valDst)  external view returns(uint256);

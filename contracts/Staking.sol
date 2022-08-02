@@ -18,11 +18,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   using RLPEncode for *;
   using RLPDecode for *;
 
-  // Package type
-  uint8 constant public SYN_PACKAGE = 0x00;
-  uint8 constant public ACK_PACKAGE = 0x01;
-  uint8 constant public FAIL_ACK_PACKAGE = 0x02;
-
   // Cross Stake Event type
   uint8 public constant EVENT_DELEGATE = 0x01;
   uint8 public constant EVENT_UNDELEGATE = 0x02;
@@ -233,6 +228,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function getDelegated(address delegator, address validator) override external view returns(uint256) {
     return delegatedOfValidator[delegator][validator];
+  }
+
+  function getTotalDelegated(address delegator) override external view returns(uint256) {
+    return delegated[delegator];
   }
 
   function getDistributedReward(address delegator) override external view returns(uint256) {
