@@ -237,6 +237,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return delegatedOfValidator[delegator][validator];
   }
 
+  function getTotalDelegated(address delegator) override external view returns(uint256) {
+    return delegated[delegator];
+  }
+
   function getDistributedReward(address delegator) override external view returns(uint256) {
     return distributedReward[delegator];
   }
