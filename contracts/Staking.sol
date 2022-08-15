@@ -137,9 +137,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function delegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegation, "invalid delegate amount");
     require(msg.value >= amount.add(oracleRelayerFee), "not enough msg value");
+    require(payable(msg.sender).send(0), "invalid delegator"); // the msg sender must be payable
 
-    // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 convertedAmount = amount.div(TEN_DECIMALS);
+    uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _oracleRelayerFee = (msg.value).sub(amount);
 
     bytes[] memory elements = new bytes[](3);
@@ -157,16 +157,15 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
-    require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
+    require(msg.value >= oracleRelayerFee, "not enough relay fee");
     if (amount < minDelegation) {
-      require(amount == delegatedOfValidator[msg.sender][validator], "invalid undelegate amount");
+      require(amount == delegatedOfValidator[msg.sender][validator], "invalid amount");
     }
-    delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds to undelegate");
+    require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
+    delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds");
 
-    // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 convertedAmount = amount.div(TEN_DECIMALS);
+    uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _oracleRelayerFee = msg.value;
-    require(_oracleRelayerFee >= oracleRelayerFee, "not enough relayer fee");
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
@@ -184,15 +183,15 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc != validatorDst, "invalid redelegation");
-    require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst], "pending redelegation exist");
-    require(amount >= minDelegation, "invalid redelegate amount");
-    delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds to redelegate");
+    require(msg.value >= oracleRelayerFee, "not enough relay fee");
+    require(amount >= minDelegation, "invalid amount");
+    require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] &&
+      block.timestamp >= pendingRedelegateTime[msg.sender][validatorDst][validatorSrc], "pending redelegation exist");
+    delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds");
     delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
 
-    // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 convertedAmount = amount.div(TEN_DECIMALS);
+    uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _oracleRelayerFee = msg.value;
-    require(_oracleRelayerFee >= oracleRelayerFee, "not enough relayer fee");
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = msg.sender.encodeAddress();
@@ -204,6 +203,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
     pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(8*24*3600);
+    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(8*24*3600);
 
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
   }
@@ -259,11 +259,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /***************************** Internal functions *****************************/
-  function _RLPEncode(uint8 eventType, bytes memory msgBytes) internal pure returns(bytes memory out) {
+  function _RLPEncode(uint8 eventType, bytes memory msgBytes) internal pure returns(bytes memory output) {
     bytes[] memory elements = new bytes[](2);
     elements[0] = eventType.encodeUint();
     elements[1] = msgBytes.encodeBytes();
-    out = elements.encodeList();
+    output = elements.encodeList();
   }
 
   function _encodeRefundPackage(uint8 eventType, uint256 amount, address recipient, uint32 errorCode) internal returns(uint32, bytes memory) {
@@ -463,6 +463,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].add(amount);
     delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].sub(amount);
     pendingRedelegateTime[delegator][valSrc][valDst] = 0;
+    pendingRedelegateTime[delegator][valDst][valSrc] = 0;
 
     emit failedRedelegate(delegator, valSrc, valDst, amount, errCode);
   }
@@ -502,6 +503,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].add(amount);
     delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].sub(amount);
     pendingRedelegateTime[delegator][valSrc][valDst] = 0;
+    pendingRedelegateTime[delegator][valDst][valSrc] = 0;
 
     emit crashResponse(EVENT_REDELEGATE);
   }
