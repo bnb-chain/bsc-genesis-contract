@@ -28,7 +28,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   // Error code
   uint32 public constant ERROR_WITHDRAW_BNB = 101;
 
-  uint256 constant public TEN_DECIMALS = 1e10;
+  uint256 public constant TEN_DECIMALS = 1e10;
 
   uint256 public constant INIT_ORACLE_RELAYER_FEE = 6e15;
   uint256 public constant INIT_MIN_DELEGATION = 100 * 1e18;
@@ -166,6 +166,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
     require(msg.value >= oracleRelayerFee, "not enough relay fee");
     if (amount < minDelegation) {
+      require(amount >= oracleRelayerFee, "not enough funds");
       require(amount == delegatedOfValidator[msg.sender][validator], "invalid amount");
     }
     require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
@@ -183,7 +184,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
     delegated[msg.sender] = delegated[msg.sender].sub(amount);
-    pendingUndelegateTime[msg.sender][validator] = block.timestamp.add(8*24*3600);
+    pendingUndelegateTime[msg.sender][validator] = block.timestamp.add(691200); // 8*24*3600
 
     emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
   }
@@ -209,8 +210,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_REDELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
 
-    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(8*24*3600);
-    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(8*24*3600);
+    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(691200); // 8*24*3600
+    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(691200); // 8*24*3600
 
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
   }
@@ -273,7 +274,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     output = elements.encodeList();
   }
 
-  function _encodeRefundPackage(uint8 eventType, uint256 amount, address recipient, uint32 errorCode) internal returns(uint32, bytes memory) {
+  function _encodeRefundPackage(uint8 eventType, uint256 amount, address recipient, uint32 errorCode) internal pure returns(uint32, bytes memory) {
+    amount = amount.div(TEN_DECIMALS);
     bytes[] memory elements = new bytes[](4);
     elements[0] = eventType.encodeUint();
     elements[1] = amount.encodeUint();
