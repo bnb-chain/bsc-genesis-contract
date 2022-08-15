@@ -752,18 +752,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function getVoteAddresses(address[] memory validators) internal view returns(bytes[] memory) {
     // check if validatorExtraSet has been initialized
     uint n = currentValidatorSet.length;
+    uint length = validators.length;
+    bytes[] memory voteAddrs = new bytes[](length);
     if (validatorExtraSet.length != n) {
       return voteAddrs;
     }
 
-    uint index;
-    uint length = validators.length;
-    bytes[] memory voteAddrs = new bytes[](length);
     for (uint i; i<length; ++i) {
-      index = currentValidatorSetMap[validators[i]];
-      if (isWorkingValidator(index)) {
-        voteAddrs[i] = validatorExtraSet[index].voteAddress;
-      }
+      voteAddrs[i] = validatorExtraSet[currentValidatorSetMap[validators[i]]].voteAddress;
     }
     return voteAddrs;
   }
