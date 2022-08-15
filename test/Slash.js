@@ -498,8 +498,7 @@ contract("finality slash SlashIndicator", (accounts) => {
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("too old block involved in the evidence"),
-        "the vote must happen recently"
+        error.toString().includes("too old block involved")
       );
     }
 
@@ -510,8 +509,7 @@ contract("finality slash SlashIndicator", (accounts) => {
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("two identical votes"),
-        "two votes must be different"
+        error.toString().includes("two identical votes")
       );
     }
 
@@ -522,8 +520,7 @@ contract("finality slash SlashIndicator", (accounts) => {
       assert.fail();
     } catch (error) {
       assert.ok(
-        error.toString().includes("source number bigger than target number"),
-        "source number must smaller than target number"
+        error.toString().includes("srcNum bigger than tarNum")
       );
     }
 
@@ -533,7 +530,7 @@ contract("finality slash SlashIndicator", (accounts) => {
       await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
     } catch (error) {
-      assert.ok(error.toString().includes("no violation of vote rules"), "no violation of vote rules");
+      assert.ok(error.toString().includes("no violation of vote rules"));
     }
 
     evidence.voteB.tarNum = currentNumber - 12;
@@ -542,7 +539,7 @@ contract("finality slash SlashIndicator", (accounts) => {
       await slashInstance.submitFinalityViolationEvidence(evidence, { from: relayerAccount });
       assert.fail();
     } catch (error) {
-      assert.ok(error.toString().includes("validator not exist"), "validator not exist");
+      assert.ok(error.toString().includes("validator not exist"));
     }
   });
 });

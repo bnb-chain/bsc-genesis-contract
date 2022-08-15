@@ -198,11 +198,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     // Basic check
     require(_evidence.voteA.srcNum+256 > block.number &&
-      _evidence.voteB.srcNum+256 > block.number, "too old block involved in the evidence");
+      _evidence.voteB.srcNum+256 > block.number, "too old block involved");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
       _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
-      _evidence.voteB.srcNum < _evidence.voteB.tarNum, "source number bigger than target number");
+      _evidence.voteB.srcNum < _evidence.voteB.tarNum, "srcNum bigger than tarNum");
 
     // Vote rules check
     require((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) ||
@@ -213,15 +213,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
     address valAddr;
     bytes memory voteAddr = _evidence.voteAddr;
-    bool exist;
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  voteAddr)) {
-        exist = true;
         valAddr = vals[i];
         break;
       }
     }
-    require(exist, "validator not exist");
+    require(valAddr != address(0), "validator not exist");
 {% if mock %}{% else %}
     require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
       verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
@@ -268,7 +266,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return true;
   }
 
-  function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal {
+  function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
     for (uint i; i<len; ++i) {
       data[index++] = _bytes[i];
     }
