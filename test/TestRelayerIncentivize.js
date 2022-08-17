@@ -322,7 +322,7 @@ contract('RelayerIncentivize', (accounts) => {
         let dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
         assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(0)), true, "wrong dynamicExtraIncentiveAmount");
 
-        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address);
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address, CrossChain.address);
 
         await web3.eth.sendTransaction({to:SystemReward.address, from:accounts[3], value: web3.utils.toWei("10", "ether")});
 
@@ -331,7 +331,7 @@ contract('RelayerIncentivize', (accounts) => {
         let govPackageBytes = serialize("dynamicExtraIncentiveAmount", govValue, RelayerIncentivize.address);
         await crossChain.handlePackage(Buffer.concat([buildSyncPackagePrefix(2e16), (govPackageBytes)]), proof, merkleHeight, govChannelSeq, GOV_CHANNEL_ID, {from: relayer});
 
-        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8]);
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8], CrossChain.address);
 
         dynamicExtraIncentiveAmount = await relayerIncentivize.dynamicExtraIncentiveAmount.call();
         assert.equal(web3.utils.toBN(dynamicExtraIncentiveAmount).eq(web3.utils.toBN(1e16)), true, "wrong dynamicExtraIncentiveAmount");

@@ -909,7 +909,7 @@ contract('TokenHub', (accounts) => {
         const crossChain = await CrossChain.deployed();
         const govHub = await GovHub.deployed();
 
-        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address);
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, CrossChain.address, CrossChain.address);
 
         const owner = accounts[0];
         const relayer = accounts[1];
@@ -941,7 +941,7 @@ contract('TokenHub', (accounts) => {
         const syncFee = await tokenManager.syncFee();
         assert.equal(web3.utils.toBN(1e19).eq(syncFee), true, "Wrong syncFee");
 
-        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8]);
+        await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address, TokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, accounts[8], CrossChain.address);
     });
     it('iterate mirror failures', async () => {
         const tokenManager = await TokenManager.deployed();

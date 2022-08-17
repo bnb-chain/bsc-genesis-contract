@@ -578,7 +578,7 @@ contract('BSCValidatorSet', (accounts) => {
     let initialBurnRatio = await validatorSetInstance.burnRatio.call();
     assert.equal(web3.utils.toBN(initialBurnRatio).eq(web3.utils.toBN(0)), true, "wrong burnRatio");
 
-    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address, crossChain.address);
 
     let govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
     let govValue = "0x0000000000000000000000000000000000000000000000000000000000000BB8";// 3000;
@@ -608,7 +608,7 @@ contract('BSCValidatorSet', (accounts) => {
     await relayerInstance.register({from: relayer, value: 1e20});
     const crossChain = await CrossChain.deployed();
     const govHub = await GovHub.deployed();
-    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address, crossChain.address);
 
     // should fail
     govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
@@ -628,7 +628,7 @@ contract('BSCValidatorSet', (accounts) => {
     await relayerInstance.register({from: relayer, value: 1e20});
     const crossChain = await CrossChain.deployed();
     const govHub = await GovHub.deployed();
-    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address, crossChain.address);
 
     // set maxNumOfCandidates to 20
     govChannelSeq = await crossChain.channelReceiveSequenceMap(GOV_CHANNEL_ID)
@@ -669,7 +669,7 @@ contract('BSCValidatorSet', (accounts) => {
     await relayerInstance.register({from: relayer, value: 1e20});
     const crossChain = await CrossChain.deployed();
     const govHub = await GovHub.deployed();
-    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address);
+    await govHub.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, LightClient.address, MockTokenHub.address, RelayerIncentivize.address, RelayerHub.address, GovHub.address, TokenManager.address, crossChain.address, crossChain.address);
 
     let relayerAccount = accounts[8];
     let newValidators = [];
