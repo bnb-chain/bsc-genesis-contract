@@ -8,6 +8,7 @@ const RelayerHub = artifacts.require("RelayerHub");
 const RelayerIncentivize = artifacts.require("RelayerIncentivize");
 const TendermintLightClient = artifacts.require("TendermintLightClient");
 const SlashIndicator =  artifacts.require("SlashIndicator");
+const Staking = artifacts.require("Staking");
 const RLP = require('rlp');
 const Web3 = require('web3');
 const GOV_CHANNEL_ID = 0x09;
@@ -348,6 +349,37 @@ contract('GovHub others', (accounts) => {
         truffleAssert.eventEmitted(tx, "failReasonWithStr",(ev) => {
             return ev.message === "the misdemeanorThreshold out of range";
         });
+    });
+
+    it('Gov Staking', async () => {
+        const govHubInstance = await GovHub.deployed();
+        const stakingInstance = await Staking.deployed();
+
+        const relayerAccount = accounts[8];
+
+        let tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("oracleRelayerFee", "0x0000000000000000000000000000000000000000000000000000000000000100", stakingInstance.address),
+          {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "oracleRelayerFee";
+        });
+        let oracleRelayerFee = await stakingInstance.oracleRelayerFee.call();
+        assert.equal(oracleRelayerFee.toNumber(), 256, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("minDelegationChange", "0x0000000000000000000000000000000000000000000000000000000000000100", stakingInstance.address),
+          {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "minDelegationChange";
+        });
+        let minDelegationChange = await stakingInstance.minDelegationChange.call();
+        assert.equal(minDelegationChange.toNumber(), 256, "value not equal");
+
+        tx = await govHubInstance.handleSynPackage(GOV_CHANNEL_ID, serialize("callbackGasLimit", "0x0000000000000000000000000000000000000000000000000000000000000100", stakingInstance.address),
+          {from: relayerAccount});
+        truffleAssert.eventEmitted(tx, "paramChange",(ev) => {
+            return ev.key === "callbackGasLimit";
+        });
+        let callbackGasLimit = await stakingInstance.callbackGasLimit.call();
+        assert.equal(callbackGasLimit.toNumber(), 256, "value not equal");
     });
 });
 
