@@ -10,7 +10,7 @@ interface IStaking {
 
   function claimReward() external returns(uint256);
 
-  function claimUndeldegated() external returns(uint256);
+  function claimUndelegated() external returns(uint256);
 
   function getDelegated(address delegator, address validator) external view returns(uint256);
 
@@ -27,4 +27,6 @@ interface IStaking {
   function getOracleRelayerFee() external view returns(uint256);
 
   function getMinDelegation() external view returns(uint256);
+
+  function getRequestInFly() external view returns(uint256[3] memory);
 }
