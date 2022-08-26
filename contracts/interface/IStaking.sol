@@ -24,7 +24,7 @@ interface IStaking {
 
   function getPendingUndelegateTime(address delegator, address validator) external view returns(uint256);
 
-  function getOracleRelayerFee() external view returns(uint256);
+  function getRelayerFee() external view returns(uint256);
 
   function getMinDelegation() external view returns(uint256);
 
