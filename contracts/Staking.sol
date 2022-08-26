@@ -27,16 +27,20 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint8 public constant EVENT_DISTRIBUTE_REWARD = 0x04;
   uint8 public constant EVENT_DISTRIBUTE_UNDELEGATED = 0x05;
 
+  // ack package status code
+  uint8 public constant CODE_FAILED = 0;
+  uint8 public constant CODE_SUCCESS = 1;
+
   // Error code
   uint32 public constant ERROR_WITHDRAW_BNB = 101;
 
   uint256 public constant TEN_DECIMALS = 1e10;
-  uint256 public constant LOCK_TIME = 691200; // 8*24*3600
+  uint256 public constant LOCK_TIME = 8 days; // 8*24*3600 second
 
-  uint256 public constant INIT_ORACLE_RELAYER_FEE = 12 * 1e15;
+  uint256 public constant INIT_RELAYER_FEE = 12 * 1e15;
   uint256 public constant INIT_MIN_DELEGATION = 100 * 1e18;
 
-  uint256 public oracleRelayerFee;
+  uint256 public relayerFee;
   uint256 public minDelegation;
 
   mapping(address => uint256) delegated; // delegator => totalAmount
@@ -45,10 +49,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   mapping(address => mapping(address => uint256)) pendingUndelegateTime; // delegator => validator => minTime
   mapping(address => uint256) undelegated; // delegator => totalUndelegated
   mapping(address => mapping(address => mapping(address => uint256))) pendingRedelegateTime; // delegator => srcValidator => dstValidator => minTime
+
   mapping(uint256 => bytes32) packageQueue; // index => package's hash
-  mapping(address => uint256) delegateInFly; // delegator => delegate request in fly;
-  mapping(address => uint256) undelegateInFly; // delegator => undelegate request in fly;
-  mapping(address => uint256) redelegateInFly; // delegator => redelegate request in fly;
+  mapping(address => uint256) delegateInFly; // delegator => delegate request in fly
+  mapping(address => uint256) undelegateInFly; // delegator => undelegate request in fly
+  mapping(address => uint256) redelegateInFly; // delegator => redelegate request in fly
 
   uint256 internal leftIndex;
   uint256 internal rightIndex;
@@ -68,7 +73,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   modifier initParams() {
     if (!alreadyInit) {
-      oracleRelayerFee = INIT_ORACLE_RELAYER_FEE;
+      relayerFee = INIT_RELAYER_FEE;
       minDelegation = INIT_MIN_DELEGATION;
       alreadyInit = true;
     }
@@ -76,9 +81,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /*********************************** Events **********************************/
-  event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
+  event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
+  event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
+  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 relayerFee);
   event rewardReceived(address indexed delegator, uint256 amount);
   event rewardClaimed(address indexed delegator, uint256 amount);
   event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);
@@ -136,6 +141,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       }
       ++idx;
     }
+    require(success, "rlp decode failed");
 
     require(_checkPackHash(packBytes), "wrong pack hash");
     iter = packBytes.toRLPItem().iterator();
@@ -182,11 +188,13 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   /***************************** External functions *****************************/
   function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegation, "invalid delegate amount");
-    require(msg.value >= amount.add(oracleRelayerFee), "not enough msg value");
+    require(msg.value >= amount.add(relayerFee), "not enough msg value");
     require(payable(msg.sender).send(0), "invalid delegator"); // the msg sender must be payable
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = (msg.value).sub(amount);
+    uint256 _relayerFee = (msg.value).sub(amount);
+    uint256 oracleRelayerFee = _relayerFee>>1;
+    uint256 bSCRelayerFee = _relayerFee-oracleRelayerFee;
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
@@ -197,23 +205,26 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     ++rightIndex;
     delegateInFly[msg.sender] += 1;
 
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(amount+ oracleRelayerFee);
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit delegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
+    emit delegateSubmitted(msg.sender, validator, amount, _relayerFee);
   }
 
   function undelegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
-    require(msg.value >= oracleRelayerFee, "not enough relay fee");
+    require(msg.value >= relayerFee, "not enough relay fee");
     if (amount < minDelegation) {
-      require(amount > oracleRelayerFee, "not enough funds");
+      require(amount > relayerFee>>1, "not enough funds");
       require(amount == delegatedOfValidator[msg.sender][validator], "invalid amount");
     }
     require(delegatedOfValidator[msg.sender][validator] >= amount, "invalid amount");
     require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = msg.value;
+    uint256 _relayerFee = msg.value;
+    uint256 oracleRelayerFee = _relayerFee>>1;
+    uint256 bSCRelayerFee = _relayerFee-oracleRelayerFee;
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
@@ -224,21 +235,24 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     ++rightIndex;
     undelegateInFly[msg.sender] += 1;
 
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
+    emit undelegateSubmitted(msg.sender, validator, amount, _relayerFee);
   }
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc != validatorDst, "invalid redelegation");
-    require(msg.value >= oracleRelayerFee, "not enough relay fee");
+    require(msg.value >= relayerFee, "not enough relay fee");
     require(amount >= minDelegation && delegatedOfValidator[msg.sender][validatorSrc] >= amount, "invalid amount");
     require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] &&
       block.timestamp >= pendingRedelegateTime[msg.sender][validatorDst][validatorSrc], "pending redelegation exist");
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = msg.value;
+    uint256 _relayerFee = msg.value;
+    uint256 oracleRelayerFee = _relayerFee>>1;
+    uint256 bSCRelayerFee = _relayerFee-oracleRelayerFee;
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = msg.sender.encodeAddress();
@@ -250,10 +264,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     ++rightIndex;
     redelegateInFly[msg.sender] += 1;
 
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
+    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _relayerFee);
   }
 
   function claimReward() override external noReentrant returns(uint256 amount) {
@@ -298,8 +313,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return pendingUndelegateTime[delegator][validator];
   }
 
-  function getOracleRelayerFee() override external view returns(uint256) {
-    return oracleRelayerFee;
+  function getRelayerFee() override external view returns(uint256) {
+    return relayerFee;
   }
 
   function getMinDelegation() override external view returns(uint256) {
@@ -322,28 +337,41 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     output = elements.encodeList();
   }
 
-  function _encodeRefundPackage(uint8 eventType, uint256 amount, address recipient, uint32 errorCode) internal pure returns(uint32, bytes memory) {
+  function _encodeRefundPackage(uint8 eventType, address recipient, uint256 amount, uint32 errorCode) internal pure returns(uint32, bytes memory) {
     amount = amount.div(TEN_DECIMALS);
     bytes[] memory elements = new bytes[](4);
     elements[0] = eventType.encodeUint();
-    elements[1] = amount.encodeUint();
-    elements[2] = recipient.encodeAddress();
+    elements[1] = recipient.encodeAddress();
+    elements[2] = amount.encodeUint();
     elements[3] = errorCode.encodeUint();
     bytes memory packageBytes = elements.encodeList();
     return (errorCode, packageBytes);
   }
 
+  function _checkPackHash(bytes memory packBytes) internal returns(bool){
+    bytes32 revHash = keccak256(packBytes);
+    bytes32 expHash = packageQueue[leftIndex];
+    for (uint i;i<32;++i) {
+      if (revHash[i] != expHash[i]) {
+        return false;
+      }
+    }
+    delete packageQueue[leftIndex];
+    ++leftIndex;
+    return true;
+  }
+
   /******************************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
-    if (Memory.compareStrings(key, "oracleRelayerFee")) {
-      require(value.length == 32, "length of oracleRelayerFee mismatch");
-      uint256 newOracleRelayerFee = BytesToTypes.bytesToUint256(32, value);
-      require(newOracleRelayerFee < minDelegation, "the oracleRelayerFee must be less than minDelegation");
-      oracleRelayerFee = newOracleRelayerFee;
+    if (Memory.compareStrings(key, "relayerFee")) {
+      require(value.length == 32, "length of relayerFee mismatch");
+      uint256 newRelayerFee = BytesToTypes.bytesToUint256(32, value);
+      require(newRelayerFee < minDelegation, "the relayerFee must be less than minDelegation");
+      relayerFee = newRelayerFee;
     } else if (Memory.compareStrings(key, "minDelegation")) {
       require(value.length == 32, "length of minDelegation mismatch");
       uint256 newMinDelegation = BytesToTypes.bytesToUint256(32, value);
-      require(newMinDelegation > oracleRelayerFee, "the minDelegation must be greater than oracleRelayerFee");
+      require(newMinDelegation > relayerFee, "the minDelegation must be greater than relayerFee");
       minDelegation = newMinDelegation;
     } else {
       revert("unknown param");
@@ -375,15 +403,16 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
     delegateInFly[delegator] -= 1;
-    if (status == 1) {
+    if (status == CODE_SUCCESS) {
       require(errCode == 0, "wrong status");
       delegated[delegator] = delegated[delegator].add(amount);
       delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].add(amount);
 
       emit delegateSuccess(delegator, validator, amount);
-      payable(TOKEN_HUB_ADDR).transfer(amount);
-    } else if (status == 0) {
+    } else if (status == CODE_FAILED) {
       undelegated[delegator] = undelegated[delegator].add(amount);
+      require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw bnb failed");
+
       emit delegateFailed(delegator, validator, amount, errCode);
     } else {
       revert("wrong status");
@@ -414,6 +443,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
     delegateInFly[delegator] -= 1;
     undelegated[delegator] = undelegated[delegator].add(amount);
+    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw bnb failed");
 
     emit crashResponse(EVENT_DELEGATE);
   }
@@ -441,15 +471,14 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
     undelegateInFly[delegator] -= 1;
-    if (status == 1) {
+    if (status == CODE_SUCCESS) {
       require(errCode == 0, "wrong status");
       delegated[delegator] = delegated[delegator].sub(amount);
       delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].sub(amount);
       pendingUndelegateTime[delegator][validator] = block.timestamp.add(LOCK_TIME);
-      require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw BNB failed");
 
       emit undelegateSuccess(delegator, validator, amount);
-    } else if (status == 0) {
+    } else if (status == CODE_FAILED) {
       pendingUndelegateTime[delegator][validator] = 0;
       emit undelegateFailed(delegator, validator, amount, errCode);
     } else {
@@ -510,7 +539,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
     redelegateInFly[delegator] -= 1;
-    if (status == 1) {
+    if (status == CODE_SUCCESS) {
       require(errCode == 0, "wrong status");
       delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].sub(amount);
       delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].add(amount);
@@ -518,7 +547,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       pendingRedelegateTime[delegator][valDst][valSrc] = block.timestamp.add(LOCK_TIME);
 
       emit redelegateSuccess(delegator, valSrc, valDst, amount);
-    } else if (status == 0) {
+    } else if (status == CODE_FAILED) {
       pendingRedelegateTime[delegator][valSrc][valDst] = 0;
       pendingRedelegateTime[delegator][valDst][valSrc] = 0;
       emit redelegateFailed(delegator, valSrc, valDst, amount, errCode);
@@ -574,13 +603,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       }
       ++idx;
     }
-    if (!success) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, amount, recipient, ERROR_FAIL_DECODE);
-    }
+    require(success, "rlp decode failed");
 
     bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount);
     if (!ok) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, amount, recipient, ERROR_WITHDRAW_BNB);
+      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, recipient, amount, ERROR_WITHDRAW_BNB);
     }
 
     distributedReward[recipient] = distributedReward[recipient].add(amount);
@@ -608,13 +635,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       }
       ++idx;
     }
-    if (!success) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, amount, recipient, ERROR_FAIL_DECODE);
-    }
+    require(success, "rlp decode failed");
 
     bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount);
     if (!ok) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, amount, recipient, ERROR_WITHDRAW_BNB);
+      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, recipient, amount, ERROR_WITHDRAW_BNB);
     }
 
     pendingUndelegateTime[recipient][validator] = 0;
@@ -622,18 +647,5 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     emit undelegatedReceived(recipient, validator, amount);
     return (CODE_OK, new bytes(0));
-  }
-
-  function _checkPackHash(bytes memory packBytes) internal returns(bool){
-    bytes32 revHash = keccak256(packBytes);
-    bytes32 expHash = packageQueue[leftIndex];
-    for (uint i;i<32;++i) {
-      if (revHash[i] != expHash[i]) {
-        return false;
-      }
-    }
-    delete packageQueue[leftIndex];
-    ++leftIndex;
-    return true;
   }
 }

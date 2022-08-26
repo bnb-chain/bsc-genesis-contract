@@ -1,39 +1,15 @@
 [
   {
     "anonymous": false,
-    "inputs": [],
-    "name": "crashResponse",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
     "inputs": [
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "validator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "oracleRelayerFee",
-        "type": "uint256"
+        "internalType": "uint8",
+        "name": "eventType",
+        "type": "uint8"
       }
     ],
-    "name": "delegateSubmitted",
+    "name": "crashResponse",
     "type": "event"
   },
   {
@@ -64,7 +40,101 @@
         "type": "uint8"
       }
     ],
-    "name": "failedDelegate",
+    "name": "delegateFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "relayerFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "delegateSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "delegateSuccess",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint8",
+        "name": "eventType",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "errCode",
+        "type": "uint256"
+      }
+    ],
+    "name": "failedSynPackage",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "paramChange",
     "type": "event"
   },
   {
@@ -101,70 +171,7 @@
         "type": "uint8"
       }
     ],
-    "name": "failedRedelegate",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "errCode",
-        "type": "uint256"
-      }
-    ],
-    "name": "failedSynPackage",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "validator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint8",
-        "name": "errCode",
-        "type": "uint8"
-      }
-    ],
-    "name": "failedUndelegate",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "key",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      }
-    ],
-    "name": "paramChange",
+    "name": "redelegateFailed",
     "type": "event"
   },
   {
@@ -197,11 +204,42 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "oracleRelayerFee",
+        "name": "relayerFee",
         "type": "uint256"
       }
     ],
     "name": "redelegateSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "valSrc",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "valDst",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "redelegateSuccess",
     "type": "event"
   },
   {
@@ -265,12 +303,68 @@
       },
       {
         "indexed": false,
+        "internalType": "uint8",
+        "name": "errCode",
+        "type": "uint8"
+      }
+    ],
+    "name": "undelegateFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
-        "name": "oracleRelayerFee",
+        "name": "amount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "relayerFee",
         "type": "uint256"
       }
     ],
     "name": "undelegateSubmitted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "undelegateSuccess",
     "type": "event"
   },
   {
@@ -302,6 +396,12 @@
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
         "indexed": false,
         "internalType": "uint256",
         "name": "amount",
@@ -326,12 +426,38 @@
   },
   {
     "inputs": [],
+    "name": "CODE_FAILED",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "CODE_OK",
     "outputs": [
       {
         "internalType": "uint32",
         "name": "",
         "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "CODE_SUCCESS",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -366,19 +492,6 @@
   {
     "inputs": [],
     "name": "ERROR_FAIL_DECODE",
-    "outputs": [
-      {
-        "internalType": "uint32",
-        "name": "",
-        "type": "uint32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ERROR_UNKNOWN_PACKAGE_TYPE",
     "outputs": [
       {
         "internalType": "uint32",
@@ -508,7 +621,7 @@
   },
   {
     "inputs": [],
-    "name": "INIT_MIN_DELEGATION_CHANGE",
+    "name": "INIT_MIN_DELEGATION",
     "outputs": [
       {
         "internalType": "uint256",
@@ -521,7 +634,7 @@
   },
   {
     "inputs": [],
-    "name": "INIT_ORACLE_RELAYER_FEE",
+    "name": "INIT_RELAYER_FEE",
     "outputs": [
       {
         "internalType": "uint256",
@@ -540,6 +653,19 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "LOCK_TIME",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -729,7 +855,7 @@
   },
   {
     "inputs": [],
-    "name": "minDelegationChange",
+    "name": "minDelegation",
     "outputs": [
       {
         "internalType": "uint256",
@@ -742,7 +868,7 @@
   },
   {
     "inputs": [],
-    "name": "oracleRelayerFee",
+    "name": "relayerFee",
     "outputs": [
       {
         "internalType": "uint256",
@@ -808,7 +934,7 @@
       },
       {
         "internalType": "bytes",
-        "name": "",
+        "name": "msgBytes",
         "type": "bytes"
       }
     ],
@@ -891,7 +1017,7 @@
   },
   {
     "inputs": [],
-    "name": "claimUndeldegated",
+    "name": "claimUndelegated",
     "outputs": [
       {
         "internalType": "uint256",
@@ -934,7 +1060,55 @@
         "type": "address"
       }
     ],
+    "name": "getTotalDelegated",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      }
+    ],
     "name": "getDistributedReward",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "valSrc",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "valDst",
+        "type": "address"
+      }
+    ],
+    "name": "getPendingRedelegateTime",
     "outputs": [
       {
         "internalType": "uint256",
@@ -977,7 +1151,7 @@
         "type": "address"
       }
     ],
-    "name": "getPendingUndelegated",
+    "name": "getPendingUndelegateTime",
     "outputs": [
       {
         "internalType": "uint256",
@@ -990,7 +1164,7 @@
   },
   {
     "inputs": [],
-    "name": "getOracleRelayerFee",
+    "name": "getRelayerFee",
     "outputs": [
       {
         "internalType": "uint256",
@@ -1003,12 +1177,25 @@
   },
   {
     "inputs": [],
-    "name": "getMinDelegationChange",
+    "name": "getMinDelegation",
     "outputs": [
       {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRequestInFly",
+    "outputs": [
+      {
+        "internalType": "uint256[3]",
+        "name": "",
+        "type": "uint256[3]"
       }
     ],
     "stateMutability": "view",
