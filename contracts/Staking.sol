@@ -211,7 +211,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(amount+oracleRelayerFee);
     payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit delegateSubmitted(msg.sender, validator, amount, _relayerFee);
+    emit delegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
   function undelegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
@@ -240,7 +240,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
     payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit undelegateSubmitted(msg.sender, validator, amount, _relayerFee);
+    emit undelegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
@@ -268,7 +268,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
     payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _relayerFee);
+    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, oracleRelayerFee);
   }
 
   function claimReward() override external noReentrant returns(uint256 amount) {
