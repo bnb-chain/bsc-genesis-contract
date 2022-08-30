@@ -196,7 +196,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = (msg.value).sub(amount);
-    uint256 oracleRelayerFee = _relayerFee-bSCRelayerFee;
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
@@ -208,7 +208,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     delegateInFly[msg.sender] += 1;
 
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(amount+oracleRelayerFee);
+    payable(TOKEN_HUB_ADDR).transfer(amount.add(oracleRelayerFee));
     payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
     emit delegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
@@ -225,7 +225,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = msg.value;
-    uint256 oracleRelayerFee = _relayerFee-bSCRelayerFee;
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
@@ -235,6 +235,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     packageQueue[rightIndex] = keccak256(msgBytes);
     ++rightIndex;
     undelegateInFly[msg.sender] += 1;
+
+    pendingUndelegateTime[msg.sender][validator] = block.timestamp.add(LOCK_TIME);
 
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
@@ -252,7 +254,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = msg.value;
-    uint256 oracleRelayerFee = _relayerFee-bSCRelayerFee;
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = msg.sender.encodeAddress();
@@ -263,6 +265,9 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     packageQueue[rightIndex] = keccak256(msgBytes);
     ++rightIndex;
     redelegateInFly[msg.sender] += 1;
+
+    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(LOCK_TIME);
+    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(LOCK_TIME);
 
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
@@ -321,11 +326,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return minDelegation;
   }
 
-  function getRequestInFly() override external view returns(uint256[3] memory) {
+  function getRequestInFly(address delegator) override external view returns(uint256[3] memory) {
     uint256[3] memory request;
-    request[0] = delegateInFly[msg.sender];
-    request[1] = undelegateInFly[msg.sender];
-    request[2] = redelegateInFly[msg.sender];
+    request[0] = delegateInFly[delegator];
+    request[1] = undelegateInFly[delegator];
+    request[2] = redelegateInFly[delegator];
     return request;
   }
 
@@ -351,10 +356,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function _checkPackHash(bytes memory packBytes) internal returns(bool){
     bytes32 revHash = keccak256(packBytes);
     bytes32 expHash = packageQueue[leftIndex];
-    for (uint i;i<32;++i) {
-      if (revHash[i] != expHash[i]) {
-        return false;
-      }
+    if (revHash != expHash) {
+      return false;
     }
     delete packageQueue[leftIndex];
     ++leftIndex;
@@ -368,11 +371,13 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       uint256 newRelayerFee = BytesToTypes.bytesToUint256(32, value);
       require(newRelayerFee < minDelegation, "the relayerFee must be less than minDelegation");
       require(newRelayerFee > bSCRelayerFee, "the relayerFee must be more than BSCRelayerFee");
+      require(newRelayerFee%TEN_DECIMALS==0, "the relayerFee mod ten decimals must be zero");
       relayerFee = newRelayerFee;
     } else if (Memory.compareStrings(key, "bSCRelayerFee")) {
       require(value.length == 32, "length of bSCRelayerFee mismatch");
       uint256 newBSCRelayerFee = BytesToTypes.bytesToUint256(32, value);
       require(newBSCRelayerFee < relayerFee, "the BSCRelayerFee must be less than relayerFee");
+      require(newBSCRelayerFee%TEN_DECIMALS==0, "the BSCRelayerFee mod ten decimals must be zero");
       bSCRelayerFee = newBSCRelayerFee;
     } else if (Memory.compareStrings(key, "minDelegation")) {
       require(value.length == 32, "length of minDelegation mismatch");
