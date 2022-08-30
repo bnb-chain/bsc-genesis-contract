@@ -28,5 +28,5 @@ interface IStaking {
 
   function getMinDelegation() external view returns(uint256);
 
-  function getRequestInFly() external view returns(uint256[3] memory);
+  function getRequestInFly(address delegator) external view returns(uint256[3] memory);
 }
