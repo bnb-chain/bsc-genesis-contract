@@ -1,17 +1,19 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./lib/Memory.sol";
-import "./lib/BytesToTypes.sol";
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IParamSubscriber.sol";
+import "./interface/IStaking.sol";
 import "./interface/ITokenHub.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/BytesLib.sol";
 import "./lib/CmnPkg.sol";
-import "./lib/SafeMath.sol";
+import "./lib/Memory.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
-import "./interface/IStaking.sol";
+import "./lib/SafeMath.sol";
+
 
 contract Staking is IStaking, System, IParamSubscriber, IApplication {
   using SafeMath for uint256;
@@ -25,15 +27,22 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint8 public constant EVENT_DISTRIBUTE_REWARD = 0x04;
   uint8 public constant EVENT_DISTRIBUTE_UNDELEGATED = 0x05;
 
+  // ack package status code
+  uint8 public constant CODE_FAILED = 0;
+  uint8 public constant CODE_SUCCESS = 1;
+
   // Error code
   uint32 public constant ERROR_WITHDRAW_BNB = 101;
 
   uint256 public constant TEN_DECIMALS = 1e10;
+  uint256 public constant LOCK_TIME = 8 days; // 8*24*3600 second
 
-  uint256 public constant INIT_ORACLE_RELAYER_FEE = 6e15;
+  uint256 public constant INIT_RELAYER_FEE = 16 * 1e15;
+  uint256 public constant INIT_BSC_RELAYER_FEE = 1 * 1e16;
   uint256 public constant INIT_MIN_DELEGATION = 100 * 1e18;
 
-  uint256 public oracleRelayerFee;
+  uint256 public relayerFee;
+  uint256 public bSCRelayerFee;
   uint256 public minDelegation;
 
   mapping(address => uint256) delegated; // delegator => totalAmount
@@ -43,13 +52,20 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   mapping(address => uint256) undelegated; // delegator => totalUndelegated
   mapping(address => mapping(address => mapping(address => uint256))) pendingRedelegateTime; // delegator => srcValidator => dstValidator => minTime
 
-  bool internal locked;
+  mapping(uint256 => bytes32) packageQueue; // index => package's hash
+  mapping(address => uint256) delegateInFly; // delegator => delegate request in fly
+  mapping(address => uint256) undelegateInFly; // delegator => undelegate request in fly
+  mapping(address => uint256) redelegateInFly; // delegator => redelegate request in fly
+
+  uint256 internal leftIndex;
+  uint256 internal rightIndex;
+  uint8 internal locked;
 
   modifier noReentrant() {
-    require(!locked, "No re-entrancy");
-    locked = true;
+    require(locked != 2, "No re-entrancy");
+    locked = 2;
     _;
-    locked = false;
+    locked = 1;
   }
 
   modifier tenDecimalPrecision(uint256 amount) {
@@ -59,7 +75,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   modifier initParams() {
     if (!alreadyInit) {
-      oracleRelayerFee = INIT_ORACLE_RELAYER_FEE;
+      relayerFee = INIT_RELAYER_FEE;
+      bSCRelayerFee = INIT_BSC_RELAYER_FEE;
       minDelegation = INIT_MIN_DELEGATION;
       alreadyInit = true;
     }
@@ -67,16 +84,19 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /*********************************** Events **********************************/
-  event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
+  event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
+  event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
+  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 relayerFee);
   event rewardReceived(address indexed delegator, uint256 amount);
   event rewardClaimed(address indexed delegator, uint256 amount);
   event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);
   event undelegatedClaimed(address indexed delegator, uint256 amount);
-  event failedDelegate(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
-  event failedUndelegate(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
-  event failedRedelegate(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
+  event delegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
+  event undelegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
+  event redelegateSuccess(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount);
+  event delegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
+  event undelegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
+  event redelegateFailed(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode);
   event paramChange(string key, bytes value);
   event failedSynPackage(uint8 indexed eventType, uint256 errCode);
   event crashResponse(uint8 indexed eventType);
@@ -94,7 +114,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     } else if (eventType == EVENT_DISTRIBUTE_UNDELEGATED) {
       (resCode, ackPackage) = _handleDistributeUndelegatedSynPackage(iter);
     } else {
-      require(false, "unknown event type");
+      revert("unknown event type");
     }
 
     if (resCode != CODE_OK) {
@@ -105,123 +125,170 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   function handleAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract initParams override {
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
-    uint8 eventType = uint8(iter.next().toUint());
-    if (eventType == EVENT_DELEGATE) {
-      _handleDelegateAckPackage(iter);
-    } else if (eventType == EVENT_UNDELEGATE) {
-      _handleUndelegateAckPackage(iter);
-    } else if (eventType == EVENT_REDELEGATE) {
-      _handleRedelegateAckPackage(iter);
-    } else {
-      require(false, "unknown event type");
+
+    uint8 status;
+    uint8 errCode;
+    bytes memory packBytes;
+    bool success;
+    uint256 idx;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        status = uint8(iter.next().toUint());
+      } else if (idx == 1) {
+        errCode = uint8(iter.next().toUint());
+      } else if (idx == 2) {
+        packBytes = iter.next().toBytes();
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
     }
-    return;
+    require(success, "rlp decode failed");
+
+    require(_checkPackHash(packBytes), "wrong pack hash");
+    iter = packBytes.toRLPItem().iterator();
+    uint8 eventType = uint8(iter.next().toUint());
+    RLPDecode.Iterator memory paramIter;
+    if (iter.hasNext()) {
+      paramIter = iter.next().toBytes().toRLPItem().iterator();
+    } else {
+      revert("empty ack package");
+    }
+    if (eventType == EVENT_DELEGATE) {
+      _handleDelegateAckPackage(paramIter, status, errCode);
+    } else if (eventType == EVENT_UNDELEGATE) {
+      _handleUndelegateAckPackage(paramIter, status, errCode);
+    } else if (eventType == EVENT_REDELEGATE) {
+      _handleRedelegateAckPackage(paramIter, status, errCode);
+    } else {
+      revert("unknown event type");
+    }
   }
 
   function handleFailAckPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract initParams override {
+    require(_checkPackHash(msgBytes), "wrong pack hash");
     RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
     uint8 eventType = uint8(iter.next().toUint());
-    if (eventType == EVENT_DELEGATE) {
-      _handleDelegateFailAckPackage(iter);
-    } else if (eventType == EVENT_UNDELEGATE) {
-      _handleUndelegateFailAckPackage(iter);
-    } else if (eventType == EVENT_REDELEGATE) {
-      _handleRedelegateFailAckPackage(iter);
+    RLPDecode.Iterator memory paramIter;
+    if (iter.hasNext()) {
+      paramIter = iter.next().toBytes().toRLPItem().iterator();
     } else {
-      require(false, "unknown event type");
+      revert("empty fail ack package");
+    }
+    if (eventType == EVENT_DELEGATE) {
+      _handleDelegateFailAckPackage(paramIter);
+    } else if (eventType == EVENT_UNDELEGATE) {
+      _handleUndelegateFailAckPackage(paramIter);
+    } else if (eventType == EVENT_REDELEGATE) {
+      _handleRedelegateFailAckPackage(paramIter);
+    } else {
+      revert("unknown event type");
     }
     return;
   }
 
   /***************************** External functions *****************************/
-  function delegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
+  function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegation, "invalid delegate amount");
-    require(msg.value >= amount.add(oracleRelayerFee), "not enough msg value");
+    require(msg.value >= amount.add(relayerFee), "not enough msg value");
     require(payable(msg.sender).send(0), "invalid delegator"); // the msg sender must be payable
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = (msg.value).sub(amount);
+    uint256 _relayerFee = (msg.value).sub(amount);
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
     elements[1] = validator.encodeAddress();
     elements[2] = convertedAmount.encodeUint();
-    bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_DELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(msg.value);
+    bytes memory msgBytes = _RLPEncode(EVENT_DELEGATE, elements.encodeList());
+    packageQueue[rightIndex] = keccak256(msgBytes);
+    ++rightIndex;
+    delegateInFly[msg.sender] += 1;
 
-    delegated[msg.sender] = delegated[msg.sender].add(amount);
-    delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].add(amount);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(amount.add(oracleRelayerFee));
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit delegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
+    emit delegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
-  function undelegate(address validator, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
-    require(msg.value >= oracleRelayerFee, "not enough relay fee");
+  function undelegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
+    require(msg.value >= relayerFee, "not enough relay fee");
     if (amount < minDelegation) {
-      require(amount >= oracleRelayerFee, "not enough funds");
+      require(amount > bSCRelayerFee, "not enough funds");
       require(amount == delegatedOfValidator[msg.sender][validator], "invalid amount");
     }
+    require(delegatedOfValidator[msg.sender][validator] >= amount, "invalid amount");
     require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
-    delegatedOfValidator[msg.sender][validator] = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds");
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = msg.value;
+    uint256 _relayerFee = msg.value;
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = msg.sender.encodeAddress();
     elements[1] = validator.encodeAddress();
     elements[2] = convertedAmount.encodeUint();
-    bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_UNDELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+    bytes memory msgBytes = _RLPEncode(EVENT_UNDELEGATE, elements.encodeList());
+    packageQueue[rightIndex] = keccak256(msgBytes);
+    ++rightIndex;
+    undelegateInFly[msg.sender] += 1;
 
-    delegated[msg.sender] = delegated[msg.sender].sub(amount);
-    pendingUndelegateTime[msg.sender][validator] = block.timestamp.add(691200); // 8*24*3600
+    pendingUndelegateTime[msg.sender][validator] = block.timestamp.add(LOCK_TIME);
 
-    emit undelegateSubmitted(msg.sender, validator, amount, _oracleRelayerFee);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
+
+    emit undelegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external payable tenDecimalPrecision(amount) initParams {
+  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc != validatorDst, "invalid redelegation");
-    require(msg.value >= oracleRelayerFee, "not enough relay fee");
-    require(amount >= minDelegation, "invalid amount");
+    require(msg.value >= relayerFee, "not enough relay fee");
+    require(amount >= minDelegation && delegatedOfValidator[msg.sender][validatorSrc] >= amount, "invalid amount");
     require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] &&
       block.timestamp >= pendingRedelegateTime[msg.sender][validatorDst][validatorSrc], "pending redelegation exist");
-    delegatedOfValidator[msg.sender][validatorSrc] = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds");
-    delegatedOfValidator[msg.sender][validatorDst] = delegatedOfValidator[msg.sender][validatorDst].add(amount);
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _oracleRelayerFee = msg.value;
+    uint256 _relayerFee = msg.value;
+    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
 
     bytes[] memory elements = new bytes[](4);
     elements[0] = msg.sender.encodeAddress();
     elements[1] = validatorSrc.encodeAddress();
     elements[2] = validatorDst.encodeAddress();
     elements[3] = convertedAmount.encodeUint();
-    bytes memory msgBytes = elements.encodeList();
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, _RLPEncode(EVENT_REDELEGATE, msgBytes), _oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(_oracleRelayerFee);
+    bytes memory msgBytes = _RLPEncode(EVENT_REDELEGATE, elements.encodeList());
+    packageQueue[rightIndex] = keccak256(msgBytes);
+    ++rightIndex;
+    redelegateInFly[msg.sender] += 1;
 
-    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(691200); // 8*24*3600
-    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(691200); // 8*24*3600
+    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(LOCK_TIME);
+    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(LOCK_TIME);
+    
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
+    payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
+    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
 
-    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, _oracleRelayerFee);
+    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, oracleRelayerFee);
   }
 
   function claimReward() override external noReentrant returns(uint256 amount) {
-    require(distributedReward[msg.sender] > 0, "no pending reward");
-
     amount = distributedReward[msg.sender];
+    require(amount > 0, "no pending reward");
+
     distributedReward[msg.sender] = 0;
     payable(msg.sender).transfer(amount);
     emit rewardClaimed(msg.sender, amount);
   }
 
-  function claimUndeldegated() override external noReentrant returns(uint256 amount) {
-    require(undelegated[msg.sender] > 0, "no undelegated funds");
-
+  function claimUndelegated() override external noReentrant returns(uint256 amount) {
     amount = undelegated[msg.sender];
+    require(amount > 0, "no undelegated funds");
+
     undelegated[msg.sender] = 0;
     payable(msg.sender).transfer(amount);
     emit undelegatedClaimed(msg.sender, amount);
@@ -251,12 +318,20 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     return pendingUndelegateTime[delegator][validator];
   }
 
-  function getOracleRelayerFee() override external view returns(uint256) {
-    return oracleRelayerFee;
+  function getRelayerFee() override external view returns(uint256) {
+    return relayerFee;
   }
 
   function getMinDelegation() override external view returns(uint256) {
     return minDelegation;
+  }
+
+  function getRequestInFly(address delegator) override external view returns(uint256[3] memory) {
+    uint256[3] memory request;
+    request[0] = delegateInFly[delegator];
+    request[1] = undelegateInFly[delegator];
+    request[2] = redelegateInFly[delegator];
+    return request;
   }
 
   /***************************** Internal functions *****************************/
@@ -267,243 +342,256 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     output = elements.encodeList();
   }
 
-  function _encodeRefundPackage(uint8 eventType, uint256 amount, address recipient, uint32 errorCode) internal pure returns(uint32, bytes memory) {
+  function _encodeRefundPackage(uint8 eventType, address recipient, uint256 amount, uint32 errorCode) internal pure returns(uint32, bytes memory) {
     amount = amount.div(TEN_DECIMALS);
     bytes[] memory elements = new bytes[](4);
     elements[0] = eventType.encodeUint();
-    elements[1] = amount.encodeUint();
-    elements[2] = recipient.encodeAddress();
+    elements[1] = recipient.encodeAddress();
+    elements[2] = amount.encodeUint();
     elements[3] = errorCode.encodeUint();
     bytes memory packageBytes = elements.encodeList();
     return (errorCode, packageBytes);
   }
 
+  function _checkPackHash(bytes memory packBytes) internal returns(bool){
+    bytes32 revHash = keccak256(packBytes);
+    bytes32 expHash = packageQueue[leftIndex];
+    if (revHash != expHash) {
+      return false;
+    }
+    delete packageQueue[leftIndex];
+    ++leftIndex;
+    return true;
+  }
+
   /******************************** Param update ********************************/
   function updateParam(string calldata key, bytes calldata value) override external onlyInit onlyGov {
-    if (Memory.compareStrings(key, "oracleRelayerFee")) {
-      require(value.length == 32, "length of oracleRelayerFee mismatch");
-      uint256 newOracleRelayerFee = BytesToTypes.bytesToUint256(32, value);
-      require(newOracleRelayerFee >0, "the oracleRelayerFee must be greater than 0");
-      oracleRelayerFee = newOracleRelayerFee;
+    if (Memory.compareStrings(key, "relayerFee")) {
+      require(value.length == 32, "length of relayerFee mismatch");
+      uint256 newRelayerFee = BytesToTypes.bytesToUint256(32, value);
+      require(newRelayerFee < minDelegation, "the relayerFee must be less than minDelegation");
+      require(newRelayerFee > bSCRelayerFee, "the relayerFee must be more than BSCRelayerFee");
+      require(newRelayerFee%TEN_DECIMALS==0, "the relayerFee mod ten decimals must be zero");
+      relayerFee = newRelayerFee;
+    } else if (Memory.compareStrings(key, "bSCRelayerFee")) {
+      require(value.length == 32, "length of bSCRelayerFee mismatch");
+      uint256 newBSCRelayerFee = BytesToTypes.bytesToUint256(32, value);
+      require(newBSCRelayerFee < relayerFee, "the BSCRelayerFee must be less than relayerFee");
+      require(newBSCRelayerFee%TEN_DECIMALS==0, "the BSCRelayerFee mod ten decimals must be zero");
+      bSCRelayerFee = newBSCRelayerFee;
     } else if (Memory.compareStrings(key, "minDelegation")) {
       require(value.length == 32, "length of minDelegation mismatch");
       uint256 newMinDelegation = BytesToTypes.bytesToUint256(32, value);
-      require(newMinDelegation > 0, "the minDelegation must be greater than 0");
+      require(newMinDelegation > relayerFee, "the minDelegation must be greater than relayerFee");
       minDelegation = newMinDelegation;
     } else {
-      require(false, "unknown param");
+      revert("unknown param");
     }
     emit paramChange(key, value);
   }
 
   /************************* Handle cross-chain package *************************/
-  function _handleDelegateAckPackage(RLPDecode.Iterator memory iter) internal {
-    bool success = false;
-    uint256 idx = 0;
-    address delegator;
-    address validator;
-    uint256 amount;
-    uint8 errCode;
-    while (iter.hasNext()) {
-      if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
-      } else if (idx == 1) {
-        validator = address(uint160(iter.next().toAddress()));
-      } else if (idx == 2) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 3) {
-        errCode = uint8(iter.next().toUint());
-        success = true;
-      } else {
-        break;
-      }
-      idx++;
-    }
-    require(success, "rlp decode package failed");
-
-    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw from tokenhub failed");
-
-    delegated[delegator] = delegated[delegator].sub(amount);
-    undelegated[delegator] = undelegated[delegator].add(amount);
-    delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].sub(amount);
-
-    emit failedDelegate(delegator, validator, amount, errCode);
-  }
-
-  function _handleDelegateFailAckPackage(RLPDecode.Iterator memory paramBytes) internal {
-    RLPDecode.Iterator memory iter;
-    if (paramBytes.hasNext()) {
-      iter = paramBytes.next().toBytes().toRLPItem().iterator();
-    } else {
-      require(false, "empty fail ack package");
-    }
-
-    bool success = false;
-    uint256 idx = 0;
+  function _handleDelegateAckPackage(RLPDecode.Iterator memory paramIter, uint8 status, uint8 errCode) internal {
+    bool success;
+    uint256 idx;
     address delegator;
     address validator;
     uint256 bcAmount;
-    while (iter.hasNext()) {
+    while (paramIter.hasNext()) {
       if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
+        delegator = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 1) {
-        validator = address(uint160(iter.next().toAddress()));
+        validator = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 2) {
-        bcAmount = uint256(iter.next().toUint());
+        bcAmount = uint256(paramIter.next().toUint());
         success = true;
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
-    require(success, "rlp decode package failed");
+    require(success, "rlp decode failed");
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
-    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw from tokenhub failed");
+    delegateInFly[delegator] -= 1;
+    if (status == CODE_SUCCESS) {
+      require(errCode == 0, "wrong status");
+      delegated[delegator] = delegated[delegator].add(amount);
+      delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].add(amount);
 
-    delegated[delegator] = delegated[delegator].sub(amount);
+      emit delegateSuccess(delegator, validator, amount);
+    } else if (status == CODE_FAILED) {
+      undelegated[delegator] = undelegated[delegator].add(amount);
+      require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw bnb failed");
+
+      emit delegateFailed(delegator, validator, amount, errCode);
+    } else {
+      revert("wrong status");
+    }
+  }
+
+  function _handleDelegateFailAckPackage(RLPDecode.Iterator memory paramIter) internal {
+    bool success;
+    uint256 idx;
+    address delegator;
+    address validator;
+    uint256 bcAmount;
+    while (paramIter.hasNext()) {
+      if (idx == 0) {
+        delegator = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 1) {
+        validator = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 2) {
+        bcAmount = uint256(paramIter.next().toUint());
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
+    }
+    require(success, "rlp decode failed");
+
+    uint256 amount = bcAmount.mul(TEN_DECIMALS);
+    delegateInFly[delegator] -= 1;
     undelegated[delegator] = undelegated[delegator].add(amount);
-    delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].sub(amount);
+    require(ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount), "withdraw bnb failed");
 
     emit crashResponse(EVENT_DELEGATE);
   }
 
-  function _handleUndelegateAckPackage(RLPDecode.Iterator memory iter) internal {
-    bool success = false;
-    uint256 idx = 0;
-    address delegator;
-    address validator;
-    uint256 amount;
-    uint8 errCode;
-    while (iter.hasNext()) {
-      if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
-      } else if (idx == 1) {
-        validator = address(uint160(iter.next().toAddress()));
-      } else if (idx == 2) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 3) {
-        errCode = uint8(iter.next().toUint());
-        success = true;
-      } else {
-        break;
-      }
-      idx++;
-    }
-    require(success, "rlp decode package failed");
-
-    delegated[delegator] = delegated[delegator].add(amount);
-    delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].add(amount);
-    pendingUndelegateTime[delegator][validator] = 0;
-
-    emit failedUndelegate(delegator, validator, amount, errCode);
-  }
-
-  function _handleUndelegateFailAckPackage(RLPDecode.Iterator memory paramBytes) internal {
-    RLPDecode.Iterator memory iter;
-    if (paramBytes.hasNext()) {
-      iter = paramBytes.next().toBytes().toRLPItem().iterator();
-    } else {
-      require(false, "empty fail ack package");
-    }
-
-    bool success = false;
-    uint256 idx = 0;
+  function _handleUndelegateAckPackage(RLPDecode.Iterator memory paramIter, uint8 status, uint8 errCode) internal {
+    bool success;
+    uint256 idx;
     address delegator;
     address validator;
     uint256 bcAmount;
-    while (iter.hasNext()) {
+    while (paramIter.hasNext()) {
       if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
+        delegator = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 1) {
-        validator = address(uint160(iter.next().toAddress()));
+        validator = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 2) {
-        bcAmount = uint256(iter.next().toUint());
+        bcAmount = uint256(paramIter.next().toUint());
         success = true;
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
-    require(success, "rlp decode package failed");
+    require(success, "rlp decode failed");
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
-    delegated[delegator] = delegated[delegator].add(amount);
-    delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].add(amount);
+    undelegateInFly[delegator] -= 1;
+    if (status == CODE_SUCCESS) {
+      require(errCode == 0, "wrong status");
+      delegated[delegator] = delegated[delegator].sub(amount);
+      delegatedOfValidator[delegator][validator] = delegatedOfValidator[delegator][validator].sub(amount);
+      pendingUndelegateTime[delegator][validator] = block.timestamp.add(LOCK_TIME);
+
+      emit undelegateSuccess(delegator, validator, amount);
+    } else if (status == CODE_FAILED) {
+      pendingUndelegateTime[delegator][validator] = 0;
+      emit undelegateFailed(delegator, validator, amount, errCode);
+    } else {
+      revert("wrong status");
+    }
+  }
+
+  function _handleUndelegateFailAckPackage(RLPDecode.Iterator memory paramIter) internal {
+    bool success;
+    uint256 idx;
+    address delegator;
+    address validator;
+    uint256 bcAmount;
+    while (paramIter.hasNext()) {
+      if (idx == 0) {
+        delegator = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 1) {
+        validator = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 2) {
+        bcAmount = uint256(paramIter.next().toUint());
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
+    }
+    require(success, "rlp decode failed");
+
+    undelegateInFly[delegator] -= 1;
     pendingUndelegateTime[delegator][validator] = 0;
 
     emit crashResponse(EVENT_UNDELEGATE);
   }
 
-  function _handleRedelegateAckPackage(RLPDecode.Iterator memory iter) internal {
-    bool success = false;
-    uint256 idx = 0;
-    address delegator;
-    address valSrc;
-    address valDst;
-    uint256 amount;
-    uint8 errCode;
-    while (iter.hasNext()) {
-      if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
-      } else if (idx == 1) {
-        valSrc = address(uint160(iter.next().toAddress()));
-      } else if (idx == 2) {
-        valDst = address(uint160(iter.next().toAddress()));
-      } else if (idx == 3) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 4) {
-        errCode = uint8(iter.next().toUint());
-        success = true;
-      } else {
-        break;
-      }
-      idx++;
-    }
-    require(success, "rlp decode package failed");
-
-    delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].add(amount);
-    delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].sub(amount);
-    pendingRedelegateTime[delegator][valSrc][valDst] = 0;
-    pendingRedelegateTime[delegator][valDst][valSrc] = 0;
-
-    emit failedRedelegate(delegator, valSrc, valDst, amount, errCode);
-  }
-
-  function _handleRedelegateFailAckPackage(RLPDecode.Iterator memory paramBytes) internal {
-    RLPDecode.Iterator memory iter;
-    if (paramBytes.hasNext()) {
-      iter = paramBytes.next().toBytes().toRLPItem().iterator();
-    } else {
-      require(false, "empty fail ack package");
-    }
-
-    bool success = false;
-    uint256 idx = 0;
+  function _handleRedelegateAckPackage(RLPDecode.Iterator memory paramIter, uint8 status, uint8 errCode) internal {
+    bool success;
+    uint256 idx;
     address delegator;
     address valSrc;
     address valDst;
     uint256 bcAmount;
-    while (iter.hasNext()) {
+    while (paramIter.hasNext()) {
       if (idx == 0) {
-        delegator = address(uint160(iter.next().toAddress()));
+        delegator = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 1) {
-        valSrc = address(uint160(iter.next().toAddress()));
+        valSrc = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 2) {
-        valDst = address(uint160(iter.next().toAddress()));
+        valDst = address(uint160(paramIter.next().toAddress()));
       } else if (idx == 3) {
-        bcAmount = uint256(iter.next().toUint());
+        bcAmount = uint256(paramIter.next().toUint());
         success = true;
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
-    require(success, "rlp decode package failed");
+    require(success, "rlp decode failed");
 
     uint256 amount = bcAmount.mul(TEN_DECIMALS);
-    delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].add(amount);
-    delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].sub(amount);
+    redelegateInFly[delegator] -= 1;
+    if (status == CODE_SUCCESS) {
+      require(errCode == 0, "wrong status");
+      delegatedOfValidator[delegator][valSrc] = delegatedOfValidator[delegator][valSrc].sub(amount);
+      delegatedOfValidator[delegator][valDst] = delegatedOfValidator[delegator][valDst].add(amount);
+      pendingRedelegateTime[delegator][valSrc][valDst] = block.timestamp.add(LOCK_TIME);
+      pendingRedelegateTime[delegator][valDst][valSrc] = block.timestamp.add(LOCK_TIME);
+
+      emit redelegateSuccess(delegator, valSrc, valDst, amount);
+    } else if (status == CODE_FAILED) {
+      pendingRedelegateTime[delegator][valSrc][valDst] = 0;
+      pendingRedelegateTime[delegator][valDst][valSrc] = 0;
+      emit redelegateFailed(delegator, valSrc, valDst, amount, errCode);
+    } else {
+      revert("wrong status");
+    }
+  }
+
+  function _handleRedelegateFailAckPackage(RLPDecode.Iterator memory paramIter) internal {
+    bool success;
+    uint256 idx;
+    address delegator;
+    address valSrc;
+    address valDst;
+    uint256 bcAmount;
+    while (paramIter.hasNext()) {
+      if (idx == 0) {
+        delegator = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 1) {
+        valSrc = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 2) {
+        valDst = address(uint160(paramIter.next().toAddress()));
+      } else if (idx == 3) {
+        bcAmount = uint256(paramIter.next().toUint());
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
+    }
+    require(success, "rlp decode failed");
+
+    redelegateInFly[delegator] -= 1;
     pendingRedelegateTime[delegator][valSrc][valDst] = 0;
     pendingRedelegateTime[delegator][valDst][valSrc] = 0;
 
@@ -511,28 +599,26 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function _handleDistributeRewardSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32, bytes memory) {
-    bool success = false;
-    uint256 idx = 0;
-    uint256 amount;
+    bool success;
+    uint256 idx;
     address recipient;
+    uint256 amount;
     while (iter.hasNext()) {
       if (idx == 0) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 1) {
         recipient = address(uint160(iter.next().toAddress()));
+      } else if (idx == 1) {
+        amount = uint256(iter.next().toUint());
         success = true;
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
-    if (!success) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, amount, recipient, ERROR_FAIL_DECODE);
-    }
+    require(success, "rlp decode failed");
 
     bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount);
     if (!ok) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, amount, recipient, ERROR_WITHDRAW_BNB);
+      return _encodeRefundPackage(EVENT_DISTRIBUTE_REWARD, recipient, amount, ERROR_WITHDRAW_BNB);
     }
 
     distributedReward[recipient] = distributedReward[recipient].add(amount);
@@ -542,31 +628,29 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   function _handleDistributeUndelegatedSynPackage(RLPDecode.Iterator memory iter) internal returns(uint32, bytes memory) {
-    bool success = false;
-    uint256 idx = 0;
-    uint256 amount;
+    bool success;
+    uint256 idx;
     address recipient;
     address validator;
+    uint256 amount;
     while (iter.hasNext()) {
       if (idx == 0) {
-        amount = uint256(iter.next().toUint());
-      } else if (idx == 1) {
         recipient = address(uint160(iter.next().toAddress()));
-      } else if (idx == 2) {
+      } else if (idx == 1) {
         validator = address(uint160(iter.next().toAddress()));
+      } else if (idx == 2) {
+        amount = uint256(iter.next().toUint());
         success = true;
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
-    if (!success) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, amount, recipient, ERROR_FAIL_DECODE);
-    }
+    require(success, "rlp decode failed");
 
     bool ok = ITokenHub(TOKEN_HUB_ADDR).withdrawStakingBNB(amount);
     if (!ok) {
-      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, amount, recipient, ERROR_WITHDRAW_BNB);
+      return _encodeRefundPackage(EVENT_DISTRIBUTE_UNDELEGATED, recipient, amount, ERROR_WITHDRAW_BNB);
     }
 
     pendingUndelegateTime[recipient][validator] = 0;
