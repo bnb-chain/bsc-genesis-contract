@@ -564,7 +564,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function withdrawStakingBNB(uint256 amount) external override returns(bool) {
     require(msg.sender == STAKING_CONTRACT_ADDR, "only staking system contract can call this function");
-    payable(STAKING_CONTRACT_ADDR).transfer(amount);
+    if (amount != 0) {
+      payable(STAKING_CONTRACT_ADDR).transfer(amount);
+    }
     return true;
   }
 }
