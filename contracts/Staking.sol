@@ -398,6 +398,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       uint256 newMinDelegation = BytesToTypes.bytesToUint256(32, value);
       require(newMinDelegation > relayerFee, "the minDelegation must be greater than relayerFee");
       minDelegation = newMinDelegation;
+    } else if (Memory.compareStrings(key, "transferGas")) {
+      require(value.length == 32, "length of transferGas mismatch");
+      uint256 newTransferGas = BytesToTypes.bytesToUint256(32, value);
+      require(newTransferGas > 0, "the transferGas cannot be zero");
+      transferGas = newTransferGas;
     } else {
       revert("unknown param");
     }
