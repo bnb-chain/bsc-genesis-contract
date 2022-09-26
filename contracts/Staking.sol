@@ -45,7 +45,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 public relayerFee;
   uint256 public bSCRelayerFee;
   uint256 public minDelegation;
-  uint256 public transferGas;
 
   mapping(address => uint256) delegated; // delegator => totalAmount
   mapping(address => mapping(address => uint256)) delegatedOfValidator; // delegator => validator => amount
@@ -62,6 +61,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 internal leftIndex;
   uint256 internal rightIndex;
   uint8 internal locked;
+
+  uint256 public transferGas; // this param is newly added after the hardfork on testnet. It need to be initialed by governed
 
   modifier noReentrant() {
     require(locked != 2, "No re-entrancy");
