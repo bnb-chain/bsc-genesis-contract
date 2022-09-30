@@ -40,11 +40,10 @@ contract MockTokenHub is ITokenHub {
 
   function withdrawStakingBNB(uint256 amount) external override returns(bool) {
     address STAKING_CONTRACT_ADDR = address(0x0000000000000000000000000000000000002001);
-    require(msg.sender == STAKING_CONTRACT_ADDR,
-      "only staking system contract can call this function");
-    payable(STAKING_CONTRACT_ADDR).transfer(amount);
+    require(msg.sender == STAKING_CONTRACT_ADDR, "only staking system contract can call this function");
+    if (amount != 0) {
+      payable(STAKING_CONTRACT_ADDR).transfer(amount);
+    }
     return true;
   }
 }
-
-

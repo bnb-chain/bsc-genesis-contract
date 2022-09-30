@@ -40,6 +40,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 public constant INIT_RELAYER_FEE = 16 * 1e15;
   uint256 public constant INIT_BSC_RELAYER_FEE = 1 * 1e16;
   uint256 public constant INIT_MIN_DELEGATION = 100 * 1e18;
+  uint256 public constant INIT_TRANSFER_GAS = 2300;
 
   uint256 public relayerFee;
   uint256 public bSCRelayerFee;
@@ -61,6 +62,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   uint256 internal rightIndex;
   uint8 internal locked;
 
+  uint256 public transferGas; // this param is newly added after the hardfork on testnet. It need to be initialed by governed
+
   modifier noReentrant() {
     require(locked != 2, "No re-entrancy");
     locked = 2;
@@ -78,6 +81,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       relayerFee = INIT_RELAYER_FEE;
       bSCRelayerFee = INIT_BSC_RELAYER_FEE;
       minDelegation = INIT_MIN_DELEGATION;
+      transferGas = INIT_TRANSFER_GAS;
       alreadyInit = true;
     }
     _;
@@ -192,7 +196,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegation, "invalid delegate amount");
     require(msg.value >= amount.add(relayerFee), "not enough msg value");
-    require(payable(msg.sender).send(0), "invalid delegator"); // the msg sender must be payable
+    (bool success,) = msg.sender.call{gas: transferGas}("");
+    require(success, "invalid delegator"); // the msg sender must be payable
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = (msg.value).sub(amount);
@@ -217,11 +222,14 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function undelegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(msg.value >= relayerFee, "not enough relay fee");
     if (amount < minDelegation) {
-      require(amount > bSCRelayerFee, "not enough funds");
       require(amount == delegatedOfValidator[msg.sender][validator], "invalid amount");
+      require(amount > bSCRelayerFee, "not enough funds");
     }
-    require(delegatedOfValidator[msg.sender][validator] >= amount, "invalid amount");
     require(block.timestamp >= pendingUndelegateTime[msg.sender][validator], "pending undelegation exist");
+    uint256 remainBalance = delegatedOfValidator[msg.sender][validator].sub(amount, "not enough funds");
+    if (remainBalance != 0) {
+      require(remainBalance > bSCRelayerFee, "insufficient balance after undelegate");
+    }
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = msg.value;
@@ -248,9 +256,13 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc != validatorDst, "invalid redelegation");
     require(msg.value >= relayerFee, "not enough relay fee");
-    require(amount >= minDelegation && delegatedOfValidator[msg.sender][validatorSrc] >= amount, "invalid amount");
+    require(amount >= minDelegation, "invalid amount");
     require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] &&
       block.timestamp >= pendingRedelegateTime[msg.sender][validatorDst][validatorSrc], "pending redelegation exist");
+    uint256 remainBalance = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds");
+    if (remainBalance != 0) {
+      require(remainBalance > bSCRelayerFee, "insufficient balance after redelegate");
+    }
 
     uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
     uint256 _relayerFee = msg.value;
@@ -268,7 +280,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(LOCK_TIME);
     pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(LOCK_TIME);
-    
+
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
     payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
     payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
@@ -281,7 +293,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     require(amount > 0, "no pending reward");
 
     distributedReward[msg.sender] = 0;
-    payable(msg.sender).transfer(amount);
+    (bool success,) = msg.sender.call{gas: transferGas, value: amount}("");
+    require(success, "transfer failed");
     emit rewardClaimed(msg.sender, amount);
   }
 
@@ -290,7 +303,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     require(amount > 0, "no undelegated funds");
 
     undelegated[msg.sender] = 0;
-    payable(msg.sender).transfer(amount);
+    (bool success,) = msg.sender.call{gas: transferGas, value: amount}("");
+    require(success, "transfer failed");
     emit undelegatedClaimed(msg.sender, amount);
   }
 
@@ -376,6 +390,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     } else if (Memory.compareStrings(key, "bSCRelayerFee")) {
       require(value.length == 32, "length of bSCRelayerFee mismatch");
       uint256 newBSCRelayerFee = BytesToTypes.bytesToUint256(32, value);
+      require(newBSCRelayerFee != 0, "the BSCRelayerFee must not be zero");
       require(newBSCRelayerFee < relayerFee, "the BSCRelayerFee must be less than relayerFee");
       require(newBSCRelayerFee%TEN_DECIMALS==0, "the BSCRelayerFee mod ten decimals must be zero");
       bSCRelayerFee = newBSCRelayerFee;
@@ -384,6 +399,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       uint256 newMinDelegation = BytesToTypes.bytesToUint256(32, value);
       require(newMinDelegation > relayerFee, "the minDelegation must be greater than relayerFee");
       minDelegation = newMinDelegation;
+    } else if (Memory.compareStrings(key, "transferGas")) {
+      require(value.length == 32, "length of transferGas mismatch");
+      uint256 newTransferGas = BytesToTypes.bytesToUint256(32, value);
+      require(newTransferGas > 0, "the transferGas cannot be zero");
+      transferGas = newTransferGas;
     } else {
       revert("unknown param");
     }
