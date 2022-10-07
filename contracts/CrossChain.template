@@ -36,6 +36,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) public channelReceiveSequenceMap;
   mapping(uint8 => bool) public isRelayRewardFromSystemReward;
 
+  // to prevent forged header
+  mapping(uint8 => uint64) public channelSyncedHeaderMap;
+
   // event
   event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event receivedPackage(uint8 packageType, uint64 indexed packageSequence, uint8 indexed channelId);
@@ -66,6 +69,12 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   modifier onlyRegisteredContractChannel(uint8 channleId) {
     require(registeredContractChannelMap[msg.sender][channleId], "the contract and channel have not been registered");
+    _;
+  }
+
+  modifier headerInOrder(uint64 height, uint8 channelId) {
+    require(height >= channelSyncedHeaderMap[channelId], "too old header");
+    channelSyncedHeaderMap[channelId] = height;
     _;
   }
 
@@ -191,7 +200,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   }
 
   function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer
-      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
+      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) headerInOrder(height, channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
