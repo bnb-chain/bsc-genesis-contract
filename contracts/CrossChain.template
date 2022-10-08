@@ -36,7 +36,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) public channelReceiveSequenceMap;
   mapping(uint8 => bool) public isRelayRewardFromSystemReward;
 
-  // to prevent forged header
+  // to prevent the utilization of ancient block header
   mapping(uint8 => uint64) public channelSyncedHeaderMap;
 
   // event
