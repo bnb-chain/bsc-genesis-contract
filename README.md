@@ -27,6 +27,7 @@ node generate-system.js --mock true
 node generate-slash.js --mock true
 node generate-crosschain.js --mock true
 node generate-tokenhub.js --mock true
+node generate-relayerhub.js --mock true
 node generate-tendermintlightclient.js --mock true
 node generate-relayerincentivizecontract.js --roundSize 30 --maximumWeight 3 --mock true
 ```
