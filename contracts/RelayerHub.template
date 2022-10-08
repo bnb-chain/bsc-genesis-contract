@@ -55,10 +55,18 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     dues = INIT_DUES;
     alreadyInit = true;
   }
-
+  {% if mock %}
+  function register() external payable noExist onlyInit notContract noProxy{
+    require(msg.value == requiredDeposit, "deposit value is not exactly the same");
+    relayers[msg.sender] = relayer(requiredDeposit, dues);
+    relayersExistMap[msg.sender] = true;
+    emit relayerRegister(msg.sender);
+  }
+  {% else %}
   function register() external payable noExist onlyInit notContract noProxy{
     revert("register suspended");
   }
+  {% endif %}
 
   function  unregister() external exist onlyInit{
     relayer memory r = relayers[msg.sender];
