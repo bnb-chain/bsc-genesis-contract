@@ -56,13 +56,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     alreadyInit = true;
   }
 
-  function register() external payable noExist onlyInit notContract noProxy{
-    require(msg.value == requiredDeposit, "deposit value is not exactly the same");
-    relayers[msg.sender] = relayer(requiredDeposit, dues);
-    relayersExistMap[msg.sender] = true;
-    emit relayerRegister(msg.sender);
-  }
-
   function  unregister() external exist onlyInit{
     relayer memory r = relayers[msg.sender];
     msg.sender.transfer(r.deposit.sub(r.dues));
