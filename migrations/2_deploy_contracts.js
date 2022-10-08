@@ -139,7 +139,6 @@ module.exports = function(deployer, network, accounts) {
 
     return deployer.deploy(BSCValidatorSet).then(function (validatorInstance) {
       validatorInstance.init();
-      stakingInstance.init();
       relayerIncentivizeInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, TokenManager.address, CrossChain.address, Staking.address);
       tendermintLightClientInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, TokenManager.address, CrossChain.address, Staking.address);
       tokenHubInstance.updateContractAddr(BSCValidatorSet.address, SlashIndicator.address, SystemReward.address, MockLightClient.address,TokenHub.address,RelayerIncentivize.address,RelayerHub.address,GovHub.address, TokenManager.address, CrossChain.address, Staking.address);

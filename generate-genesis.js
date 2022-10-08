@@ -38,6 +38,7 @@ require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
 require("./generate-crosschain");
 require("./generate-slash");
+require("./generate-relayerhub");
 require("./generate-staking");
 
 program.version("0.0.1")
