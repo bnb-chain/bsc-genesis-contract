@@ -206,13 +206,14 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
 
+    uint64 sequenceLocal = packageSequence; // fix error: stack too deep, try removing local variables
     uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
     (bool success, uint8 packageType, uint256 relayFee, bytes memory msgBytes) = decodePayloadHeader(payloadLocal);
     if (!success) {
-      emit unsupportedPackage(packageSequence, channelIdLocal, payloadLocal);
+      emit unsupportedPackage(sequenceLocal, channelIdLocal, payloadLocal);
       return;
     }
-    emit receivedPackage(packageType, packageSequence, channelIdLocal);
+    emit receivedPackage(packageType, sequenceLocal, channelIdLocal);
     if (packageType == SYN_PACKAGE) {
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {
