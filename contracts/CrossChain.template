@@ -74,7 +74,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   modifier headerInOrder(uint64 height, uint8 channelId) {
     require(height >= channelSyncedHeaderMap[channelId], "too old header");
-    channelSyncedHeaderMap[channelId] = height;
+    if (height != channelSyncedHeaderMap[channelId]) {
+      channelSyncedHeaderMap[channelId] = height;
+    }
     _;
   }
 
