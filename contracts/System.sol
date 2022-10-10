@@ -83,6 +83,13 @@ contract System {
     _;
   }
 
+  
+  modifier onlyWhiteLableRelayer() {
+      require(msg.sender == 0xb005741528b86F5952469d80A8614591E3c5B632 || msg.sender == 0x446AA6E0DC65690403dF3F127750da1322941F3e, "the msg sender is not a whitelabel relayer");
+      _;
+  }
+  
+
   modifier onlyTokenManager() {
     require(msg.sender == TOKEN_MANAGER_ADDR, "the msg sender must be tokenManager");
     _;

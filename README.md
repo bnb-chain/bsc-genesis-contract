@@ -20,10 +20,9 @@ Ganache-cli: v6.10.1
 Generate contracts for testing:
 ```shell script
 # the first account of ganache
-node generate-system.js --mock true
+node generate-system.js --mock true --network local
 node generate-systemReward.js --mock true
 node generate-validatorset.js --mock true
-node generate-system.js --mock true
 node generate-slash.js --mock true
 node generate-crosschain.js --mock true
 node generate-tokenhub.js --mock true

@@ -200,7 +200,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return (true, packageType, relayFee, msgBytes);
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer onlyWhiteLableRelayer
       sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) headerInOrder(height, channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
