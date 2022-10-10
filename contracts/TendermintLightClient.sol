@@ -57,7 +57,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     emit initConsensusState(initialHeight, cs.appHash);
   }
 
-  function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
+  function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer onlyWhiteLableRelayer returns (bool) {
     require(submitters[height] == address(0x0), "can't sync duplicated header");
     require(height > initialHeight, "can't sync header before initialHeight");
 

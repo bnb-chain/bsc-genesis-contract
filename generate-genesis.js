@@ -19,6 +19,10 @@ program.option(
     ""
 )
 
+program.option("--network <network>",
+    "network",
+    "mainnet");
+
 program.option(
     "--initBurnRatio <initBurnRatio>",
     "initBurnRatio",
