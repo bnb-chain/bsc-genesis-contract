@@ -54,7 +54,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     alreadyInit = true;
     rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
 
-    emit initConsensusState(initialHeight, cs.appHash);
+    emit initConsensusState(height, cs.appHash);
   }
 
   function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer onlyWhitelabelRelayer returns (bool) {
