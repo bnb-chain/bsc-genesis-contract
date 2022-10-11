@@ -117,22 +117,22 @@ contract System {
   }
 
   {% if network == 'local' %}
-  modifier onlyWhiteLableRelayer() {
+  modifier onlyWhitelabelRelayer() {
       require(msg.sender == 0xA904540818AC9c47f2321F97F1069B9d8746c6DB || msg.sender == 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344, "the msg sender is not a whitelabel relayer");
       _;
   }
   {% elif network == 'QA' %}
-  modifier onlyWhiteLableRelayer() {
+  modifier onlyWhitelabelRelayer() {
       require(msg.sender == 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD || msg.sender == 0x42D596440775C90db8d9187b47650986E1063493, "the msg sender is not a whitelabel relayer");
       _;
   }
   {% elif network == 'testnet' %}
-  modifier onlyWhiteLableRelayer() {
+  modifier onlyWhitelabelRelayer() {
       require(msg.sender == 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791 || msg.sender == 0x37B8516a0F88E65D677229b402ec6C1e0E333004, "the msg sender is not a whitelabel relayer");
       _;
   }
   {% else %}
-  modifier onlyWhiteLableRelayer() {
+  modifier onlyWhitelabelRelayer() {
       require(msg.sender == 0xb005741528b86F5952469d80A8614591E3c5B632 || msg.sender == 0x446AA6E0DC65690403dF3F127750da1322941F3e, "the msg sender is not a whitelabel relayer");
       _;
   }
