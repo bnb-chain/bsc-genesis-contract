@@ -388,6 +388,28 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit paramChange(key, value);
   }
 
+  function emergencySuspend() onlyCabinet whenNotSuspended external {
+    bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
+    if (isExecutable) {
+      _emergencySuspend();
+    }
+  }
+
+  function reopen() onlyCabinet whenSuspended external {
+    bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
+    if (isExecutable) {
+      isSuspended = false;
+      emit Reopen();
+    }
+  }
+
+  function cancelTransfer(address _attacker) onlyCabinet external {
+    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
+    if (isExecutable) {
+      // TODO
+    }
+  }
+
   function _approveProposal(bytes32 _proposalNameHash) internal returns (bool isExecutable){
     if (approveThresholdMap[_proposalNameHash] == 0) {
       approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = INIT_EMERGENCY_SUSPEND_THRESHOLD;
@@ -419,28 +441,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
 
     return false;
-  }
-
-  function emergencySuspend() onlyCabinet whenNotSuspended external {
-    bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
-    if (isExecutable) {
-      _emergencySuspend();
-    }
-  }
-
-  function reopen() onlyCabinet whenSuspended external {
-    bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
-    if (isExecutable) {
-      isSuspended = false;
-      emit Reopen();
-    }
-  }
-
-  function cancelTransfer(address _attacker) onlyCabinet external {
-    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
-    if (isExecutable) {
-      // TODO
-    }
   }
 
   function _emergencySuspend() whenNotSuspended internal {
