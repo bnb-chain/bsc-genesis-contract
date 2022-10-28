@@ -394,13 +394,29 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
 
   // BEP-170: Security Enhancement for Cross-Chain Module
-  function challenge(uint64 height, uint64 packageSequence, uint8 channelId, bytes calldata payload0, bytes calldata proof0, bytes calldata payload1, bytes calldata proof1) onlyInit blockSynced(height) channelSupported(channelId) external {
+  function challenge(
+    uint64 height,
+    uint64 packageSequence,
+    uint8 channelId,
+    bytes calldata payload0,
+    bytes calldata proof0,
+    bytes calldata payload1,
+    bytes calldata proof1
+  )
+  onlyInit
+  blockSynced(height)
+  channelSupported(channelId)
+  whenNotSuspended
+  external {
     bytes32 _appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
     bytes memory _key = generateKey(packageSequence, channelId);
 
     require(keccak256(payload0) != keccak256(payload1), "same payload");
     require(MerkleProof.validateMerkleProof(_appHash, STORE_NAME, _key, payload0, proof0), "invalid merkle proof0");
     require(MerkleProof.validateMerkleProof(_appHash, STORE_NAME, _key, payload1, proof1), "invalid merkle proof1");
+
+    // succeed in challenge
+    _emergencySuspend();
   }
 
   function emergencySuspend() onlyCabinet whenNotSuspended external {
