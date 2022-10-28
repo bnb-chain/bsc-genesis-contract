@@ -333,7 +333,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function updateParam(string calldata key, bytes calldata value)
   onlyGov
-  whenNotSuspended()
+  whenNotSuspended
   external override {
     if (Memory.compareStrings(key, "batchSizeForOracle")) {
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
@@ -410,7 +410,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function _approveProposal(bytes32 _proposalNameHash) internal returns (bool isExecutable){
+  function _approveProposal(bytes32 _proposalNameHash) internal returns (bool isExecutable) {
     if (approveThresholdMap[_proposalNameHash] == 0) {
       approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = INIT_EMERGENCY_SUSPEND_THRESHOLD;
       approveThresholdMap[REOPEN_PROPOSAL] = INIT_REOPEN_THRESHOLD;
