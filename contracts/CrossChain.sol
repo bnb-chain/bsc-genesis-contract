@@ -56,6 +56,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // proposal name hash => the threshold of proposal approved
   mapping(bytes32 => uint128) public approveThresholdMap;
 
+  event SubmitEmergencyProposal(bytes32 indexed prosalNameHash, address indexed proposer, uint128 approveThreshold, uint128 expiredAt);
   event EmergencySuspend();
   event Reopen();
 
@@ -424,6 +425,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       p.approveThreshold = approveThresholdMap[_proposalNameHash];
       p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
       p.approvedValidators.push(msg.sender);
+
+      emit SubmitEmergencyProposal(_proposalNameHash, msg.sender, p.approveThreshold, p.expiredAt);
     } else {
       // current proposal exists
       for (uint256 i = 0; i < p.approvedValidators.length; ++i) {
