@@ -40,6 +40,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
 
   // BEP-:  enhance security
+  uint256 public constant EMERGENCY_PROPOSAL_THRESHOLD = 2;
+  uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
+
   bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
@@ -355,8 +358,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     // currentProposal expired or not exist, create a new EmergencyProposal
     if (block.timestamp >= currentProposal.expiredAt) {
-      currentProposal.approveThreshold = 2;
-      currentProposal.expiredAt = block.timestamp + 1 hours;
+      currentProposal.approveThreshold = EMERGENCY_PROPOSAL_THRESHOLD;
+      currentProposal.expiredAt = block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD;
       currentProposal.approvedValidators.push(msg.sender);
       return;
     }
