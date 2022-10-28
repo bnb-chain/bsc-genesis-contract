@@ -253,7 +253,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   blockSynced(height)
   channelSupported(channelId)
   headerInOrder(height, channelId)
-  whenNotSuspended()
+  whenNotSuspended
   external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
@@ -305,7 +305,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended() {
+  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended {
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
@@ -323,7 +323,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee)
   onlyInit
   onlyRegisteredContractChannel(channelId)
-  whenNotSuspended()
+  whenNotSuspended
   external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
