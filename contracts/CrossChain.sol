@@ -40,19 +40,24 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
 
   // BEP-:  enhance security
-  uint256 public constant EMERGENCY_PROPOSAL_THRESHOLD = 2;
-  uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
-
   bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
+
+  uint128 public constant INIT_EMERGENCY_SUSPEND_THRESHOLD = 1;
+  uint128 public constant INIT_REOPEN_THRESHOLD = 2;
+  uint128 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
+
+  uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
+
   // proposal name hash => proposal info
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
+  mapping(bytes32 => uint128) public approveThresholdMap;
 
   // struct
   struct EmergencyProposal {
-    uint256 approveThreshold;
-    uint256 expiredAt;
+    uint128 approveThreshold;
+    uint128 expiredAt;
 
     address[] approvedValidators;
   }
@@ -353,31 +358,57 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit paramChange(key, value);
   }
 
-  function emergencySuspend() onlyCabinet external {
-    EmergencyProposal storage currentProposal = emergencyProposals[EMERGENCY_SUSPEND_PROPOSAL];
-
-    // currentProposal expired or not exist, create a new EmergencyProposal
-    if (block.timestamp >= currentProposal.expiredAt) {
-      currentProposal.approveThreshold = EMERGENCY_PROPOSAL_THRESHOLD;
-      currentProposal.expiredAt = block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD;
-      currentProposal.approvedValidators.push(msg.sender);
-      return;
+  function _approveProposal(bytes32 _proposalNameHash) internal returns (bool isExecutable){
+    if (approveThresholdMap[_proposalNameHash] == 0) {
+      approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = INIT_EMERGENCY_SUSPEND_THRESHOLD;
+      approveThresholdMap[REOPEN_PROPOSAL] = INIT_REOPEN_THRESHOLD;
+      approveThresholdMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_THRESHOLD;
     }
 
-    // currentProposal exists
-    for (uint256 i = 0; i < currentProposal.approvedValidators.length; ++i) {
-      if (currentProposal.approvedValidators[i] == msg.sender) {
-        return;
+    EmergencyProposal storage p = emergencyProposals[_proposalNameHash];
+
+    if (block.timestamp >= p.expiredAt) {
+      // current proposal expired or not exist, create a new EmergencyProposal
+      p.approveThreshold = approveThresholdMap[_proposalNameHash];
+      p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
+      p.approvedValidators.push(msg.sender);
+    } else {
+      // current proposal exists
+      for (uint256 i = 0; i < p.approvedValidators.length; ++i) {
+        require(p.approvedValidators[i] != msg.sender, "already approved");
       }
-    }
-    currentProposal.approvedValidators.push(msg.sender);
-
-    if (currentProposal.approvedValidators.length >= currentProposal.approveThreshold) {
-      // TODO
-      // 1. exec proposal
-      // 2. remove currentProposal
+      p.approvedValidators.push(msg.sender);
     }
 
+    if (p.approvedValidators.length >= p.approveThreshold) {
+      // 1. remove current proposal
+      delete emergencyProposals[_proposalNameHash];
+
+      // 2. exec this proposal
+      return true;
+    }
+
+    return false;
   }
 
+  function emergencySuspend() onlyCabinet external {
+    bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
+    if (isExecutable) {
+      // TODO
+    }
+  }
+
+  function reopen() onlyCabinet external {
+    bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
+    if (isExecutable) {
+      // TODO
+    }
+  }
+
+  function cancelTransfer() onlyCabinet external {
+    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
+    if (isExecutable) {
+      // TODO
+    }
+  }
 }
