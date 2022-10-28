@@ -50,9 +50,14 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
 
-  // proposal name hash => proposal info
+  bool public isSuspended;
+  // proposal name hash => latest emergency proposal
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
+  // proposal name hash => the threshold of proposal approved
   mapping(bytes32 => uint128) public approveThresholdMap;
+
+  event EmergencySuspend();
+  event Reopen();
 
   // struct
   struct EmergencyProposal {
@@ -106,6 +111,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // BEP
   modifier onlyCabinet() {
     // TODO
+    _;
+  }
+
+  modifier whenNotSuspended() {
+    require(!isSuspended, "suspended");
     _;
   }
 
@@ -230,8 +240,16 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return (true, packageType, relayFee, msgBytes);
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer onlyWhitelabelRelayer
-      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) headerInOrder(height, channelId) external {
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId)
+  onlyInit
+  onlyRelayer
+  onlyWhitelabelRelayer
+  sequenceInOrder(packageSequence, channelId)
+  blockSynced(height)
+  channelSupported(channelId)
+  headerInOrder(height, channelId)
+  whenNotSuspended()
+  external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
@@ -282,7 +300,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal {
+  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended() {
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
@@ -297,14 +315,21 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
-  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override {
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee)
+  onlyInit
+  onlyRegisteredContractChannel(channelId)
+  whenNotSuspended()
+  external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
   }
 
-  function updateParam(string calldata key, bytes calldata value) onlyGov external override {
+  function updateParam(string calldata key, bytes calldata value)
+  onlyGov
+  whenNotSuspended()
+  external override {
     if (Memory.compareStrings(key, "batchSizeForOracle")) {
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
       require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
@@ -394,21 +419,29 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   function emergencySuspend() onlyCabinet external {
     bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
     if (isExecutable) {
-      // TODO
+      _emergencySuspend();
     }
   }
 
   function reopen() onlyCabinet external {
+    require(isSuspended, "not on suspended");
+
     bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
+    if (isExecutable) {
+      isSuspended = false;
+      emit Reopen();
+    }
+  }
+
+  function cancelTransfer(address _attacker) onlyCabinet external {
+    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
     if (isExecutable) {
       // TODO
     }
   }
 
-  function cancelTransfer() onlyCabinet external {
-    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
-    if (isExecutable) {
-      // TODO
-    }
+  function _emergencySuspend() whenNotSuspended internal {
+    isSuspended = true;
+    emit EmergencySuspend();
   }
 }
