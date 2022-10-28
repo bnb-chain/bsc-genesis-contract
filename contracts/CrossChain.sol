@@ -56,6 +56,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // proposal name hash => the threshold of proposal approved
   mapping(bytes32 => uint128) public approveThresholdMap;
 
+  //
+  mapping(bytes32 => bool) public challenged;
+
 
   // struct
   // BEP-170: Security Enhancement for Cross-Chain Module
@@ -80,6 +83,19 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   event SubmitEmergencyProposal(bytes32 indexed prosalNameHash, address indexed proposer, uint128 approveThreshold, uint128 expiredAt);
   event EmergencySuspend();
   event Reopen();
+  event Challenge(
+    address indexed challenger,
+    uint64 indexed packageSequence,
+    uint8 indexed channelId,
+
+    uint64 height0,
+    bytes payload0,
+    bytes proof0,
+
+    uint64 height1,
+    bytes payload1,
+    bytes proof1
+  );
 
   modifier sequenceInOrder(uint64 _sequence, uint8 _channelID) {
     uint64 expectedSequence = channelReceiveSequenceMap[_channelID];
@@ -395,28 +411,53 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // BEP-170: Security Enhancement for Cross-Chain Module
   function challenge(
-    uint64 height,
-    uint64 packageSequence,
-    uint8 channelId,
+    // to avoid stack too deep error, using `uint64[4] calldata params`
+    // instead of  `uint64 packageSequence, uint8 channelId, uint64 height0, uint64 height1`
+    uint64[4] calldata params, // 0-packageSequence, 1-channelId, 2-height0, 3-height1
     bytes calldata payload0,
-    bytes calldata proof0,
     bytes calldata payload1,
+    bytes calldata proof0,
     bytes calldata proof1
   )
   onlyInit
-  blockSynced(height)
-  channelSupported(channelId)
+  blockSynced(params[2])
+  blockSynced(params[3])
+  channelSupported(uint8(params[1]))
   whenNotSuspended
   external {
-    bytes32 _appHash = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height);
-    bytes memory _key = generateKey(packageSequence, channelId);
-
     require(keccak256(payload0) != keccak256(payload1), "same payload");
-    require(MerkleProof.validateMerkleProof(_appHash, STORE_NAME, _key, payload0, proof0), "invalid merkle proof0");
-    require(MerkleProof.validateMerkleProof(_appHash, STORE_NAME, _key, payload1, proof1), "invalid merkle proof1");
+
+    bytes memory _key;
+    {
+      uint64 _packageSequence = params[0];
+      uint8 _channelId = uint8(params[1]);
+      _key = generateKey(_packageSequence, _channelId);
+    }
+
+    {
+      uint64 _height0 = params[2];
+      bytes memory _payload0 = payload0;
+      bytes memory _proof0 = proof0;
+      bytes32 _appHash0 = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(_height0);
+      require(MerkleProof.validateMerkleProof(_appHash0, STORE_NAME, _key, _payload0, _proof0), "invalid merkle proof0");
+    }
+
+    {
+      uint64 _height1 = params[3];
+      bytes memory _payload1 = payload1;
+      bytes memory _proof1 = proof1;
+      bytes32 _appHash1 = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(_height1);
+      require(MerkleProof.validateMerkleProof(_appHash1, STORE_NAME, _key, _payload1, _proof1), "invalid merkle proof1");
+    }
+
+    bytes32 _keyHash = keccak256(_key);
+    require(!challenged[_keyHash], "already challenged the key");
 
     // succeed in challenge
+    challenged[_keyHash] = true;
     _emergencySuspend();
+
+//    emit Challenge(msg.sender, _packageSequence, _channelId, height0, payload0, proof0, height1, payload1, proof1);
   }
 
   function emergencySuspend() onlyCabinet whenNotSuspended external {
