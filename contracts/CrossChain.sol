@@ -38,6 +38,22 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // to prevent the utilization of ancient block header
   mapping(uint8 => uint64) public channelSyncedHeaderMap;
 
+
+  // BEP-:  enhance security
+  bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
+  bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
+  bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
+  // proposal name hash => proposal info
+  mapping(bytes32 => EmergencyProposal) public emergencyProposals;
+
+  // struct
+  struct EmergencyProposal {
+    uint256 approveThreshold;
+    uint256 expiredAt;
+
+    address[] approvedValidators;
+  }
+
   // event
   event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event receivedPackage(uint8 packageType, uint64 indexed packageSequence, uint8 indexed channelId);
@@ -76,6 +92,12 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     if (height != channelSyncedHeaderMap[channelId]) {
       channelSyncedHeaderMap[channelId] = height;
     }
+    _;
+  }
+
+  // BEP
+  modifier onlyCabinet() {
+    // TODO
     _;
   }
 
@@ -327,4 +349,32 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
     emit paramChange(key, value);
   }
+
+  function emergencySuspend() onlyCabinet external {
+    EmergencyProposal storage currentProposal = emergencyProposals[EMERGENCY_SUSPEND_PROPOSAL];
+
+    // currentProposal expired or not exist, create a new EmergencyProposal
+    if (block.timestamp >= currentProposal.expiredAt) {
+      currentProposal.approveThreshold = 2;
+      currentProposal.expiredAt = block.timestamp + 1 hours;
+      currentProposal.approvedValidators.push(msg.sender);
+      return;
+    }
+
+    // currentProposal exists
+    for (uint256 i = 0; i < currentProposal.approvedValidators.length; ++i) {
+      if (currentProposal.approvedValidators[i] == msg.sender) {
+        return;
+      }
+    }
+    currentProposal.approvedValidators.push(msg.sender);
+
+    if (currentProposal.approvedValidators.length >= currentProposal.approveThreshold) {
+      // TODO
+      // 1. exec proposal
+      // 2. remove currentProposal
+    }
+
+  }
+
 }
