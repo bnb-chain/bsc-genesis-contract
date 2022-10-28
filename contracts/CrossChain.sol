@@ -119,6 +119,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     _;
   }
 
+  modifier whenSuspended() {
+    require(isSuspended, "not on suspended");
+    _;
+  }
+
   // | length   | prefix | sourceChainID| destinationChainID | channelID | sequence |
   // | 32 bytes | 1 byte | 2 bytes      | 2 bytes            |  1 bytes  | 8 bytes  |
   function generateKey(uint64 _sequence, uint8 _channelID) internal pure returns(bytes memory) {
@@ -423,9 +428,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function reopen() onlyCabinet external {
-    require(isSuspended, "not on suspended");
-
+  function reopen() onlyCabinet whenSuspended external {
     bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
     if (isExecutable) {
       isSuspended = false;
