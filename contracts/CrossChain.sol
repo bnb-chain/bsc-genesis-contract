@@ -416,7 +416,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return false;
   }
 
-  function emergencySuspend() onlyCabinet external {
+  function emergencySuspend() onlyCabinet whenNotSuspended external {
     bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
     if (isExecutable) {
       _emergencySuspend();
