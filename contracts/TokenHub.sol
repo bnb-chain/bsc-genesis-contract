@@ -118,6 +118,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     _;
   }
 
+  modifier noReentrant() {
+    require(locked != 2, "No re-entrancy");
+    locked = 2;
+    _;
+    locked = 1;
+  }
+
   constructor() public {}
 
   function init() onlyNotInit external {
@@ -275,7 +282,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   // BEP-171: Security Enhancement for Cross-Chain Module
-  function withdrawUnlockedToken(address tokenAddress, address recipient) external {
+  function withdrawUnlockedToken(address tokenAddress, address recipient) external noReentrant {
     LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
     require(lockInfo.lockedAmount > 0, "no locked amount");
     require(block.timestamp >= lockInfo.unlockAt, "still on locking period");
