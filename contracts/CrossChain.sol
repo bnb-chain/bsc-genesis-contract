@@ -6,6 +6,7 @@ import "./interface/ITokenHub.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IBSCValidatorSetV2.sol";
 import "./lib/Memory.sol";
 import "./lib/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
@@ -45,9 +46,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
 
-  uint128 public constant INIT_EMERGENCY_SUSPEND_THRESHOLD = 1;
-  uint128 public constant INIT_REOPEN_THRESHOLD = 2;
-  uint128 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
+  uint16 public constant INIT_EMERGENCY_SUSPEND_THRESHOLD = 1;
+  uint16 public constant INIT_REOPEN_THRESHOLD = 2;
+  uint16 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
 
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
 
@@ -55,7 +56,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // proposal name hash => latest emergency proposal
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
   // proposal name hash => the threshold of proposal approved
-  mapping(bytes32 => uint128) public approveThresholdMap;
+  mapping(bytes32 => uint16) public approveThresholdMap;
 
   // IAVL key hash => is challenged
   mapping(bytes32 => bool) public challenged;
@@ -64,7 +65,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // struct
   // BEP-171: Security Enhancement for Cross-Chain Module
   struct EmergencyProposal {
-    uint128 approveThreshold;
+    uint16 approveThreshold;
     uint128 expiredAt;
 
     address[] approvedValidators;
@@ -123,7 +124,24 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyCabinet() {
-    // TODO
+    address[] memory validators = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).getValidators();
+    uint256 numOfCabinets = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).numOfCabinets();
+    if (numOfCabinets == 0) {
+      numOfCabinets = 21;
+    }
+
+    bool isCabinet;
+    for (uint256 i = 0; i < validators.length; ++i) {
+      if (i >= numOfCabinets) {
+        break;
+      }
+      if (validators[i] == msg.sender) {
+        isCabinet = true;
+        break;
+      }
+    }
+
+    require(isCabinet, "not cabinet");
     _;
   }
 
@@ -133,7 +151,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   }
 
   modifier whenSuspended() {
-    require(isSuspended, "not on suspended");
+    require(isSuspended, "not suspended");
     _;
   }
 
