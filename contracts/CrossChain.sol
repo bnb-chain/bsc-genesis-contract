@@ -57,7 +57,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // proposal name hash => the threshold of proposal approved
   mapping(bytes32 => uint128) public approveThresholdMap;
 
-  //
+  // IAVL key hash => is challenged
   mapping(bytes32 => bool) public challenged;
 
 
