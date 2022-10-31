@@ -414,14 +414,17 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
         emit enableOrDisableChannel(channelId, isEnable);
       }
     } else if (Memory.compareStrings(key, "emergencySuspendApproveThreshold")) {
+      require(value.length == 2, "length of value for emergencySuspendApproveThreshold should be 2");
       uint16 emergencySuspendApproveThreshold = BytesToTypes.bytesToUint16(32, value);
       require(emergencySuspendApproveThreshold > 0, "zero suspend threshold");
       approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = emergencySuspendApproveThreshold;
     } else if (Memory.compareStrings(key, "reopenApproveThreshold")) {
+      require(value.length == 2, "length of value for reopenApproveThreshold should be 2");
       uint16 reopenApproveThreshold = BytesToTypes.bytesToUint16(32, value);
       require(reopenApproveThreshold > 0, "zero reopen threshold");
       approveThresholdMap[REOPEN_PROPOSAL] = reopenApproveThreshold;
     } else if (Memory.compareStrings(key, "cancelTransferApproveThreshold")) {
+      require(value.length == 2, "length of value for cancelTransferApproveThreshold should be 2");
       uint16 cancelTransferApproveThreshold = BytesToTypes.bytesToUint16(32, value);
       require(cancelTransferApproveThreshold > 0, "zero cancel transfer threshold");
       approveThresholdMap[CANCEL_TRANSFER_PROPOSAL] = cancelTransferApproveThreshold;
