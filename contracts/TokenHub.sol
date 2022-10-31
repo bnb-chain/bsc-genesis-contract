@@ -9,6 +9,8 @@ import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
@@ -95,9 +97,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
-  // token address => largeTransferLimit amount
+  // token address => largeTransferLimit amount, address(0) means BNB
   mapping(address => uint256) public largeTransferLimitMap;
-  // token address => recipient address => lockedAmount + unlockAt
+  // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
   mapping(address => mapping(address => LockInfo)) public lockInfoMap;
   uint8 internal reentryLock;
 
@@ -581,6 +583,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       }
       require(newRelayFee <= 1e18 && newRelayFee%(TEN_DECIMALS)==0, "the relayFee out of range");
       relayFee = newRelayFee;
+    } else if (Memory.compareStrings(key, "largeTransferLockPeriod")) {
+      uint256 newLockPeriod = BytesToTypes.bytesToUint256(32, value);
+      require(newLockPeriod <= 1 weeks, "lock period too long");
+      lockPeriod = newLockPeriod;
+    } else if (Memory.compareStrings(key, "bnbLargeTransferLimit")) {
+      uint256 newBNBLargeTransferLimit = BytesToTypes.bytesToUint256(32, value);
+      require(newBNBLargeTransferLimit >= 100 ether, "bnb large transfer limit too small");
+      largeTransferLimitMap[address(0x0)] = newBNBLargeTransferLimit;
     } else {
       require(false, "unknown param");
     }
