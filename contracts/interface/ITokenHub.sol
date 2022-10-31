@@ -20,4 +20,6 @@ interface ITokenHub {
     uint64 expireTime) external payable returns (bool);
 
   function withdrawStakingBNB(uint256 amount) external returns(bool);
+
+  function cancelTransferIn(address tokenAddress, address attacker) external;
 }

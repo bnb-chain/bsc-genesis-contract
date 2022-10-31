@@ -2,6 +2,7 @@ pragma solidity 0.6.4;
 
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/ITokenHub.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/IRelayerHub.sol";
@@ -471,10 +472,10 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function cancelTransfer(address _attacker) onlyCabinet external {
+  function cancelTransfer(address tokenAddr, address _attacker) onlyCabinet external {
     bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
     if (isExecutable) {
-      // TODO
+      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(tokenAddr, _attacker);
     }
   }
 

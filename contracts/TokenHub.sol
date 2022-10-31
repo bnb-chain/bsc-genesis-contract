@@ -113,6 +113,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-171: Security Enhancement for Cross-Chain Module
   event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
   event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
+  event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -301,6 +302,17 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(_success, "withdraw unlocked token failed");
 
     emit WithdrawUnlockedToken(tokenAddress, recipient, _amount);
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function cancelTransferIn(address tokenAddress, address attacker) override external onlyCrossChainContract {
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
+    require(lockInfo.lockedAmount > 0, "no locked amount");
+
+    uint256 _amount = lockInfo.lockedAmount;
+    lockInfo.lockedAmount = 0;
+
+    emit CancelTransfer(tokenAddress, attacker, _amount);
   }
 
   // BEP-171: Security Enhancement for Cross-Chain Module
