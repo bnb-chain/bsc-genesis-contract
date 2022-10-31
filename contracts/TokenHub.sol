@@ -108,6 +108,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
 
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  modifier onlyTokenOwner(address bep20Token) {
+    require(msg.sender == IBEP20(bep20Token).getOwner(), "not owner of BEP20 token");
+    _;
+  }
+
   constructor() public {}
 
   function init() onlyNotInit external {
@@ -259,10 +265,16 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   // BEP-171: Security Enhancement for Cross-Chain Module
+  function setLargeTransferLimit(address bep20Token, uint256 largeTransferLimit) external onlyTokenOwner(bep20Token) {
+    require(largeTransferLimit > 0, "zero limit not allowed");
+    largeTransferLimitMap[bep20Token] = largeTransferLimit;
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
   function withdrawUnlockedToken(address tokenAddress, address recipient) external {
     LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
     require(lockInfo.lockedAmount > 0, "no locked amount");
-    require(block.timestamp >= lockInfo.unlockAt, "still on locking");
+    require(block.timestamp >= lockInfo.unlockAt, "still on locking period");
 
     uint256 _amount = lockInfo.lockedAmount;
     lockInfo.lockedAmount = 0;
