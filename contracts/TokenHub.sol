@@ -93,6 +93,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
   uint256 constant public INIT_LOCK_PERIOD = 6 hours;
 
+  // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
   // token address => largeTransferLimit amount
   mapping(address => uint256) public largeTransferLimitMap;
