@@ -57,7 +57,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint32 status;
   }
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   struct LockInfo {
     uint256 lockedAmount;
     uint256 unlockAt;
@@ -89,7 +89,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   uint256 constant public INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
   uint256 constant public INIT_LOCK_PERIOD = 6 hours;
 
@@ -222,7 +222,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
 
-      // BEP-170: Security Enhancement for Cross-Chain Module
+      // BEP-171: Security Enhancement for Cross-Chain Module
       if (!_checkAndLockTransferIn(transInSynPkg)) {
         // directly transfer to the recipient
         (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
@@ -245,7 +245,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
 
-      // BEP-170: Security Enhancement for Cross-Chain Module
+      // BEP-171: Security Enhancement for Cross-Chain Module
       if (!_checkAndLockTransferIn(transInSynPkg)) {
         bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
         if (!success) {
@@ -258,7 +258,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   function withdrawUnlockedToken(address tokenAddress, address recipient) external {
     LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
     require(lockInfo.lockedAmount > 0, "no locked amount");
@@ -276,9 +276,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(_success, "withdraw unlocked token failed");
   }
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   function _checkAndLockTransferIn(TransferInSynPackage memory transInSynPkg) internal returns (bool isLocked) {
-    // check if BEP-170 params init
+    // check if BEP-171 params init
     if (largeTransferLimitMap[address(0x0)] == 0 && lockPeriod == 0) {
       largeTransferLimitMap[address(0x0)] = INIT_BNB_LARGE_TRANSFER_LIMIT;
       lockPeriod = INIT_LOCK_PERIOD;

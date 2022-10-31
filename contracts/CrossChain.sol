@@ -39,7 +39,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) public channelSyncedHeaderMap;
 
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
@@ -61,7 +61,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
 
   // struct
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   struct EmergencyProposal {
     uint128 approveThreshold;
     uint128 expiredAt;
@@ -79,7 +79,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   event enableOrDisableChannel(uint8 indexed channelId, bool isEnable);
   event addChannel(uint8 indexed channelId, address indexed contractAddr);
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   event SubmitEmergencyProposal(bytes32 indexed prosalNameHash, address indexed proposer, uint128 approveThreshold, uint128 expiredAt);
   event EmergencySuspend();
   event Reopen();
@@ -120,7 +120,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     _;
   }
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyCabinet() {
     // TODO
     _;
@@ -401,7 +401,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   }
 
 
-  // BEP-170: Security Enhancement for Cross-Chain Module
+  // BEP-171: Security Enhancement for Cross-Chain Module
   function challenge(
     // to avoid stack too deep error, using `uint64[4] calldata params`
     // instead of  `uint64 height0, uint64 height1, uint64 packageSequence, uint8 channelId`
