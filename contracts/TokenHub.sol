@@ -93,6 +93,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
   uint256 constant public INIT_LOCK_PERIOD = 6 hours;
 
+  uint8 internal reentryLock;
   uint256 public lockPeriod;
   // token address => largeTransferLimit amount
   mapping(address => uint256) public largeTransferLimitMap;
@@ -119,10 +120,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   modifier noReentrant() {
-    require(locked != 2, "No re-entrancy");
-    locked = 2;
+    require(reentryLock != 2, "No re-entrancy");
+    reentryLock = 2;
     _;
-    locked = 1;
+    reentryLock = 1;
   }
 
   constructor() public {}
