@@ -42,10 +42,13 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
 
   // BEP-171: Security Enhancement for Cross-Chain Module
-  bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
+  bytes32 public constant SUSPEND_PROPOSAL = keccak256("SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
-  uint16 public constant INIT_EMERGENCY_SUSPEND_THRESHOLD = 1;
+
+  bytes32 public constant EMPTY_CONTENT_HASH = keccak256("");
+
+  uint16 public constant INIT_SUSPEND_THRESHOLD = 1;
   uint16 public constant INIT_REOPEN_THRESHOLD = 2;
   uint16 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
@@ -54,17 +57,18 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // proposal name hash => latest emergency proposal
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
   // proposal name hash => the threshold of proposal approved
-  mapping(bytes32 => uint16) public approveThresholdMap;
+  mapping(bytes32 => uint16) public quorumMap;
   // IAVL key hash => is challenged
   mapping(bytes32 => bool) public challenged;
 
   // struct
   // BEP-171: Security Enhancement for Cross-Chain Module
   struct EmergencyProposal {
-    uint16 approveThreshold;
+    uint16 quorum;
     uint128 expiredAt;
+    bytes32 contentHash;
 
-    address[] approvedValidators;
+    address[] approvers;
   }
 
   // event
@@ -78,13 +82,19 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   event addChannel(uint8 indexed channelId, address indexed contractAddr);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
-  event SubmitEmergencyProposal(bytes32 indexed prosalNameHash, address indexed proposer, uint128 approveThreshold, uint128 expiredAt);
-  event EmergencySuspend(address indexed excutor);
-  event Reopen(address indexed excutor);
-  event Challenge(
+  event SubmitEmergencyProposal(
+    bytes32 indexed proposalNameHash,
+    address indexed proposer,
+    uint128 quorum,
+    uint128 expiredAt,
+    bytes32 contentHash
+  );
+  event Suspended(address indexed excutor);
+  event Reopened(address indexed excutor);
+  event SuccessChallenge(
     address indexed challenger,
-    uint64 indexed packageSequence,
-    uint8 indexed channelId
+    uint64 packageSequence,
+    uint8 channelId
   );
 
   modifier sequenceInOrder(uint64 _sequence, uint8 _channelID) {
@@ -398,21 +408,21 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
         registeredContractChannelMap[handlerContract][channelId] = isEnable;
         emit enableOrDisableChannel(channelId, isEnable);
       }
-    } else if (Memory.compareStrings(key, "emergencySuspendApproveThreshold")) {
-      require(value.length == 2, "length of value for emergencySuspendApproveThreshold should be 2");
-      uint16 emergencySuspendApproveThreshold = BytesToTypes.bytesToUint16(32, value);
-      require(emergencySuspendApproveThreshold > 0, "zero suspend threshold");
-      approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = emergencySuspendApproveThreshold;
-    } else if (Memory.compareStrings(key, "reopenApproveThreshold")) {
-      require(value.length == 2, "length of value for reopenApproveThreshold should be 2");
-      uint16 reopenApproveThreshold = BytesToTypes.bytesToUint16(32, value);
-      require(reopenApproveThreshold > 0, "zero reopen threshold");
-      approveThresholdMap[REOPEN_PROPOSAL] = reopenApproveThreshold;
-    } else if (Memory.compareStrings(key, "cancelTransferApproveThreshold")) {
-      require(value.length == 2, "length of value for cancelTransferApproveThreshold should be 2");
-      uint16 cancelTransferApproveThreshold = BytesToTypes.bytesToUint16(32, value);
-      require(cancelTransferApproveThreshold > 0, "zero cancel transfer threshold");
-      approveThresholdMap[CANCEL_TRANSFER_PROPOSAL] = cancelTransferApproveThreshold;
+    } else if (Memory.compareStrings(key, "suspendQuorum")) {
+      require(value.length == 2, "length of value for suspendQuorum should be 2");
+      uint16 suspendQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(suspendQuorum > 0, "zero suspend quorum");
+      quorumMap[SUSPEND_PROPOSAL] = suspendQuorum;
+    } else if (Memory.compareStrings(key, "reopenQuorum")) {
+      require(value.length == 2, "length of value for reopenQuorum should be 2");
+      uint16 reopenQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(reopenQuorum > 0, "zero reopen quorum");
+      quorumMap[REOPEN_PROPOSAL] = reopenQuorum;
+    } else if (Memory.compareStrings(key, "cancelTransferQuorum")) {
+      require(value.length == 2, "length of value for cancelTransferQuorum should be 2");
+      uint16 cancelTransferQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(cancelTransferQuorum > 0, "zero cancel transfer quorum");
+      quorumMap[CANCEL_TRANSFER_PROPOSAL] = cancelTransferQuorum;
     } else {
       require(false, "unknown param");
     }
@@ -471,56 +481,58 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
 
     _emergencySuspend();
-    emit Challenge(msg.sender, _packageSequence, _channelId);
+    emit SuccessChallenge(msg.sender, _packageSequence, _channelId);
   }
 
   function emergencySuspend() onlyCabinet whenNotSuspended external {
-    bool isExecutable = _approveProposal(EMERGENCY_SUSPEND_PROPOSAL);
+    bool isExecutable = _approveProposal(SUSPEND_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
       _emergencySuspend();
     }
   }
 
   function reopen() onlyCabinet whenSuspended external {
-    bool isExecutable = _approveProposal(REOPEN_PROPOSAL);
+    bool isExecutable = _approveProposal(REOPEN_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
       isSuspended = false;
-      emit Reopen(msg.sender);
+      emit Reopened(msg.sender);
     }
   }
 
-  function cancelTransfer(address tokenAddr, address _attacker) onlyCabinet external {
-    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL);
+  function cancelTransfer(address _tokenAddr, address _attacker) onlyCabinet external {
+    bytes32 _contentHash = keccak256(abi.encode(_tokenAddr, _attacker));
+    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL, _contentHash);
     if (isExecutable) {
-      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(tokenAddr, _attacker);
+      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(_tokenAddr, _attacker);
     }
   }
 
-  function _approveProposal(bytes32 _proposalNameHash) internal returns (bool isExecutable) {
-    if (approveThresholdMap[_proposalNameHash] == 0) {
-      approveThresholdMap[EMERGENCY_SUSPEND_PROPOSAL] = INIT_EMERGENCY_SUSPEND_THRESHOLD;
-      approveThresholdMap[REOPEN_PROPOSAL] = INIT_REOPEN_THRESHOLD;
-      approveThresholdMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_THRESHOLD;
+  function _approveProposal(bytes32 _proposalNameHash, bytes32 _contentHash) internal returns (bool isExecutable) {
+    if (quorumMap[_proposalNameHash] == 0) {
+      quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_THRESHOLD;
+      quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_THRESHOLD;
+      quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_THRESHOLD;
     }
 
     EmergencyProposal storage p = emergencyProposals[_proposalNameHash];
 
-    if (block.timestamp >= p.expiredAt) {
-      // current proposal expired or not exist, create a new EmergencyProposal
-      p.approveThreshold = approveThresholdMap[_proposalNameHash];
+    if (block.timestamp >= p.expiredAt || p.contentHash != _contentHash) {
+      // current proposal expired / not exist or not same with the new, create a new EmergencyProposal
+      p.quorum = quorumMap[_proposalNameHash];
       p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
-      p.approvedValidators.push(msg.sender);
+      p.contentHash = _contentHash;
+      p.approvers.push(msg.sender);
 
-      emit SubmitEmergencyProposal(_proposalNameHash, msg.sender, p.approveThreshold, p.expiredAt);
+      emit SubmitEmergencyProposal(_proposalNameHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
     } else {
       // current proposal exists
-      for (uint256 i = 0; i < p.approvedValidators.length; ++i) {
-        require(p.approvedValidators[i] != msg.sender, "already approved");
+      for (uint256 i = 0; i < p.approvers.length; ++i) {
+        require(p.approvers[i] != msg.sender, "already approved");
       }
-      p.approvedValidators.push(msg.sender);
+      p.approvers.push(msg.sender);
     }
 
-    if (p.approvedValidators.length >= p.approveThreshold) {
+    if (p.approvers.length >= p.quorum) {
       // 1. remove current proposal
       delete emergencyProposals[_proposalNameHash];
 
@@ -533,6 +545,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function _emergencySuspend() whenNotSuspended internal {
     isSuspended = true;
-    emit EmergencySuspend(msg.sender);
+    emit Suspended(msg.sender);
   }
 }
