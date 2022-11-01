@@ -481,14 +481,14 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       require(MerkleProof.validateMerkleProof(_appHash1, STORE_NAME, _key, _payload1, _proof1), "invalid merkle proof1");
     }
 
-    _emergencySuspend();
+    _suspend();
     emit SuccessChallenge(msg.sender, _packageSequence, _channelId);
   }
 
-  function emergencySuspend() onlyCabinet whenNotSuspended external {
+  function suspend() onlyCabinet whenNotSuspended external {
     bool isExecutable = _approveProposal(SUSPEND_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
-      _emergencySuspend();
+      _suspend();
     }
   }
 
@@ -544,7 +544,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return false;
   }
 
-  function _emergencySuspend() whenNotSuspended internal {
+  function _suspend() whenNotSuspended internal {
     isSuspended = true;
     emit Suspended(msg.sender);
   }
