@@ -351,7 +351,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee)
   onlyInit
   onlyRegisteredContractChannel(channelId)
-  whenNotSuspended
   external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
