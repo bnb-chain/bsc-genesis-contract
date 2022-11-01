@@ -83,7 +83,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   event SubmitEmergencyProposal(bytes32 indexed prosalNameHash, address indexed proposer, uint128 approveThreshold, uint128 expiredAt);
-  event EmergencySuspend();
+  event EmergencySuspend(address indexed excutor);
   event Reopen();
   event Challenge(
     address indexed challenger,
@@ -549,6 +549,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function _emergencySuspend() whenNotSuspended internal {
     isSuspended = true;
-    emit EmergencySuspend();
+    emit EmergencySuspend(msg.sender);
   }
 }
