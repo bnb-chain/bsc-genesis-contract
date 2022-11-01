@@ -282,6 +282,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-171: Security Enhancement for Cross-Chain Module
   function setLargeTransferLimit(address bep20Token, uint256 largeTransferLimit) external onlyTokenOwner(bep20Token) {
     require(largeTransferLimit > 0, "zero limit not allowed");
+    require(contractAddrToBEP2Symbol[bep20Token] != bytes32(0x00), "not bound");
     largeTransferLimitMap[bep20Token] = largeTransferLimit;
   }
 
