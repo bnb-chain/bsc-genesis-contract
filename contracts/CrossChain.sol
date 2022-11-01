@@ -500,11 +500,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function cancelTransfer(address _tokenAddr, address _attacker) onlyCabinet external {
-    bytes32 _contentHash = keccak256(abi.encode(_tokenAddr, _attacker));
+  function cancelTransfer(address tokenAddr, address attacker) onlyCabinet external {
+    bytes32 _contentHash = keccak256(abi.encode(tokenAddr, attacker));
     bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL, _contentHash);
     if (isExecutable) {
-      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(_tokenAddr, _attacker);
+      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(tokenAddr, attacker);
     }
   }
 
