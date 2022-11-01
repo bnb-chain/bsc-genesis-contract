@@ -45,11 +45,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   bytes32 public constant EMERGENCY_SUSPEND_PROPOSAL = keccak256("EMERGENCY_SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
-
   uint16 public constant INIT_EMERGENCY_SUSPEND_THRESHOLD = 1;
   uint16 public constant INIT_REOPEN_THRESHOLD = 2;
   uint16 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
-
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
 
   bool public isSuspended;
@@ -57,10 +55,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
   // proposal name hash => the threshold of proposal approved
   mapping(bytes32 => uint16) public approveThresholdMap;
-
   // IAVL key hash => is challenged
   mapping(bytes32 => bool) public challenged;
-
 
   // struct
   // BEP-171: Security Enhancement for Cross-Chain Module
@@ -422,7 +418,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
     emit paramChange(key, value);
   }
-
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   function challenge(

@@ -94,7 +94,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-171: Security Enhancement for Cross-Chain Module
   uint256 constant public INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
   uint256 constant public INIT_LOCK_PERIOD = 6 hours;
-
   // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
   // token address => largeTransferLimit amount, address(0) means BNB
