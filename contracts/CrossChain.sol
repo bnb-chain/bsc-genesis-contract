@@ -45,12 +45,10 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   bytes32 public constant SUSPEND_PROPOSAL = keccak256("SUSPEND_PROPOSAL");
   bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
   bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
-
   bytes32 public constant EMPTY_CONTENT_HASH = keccak256("");
-
-  uint16 public constant INIT_SUSPEND_THRESHOLD = 1;
-  uint16 public constant INIT_REOPEN_THRESHOLD = 2;
-  uint16 public constant INIT_CANCEL_TRANSFER_THRESHOLD = 2;
+  uint16 public constant INIT_SUSPEND_QUORUM = 1;
+  uint16 public constant INIT_REOPEN_QUORUM = 2;
+  uint16 public constant INIT_CANCEL_TRANSFER_QUORUM = 2;
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
 
   bool public isSuspended;
@@ -509,9 +507,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function _approveProposal(bytes32 _proposalNameHash, bytes32 _contentHash) internal returns (bool isExecutable) {
     if (quorumMap[_proposalNameHash] == 0) {
-      quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_THRESHOLD;
-      quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_THRESHOLD;
-      quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_THRESHOLD;
+      quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_QUORUM;
+      quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_QUORUM;
+      quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_QUORUM;
     }
 
     EmergencyProposal storage p = emergencyProposals[_proposalNameHash];
