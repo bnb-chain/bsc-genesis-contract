@@ -124,24 +124,13 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyCabinet() {
-    address[] memory validators = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).getValidators();
+    uint256 indexPlus = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(msg.sender);
     uint256 numOfCabinets = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).numOfCabinets();
     if (numOfCabinets == 0) {
       numOfCabinets = 21;
     }
 
-    bool isCabinet;
-    for (uint256 i = 0; i < validators.length; ++i) {
-      if (i >= numOfCabinets) {
-        break;
-      }
-      if (validators[i] == msg.sender) {
-        isCabinet = true;
-        break;
-      }
-    }
-
-    require(isCabinet, "not cabinet");
+    require(indexPlus > 0 && indexPlus <= numOfCabinets, "not cabinet");
     _;
   }
 
