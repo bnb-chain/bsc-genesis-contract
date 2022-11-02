@@ -475,7 +475,7 @@ describe('BEP-171 TEST', () => {
         TRANSFER_IN_CHANNELID))
 
     let lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
-    expect(lockInfo.lockedAmount).to.be.eq(transferInBalanceBig)
+    expect(lockInfo.amount).to.be.eq(transferInBalanceBig)
 
 
     let balance = await ethers.provider.getBalance(receiver)
@@ -507,9 +507,7 @@ describe('BEP-171 TEST', () => {
 
     const balanceBefore = await ethers.provider.getBalance(receiver)
 
-    log('before lock',)
     let lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
-    log('1. lockInfo.unlockAt', lockInfo.unlockAt)
     // cross-chain transferIn
     // new locked will reset the unlockAt to currentTime + 6 hours
     await waitTx(crosschain
@@ -523,10 +521,9 @@ describe('BEP-171 TEST', () => {
       ))
 
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
-    log('2. after lock, lockInfo.unlockAt', lockInfo.unlockAt)
 
     const expectedLockedAmount = unit.mul(10000 + 20000)  // 1-locked 10000 BNB,  2-locked 20000 BNB
-    expect(lockInfo.lockedAmount).to.be.eq(expectedLockedAmount)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
     expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
 
     let addedSeconds = 6 * 60 * 60// 6 hours
