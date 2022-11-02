@@ -1,6 +1,6 @@
-import { BigNumber, Contract } from 'ethers';
+import {BigNumber, Contract} from 'ethers';
 // @ts-ignore
-import { ethers } from 'hardhat';
+import {ethers} from 'hardhat';
 import {
   deployContract,
   waitTx,
@@ -10,9 +10,9 @@ import {
   serializeGovPack,
   mineBlocks,
   buildTransferInPackage,
-  toRpcQuantity
+  toRpcQuantity, latest, increaseTime
 } from './helper';
-import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import {SignerWithAddress} from '@nomiclabs/hardhat-ethers/signers';
 import web3 from 'web3';
 import {
   BSCValidatorSet,
@@ -25,7 +25,7 @@ import {
   TendermintLightClient,
   Staking, TokenHub,
 } from '../../typechain-types';
-import { expect } from "chai";
+import {expect} from "chai";
 
 
 const log = console.log;
@@ -194,16 +194,17 @@ describe('BEP-171 TEST', () => {
     staking = instances[11] as Staking;
   });
 
-  beforeEach('beforeEach', async () => {});
+  beforeEach('beforeEach', async () => {
+  });
 
   it('query code size', async () => {
     let code = await ethers.provider.getCode(crosschain.address)
     let codeSize = (code.length - 2) / 2
-    log(`CrossChain Template code size: ${codeSize}, UpperLimit: 24567` )
+    log(`CrossChain Template code size: ${codeSize}, UpperLimit: 24567`)
 
     code = await ethers.provider.getCode(tokenHub.address)
     codeSize = (code.length - 2) / 2
-    log(`TokenHub Template code size: ${codeSize}, UpperLimit: 24567` )
+    log(`TokenHub Template code size: ${codeSize}, UpperLimit: 24567`)
   });
 
   it('update validators', async () => {
@@ -239,7 +240,7 @@ describe('BEP-171 TEST', () => {
   });
 
   it('update gov params using cross-chain', async () => {
-    await waitTx(relayerHub.connect(operator).register({ value: unit.mul(100) }));
+    await waitTx(relayerHub.connect(operator).register({value: unit.mul(100)}));
     await waitTx(
       govHub.updateContractAddr(
         instances[10].address,
@@ -300,19 +301,19 @@ describe('BEP-171 TEST', () => {
 
 
     expect(crosschain.connect(operator).handlePackage(
-        Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
-        proof,
-        merkleHeight,
-        govChannelSeq,
-        GOV_CHANNEL_ID
+      Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+      proof,
+      merkleHeight,
+      govChannelSeq,
+      GOV_CHANNEL_ID
       // @ts-ignore
     )).to.be.revertedWith("suspended")
     expect(crosschain.connect(operator).handlePackage(
-        Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
-        proof,
-        merkleHeight,
-        await crosschain.channelReceiveSequenceMap(STAKE_CHANNEL_ID),
-        STAKE_CHANNEL_ID
+      Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+      proof,
+      merkleHeight,
+      await crosschain.channelReceiveSequenceMap(STAKE_CHANNEL_ID),
+      STAKE_CHANNEL_ID
       // @ts-ignore
     )).to.be.revertedWith("suspended")
   });
@@ -336,44 +337,44 @@ describe('BEP-171 TEST', () => {
     let govValue = '0x0000000000000000000000000000000000000000000000000000000000000007'; // 7;
     let govPackageBytes = serializeGovPack('maxNumOfMaintaining', govValue, validatorSet.address);
     await waitTx(crosschain.connect(operator).handlePackage(
-        Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
-        proof,
-        merkleHeight,
-        govChannelSeq,
-        GOV_CHANNEL_ID
+      Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+      proof,
+      merkleHeight,
+      govChannelSeq,
+      GOV_CHANNEL_ID
     ))
     expect(await validatorSet.maxNumOfMaintaining()).to.be.eq(BigNumber.from(govValue));
   });
 
   it('maintaining cabinet suspends success, all cross-chain channels closed', async () => {
-      await waitTx(validatorSet.connect(signers[5]).enterMaintenance());
-      const maintainingValidators = await validatorSet.getMaintainingValidators()
-      expect(maintainingValidators).to.deep.eq([validators[5]]);
+    await waitTx(validatorSet.connect(signers[5]).enterMaintenance());
+    const maintainingValidators = await validatorSet.getMaintainingValidators()
+    expect(maintainingValidators).to.deep.eq([validators[5]]);
 
-      await waitTx(crosschain.connect(signers[5]).suspend());
-      expect(await crosschain.isSuspended()).to.be.eq(true);
+    await waitTx(crosschain.connect(signers[5]).suspend());
+    expect(await crosschain.isSuspended()).to.be.eq(true);
 
-      let govChannelSeq = await crosschain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
-      let govValue = '0x0000000000000000000000000000000000000000000000000000000000000005'; // 5;
-      let govPackageBytes = serializeGovPack('maxNumOfMaintaining', govValue, validatorSet.address);
+    let govChannelSeq = await crosschain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+    let govValue = '0x0000000000000000000000000000000000000000000000000000000000000005'; // 5;
+    let govPackageBytes = serializeGovPack('maxNumOfMaintaining', govValue, validatorSet.address);
 
-      expect(crosschain.connect(operator).handlePackage(
-          Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
-          proof,
-          merkleHeight,
-          govChannelSeq,
-          GOV_CHANNEL_ID
-          // @ts-ignore
-      )).to.be.revertedWith("suspended")
-      expect(crosschain.connect(operator).handlePackage(
-          Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
-          proof,
-          merkleHeight,
-          await crosschain.channelReceiveSequenceMap(STAKE_CHANNEL_ID),
-          STAKE_CHANNEL_ID
-          // @ts-ignore
-      )).to.be.revertedWith("suspended")
-    });
+    expect(crosschain.connect(operator).handlePackage(
+      Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+      proof,
+      merkleHeight,
+      govChannelSeq,
+      GOV_CHANNEL_ID
+      // @ts-ignore
+    )).to.be.revertedWith("suspended")
+    expect(crosschain.connect(operator).handlePackage(
+      Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+      proof,
+      merkleHeight,
+      await crosschain.channelReceiveSequenceMap(STAKE_CHANNEL_ID),
+      STAKE_CHANNEL_ID
+      // @ts-ignore
+    )).to.be.revertedWith("suspended")
+  });
 
   it('cross-chain transfer fail, suspended', async () => {
     let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
@@ -410,9 +411,8 @@ describe('BEP-171 TEST', () => {
     // set bnb to tokenHub contract
     await ethers.provider.send(
       "hardhat_setBalance",
-      [ tokenHub.address, toRpcQuantity(unit.mul(9999).toHexString()) ],
+      [tokenHub.address, toRpcQuantity(unit.mul(9999).toHexString())],
     );
-
 
     const transferInBalance: number = 123e18
     let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
@@ -437,9 +437,106 @@ describe('BEP-171 TEST', () => {
         transferInChannelSeq,
         TRANSFER_IN_CHANNELID))
 
-
     const balance = await ethers.provider.getBalance(validators[15])
     expect(balance.sub(balanceBefore)).to.be.eq(BigNumber.from(transferInBalance.toString()));
+  });
+
+  it('cross-chain large transfer, withdraw failed since still on locking', async () => {
+    // set bnb to tokenHub contract
+    await ethers.provider.send(
+      "hardhat_setBalance",
+      [tokenHub.address, toRpcQuantity(unit.mul(100_0000).toHexString())],
+    );
+
+    const transferInBalance: number = 10000e18 // 10000 BNB
+    const transferInBalanceBig: BigNumber = BigNumber.from("0x" + transferInBalance.toString(16))
+    const receiver = validators[50]
+
+
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    const transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance,
+      receiver,
+      receiver,
+    );
+
+    const balanceBefore = await ethers.provider.getBalance(receiver)
+
+    // cross-chain transferIn
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID))
+
+    let lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.lockedAmount).to.be.eq(transferInBalanceBig)
+
+
+    let balance = await ethers.provider.getBalance(receiver)
+    let addedBalance = balance.sub(balanceBefore)
+    // large transfer locked on TokenHub for 6 hours
+    expect(addedBalance).to.be.eq(BigNumber.from(0));
+
+    let addedSeconds = 2 * 60 * 60// 2 hours
+    await increaseTime(addedSeconds)
+    expect(
+      tokenHub.connect(operator).withdrawUnlockedToken(BNBTokenAddress, receiver)
+    ).to.be.revertedWith('still on locking period')
+  });
+
+  it('cross-chain large transfer on second time', async () => {
+    log('tokenHub balance', await ethers.provider.getBalance(tokenHub.address))
+
+    const transferInBalance: number = 20000e18 // 20000 BNB
+    const receiver = validators[50]
+
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    const transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance,
+      receiver,
+      receiver,
+    );
+
+    const balanceBefore = await ethers.provider.getBalance(receiver)
+
+    log('before lock',)
+    let lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    log('1. lockInfo.unlockAt', lockInfo.unlockAt)
+    // cross-chain transferIn
+    // new locked will reset the unlockAt to currentTime + 6 hours
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID
+      ))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    log('2. after lock, lockInfo.unlockAt', lockInfo.unlockAt)
+
+    const expectedLockedAmount = unit.mul(10000 + 20000)  // 1-locked 10000 BNB,  2-locked 20000 BNB
+    expect(lockInfo.lockedAmount).to.be.eq(expectedLockedAmount)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+
+    let addedSeconds = 6 * 60 * 60// 6 hours
+    await increaseTime(addedSeconds)
+    // anyone could withdraw the unlocked token to the receiver
+    await waitTx(tokenHub.connect(signers[60]).withdrawUnlockedToken(BNBTokenAddress, receiver))
+
+    let balance = await ethers.provider.getBalance(receiver)
+    let addedBalance = balance.sub(balanceBefore)
+    expect(addedBalance).to.be.eq(expectedLockedAmount)
   });
 
 });

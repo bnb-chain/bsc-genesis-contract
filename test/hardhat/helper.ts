@@ -5,7 +5,6 @@ import { BSCValidatorSet } from '../../typechain-types';
 
 const RLP = require('rlp');
 import web3 from 'web3';
-import {isHexPrefixed} from "hardhat/internal/hardhat-network/provider/utils/isHexPrefixed";
 import {BigNumber} from "ethers";
 
 export async function deployContract(
@@ -116,7 +115,7 @@ function stringToBytes32(symbol: string) {
 
 export function buildTransferInPackage(bep2TokenSymbol: string, bep20Addr: string, amount: number | bigint, recipient: string, refundAddr: string) {
   let timestamp = Math.floor(Date.now() / 1000); // counted by second
-  let initialExpireTimeStr = (timestamp + 100).toString(16); // expire at 5 second later
+  let initialExpireTimeStr = (timestamp + 100000000).toString(16); // expire at 5 second later
   const initialExpireTimeStrLength = initialExpireTimeStr.length;
   let expireTimeStr = initialExpireTimeStr;
   for (let i = 0; i < 16 - initialExpireTimeStrLength; i++) {
@@ -161,3 +160,28 @@ export function toRpcQuantity(x: BigNumber | number | string): string {
 
   return hex.startsWith("0x") ? hex.replace(/0x0+/, "0x") : `0x${hex}`;
 }
+
+export async function latest(): Promise<number> {
+  const provider = await ethers.provider;
+
+  const latestBlock = (await provider.send(
+    "eth_getBlockByNumber",
+    ["latest", false],
+  )) as { timestamp: string };
+
+  return parseInt(latestBlock.timestamp, 16);
+}
+
+
+export async function increaseTime(amountInSeconds: number): Promise<number> {
+  const targetTimestamp = await latest() + amountInSeconds;
+  await ethers.provider.send(
+    "evm_setNextBlockTimestamp",
+    [toRpcQuantity(targetTimestamp)],
+  );
+
+  await mineBlocks(1);
+
+  return latest();
+}
+
