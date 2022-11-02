@@ -61,7 +61,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   struct LockInfo {
-    uint256 lockedAmount;
+    uint256 amount;
     uint256 unlockAt;
   }
 
@@ -289,11 +289,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-171: Security Enhancement for Cross-Chain Module
   function withdrawUnlockedToken(address tokenAddress, address recipient) external noReentrant {
     LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
-    require(lockInfo.lockedAmount > 0, "no locked amount");
+    require(lockInfo.amount > 0, "no locked amount");
     require(block.timestamp >= lockInfo.unlockAt, "still on locking period");
 
-    uint256 _amount = lockInfo.lockedAmount;
-    lockInfo.lockedAmount = 0;
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
 
     bool _success;
     if (tokenAddress == address(0x0)) {
@@ -309,10 +309,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-171: Security Enhancement for Cross-Chain Module
   function cancelTransferIn(address tokenAddress, address attacker) override external onlyCrossChainContract {
     LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
-    require(lockInfo.lockedAmount > 0, "no locked amount");
+    require(lockInfo.amount > 0, "no locked amount");
 
-    uint256 _amount = lockInfo.lockedAmount;
-    lockInfo.lockedAmount = 0;
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
 
     emit CancelTransfer(tokenAddress, attacker, _amount);
   }
@@ -334,7 +334,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     // it is over the large transfer limit
     // add time lock to recipient
     LockInfo storage lockInfo = lockInfoMap[transInSynPkg.contractAddr][transInSynPkg.recipient];
-    lockInfo.lockedAmount = lockInfo.lockedAmount.add(transInSynPkg.amount);
+    lockInfo.amount = lockInfo.amount.add(transInSynPkg.amount);
     lockInfo.unlockAt = block.timestamp + lockPeriod;
 
     emit LargeTransferLocked(
