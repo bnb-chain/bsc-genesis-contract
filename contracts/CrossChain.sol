@@ -56,9 +56,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
 
   bool public isSuspended;
-  // proposal name hash => latest emergency proposal
+  // proposal type hash => latest emergency proposal
   mapping(bytes32 => EmergencyProposal) public emergencyProposals;
-  // proposal name hash => the threshold of proposal approved
+  // proposal type hash => the threshold of proposal approved
   mapping(bytes32 => uint16) public quorumMap;
   // IAVL key hash => is challenged
   mapping(bytes32 => bool) public challenged;
@@ -85,7 +85,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   event ProposalSubmitted(
-    bytes32 indexed proposalNameHash,
+    bytes32 indexed proposalTypeHash,
     address indexed proposer,
     uint128 quorum,
     uint128 expiredAt,
@@ -508,23 +508,23 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function _approveProposal(bytes32 _proposalNameHash, bytes32 _contentHash) internal returns (bool isExecutable) {
-    if (quorumMap[_proposalNameHash] == 0) {
+  function _approveProposal(bytes32 proposalTypeHash, bytes32 _contentHash) internal returns (bool isExecutable) {
+    if (quorumMap[proposalTypeHash] == 0) {
       quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_QUORUM;
       quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_QUORUM;
       quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_QUORUM;
     }
 
-    EmergencyProposal storage p = emergencyProposals[_proposalNameHash];
+    EmergencyProposal storage p = emergencyProposals[proposalTypeHash];
 
     if (block.timestamp >= p.expiredAt || p.contentHash != _contentHash) {
       // current proposal expired / not exist or not same with the new, create a new EmergencyProposal
-      p.quorum = quorumMap[_proposalNameHash];
+      p.quorum = quorumMap[proposalTypeHash];
       p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
       p.contentHash = _contentHash;
       p.approvers.push(msg.sender);
 
-      emit ProposalSubmitted(_proposalNameHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
+      emit ProposalSubmitted(proposalTypeHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
     } else {
       // current proposal exists
       for (uint256 i = 0; i < p.approvers.length; ++i) {
@@ -535,7 +535,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     if (p.approvers.length >= p.quorum) {
       // 1. remove current proposal
-      delete emergencyProposals[_proposalNameHash];
+      delete emergencyProposals[proposalTypeHash];
 
       // 2. exec this proposal
       return true;
