@@ -9,6 +9,8 @@ import {
   buildSyncPackagePrefix,
   serializeGovPack,
   mineBlocks,
+  buildTransferInPackage,
+  toRpcQuantity
 } from './helper';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import web3 from 'web3';
@@ -25,11 +27,14 @@ import {
 } from '../../typechain-types';
 import { expect } from "chai";
 
+
 const log = console.log;
+const TRANSFER_IN_CHANNELID = 0x02;
 const STAKE_CHANNEL_ID = 0x08;
 const GOV_CHANNEL_ID = 0x09;
 const proof = Buffer.from(web3.utils.hexToBytes('0x00'));
 const merkleHeight = 100;
+const BNBTokenAddress = ethers.constants.AddressZero
 
 const deployContractAndInit = async (
   deployer: SignerWithAddress,
@@ -194,11 +199,11 @@ describe('BEP-171 TEST', () => {
   it('query code size', async () => {
     let code = await ethers.provider.getCode(crosschain.address)
     let codeSize = (code.length - 2) / 2
-    log(`CrossChain Mock Template code size: ${codeSize}, UpperLimit: 24567` )
+    log(`CrossChain Template code size: ${codeSize}, UpperLimit: 24567` )
 
     code = await ethers.provider.getCode(tokenHub.address)
     codeSize = (code.length - 2) / 2
-    log(`TokenHub Mock Template code size: ${codeSize}, UpperLimit: 24567` )
+    log(`TokenHub Template code size: ${codeSize}, UpperLimit: 24567` )
   });
 
   it('update validators', async () => {
@@ -233,7 +238,7 @@ describe('BEP-171 TEST', () => {
 
   });
 
-  it('common case 1-1 update params', async () => {
+  it('update gov params using cross-chain', async () => {
     await waitTx(relayerHub.connect(operator).register({ value: unit.mul(100) }));
     await waitTx(
       govHub.updateContractAddr(
@@ -339,4 +344,102 @@ describe('BEP-171 TEST', () => {
     ))
     expect(await validatorSet.maxNumOfMaintaining()).to.be.eq(BigNumber.from(govValue));
   });
+
+  it('maintaining cabinet suspends success, all cross-chain channels closed', async () => {
+      await waitTx(validatorSet.connect(signers[5]).enterMaintenance());
+      const maintainingValidators = await validatorSet.getMaintainingValidators()
+      expect(maintainingValidators).to.deep.eq([validators[5]]);
+
+      await waitTx(crosschain.connect(signers[5]).suspend());
+      expect(await crosschain.isSuspended()).to.be.eq(true);
+
+      let govChannelSeq = await crosschain.channelReceiveSequenceMap(GOV_CHANNEL_ID);
+      let govValue = '0x0000000000000000000000000000000000000000000000000000000000000005'; // 5;
+      let govPackageBytes = serializeGovPack('maxNumOfMaintaining', govValue, validatorSet.address);
+
+      expect(crosschain.connect(operator).handlePackage(
+          Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+          proof,
+          merkleHeight,
+          govChannelSeq,
+          GOV_CHANNEL_ID
+          // @ts-ignore
+      )).to.be.revertedWith("suspended")
+      expect(crosschain.connect(operator).handlePackage(
+          Buffer.concat([buildSyncPackagePrefix(2e16), govPackageBytes]),
+          proof,
+          merkleHeight,
+          await crosschain.channelReceiveSequenceMap(STAKE_CHANNEL_ID),
+          STAKE_CHANNEL_ID
+          // @ts-ignore
+      )).to.be.revertedWith("suspended")
+    });
+
+  it('cross-chain transfer fail, suspended', async () => {
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+
+    const transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      11e18, // 11 BNB
+      validators[15],
+      validators[15]
+    );
+
+    expect(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID
+      )).to.be.revertedWith('suspended');
+
+  });
+
+  it('reopen success, cross-chain works', async () => {
+    await waitTx(crosschain.connect(signers[5]).reopen());
+    expect(await crosschain.isSuspended()).to.be.eq(true);
+
+    await waitTx(crosschain.connect(signers[21]).reopen());
+    expect(await crosschain.isSuspended()).to.be.eq(false);
+  });
+
+  it('cross-chain transfer success', async () => {
+    // set bnb to tokenHub contract
+    await ethers.provider.send(
+      "hardhat_setBalance",
+      [ tokenHub.address, toRpcQuantity(unit.mul(9999).toHexString()) ],
+    );
+
+
+    const transferInBalance: number = 123e18
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    const transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance, // 123 BNB
+      validators[15],
+      validators[15]
+    );
+
+    const balanceBefore = await ethers.provider.getBalance(validators[15])
+
+    log(await ethers.provider.getBalance(tokenHub.address))
+
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID))
+
+
+    const balance = await ethers.provider.getBalance(validators[15])
+    expect(balance.sub(balanceBefore)).to.be.eq(BigNumber.from(transferInBalance.toString()));
+  });
+
 });

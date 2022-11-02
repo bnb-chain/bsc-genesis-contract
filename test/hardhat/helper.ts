@@ -5,6 +5,8 @@ import { BSCValidatorSet } from '../../typechain-types';
 
 const RLP = require('rlp');
 import web3 from 'web3';
+import {isHexPrefixed} from "hardhat/internal/hardhat-network/provider/utils/isHexPrefixed";
+import {BigNumber} from "ethers";
 
 export async function deployContract(
   signer: Signer,
@@ -95,4 +97,67 @@ export async function mineBlocks(addedBlocksCount: number) {
   for (let i = 0; i < addedBlocksCount; i++) {
     await ethers.provider.send('evm_mine', []);
   }
+}
+
+function stringToBytes32(symbol: string) {
+  let initialSymbolHexStr = '';
+  for (let i=0; i<symbol.length; i++) {
+    initialSymbolHexStr += symbol.charCodeAt(i).toString(16);
+  }
+
+  const initialSymbolHexStrLength = initialSymbolHexStr.length;
+
+  let bep2Bytes32Symbol = initialSymbolHexStr;
+  for (let i = 0; i < 64 - initialSymbolHexStrLength; i++) {
+    bep2Bytes32Symbol = bep2Bytes32Symbol + "0";
+  }
+  return '0x'+bep2Bytes32Symbol;
+}
+
+export function buildTransferInPackage(bep2TokenSymbol: string, bep20Addr: string, amount: number | bigint, recipient: string, refundAddr: string) {
+  let timestamp = Math.floor(Date.now() / 1000); // counted by second
+  let initialExpireTimeStr = (timestamp + 100).toString(16); // expire at 5 second later
+  const initialExpireTimeStrLength = initialExpireTimeStr.length;
+  let expireTimeStr = initialExpireTimeStr;
+  for (let i = 0; i < 16 - initialExpireTimeStrLength; i++) {
+    expireTimeStr = '0' + expireTimeStr;
+  }
+  expireTimeStr = "0x" + expireTimeStr;
+
+  const packageBytesPrefix = buildSyncPackagePrefix(1e16);
+
+  const packageBytes = RLP.encode([
+    stringToBytes32(bep2TokenSymbol),
+    bep20Addr,
+    amount,
+    recipient,
+    refundAddr,
+    expireTimeStr]);
+
+  return Buffer.concat([packageBytesPrefix, packageBytes]);
+}
+
+export function toRpcQuantity(x: BigNumber | number | string): string {
+  let hex: string;
+  if (typeof x === "number" || typeof x === "bigint") {
+    // TODO: check that number is safe
+    hex = `0x${x.toString(16)}`;
+  } else if (typeof x === "string") {
+    if (!x.startsWith("0x")) {
+      throw "Only 0x-prefixed hex-encoded strings are accepted";
+    }
+    hex = x;
+  } else if ("toHexString" in x) {
+    hex = x.toHexString();
+  } else if ("toString" in x) {
+    // @ts-ignore
+    hex = x.toString(16);
+  } else {
+    throw `${x as any} cannot be converted to an RPC quantity`;
+  }
+
+
+  if (hex === "0x0") return hex;
+
+  return hex.startsWith("0x") ? hex.replace(/0x0+/, "0x") : `0x${hex}`;
 }
