@@ -91,8 +91,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     uint128 expiredAt,
     bytes32 contentHash
   );
-  event Suspended(address indexed excutor);
-  event Reopened(address indexed excutor);
+  event Suspended(address indexed executor);
+  event Reopened(address indexed executor);
   event SuccessChallenge(
     address indexed challenger,
     uint64 packageSequence,

@@ -2,9 +2,11 @@ pragma solidity 0.6.4;
 
 import "./interface/IApplication.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/ITokenHub.sol";
 import "./interface/ILightClient.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/IRelayerHub.sol";
+import "./interface/IBSCValidatorSetV2.sol";
 import "./lib/Memory.sol";
 import "./lib/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
@@ -39,6 +41,39 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   // to prevent the utilization of ancient block header
   mapping(uint8 => uint64) public channelSyncedHeaderMap;
 
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  // 0xebbda044f67428d7e9b472f9124983082bcda4f84f5148ca0a9ccbe06350f196
+  bytes32 public constant SUSPEND_PROPOSAL = keccak256("SUSPEND_PROPOSAL");
+  // 0xcf82004e82990eca84a75e16ba08aa620238e076e0bc7fc4c641df44bbf5b55a
+  bytes32 public constant REOPEN_PROPOSAL = keccak256("REOPEN_PROPOSAL");
+  // 0x605b57daa79220f76a5cdc8f5ee40e59093f21a4e1cec30b9b99c555e94c75b9
+  bytes32 public constant CANCEL_TRANSFER_PROPOSAL = keccak256("CANCEL_TRANSFER_PROPOSAL");
+  // 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470
+  bytes32 public constant EMPTY_CONTENT_HASH = keccak256("");
+  uint16 public constant INIT_SUSPEND_QUORUM = 1;
+  uint16 public constant INIT_REOPEN_QUORUM = 2;
+  uint16 public constant INIT_CANCEL_TRANSFER_QUORUM = 2;
+  uint256 public constant EMERGENCY_PROPOSAL_EXPIRE_PERIOD = 1 hours;
+
+  bool public isSuspended;
+  // proposal name hash => latest emergency proposal
+  mapping(bytes32 => EmergencyProposal) public emergencyProposals;
+  // proposal name hash => the threshold of proposal approved
+  mapping(bytes32 => uint16) public quorumMap;
+  // IAVL key hash => is challenged
+  mapping(bytes32 => bool) public challenged;
+
+  // struct
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  struct EmergencyProposal {
+    uint16 quorum;
+    uint128 expiredAt;
+    bytes32 contentHash;
+
+    address[] approvers;
+  }
+
   // event
   event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
   event receivedPackage(uint8 packageType, uint64 indexed packageSequence, uint8 indexed channelId);
@@ -48,6 +83,22 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   event paramChange(string key, bytes value);
   event enableOrDisableChannel(uint8 indexed channelId, bool isEnable);
   event addChannel(uint8 indexed channelId, address indexed contractAddr);
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  event ProposalSubmitted(
+    bytes32 indexed proposalNameHash,
+    address indexed proposer,
+    uint128 quorum,
+    uint128 expiredAt,
+    bytes32 contentHash
+  );
+  event Suspended(address indexed executor);
+  event Reopened(address indexed executor);
+  event SuccessChallenge(
+    address indexed challenger,
+    uint64 packageSequence,
+    uint8 channelId
+  );
 
   modifier sequenceInOrder(uint64 _sequence, uint8 _channelID) {
     uint64 expectedSequence = channelReceiveSequenceMap[_channelID];
@@ -77,6 +128,28 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     if (height != channelSyncedHeaderMap[channelId]) {
       channelSyncedHeaderMap[channelId] = height;
     }
+    _;
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  modifier onlyCabinet() {
+    uint256 indexPlus = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(msg.sender);
+    uint256 numOfCabinets = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).numOfCabinets();
+    if (numOfCabinets == 0) {
+      numOfCabinets = 21;
+    }
+
+    require(indexPlus > 0 && indexPlus <= numOfCabinets, "not cabinet");
+    _;
+  }
+
+  modifier whenNotSuspended() {
+    require(!isSuspended, "suspended");
+    _;
+  }
+
+  modifier whenSuspended() {
+    require(isSuspended, "not suspended");
     _;
   }
 
@@ -201,8 +274,16 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return (true, packageType, relayFee, msgBytes);
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer onlyWhitelabelRelayer
-      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) headerInOrder(height, channelId) external {
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId)
+  onlyInit
+  onlyRelayer
+  onlyWhitelabelRelayer
+  sequenceInOrder(packageSequence, channelId)
+  blockSynced(height)
+  channelSupported(channelId)
+  headerInOrder(height, channelId)
+  whenNotSuspended
+  external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
@@ -253,7 +334,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal {
+  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended {
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
@@ -268,14 +349,20 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit crossChainPackage(bscChainID, uint64(oracleSequence), packageSequence, channelId, payload);
   }
 
-  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee) onlyInit onlyRegisteredContractChannel(channelId) external override {
+  function sendSynPackage(uint8 channelId, bytes calldata msgBytes, uint256 relayFee)
+  onlyInit
+  onlyRegisteredContractChannel(channelId)
+  external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
     sendSequence++;
     channelSendSequenceMap[channelId] = sendSequence;
   }
 
-  function updateParam(string calldata key, bytes calldata value) onlyGov external override {
+  function updateParam(string calldata key, bytes calldata value)
+  onlyGov
+  whenNotSuspended
+  external override {
     if (Memory.compareStrings(key, "batchSizeForOracle")) {
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
       require(newBatchSizeForOracle <= 10000 && newBatchSizeForOracle >= 10, "the newBatchSizeForOracle should be in [10, 10000]");
@@ -323,9 +410,143 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
         registeredContractChannelMap[handlerContract][channelId] = isEnable;
         emit enableOrDisableChannel(channelId, isEnable);
       }
+    } else if (Memory.compareStrings(key, "suspendQuorum")) {
+      require(value.length == 2, "length of value for suspendQuorum should be 2");
+      uint16 suspendQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(suspendQuorum > 0, "zero suspend quorum");
+      quorumMap[SUSPEND_PROPOSAL] = suspendQuorum;
+    } else if (Memory.compareStrings(key, "reopenQuorum")) {
+      require(value.length == 2, "length of value for reopenQuorum should be 2");
+      uint16 reopenQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(reopenQuorum > 0, "zero reopen quorum");
+      quorumMap[REOPEN_PROPOSAL] = reopenQuorum;
+    } else if (Memory.compareStrings(key, "cancelTransferQuorum")) {
+      require(value.length == 2, "length of value for cancelTransferQuorum should be 2");
+      uint16 cancelTransferQuorum = BytesToTypes.bytesToUint16(32, value);
+      require(cancelTransferQuorum > 0, "zero cancel transfer quorum");
+      quorumMap[CANCEL_TRANSFER_PROPOSAL] = cancelTransferQuorum;
     } else {
       require(false, "unknown param");
     }
     emit paramChange(key, value);
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function challenge(
+    // to avoid stack too deep error, using `uint64[4] calldata params`
+    // instead of  `uint64 height0, uint64 height1, uint64 packageSequence, uint8 channelId`
+    uint64[4] calldata params, // 0-height0, 1-height1, 2-packageSequence, 3-channelId,
+    bytes calldata payload0,
+    bytes calldata payload1,
+    bytes calldata proof0,
+    bytes calldata proof1
+  )
+  onlyInit
+  blockSynced(params[0])
+  blockSynced(params[1])
+  channelSupported(uint8(params[3]))
+  whenNotSuspended
+  external {
+    // the same key with different values (payloads)
+    require(keccak256(payload0) != keccak256(payload1), "same payload");
+
+    bytes memory _key;
+    uint64 _packageSequence;
+    uint8 _channelId;
+    {
+      _packageSequence = params[2];
+      _channelId = uint8(params[3]);
+      _key = generateKey(_packageSequence, _channelId);
+      bytes32 _keyHash = keccak256(_key);
+      require(!challenged[_keyHash], "already challenged");
+
+      // if succeeding in challenge
+      challenged[_keyHash] = true;
+    }
+
+    // verify payload0 + proof0
+    {
+      uint64 _height0 = params[0];
+      bytes memory _payload0 = payload0;
+      bytes memory _proof0 = proof0;
+      bytes32 _appHash0 = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(_height0);
+      require(MerkleProof.validateMerkleProof(_appHash0, STORE_NAME, _key, _payload0, _proof0), "invalid merkle proof0");
+    }
+
+    // verify payload1 + proof1
+    {
+      uint64 _height1 = params[1];
+      bytes memory _payload1 = payload1;
+      bytes memory _proof1 = proof1;
+      bytes32 _appHash1 = ILightClient(LIGHT_CLIENT_ADDR).getAppHash(_height1);
+      require(MerkleProof.validateMerkleProof(_appHash1, STORE_NAME, _key, _payload1, _proof1), "invalid merkle proof1");
+    }
+
+    _suspend();
+    emit SuccessChallenge(msg.sender, _packageSequence, _channelId);
+  }
+
+  function suspend() onlyCabinet whenNotSuspended external {
+    bool isExecutable = _approveProposal(SUSPEND_PROPOSAL, EMPTY_CONTENT_HASH);
+    if (isExecutable) {
+      _suspend();
+    }
+  }
+
+  function reopen() onlyCabinet whenSuspended external {
+    bool isExecutable = _approveProposal(REOPEN_PROPOSAL, EMPTY_CONTENT_HASH);
+    if (isExecutable) {
+      isSuspended = false;
+      emit Reopened(msg.sender);
+    }
+  }
+
+  function cancelTransfer(address tokenAddr, address attacker) onlyCabinet external {
+    bytes32 _contentHash = keccak256(abi.encode(tokenAddr, attacker));
+    bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL, _contentHash);
+    if (isExecutable) {
+      ITokenHub(TOKEN_HUB_ADDR).cancelTransferIn(tokenAddr, attacker);
+    }
+  }
+
+  function _approveProposal(bytes32 _proposalNameHash, bytes32 _contentHash) internal returns (bool isExecutable) {
+    if (quorumMap[_proposalNameHash] == 0) {
+      quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_QUORUM;
+      quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_QUORUM;
+      quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_QUORUM;
+    }
+
+    EmergencyProposal storage p = emergencyProposals[_proposalNameHash];
+
+    if (block.timestamp >= p.expiredAt || p.contentHash != _contentHash) {
+      // current proposal expired / not exist or not same with the new, create a new EmergencyProposal
+      p.quorum = quorumMap[_proposalNameHash];
+      p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
+      p.contentHash = _contentHash;
+      p.approvers.push(msg.sender);
+
+      emit ProposalSubmitted(_proposalNameHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
+    } else {
+      // current proposal exists
+      for (uint256 i = 0; i < p.approvers.length; ++i) {
+        require(p.approvers[i] != msg.sender, "already approved");
+      }
+      p.approvers.push(msg.sender);
+    }
+
+    if (p.approvers.length >= p.quorum) {
+      // 1. remove current proposal
+      delete emergencyProposals[_proposalNameHash];
+
+      // 2. exec this proposal
+      return true;
+    }
+
+    return false;
+  }
+
+  function _suspend() whenNotSuspended internal {
+    isSuspended = true;
+    emit Suspended(msg.sender);
   }
 }
