@@ -413,17 +413,17 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     } else if (Memory.compareStrings(key, "suspendQuorum")) {
       require(value.length == 2, "length of value for suspendQuorum should be 2");
       uint16 suspendQuorum = BytesToTypes.bytesToUint16(32, value);
-      require(suspendQuorum > 0, "zero suspend quorum");
+      require(suspendQuorum > 0 && suspendQuorum < 100, "invalid suspend quorum");
       quorumMap[SUSPEND_PROPOSAL] = suspendQuorum;
     } else if (Memory.compareStrings(key, "reopenQuorum")) {
       require(value.length == 2, "length of value for reopenQuorum should be 2");
       uint16 reopenQuorum = BytesToTypes.bytesToUint16(32, value);
-      require(reopenQuorum > 0, "zero reopen quorum");
+      require(reopenQuorum > 0 && reopenQuorum < 100, "invalid reopen quorum");
       quorumMap[REOPEN_PROPOSAL] = reopenQuorum;
     } else if (Memory.compareStrings(key, "cancelTransferQuorum")) {
       require(value.length == 2, "length of value for cancelTransferQuorum should be 2");
       uint16 cancelTransferQuorum = BytesToTypes.bytesToUint16(32, value);
-      require(cancelTransferQuorum > 0, "zero cancel transfer quorum");
+      require(cancelTransferQuorum > 0 && cancelTransferQuorum < 100, "invalid cancel transfer quorum");
       quorumMap[CANCEL_TRANSFER_PROPOSAL] = cancelTransferQuorum;
     } else {
       require(false, "unknown param");
