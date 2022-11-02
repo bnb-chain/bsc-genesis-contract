@@ -517,6 +517,8 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     EmergencyProposal storage p = emergencyProposals[proposalTypeHash];
 
+    // It is ok if there is an evil validator always cancel the previous vote,
+    // the credible validator could use private transaction service to send a batch tx including 2 approve transactions
     if (block.timestamp >= p.expiredAt || p.contentHash != _contentHash) {
       // current proposal expired / not exist or not same with the new, create a new EmergencyProposal
       p.quorum = quorumMap[proposalTypeHash];
