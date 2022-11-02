@@ -426,8 +426,6 @@ describe('BEP-171 TEST', () => {
 
     const balanceBefore = await ethers.provider.getBalance(validators[15])
 
-    log(await ethers.provider.getBalance(tokenHub.address))
-
     await waitTx(crosschain
       .connect(operator)
       .handlePackage(
@@ -491,8 +489,6 @@ describe('BEP-171 TEST', () => {
   });
 
   it('cross-chain large transfer on second time', async () => {
-    log('tokenHub balance', await ethers.provider.getBalance(tokenHub.address))
-
     const transferInBalance: number = 20000e18 // 20000 BNB
     const receiver = validators[50]
 
