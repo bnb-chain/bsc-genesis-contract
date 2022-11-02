@@ -42,7 +42,7 @@ const deployContractAndInit = async (
   return instance;
 };
 
-describe('BSCValidatorSet', () => {
+describe('BEP-127', () => {
   const unit = ethers.constants.WeiPerEther;
   let instances: any[];
 
