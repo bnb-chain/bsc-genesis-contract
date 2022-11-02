@@ -38,7 +38,8 @@ export const setSlashIndicator = async (
       instances[7].address,
       instances[9].address,
       instances[6].address,
-      instances[2].address
+      instances[2].address,
+      instances[11].address,
     )
   );
 };

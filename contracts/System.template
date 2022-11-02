@@ -118,7 +118,7 @@ contract System {
 
   {% if network == 'local' %}
   modifier onlyWhitelabelRelayer() {
-      require(msg.sender == 0xA904540818AC9c47f2321F97F1069B9d8746c6DB || msg.sender == 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344, "the msg sender is not a whitelabel relayer");
+      require(msg.sender == 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791 || msg.sender == 0xA904540818AC9c47f2321F97F1069B9d8746c6DB || msg.sender == 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344, "the msg sender is not a whitelabel relayer");
       _;
   }
   {% elif network == 'QA' %}

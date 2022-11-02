@@ -21,6 +21,7 @@ import {
   RelayerIncentivize,
   SystemReward,
   TendermintLightClient,
+  Staking,
 } from '../../typechain-types';
 
 const log = console.log;
@@ -53,6 +54,7 @@ describe('BSCValidatorSet', () => {
   let crosschain: CrossChain;
   let relayerHub: RelayerHub;
   let govHub: GovHub;
+  let staking: Staking;
 
   let operator: SignerWithAddress;
   let validators: string[];
@@ -124,6 +126,11 @@ describe('BSCValidatorSet', () => {
         needInit: true,
         needUpdate: true,
       },
+      {
+        name: 'Staking', // 11
+        needInit: false,
+        needUpdate: true,
+      },
     ];
     instances = [];
     for (let i = 0; i < contractPaths.length; i++) {
@@ -155,7 +162,8 @@ describe('BSCValidatorSet', () => {
           instances[7].address,
           instances[9].address,
           instances[6].address,
-          crosschainAddress
+          crosschainAddress,
+          instances[11].address,
         )
       );
     }
@@ -176,6 +184,8 @@ describe('BSCValidatorSet', () => {
     await waitTx(crosschain.init());
 
     govHub = instances[9] as GovHub;
+
+    staking = instances[11] as Staking;
   });
 
   beforeEach('beforeEach', async () => {});
@@ -231,7 +241,8 @@ describe('BSCValidatorSet', () => {
         instances[7].address,
         instances[9].address,
         instances[6].address,
-        instances[2].address
+        instances[2].address,
+        instances[11].address,
       )
     );
 
@@ -589,7 +600,8 @@ describe('BSCValidatorSet', () => {
         instances[7].address,
         instances[9].address,
         instances[6].address,
-        operator.address
+        operator.address,
+        instances[11].address,
       )
     );
 
@@ -658,7 +670,8 @@ describe('BSCValidatorSet', () => {
                 instances[7].address,
                 instances[9].address,
                 instances[6].address,
-                instances[2].address
+                instances[2].address,
+                instances[11].address,
             )
         );
 
@@ -762,7 +775,8 @@ describe('BSCValidatorSet', () => {
                 instances[7].address,
                 instances[9].address,
                 instances[6].address,
-                operator.address
+                operator.address,
+                instances[11].address,
             )
         );
 
