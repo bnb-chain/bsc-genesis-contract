@@ -20,15 +20,7 @@ Ganache-cli: v6.10.1
 Generate contracts for testing:
 ```shell script
 # the first account of ganache
-node generate-system.js --mock true --network local
-node generate-systemReward.js --mock true
-node generate-validatorset.js --mock true
-node generate-slash.js --mock true
-node generate-crosschain.js --mock true
-node generate-tokenhub.js --mock true
-node generate-relayerhub.js --mock true
-node generate-tendermintlightclient.js --mock true
-node generate-relayerincentivizecontract.js --roundSize 30 --maximumWeight 3 --mock true
+npm run mock
 ```
 
 Start ganache:
@@ -45,6 +37,7 @@ truffle test
 
 Run hardhat test:
 ```shell script
+npm run mock
 npx hardhat compile
 npx hardhat test
 ```

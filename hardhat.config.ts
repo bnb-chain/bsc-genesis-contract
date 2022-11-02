@@ -55,7 +55,7 @@ export default {
     },
     paths: {
         sources: "./contracts",
-        tests: "./test/test-maintenance",
+        tests: "./test/hardhat",
         cache: "./cache",
         artifacts: "./artifacts"
     },
