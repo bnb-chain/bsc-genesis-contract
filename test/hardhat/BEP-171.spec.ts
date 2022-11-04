@@ -653,7 +653,7 @@ describe('BEP-171 TEST', () => {
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
 
-    // cancel transfer by 2 cabinets
+    // cancel transfer by 1 cabinet with different contentHash
     await waitTx(crosschain.connect(signers[2]).cancelTransfer(BNBTokenAddress, receiver2))
 
     // cancel transfer by 2 cabinets
