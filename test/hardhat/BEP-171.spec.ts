@@ -532,4 +532,145 @@ describe('BEP-171 TEST', () => {
     expect(addedBalance).to.be.eq(expectedLockedAmount)
   });
 
+  it('cancel transfer', async () => {
+    const transferInBalance: number = 10000e18 // 20000 BNB
+    const receiver = validators[52]
+    let lockInfo
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    const transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance,
+      receiver,
+      receiver,
+    );
+
+    // cross-chain transferIn
+    // new locked will reset the unlockAt to currentTime + 6 hours
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID
+      ))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+
+    const expectedLockedAmount = unit.mul(10000)  // 1-locked 10000 BNB,  2-locked 20000 BNB
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+
+    let addedSeconds = 3 * 60 * 60// 6 hours
+    await increaseTime(addedSeconds)
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+
+    // cancel transfer by 1 cabinet
+    await waitTx(crosschain.connect(signers[1]).cancelTransfer(BNBTokenAddress, receiver))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+
+    // cancel transfer by 2 cabinets
+    await waitTx(crosschain.connect(signers[2]).cancelTransfer(BNBTokenAddress, receiver))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(BigNumber.from(0))
+
+    // anyone could withdraw the unlocked token to the receiver
+    expect(tokenHub.connect(signers[60]).withdrawUnlockedToken(BNBTokenAddress, receiver)).to.be.revertedWith('no locked amount')
+  });
+
+  it('cancel transfer failed, since different contentHash', async () => {
+    const transferInBalance: number = 10000e18 // 20000 BNB
+    const receiver = validators[53]
+    const receiver2 = validators[54]
+    let lockInfo
+    let expectedLockedAmount
+    let transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    let transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance,
+      receiver,
+      receiver,
+    );
+
+    // cross-chain transferIn
+    // new locked will reset the unlockAt to currentTime + 6 hours
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID
+      ))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expectedLockedAmount = unit.mul(10000)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+
+
+    transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    transferInPackage = buildTransferInPackage(
+      "BNB",
+      BNBTokenAddress,
+      transferInBalance,
+      receiver2,
+      receiver2,
+    );
+
+    // cross-chain transferIn
+    // new locked will reset the unlockAt to currentTime + 6 hours
+    await waitTx(crosschain
+      .connect(operator)
+      .handlePackage(
+        transferInPackage,
+        proof,
+        merkleHeight,
+        transferInChannelSeq,
+        TRANSFER_IN_CHANNELID
+      ))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver2)
+    expectedLockedAmount = unit.mul(10000)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+
+    // cancel transfer by 1 cabinet
+    await waitTx(crosschain.connect(signers[1]).cancelTransfer(BNBTokenAddress, receiver))
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+
+    // cancel transfer by 2 cabinets
+    await waitTx(crosschain.connect(signers[2]).cancelTransfer(BNBTokenAddress, receiver2))
+
+    // cancel transfer by 2 cabinets
+    await waitTx(crosschain.connect(signers[3]).cancelTransfer(BNBTokenAddress, receiver2))
+
+    let addedSeconds = 6 * 60 * 60// 6 hours
+    await increaseTime(addedSeconds)
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
+    expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
+
+    lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver2)
+    expect(lockInfo.amount).to.be.eq(BigNumber.from(0))
+
+
+    await waitTx(tokenHub.connect(signers[61]).withdrawUnlockedToken(BNBTokenAddress, receiver))
+    expect(tokenHub.connect(signers[60]).withdrawUnlockedToken(BNBTokenAddress, receiver2)).to.be.revertedWith('no locked amount')
+  });
+
 });
