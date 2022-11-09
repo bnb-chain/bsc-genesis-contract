@@ -509,25 +509,25 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function _approveProposal(bytes32 _proposalTypeHash, bytes32 _contentHash) internal returns (bool isExecutable) {
-    if (quorumMap[_proposalTypeHash] == 0) {
+  function _approveProposal(bytes32 proposalTypeHash, bytes32 _contentHash) internal returns (bool isExecutable) {
+    if (quorumMap[proposalTypeHash] == 0) {
       quorumMap[SUSPEND_PROPOSAL] = INIT_SUSPEND_QUORUM;
       quorumMap[REOPEN_PROPOSAL] = INIT_REOPEN_QUORUM;
       quorumMap[CANCEL_TRANSFER_PROPOSAL] = INIT_CANCEL_TRANSFER_QUORUM;
     }
 
-    EmergencyProposal storage p = emergencyProposals[_proposalTypeHash];
+    EmergencyProposal storage p = emergencyProposals[proposalTypeHash];
 
     // It is ok if there is an evil validator always cancel the previous vote,
     // the credible validator could use private transaction service to send a batch tx including 2 approve transactions
     if (block.timestamp >= p.expiredAt || p.contentHash != _contentHash) {
       // current proposal expired / not exist or not same with the new, create a new EmergencyProposal
-      p.quorum = quorumMap[_proposalTypeHash];
+      p.quorum = quorumMap[proposalTypeHash];
       p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
       p.contentHash = _contentHash;
       p.approvers.push(msg.sender);
 
-      emit ProposalSubmitted(_proposalTypeHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
+      emit ProposalSubmitted(proposalTypeHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
     } else {
       // current proposal exists
       for (uint256 i = 0; i < p.approvers.length; ++i) {
@@ -538,7 +538,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
     if (p.approvers.length >= p.quorum) {
       // 1. remove current proposal
-      delete emergencyProposals[_proposalTypeHash];
+      delete emergencyProposals[proposalTypeHash];
 
       // 2. exec this proposal
       return true;
