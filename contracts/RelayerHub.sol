@@ -54,11 +54,18 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     _;
   }
 
+  modifier onlyAdmin() {
+    require(admins[msg.sender], "admin does not exist");
+    _;
+  }
+
   event relayerRegister(address _relayer);
   event relayerUnRegister(address _relayer);
   event paramChange(string key, bytes value);
 
   event removeAdminAddress(address _removedAdmin);
+  event addAdminAddress(address _addedAdmin);
+  event registerAdmin(address _registeredAdmin);
 
 
   function init() external onlyNotInit{
@@ -111,7 +118,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   function removeAdminAddress(address adminToBeRemoved) external onlyGov{
-    // todo more pre-checks if any
+    // fixme more pre-checks if any
 
     // check if the admin address already exists
     require(relayAdminsExistMap[adminToBeRemoved], "admin doesn't exist");
@@ -119,7 +126,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     delete(relayAdminsExistMap[adminToBeRemoved]);
     delete(adminsAndRelayers[adminToBeRemoved]);
 
-    // todo transfer dues and deposits BNB -> check
+    // fixme transfer dues and deposits BNB -> check
     admin memory a = admins[adminToBeRemoved];
     adminToBeRemoved.transfer(a.deposit.sub(a.dues));
     address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
@@ -130,15 +137,37 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   function removeAdmin() external onlyAdmin {
+  // here the admin removes himself
+    // check if the admin address already exists
+    require(relayAdminsExistMap[msg.sender], "admin doesn't exist");
 
+    delete(relayAdminsExistMap[msg.sender]);
+    delete(adminsAndRelayers[msg.sender]);
+
+    // fixme transfer dues and deposits BNB -> check
+    admin memory a = admins[msg.sender];
+    msg.sender.transfer(a.deposit.sub(a.dues));
+    address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+    systemPayable.transfer(a.dues);
+
+    // emit success event
+    emit removeAdminAddress(msg.sender);
   }
 
-  function addAdminAddress(address) external onlyGov{
+  function addAdminAddress(address adminToBeAdded) external onlyGov{
+    require(!relayAdminsExistMap[adminToBeAdded], "admin already exists");
 
+    relayAdminsExistMap[adminToBeAdded] = true;
+    // admins[adminToBeAdded] = admin(requiredDeposit, dues); todo this will be done when admin registers himself in registerAdmin(?)
+
+    emit addAdminAddress(adminToBeAdded);
   }
 
   function registerAdmin() external payable onlyAdmin {
-
+    require(relayAdminsExistMap[msg.sender], "admin not added by Gov yet");
+    require(msg.value == requiredDeposit, "deposit value is not exactly the same");
+    admins[msg.sender] = admin(requiredDeposit, dues);
+    emit registerAdmin(msg.sender);
   }
 
   function addRelayer(address) external onlyAdmin{
