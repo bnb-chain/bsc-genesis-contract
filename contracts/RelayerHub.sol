@@ -19,6 +19,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   mapping(address =>relayer) relayers;
   mapping(address =>bool) relayersExistMap;
+  mapping(address =>bool) relayAdminsExistMap;
+  mapping(address =>address) adminsAndRelayers;
 
   struct relayer{
     uint256 deposit;
@@ -83,6 +85,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
       uint256 newDues = BytesToTypes.bytesToUint256(32, value);
       require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
+    } else if (Memory.compareStrings(key,"addAdmin")) {
+      // TODO check and parse value
+      // addAdminAddress(...)
+    } else if (Memory.compareStrings(key,"removeAdmin")) {
+      // TODO check and parse value
+      // removeAdminAddress(...)
     } else {
       require(false, "unknown param");
     }
@@ -91,5 +99,33 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   function isRelayer(address sender) external override view returns (bool) {
     return relayersExistMap[sender];
+  }
+
+  function removeAdminAddress(address) external onlyGov{
+
+  }
+
+  function removeAdmin() external onlyAdmin {
+
+  }
+
+  function addAdminAddress(address) external onlyGov{
+
+  }
+
+  function registerAdmin() external payable onlyAdmin {
+
+  }
+
+  function addRelayer(address) external onlyAdmin{
+
+  }
+
+  function registerAdminAddRelayer(address) external payable onlyAdmin {
+
+  }
+
+  function removeRelayer() external onlyAdmin {
+
   }
 }
