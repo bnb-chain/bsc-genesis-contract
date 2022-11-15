@@ -19,10 +19,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   mapping(address =>relayer) relayers;
   mapping(address =>bool) relayersExistMap;
+
+  mapping(address =>admin) admins;
   mapping(address =>bool) relayAdminsExistMap;
   mapping(address =>address) adminsAndRelayers;
 
   struct relayer{
+    uint256 deposit;
+    uint256  dues;
+  }
+
+  struct admin{
     uint256 deposit;
     uint256  dues;
   }
@@ -50,6 +57,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   event relayerRegister(address _relayer);
   event relayerUnRegister(address _relayer);
   event paramChange(string key, bytes value);
+
+  event removeAdminAddress(address _removedAdmin);
 
 
   function init() external onlyNotInit{
@@ -101,8 +110,23 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     return relayersExistMap[sender];
   }
 
-  function removeAdminAddress(address) external onlyGov{
+  function removeAdminAddress(address adminToBeRemoved) external onlyGov{
+    // todo more pre-checks if any
 
+    // check if the admin address already exists
+    require(relayAdminsExistMap[adminToBeRemoved], "admin doesn't exist");
+
+    delete(relayAdminsExistMap[adminToBeRemoved]);
+    delete(adminsAndRelayers[adminToBeRemoved]);
+
+    // todo transfer dues and deposits BNB -> check
+    admin memory a = admins[adminToBeRemoved];
+    adminToBeRemoved.transfer(a.deposit.sub(a.dues));
+    address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+    systemPayable.transfer(a.dues);
+
+    // emit success event
+    emit removeAdminAddress(adminToBeRemoved);
   }
 
   function removeAdmin() external onlyAdmin {
