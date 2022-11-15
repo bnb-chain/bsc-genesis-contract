@@ -1,0 +1,41 @@
+[profile.default]
+src = 'contracts'
+test = 'test'
+script = 'script'
+out = 'out'
+fs_permissions = [{ access = "read-write", path = "./" }]
+libs = ['lib', 'node_modules']
+remappings = [
+    'ds-test/=lib/forge-std/lib/ds-test/src/',
+    'forge-std/=lib/forge-std/src/',
+    'openzeppelin-solidity/=node_modules/openzeppelin-solidity/',
+]
+cache = true
+cache_path = 'cache'
+auto_detect_solc = true
+optimizer = true
+optimizer_runs = 200
+verbosity = 3
+ignored_error_codes = [1878, 5574, 5667]
+ffi = true
+initial_balance = '0xffffffffffffffffffffffff'
+
+[profile.default.rpc_storage_caching]
+chains = 'all'
+endpoints = 'all'
+
+[fuzz]
+runs = 1024
+
+[fmt]
+line_length = 240
+tab_width = 2
+bracket_spacing = false
+int_types = 'long'
+func_attrs_with_params_multiline = true
+quote_style = 'double'
+number_underscore = 'preserve'
+
+[rpc_endpoints]
+bsc = "${RPC_BSC}" # set by .env
+local = "http://127.0.0.1:8545"
