@@ -55,6 +55,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   modifier onlyAdmin() {
+    require(relayAdminsExistMap[msg.sender], "admin does not exist");
     require(admins[msg.sender], "admin does not exist");
     _;
   }
@@ -66,6 +67,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   event removeAdminAddress(address _removedAdmin);
   event addAdminAddress(address _addedAdmin);
   event registerAdmin(address _registeredAdmin);
+  event addRelayer(address _relayerToBeAdded);
+  event removeRelayer(address _removedRelayer);
 
 
   function init() external onlyNotInit{
@@ -102,10 +105,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
       require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
     } else if (Memory.compareStrings(key,"addAdmin")) {
-      // TODO check and parse value
+      // fixme check and parse value
       // addAdminAddress(...)
     } else if (Memory.compareStrings(key,"removeAdmin")) {
-      // TODO check and parse value
+      // fixme check and parse value
       // removeAdminAddress(...)
     } else {
       require(false, "unknown param");
@@ -164,21 +167,27 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   function registerAdmin() external payable onlyAdmin {
-    require(relayAdminsExistMap[msg.sender], "admin not added by Gov yet");
+//    require(relayAdminsExistMap[msg.sender], "admin not added by Gov yet");
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
     admins[msg.sender] = admin(requiredDeposit, dues);
     emit registerAdmin(msg.sender);
   }
 
-  function addRelayer(address) external onlyAdmin{
-
+  function addRelayer(address relayerToBeAdded) external onlyAdmin{
+    adminsAndRelayers[msg.sender] = relayerToBeAdded;
+    emit addRelayer(relayerToBeAdded);
   }
 
-  function registerAdminAddRelayer(address) external payable onlyAdmin {
-
+  function registerAdminAddRelayer(address relayer) external payable onlyAdmin {
+    registerAdmin();
+    addRelayer(relayer);
   }
 
   function removeRelayer() external onlyAdmin {
+    require(adminsAndRelayers[msg.sender], "relayer doesn't exist for this admin");
 
+    emit removeRelayer(adminsAndRelayers[msg.sender]);
+
+    delete(adminsAndRelayers[msg.sender]);
   }
 }
