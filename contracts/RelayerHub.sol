@@ -114,7 +114,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   function registerAdmin() external payable onlyAdmin {
-//    require(relayAdminsExistMap[msg.sender], "admin not added by Gov yet");
     require(msg.value == requiredDeposit, "deposit value is not exactly the same");
     admins[msg.sender] = admin(requiredDeposit, dues);
     emit registerAdmin(msg.sender);
