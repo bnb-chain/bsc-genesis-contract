@@ -106,11 +106,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
       require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
       dues = newDues;
     } else if (Memory.compareStrings(key,"addAdmin")) {
-      // fixme check and parse value
-      // addAdminAddress(...)
+
+      require(value.length == 32, "length of admin address mismatch"); // fixme: check if the length is correct
+      address newAdmin = BytesToTypes.bytesToAddress(32, value);
+      addAdminAddress(newAdmin);
+
     } else if (Memory.compareStrings(key,"removeAdmin")) {
-      // fixme check and parse value
-      // removeAdminAddress(...)
+
+      require(value.length == 32, "length of admin address mismatch");
+      address admin = BytesToTypes.bytesToAddress(32, value);
+      removeAdminAddress(admin);
+
     } else {
       require(false, "unknown param");
     }
