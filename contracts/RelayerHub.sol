@@ -23,6 +23,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   mapping(address =>admin) admins;
   mapping(address =>bool) relayAdminsExistMap;
   mapping(address =>address) adminsAndRelayers;
+  mapping(address =>bool) relayerExistsMap;
 
   struct relayer{
     uint256 deposit;
@@ -121,7 +122,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   }
 
   function removeAdminAddress(address adminToBeRemoved) external onlyGov{
-    // fixme more pre-checks if any
     removeAdminHelper(adminToBeRemoved);
   }
 
@@ -137,7 +137,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     delete(relayAdminsExistMap[adminAddress]);
     delete(adminsAndRelayers[adminAddress]);
 
-    // fixme transfer dues and deposits BNB -> check
     admin memory a = admins[adminAddress];
     adminAddress.transfer(a.deposit.sub(a.dues));
     address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
@@ -151,7 +150,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     require(!relayAdminsExistMap[adminToBeAdded], "admin already exists");
 
     relayAdminsExistMap[adminToBeAdded] = true;
-    // admins[adminToBeAdded] = admin(requiredDeposit, dues); todo this will be done when admin registers himself in registerAdmin(?)
 
     emit addAdminAddress(adminToBeAdded);
   }
@@ -165,6 +163,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   function addRelayer(address relayerToBeAdded) external onlyAdmin{
     adminsAndRelayers[msg.sender] = relayerToBeAdded;
+    relayerExistsMap[relayerToBeAdded] = true;
     emit addRelayer(relayerToBeAdded);
   }
 
@@ -179,5 +178,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     emit removeRelayer(adminsAndRelayers[msg.sender]);
 
     delete(adminsAndRelayers[msg.sender]);
+
+    relayer memory r = adminsAndRelayers[msg.sender];
+
+    delete(relayerExistsMap[r]);
+  }
+
+  function verifyRelayer(address relayerAddress) external returns (bool){
+    if (relayerExistsMap[relayerAddress]) {
+      return true;
+    }
+    return false;
   }
 }
