@@ -17,42 +17,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
   uint256 public requiredDeposit;
   uint256 public dues;
 
-  mapping(address =>relayer) relayers;
-  mapping(address =>bool) relayersExistMap;
-
   mapping(address =>admin) admins;
   mapping(address =>bool) relayAdminsExistMap;
   mapping(address =>address) adminsAndRelayers;
   mapping(address =>bool) relayerExistsMap;
 
-  struct relayer{
-    uint256 deposit;
-    uint256  dues;
-  }
-
   struct admin{
     uint256 deposit;
     uint256  dues;
-  }
-
-  modifier notContract() {
-    require(!isContract(msg.sender), "contract is not allowed to be a relayer");
-    _;
-  }
-
-  modifier noProxy() {
-    require(msg.sender == tx.origin, "no proxy is allowed");
-    _;
-  }
-
-  modifier noExist() {
-    require(!relayersExistMap[msg.sender], "relayer already exist");
-    _;
-  }
-
-  modifier exist() {
-    require(relayersExistMap[msg.sender], "relayer do not exist");
-    _;
   }
 
   modifier onlyAdmin() {
@@ -76,21 +48,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     requiredDeposit = INIT_REQUIRED_DEPOSIT;
     dues = INIT_DUES;
     alreadyInit = true;
-  }
-  
-  function register() external payable noExist onlyInit notContract noProxy{
-    revert("register suspended");
-  }
-  
-
-  function  unregister() external exist onlyInit{
-    relayer memory r = relayers[msg.sender];
-    msg.sender.transfer(r.deposit.sub(r.dues));
-    address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-    systemPayable.transfer(r.dues);
-    delete relayersExistMap[msg.sender];
-    delete relayers[msg.sender];
-    emit relayerUnRegister(msg.sender);
   }
 
   /*********************** Param update ********************************/
@@ -121,10 +78,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
       require(false, "unknown param");
     }
     emit paramChange(key, value);
-  }
-
-  function isRelayer(address sender) external override view returns (bool) {
-    return relayersExistMap[sender];
   }
 
   function removeAdminAddress(address adminToBeRemoved) external onlyGov{
