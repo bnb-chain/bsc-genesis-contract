@@ -122,39 +122,29 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
 
   function removeAdminAddress(address adminToBeRemoved) external onlyGov{
     // fixme more pre-checks if any
-
-    // check if the admin address already exists
-    require(relayAdminsExistMap[adminToBeRemoved], "admin doesn't exist");
-
-    delete(relayAdminsExistMap[adminToBeRemoved]);
-    delete(adminsAndRelayers[adminToBeRemoved]);
-
-    // fixme transfer dues and deposits BNB -> check
-    admin memory a = admins[adminToBeRemoved];
-    adminToBeRemoved.transfer(a.deposit.sub(a.dues));
-    address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-    systemPayable.transfer(a.dues);
-
-    // emit success event
-    emit removeAdminAddress(adminToBeRemoved);
+    removeAdminHelper(adminToBeRemoved);
   }
 
   function removeAdmin() external onlyAdmin {
   // here the admin removes himself
-    // check if the admin address already exists
-    require(relayAdminsExistMap[msg.sender], "admin doesn't exist");
+  removeAdminHelper(msg.sender);
+  }
 
-    delete(relayAdminsExistMap[msg.sender]);
-    delete(adminsAndRelayers[msg.sender]);
+  function removeAdminHelper(address adminAddress) {
+    // check if the admin address already exists
+    require(relayAdminsExistMap[adminAddress], "admin doesn't exist");
+
+    delete(relayAdminsExistMap[adminAddress]);
+    delete(adminsAndRelayers[adminAddress]);
 
     // fixme transfer dues and deposits BNB -> check
-    admin memory a = admins[msg.sender];
-    msg.sender.transfer(a.deposit.sub(a.dues));
+    admin memory a = admins[adminAddress];
+    adminAddress.transfer(a.deposit.sub(a.dues));
     address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
     systemPayable.transfer(a.dues);
 
     // emit success event
-    emit removeAdminAddress(msg.sender);
+    emit removeAdminAddress(adminAddress);
   }
 
   function addAdminAddress(address adminToBeAdded) external onlyGov{
