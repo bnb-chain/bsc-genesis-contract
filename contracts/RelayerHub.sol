@@ -27,9 +27,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         uint256 dues;
     }
 
-    modifier onlyAdmin() {
+    modifier onlyNonRegisteredAdmin() {
         require(relayAdminsExistMap[msg.sender], "admin does not exist");
-        require(admins[msg.sender], "admin does not exist");
+        _;
+    }
+
+    modifier onlyRegisteredAdmin() {
+        require(relayAdminsExistMap[msg.sender], "admin does not exist");
+        require(admins[msg.sender], "admin not registered");
         _;
     }
 
@@ -64,15 +69,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             dues = newDues;
         } else if (Memory.compareStrings(key, "addAdmin")) {
 
-            require(value.length == 32, "length of admin address mismatch");
-            // fixme: check if the length is correct
-            address newAdmin = BytesToTypes.bytesToAddress(32, value);
+            require(value.length == 20, "length of admin address mismatch");
+            address newAdmin = BytesToTypes.bytesToAddress(20, value);
             addAdminAddress(newAdmin);
 
         } else if (Memory.compareStrings(key, "removeAdmin")) {
 
-            require(value.length == 32, "length of admin address mismatch");
-            address admin = BytesToTypes.bytesToAddress(32, value);
+            require(value.length == 20, "length of admin address mismatch");
+            address admin = BytesToTypes.bytesToAddress(20, value);
             removeAdminAddress(admin);
 
         } else {
@@ -85,7 +89,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         removeAdminHelper(adminToBeRemoved);
     }
 
-    function removeAdmin() external onlyAdmin {
+    function removeAdmin() external onlyRegisteredAdmin {
         // here the admin removes himself
         removeAdminHelper(msg.sender);
     }
@@ -93,6 +97,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     function removeAdminHelper(address adminAddress) {
         // check if the admin address already exists
         require(relayAdminsExistMap[adminAddress], "admin doesn't exist");
+
+        relayer memory relayerAddress = adminsAndRelayers[adminAddress];
 
         delete (relayAdminsExistMap[adminAddress]);
         delete (adminsAndRelayers[adminAddress]);
@@ -102,8 +108,13 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
         systemPayable.transfer(a.dues);
 
+        delete (admins[adminAddress]);
+
         // emit success event
         emit removeAdminAddress(adminAddress);
+        if (relayerAddress != address(0)) {
+            emit removeRelayer(relayerAddress);
+        }
     }
 
     function addAdminAddress(address adminToBeAdded) external onlyGov {
@@ -114,33 +125,32 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit addAdminAddress(adminToBeAdded);
     }
 
-    function registerAdmin() external payable onlyAdmin {
+    function registerAdmin() external payable onlyNonRegisteredAdmin {
         require(msg.value == requiredDeposit, "deposit value is not exactly the same");
         admins[msg.sender] = admin(requiredDeposit, dues);
         emit registerAdmin(msg.sender);
     }
 
-    function addRelayer(address relayerToBeAdded) external onlyAdmin {
+    function addRelayer(address relayerToBeAdded) external onlyRegisteredAdmin {
         adminsAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
         emit addRelayer(relayerToBeAdded);
     }
 
-    function registerAdminAddRelayer(address relayer) external payable onlyAdmin {
+    function registerAdminAddRelayer(address relayer) external payable onlyNonRegisteredAdmin {
         registerAdmin();
         addRelayer(relayer);
     }
 
-    function removeRelayer() external onlyAdmin {
+    function removeRelayer() external onlyRegisteredAdmin {
         require(adminsAndRelayers[msg.sender], "relayer doesn't exist for this admin");
-
-        emit removeRelayer(adminsAndRelayers[msg.sender]);
-
-        delete (adminsAndRelayers[msg.sender]);
 
         relayer memory r = adminsAndRelayers[msg.sender];
 
         delete (relayerExistsMap[r]);
+        delete (adminsAndRelayers[msg.sender]);
+
+        emit removeRelayer(r);
     }
 
     function verifyRelayer(address relayerAddress) external returns (bool){
