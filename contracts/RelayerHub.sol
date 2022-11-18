@@ -13,6 +13,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
+    address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -68,6 +70,19 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
         dues = INIT_DUES;
         alreadyInit = true;
+
+        // todo initialise the currently existing admins and their relayer keys
+
+        admins[WHITELIST_1] = admin(requiredDeposit, dues);
+        admins[WHITELIST_2] = admin(requiredDeposit, dues);
+
+        relayAdminsExistMap[WHITELIST_1] = true;
+        relayAdminsExistMap[WHITELIST_2] = true;
+
+        adminsAndRelayers[WHITELIST_1] = WHITELIST_1; // fixme current relayer
+        adminsAndRelayers[WHITELIST_2] = WHITELIST_2; // fixme current relayer
+
+        // fixme initialise relayerExistsMap
     }
 
     /*********************** Param update ********************************/
