@@ -19,24 +19,24 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 public requiredDeposit;
     uint256 public dues;
 
-    mapping(address => admin) admins;
-    mapping(address => bool) relayAdminsExistMap;
-    mapping(address => address) adminsAndRelayers;
+    mapping(address => manager) managers;
+    mapping(address => bool) relayManagersExistMap;
+    mapping(address => address) managersAndRelayers;
     mapping(address => bool) relayerExistsMap;
 
-    struct admin {
+    struct manager {
         uint256 deposit;
         uint256 dues;
     }
 
-    modifier onlyNonRegisteredAdmin() {
-        require(relayAdminsExistMap[msg.sender], "admin does not exist");
+    modifier onlyNonRegisteredManager() {
+        require(relayManagersExistMap[msg.sender], "manager does not exist");
         _;
     }
 
-    modifier onlyRegisteredAdmin() {
-        require(relayAdminsExistMap[msg.sender], "admin does not exist");
-        require(admins[msg.sender], "admin not registered");
+    modifier onlyRegisteredManager() {
+        require(relayManagersExistMap[msg.sender], "manager does not exist");
+        require(managers[msg.sender], "manager not registered");
         _;
     }
 
@@ -59,9 +59,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
-    event removeAdminAddress(address _removedAdmin);
-    event addAdminAddress(address _addedAdmin);
-    event registerAdmin(address _registeredAdmin);
+    event removeManagerAddress(address _removedManager);
+    event addManagerAddress(address _addedManager);
+    event registerManager(address _registeredManager);
     event addRelayer(address _relayerToBeAdded);
     event removeRelayer(address _removedRelayer);
 
@@ -71,16 +71,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         dues = INIT_DUES;
         alreadyInit = true;
 
-        // todo initialise the currently existing admins and their relayer keys
+        // todo initialise the currently existing Managers and their relayer keys
 
-        admins[WHITELIST_1] = admin(requiredDeposit, dues);
-        admins[WHITELIST_2] = admin(requiredDeposit, dues);
+        managers[WHITELIST_1] = manager(requiredDeposit, dues);
+        managers[WHITELIST_2] = manager(requiredDeposit, dues);
 
-        relayAdminsExistMap[WHITELIST_1] = true;
-        relayAdminsExistMap[WHITELIST_2] = true;
+        relayManagersExistMap[WHITELIST_1] = true;
+        relayManagersExistMap[WHITELIST_2] = true;
 
-        adminsAndRelayers[WHITELIST_1] = WHITELIST_1; // fixme current relayer
-        adminsAndRelayers[WHITELIST_2] = WHITELIST_2; // fixme current relayer
+        managersAndRelayers[WHITELIST_1] = WHITELIST_1; // fixme current relayer
+        managersAndRelayers[WHITELIST_2] = WHITELIST_2; // fixme current relayer
 
         // fixme initialise relayerExistsMap
     }
@@ -97,17 +97,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             uint256 newDues = BytesToTypes.bytesToUint256(32, value);
             require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
             dues = newDues;
-        } else if (Memory.compareStrings(key, "addAdmin")) {
+        } else if (Memory.compareStrings(key, "addManager")) {
 
-            require(value.length == 20, "length of admin address mismatch");
-            address newAdmin = BytesToTypes.bytesToAddress(20, value);
-            addAdminAddress(newAdmin);
+            require(value.length == 20, "length of manager address mismatch");
+            address newManager = BytesToTypes.bytesToAddress(20, value);
+            addManagerAddress(newManager);
 
-        } else if (Memory.compareStrings(key, "removeAdmin")) {
+        } else if (Memory.compareStrings(key, "removeManager")) {
 
-            require(value.length == 20, "length of admin address mismatch");
-            address admin = BytesToTypes.bytesToAddress(20, value);
-            removeAdminAddress(admin);
+            require(value.length == 20, "length of manager address mismatch");
+            address manager = BytesToTypes.bytesToAddress(20, value);
+            removeManagerAddress(manager);
 
         } else {
             require(false, "unknown param");
@@ -115,70 +115,70 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit paramChange(key, value);
     }
 
-    function removeAdminAddress(address adminToBeRemoved) external onlyGov {
-        removeAdminHelper(adminToBeRemoved);
+    function removeManagerAddress(address managerToBeRemoved) external onlyGov {
+        removeManagerHelper(managerToBeRemoved);
     }
 
-    function removeAdmin() external onlyRegisteredAdmin {
-        // here the admin removes himself
-        removeAdminHelper(msg.sender);
+    function removeManager() external onlyRegisteredManager {
+        // here the manager removes himself
+        removeManagerHelper(msg.sender);
     }
 
-    function removeAdminHelper(address adminAddress) {
-        // check if the admin address already exists
-        require(relayAdminsExistMap[adminAddress], "admin doesn't exist");
+    function removeManagerHelper(address managerAddress) {
+        // check if the manager address already exists
+        require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
-        relayer memory relayerAddress = adminsAndRelayers[adminAddress];
+        relayer memory relayerAddress = managersAndRelayers[managerAddress];
 
-        delete (relayAdminsExistMap[adminAddress]);
-        delete (adminsAndRelayers[adminAddress]);
+        delete (relayManagersExistMap[managerAddress]);
+        delete (managersAndRelayers[managerAddress]);
 
-        admin memory a = admins[adminAddress];
-        adminAddress.transfer(a.deposit.sub(a.dues));
+        manager memory a = managers[managerAddress];
+        managerAddress.transfer(a.deposit.sub(a.dues));
         address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
         systemPayable.transfer(a.dues);
 
-        delete (admins[adminAddress]);
+        delete (managers[managerAddress]);
 
         // emit success event
-        emit removeAdminAddress(adminAddress);
+        emit removeManagerAddress(managerAddress);
         if (relayerAddress != address(0)) {
             emit removeRelayer(relayerAddress);
         }
     }
 
-    function addAdminAddress(address adminToBeAdded) external onlyGov {
-        require(!relayAdminsExistMap[adminToBeAdded], "admin already exists");
+    function addManagerAddress(address managerToBeAdded) external onlyGov {
+        require(!relayManagersExistMap[managerToBeAdded], "manager already exists");
 
-        relayAdminsExistMap[adminToBeAdded] = true;
+        relayManagersExistMap[managerToBeAdded] = true;
 
-        emit addAdminAddress(adminToBeAdded);
+        emit addManagerAddress(managerToBeAdded);
     }
 
-    function registerAdmin() external payable onlyNonRegisteredAdmin {
+    function registerManager() external payable onlyNonRegisteredManager {
         require(msg.value == requiredDeposit, "deposit value is not exactly the same");
-        admins[msg.sender] = admin(requiredDeposit, dues);
-        emit registerAdmin(msg.sender);
+        managers[msg.sender] = manager(requiredDeposit, dues);
+        emit registerManager(msg.sender);
     }
 
-    function addRelayer(address relayerToBeAdded) external onlyRegisteredAdmin noExist notContract noProxy {
-        adminsAndRelayers[msg.sender] = relayerToBeAdded;
+    function addRelayer(address relayerToBeAdded) external onlyRegisteredManager noExist notContract noProxy {
+        managersAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
         emit addRelayer(relayerToBeAdded);
     }
 
-    function registerAdminAddRelayer(address relayer) external payable onlyNonRegisteredAdmin {
-        registerAdmin();
+    function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
+        registerManager();
         addRelayer(relayer);
     }
 
-    function removeRelayer() external onlyRegisteredAdmin {
-        require(adminsAndRelayers[msg.sender], "relayer doesn't exist for this admin");
+    function removeRelayer() external onlyRegisteredManager {
+        require(managersAndRelayers[msg.sender], "relayer doesn't exist for this manager");
 
-        relayer memory r = adminsAndRelayers[msg.sender];
+        relayer memory r = managersAndRelayers[msg.sender];
 
         delete (relayerExistsMap[r]);
-        delete (adminsAndRelayers[msg.sender]);
+        delete (managersAndRelayers[msg.sender]);
 
         emit removeRelayer(r);
     }
