@@ -40,18 +40,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
-    modifier notContract() {
-        require(!isContract(msg.sender), "contract is not allowed to be a relayer");
-        _;
-    }
-
     modifier noProxy() {
         require(msg.sender == tx.origin, "no proxy is allowed");
-        _;
-    }
-
-    modifier noExist() {
-        require(!relayerExistsMap[msg.sender], "relayer already exists");
         _;
     }
 
@@ -161,7 +151,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit registerManager(msg.sender);
     }
 
-    function addRelayer(address relayerToBeAdded) external onlyRegisteredManager noExist notContract noProxy {
+    function addRelayer(address relayerToBeAdded) external onlyRegisteredManager noProxy {
+        require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
+        require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
+
         managersAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
         emit addRelayer(relayerToBeAdded);
