@@ -176,7 +176,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit removeRelayer(r);
     }
 
-    function verifyRelayer(address relayerAddress) external returns (bool){
+    function isRelayer(address relayerAddress) external view returns (bool){
         return relayerExistsMap[relayerAddress];
     }
 }

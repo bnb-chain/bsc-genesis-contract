@@ -79,7 +79,7 @@ contract System {
   }
 
   modifier onlyRelayer() {
-    require(IRelayerHub(RELAYERHUB_CONTRACT_ADDR).verifyRelayer(msg.sender), "the msg sender is not a relayer");
+    require(IRelayerHub(RELAYERHUB_CONTRACT_ADDR).isRelayer(msg.sender), "the msg sender is not a relayer");
     _;
   }
 
