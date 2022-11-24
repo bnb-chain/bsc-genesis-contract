@@ -52,7 +52,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event removeManagerByGov(address _removedManager);
     event addManagerByGov(address _addedManager);
     event registerManager(address _registeredManager);
-    event addRelayer(address _relayerToBeAdded);
+    event editRelayer(address _relayerToBeAdded);
     event removeRelayer(address _removedRelayer);
 
 
@@ -152,18 +152,18 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit registerManager(msg.sender);
     }
 
-    function addRelayer(address relayerToBeAdded) external onlyRegisteredManager noProxy {
+    function editRelayer(address relayerToBeAdded) external onlyRegisteredManager noProxy {
         require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         managersAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
-        emit addRelayer(relayerToBeAdded);
+        emit editRelayer(relayerToBeAdded);
     }
 
     function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
         registerManager();
-        addRelayer(relayer);
+        editRelayer(relayer);
     }
 
     function removeRelayer() external onlyRegisteredManager {
