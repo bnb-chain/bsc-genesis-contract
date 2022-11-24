@@ -49,8 +49,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
-    event removeManagerAddress(address _removedManager);
-    event addManagerAddress(address _addedManager);
+    event removeManagerByGov(address _removedManager);
+    event addManagerByGov(address _addedManager);
     event registerManager(address _registeredManager);
     event addRelayer(address _relayerToBeAdded);
     event removeRelayer(address _removedRelayer);
@@ -91,13 +91,13 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
             require(value.length == 20, "length of manager address mismatch");
             address newManager = BytesToTypes.bytesToAddress(20, value);
-            addManagerAddress(newManager);
+            addManagerByGov(newManager);
 
         } else if (Memory.compareStrings(key, "removeManager")) {
 
             require(value.length == 20, "length of manager address mismatch");
             address manager = BytesToTypes.bytesToAddress(20, value);
-            removeManagerAddress(manager);
+            removeManagerByGov(manager);
 
         } else {
             require(false, "unknown param");
@@ -105,7 +105,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit paramChange(key, value);
     }
 
-    function removeManagerAddress(address managerToBeRemoved) external onlyGov {
+    function removeManagerByGov(address managerToBeRemoved) external onlyGov {
         removeManagerHelper(managerToBeRemoved);
     }
 
@@ -131,19 +131,19 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (managers[managerAddress]);
 
         // emit success event
-        emit removeManagerAddress(managerAddress);
+        emit removeManagerByGov(managerAddress);
         if (relayerAddress != address(0)) {
             emit removeRelayer(relayerAddress);
         }
     }
 
-    function addManagerAddress(address managerToBeAdded) external onlyGov {
+    function addManagerByGov(address managerToBeAdded) external onlyGov {
         require(!relayManagersExistMap[managerToBeAdded], "manager already exists");
         require(!isContract(managerToBeAdded), "contract is not allowed to be a manager");
 
         relayManagersExistMap[managerToBeAdded] = true;
 
-        emit addManagerAddress(managerToBeAdded);
+        emit addManagerByGov(managerToBeAdded);
     }
 
     function registerManager() external payable onlyNonRegisteredManager {
