@@ -100,7 +100,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         } else if (Memory.compareStrings(key, "removeManager")) {
 
             require(value.length == 20, "length of manager address mismatch");
-            address managerAddress = BytesToTypes.bytesToAddress(20, value);
+            address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
             removeManagerByGov(managerAddress);
 
         } else {
@@ -109,7 +109,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit paramChange(key, value);
     }
 
-    function removeManagerByGov(address managerToBeRemoved) internal {
+    function removeManagerByGov(address payable managerToBeRemoved) internal {
         removeManagerHelper(managerToBeRemoved);
     }
 
@@ -118,7 +118,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         removeManagerHelper(msg.sender);
     }
 
-    function removeManagerHelper(address managerAddress) internal {
+    function removeManagerHelper(address payable managerAddress) internal {
         // check if the manager address already exists
         require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
@@ -136,7 +136,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (managersRegistered[managerAddress]);
 
         // emit success event
-        emit removeManagerByGov(managerAddress);
+        emit removeManagerByGovEvent(managerAddress);
         if (relayerAddress != address(0)) {
             emit removeRelayerEvent(relayerAddress);
         }
@@ -151,7 +151,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit addManagerByGovEvent(managerToBeAdded);
     }
 
-    function registerManager() internal payable onlyNonRegisteredManager {
+    function registerManager() internal onlyNonRegisteredManager {
         require(msg.value == requiredDeposit, "deposit value is not exactly the same");
         managers[msg.sender] = manager(requiredDeposit, dues);
         managersRegistered[msg.sender] = true;
@@ -182,7 +182,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function removeRelayer() external onlyRegisteredManager {
-        require(managersAndRelayers[msg.sender], "relayer doesn't exist for this manager");
+        if (managersAndRelayers[msg.sender] == address(0)) {
+            require(false, "relayer doesn't exist for this manager");
+        }
 
         address r = managersAndRelayers[msg.sender];
 
