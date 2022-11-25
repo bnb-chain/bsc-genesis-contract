@@ -43,6 +43,7 @@
     "truffle-assertions": "0.9.2",
     "truffle-flattener": "1.4.4",
   "snyk-fix" : "1245a86f41acce3206f3618a51e8984d"
+    =======
     },
     "@snyk/protect": {
       "version": "1.1061.0",
