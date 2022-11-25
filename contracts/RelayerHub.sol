@@ -115,7 +115,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function removeManager() external onlyRegisteredManager {
         // here the manager removes himself
-        removeManagerHelper(msg.sender);
+        removeManagerHelper(payable(msg.sender));
     }
 
     function removeManagerHelper(address payable managerAddress) internal {
@@ -129,7 +129,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
         manager memory a = managers[managerAddress];
         managerAddress.transfer(a.deposit.sub(a.dues));
-        address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+        address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
         systemPayable.transfer(a.dues);
 
         delete (managers[managerAddress]);
