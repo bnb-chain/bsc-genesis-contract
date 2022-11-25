@@ -45,7 +45,7 @@
       "master"
     "web3": "^1.7.5",
     "@snyk/protect": "latest"
-    snyk-fix-1245a86f41acce3206f3618a51e8984d
+    "snyk-fix-1245a86f41acce3206f3618a51e8984d"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.4",
