@@ -524,7 +524,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
       p.quorum = quorumMap[proposalTypeHash];
       p.expiredAt = uint128(block.timestamp + EMERGENCY_PROPOSAL_EXPIRE_PERIOD);
       p.contentHash = _contentHash;
-      p.approvers.push(msg.sender);
+      p.approvers = [msg.sender];
 
       emit ProposalSubmitted(proposalTypeHash, msg.sender, p.quorum, p.expiredAt, _contentHash);
     } else {
