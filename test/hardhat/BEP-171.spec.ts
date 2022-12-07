@@ -68,6 +68,8 @@ describe('BEP-171 TEST', () => {
   let relayerAccount: string;
   let signers: SignerWithAddress[];
 
+  let lockPeriod: number
+
   before('before', async () => {
     signers = await ethers.getSigners();
     log(signers.length);
@@ -192,6 +194,8 @@ describe('BEP-171 TEST', () => {
     govHub = instances[9] as GovHub;
 
     staking = instances[11] as Staking;
+
+    lockPeriod = (await tokenHub.INIT_LOCK_PERIOD()).toNumber()
   });
 
   beforeEach('beforeEach', async () => {
@@ -520,9 +524,9 @@ describe('BEP-171 TEST', () => {
 
     const expectedLockedAmount = unit.mul(10000 + 20000)  // 1-locked 10000 BNB,  2-locked 20000 BNB
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
-    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + lockPeriod)
 
-    let addedSeconds = 6 * 60 * 60// 6 hours
+    let addedSeconds = lockPeriod// 6 hours
     await increaseTime(addedSeconds)
     // anyone could withdraw the unlocked token to the receiver
     await waitTx(tokenHub.connect(signers[60]).withdrawUnlockedToken(BNBTokenAddress, receiver))
@@ -561,7 +565,7 @@ describe('BEP-171 TEST', () => {
 
     const expectedLockedAmount = unit.mul(10000)  // 1-locked 10000 BNB,  2-locked 20000 BNB
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
-    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + lockPeriod)
 
     let addedSeconds = 3 * 60 * 60// 6 hours
     await increaseTime(addedSeconds)
@@ -615,7 +619,7 @@ describe('BEP-171 TEST', () => {
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
     expectedLockedAmount = unit.mul(10000)
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
-    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + lockPeriod)
 
 
     transferInChannelSeq = await crosschain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
@@ -642,7 +646,7 @@ describe('BEP-171 TEST', () => {
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver2)
     expectedLockedAmount = unit.mul(10000)
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
-    expect(lockInfo.unlockAt).to.be.eq(await latest() + 6 * 60 * 60)
+    expect(lockInfo.unlockAt).to.be.eq(await latest() + lockPeriod)
 
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
     expect(lockInfo.amount).to.be.eq(expectedLockedAmount)
@@ -659,7 +663,7 @@ describe('BEP-171 TEST', () => {
     // cancel transfer by 2 cabinets
     await waitTx(crosschain.connect(signers[3]).cancelTransfer(BNBTokenAddress, receiver2))
 
-    let addedSeconds = 6 * 60 * 60// 6 hours
+    let addedSeconds = lockPeriod// 6 hours
     await increaseTime(addedSeconds)
 
     lockInfo = await tokenHub.lockInfoMap(BNBTokenAddress, receiver)
