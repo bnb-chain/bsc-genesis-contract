@@ -36,7 +36,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   event unKnownResponse(uint32 code);
   event crashResponse();
 
-  event failedFelony(address indexed validator, uint256 slashCount);
+  event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
 
   struct Indicator {
     uint256 height;
@@ -103,7 +103,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
           IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
       } catch (bytes memory reason) {
           indicator.count--;
-          emit failedFelony(validator, indicator.count);
+          emit failedFelony(validator, indicator.count, reason);
       }
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
