@@ -142,8 +142,11 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     _;
   }
 
-  modifier whenNotSuspended() {
-    require(!isSuspended, "suspended");
+  modifier whenNotSuspended(uint8 _channelID) {
+    //  SLASH_CHANNELID cannot be suspended in order for parlia consensus not to be affected
+    if (_channelID != SLASH_CHANNELID) {
+        require(!isSuspended, "suspended");
+    }
     _;
   }
 
@@ -281,7 +284,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   blockSynced(height)
   channelSupported(channelId)
   headerInOrder(height, channelId)
-  whenNotSuspended
+  whenNotSuspended(channelId)
   external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
@@ -333,7 +336,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     IRelayerIncentivize(INCENTIVIZE_ADDR).addReward(headerRelayer, msg.sender, relayFee, isRelayRewardFromSystemReward[channelIdLocal] || packageType != SYN_PACKAGE);
   }
 
-  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended {
+  function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended(channelId) {
     if (block.number > previousTxHeight) {
       oracleSequence++;
       txCounter = 1;
@@ -360,7 +363,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function updateParam(string calldata key, bytes calldata value)
   onlyGov
-  whenNotSuspended
+  whenNotSuspended(GOV_CHANNELID)
   external override {
     if (Memory.compareStrings(key, "batchSizeForOracle")) {
       uint256 newBatchSizeForOracle = BytesToTypes.bytesToUint256(32, value);
@@ -444,7 +447,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   blockSynced(params[0])
   blockSynced(params[1])
   channelSupported(uint8(params[3]))
-  whenNotSuspended
   external {
     // the same key with different values (payloads)
     require(keccak256(payload0) != keccak256(payload1), "same payload");
@@ -485,7 +487,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit SuccessChallenge(msg.sender, _packageSequence, _channelId);
   }
 
-  function suspend() onlyCabinet whenNotSuspended external {
+  function suspend() onlyCabinet whenNotSuspended(GOV_CHANNELID) external {
     bool isExecutable = _approveProposal(SUSPEND_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
       _suspend();
@@ -546,7 +548,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     return false;
   }
 
-  function _suspend() whenNotSuspended internal {
+  function _suspend() whenNotSuspended(GOV_CHANNELID) internal {
     isSuspended = true;
     emit Suspended(msg.sender);
   }
