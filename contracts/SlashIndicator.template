@@ -103,12 +103,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     indicator.height = block.number;
     if (indicator.count % felonyThreshold == 0) {
-      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {
-          indicator.count = 0;
-          IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      } catch (bytes memory reason) {
-          indicator.count--;
-          emit failedFelony(validator, indicator.count, reason);
+      indicator.count = 0;
+      IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
+      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {} catch (bytes memory reason) {
+        emit failedFelony(validator, indicator.count, reason);
       }
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
