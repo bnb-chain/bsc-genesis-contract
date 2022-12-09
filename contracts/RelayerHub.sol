@@ -58,25 +58,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
 
     function init() external onlyNotInit {
-        requiredDeposit = INIT_REQUIRED_DEPOSIT;
-        dues = INIT_DUES;
         alreadyInit = true;
+        addInitRelayer(WHITELIST_1);
+        addInitRelayer(WHITELIST_1);
+    }
 
-        // todo initialise the currently existing Managers and their relayer keys
-
-        managers[WHITELIST_1] = manager(requiredDeposit, dues);
-        managers[WHITELIST_2] = manager(requiredDeposit, dues);
-
-        managersRegistered[WHITELIST_1] = true;
-        managersRegistered[WHITELIST_2] = true;
-
-        relayManagersExistMap[WHITELIST_1] = true;
-        relayManagersExistMap[WHITELIST_2] = true;
-
-        managersAndRelayers[WHITELIST_1] = WHITELIST_1; // fixme current relayer
-        managersAndRelayers[WHITELIST_2] = WHITELIST_2; // fixme current relayer
-
-        // fixme initialise relayerExistsMap
+    function addInitRelayer(address addr) internal {
+        managers[addr] = manager(INIT_REQUIRED_DEPOSIT, INIT_DUES);
+        managersRegistered[addr] = true;
+        relayManagersExistMap[addr] = true;
+        managersAndRelayers[addr] = addr; // fixme current relayer
+        relayerExistsMap[addr] = true;
     }
 
     /*********************** Param update ********************************/
@@ -196,5 +188,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function isRelayer(address relayerAddress) external override view returns (bool){
         return relayerExistsMap[relayerAddress];
+    }
+
+    // TODO remove just for testing
+    function isManager(address relayerAddress) external view returns (bool){
+        return managersRegistered[relayerAddress];
     }
 }
