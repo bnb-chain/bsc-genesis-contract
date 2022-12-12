@@ -9,9 +9,7 @@ import "./lib/Memory.sol";
 import "./lib/BytesToTypes.sol";
 import "./interface/IParamSubscriber.sol";
 import "./System.sol";
-{% if mock %}import "./mock/MerkleProof.sol";
-{% else %}import "./MerkleProof.sol";
-{% endif %}
+import "./MerkleProof.sol";
 
 contract CrossChain is System, ICrossChain, IParamSubscriber{
 
