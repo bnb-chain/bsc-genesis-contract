@@ -123,31 +123,6 @@ contract ValidatorSetTest is Deployer {
     validator.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(0x00, newValidators));
     vm.stopPrank();
 
-    //    address[] memory vals = validator.getValidators();
-    //    address[] memory miningVals = validator.getMiningValidators();
-    //    uint count = 0;
-    //    for (uint256 i; i < numOfCabinets; ++i) {
-    //      if (vals[i] == miningVals[i]) {
-    //        ++ count;
-    //      }
-    //    }
-    //    assertGe(numOfCabinets, count+maxNumOfWorkingCandidates);
-    //
-    //    bytes memory key = "numOfCabinets";
-    //    bytes memory value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000015"); // 21
-    //    updateParamByGovHub(key, value, address(validator));
-    //    assertEq(validator.numOfCabinets(), 21);
-    //
-    //    key = "maxNumOfCandidates";
-    //    value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000014"); // 20
-    //    updateParamByGovHub(key, value, address(validator));
-    //    assertEq(validator.maxNumOfCandidates(), 20);
-    //
-    //    key = "maxNumOfWorkingCandidates";
-    //    value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000002"); // 2
-    //    updateParamByGovHub(key, value, address(validator));
-    //    assertEq(validator.maxNumOfWorkingCandidates(), 2);
-    //
     address[] memory vals = validator.getValidators();
     address[] memory miningVals = validator.getMiningValidators();
     uint256 count;
