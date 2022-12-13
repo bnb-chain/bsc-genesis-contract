@@ -22,14 +22,17 @@ Node: v12.18.3
 
 Truffle: v5.1.31 
 
-Solc: 0.6.4+commit.1dca32f3.Darwin.appleclang 
+Solc: 0.6.4+commit.1dca32f3
 
 ## Unit test
 
-Add follow line to .env file in project dir, replace `archive_node` with a valid node url which should be in archive mode:
+Add follow line to .env file in project dir, replace `archive_node` with a valid bsc mainnet node url which should be in archive mode:
+
 ```text
 RPC_BSC=${archive_node}
 ```
+
+You can get a free archive node endpoint from https://nodereal.io/.
 
 Run forge test:
 ```shell script
@@ -42,7 +45,7 @@ forge test
 npm run flatten
 ```
 
-All system contracts will be flatten and outputed into `${workspace}/contracts/flattened/`.
+All system contracts will be flattened and output into `${workspace}/contracts/flattened/`.
 
 ## How to generate genesis file
 
@@ -52,8 +55,6 @@ All system contracts will be flatten and outputed into `${workspace}/contracts/f
 4. Edit `generate-tokenhub.js` file to change `refundRelayReward`, `minimumRelayFee` and `maxGasForCallingBEP20`.
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
-
-
 
 ## How to update contract interface for test
 
