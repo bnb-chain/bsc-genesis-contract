@@ -486,14 +486,14 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     emit SuccessChallenge(msg.sender, _packageSequence, _channelId);
   }
 
-  function suspend() onlyCabinet whenNotSuspended external {
+  function suspend() onlyInit onlyCabinet whenNotSuspended external {
     bool isExecutable = _approveProposal(SUSPEND_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
       _suspend();
     }
   }
 
-  function reopen() onlyCabinet whenSuspended external {
+  function reopen() onlyInit onlyCabinet whenSuspended external {
     bool isExecutable = _approveProposal(REOPEN_PROPOSAL, EMPTY_CONTENT_HASH);
     if (isExecutable) {
       isSuspended = false;
@@ -501,7 +501,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     }
   }
 
-  function cancelTransfer(address tokenAddr, address attacker) onlyCabinet external {
+  function cancelTransfer(address tokenAddr, address attacker) onlyInit onlyCabinet external {
     bytes32 _contentHash = keccak256(abi.encode(tokenAddr, attacker));
     bool isExecutable = _approveProposal(CANCEL_TRANSFER_PROPOSAL, _contentHash);
     if (isExecutable) {

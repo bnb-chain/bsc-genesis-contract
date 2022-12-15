@@ -129,8 +129,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     reentryLock = 1;
   }
 
-  constructor() public {}
-
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
     bep20ContractDecimals[address(0x0)] = 18; // BNB decimals is 18
