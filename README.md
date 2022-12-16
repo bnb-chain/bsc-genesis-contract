@@ -4,64 +4,67 @@ This repo hold all the genesis contracts on Binance Smart chain. More details in
 
 ## Prepare
 
-Install dependency:
+Install node.js dependency:
 ```shell script
 npm install
-``` 
-
-Node: v12.18.3
-Truffle: Truffle v5.1.31 
-Solc: 0.6.4+commit.1dca32f3.Darwin.appleclang
-Ganache-cli: v6.10.1
-
-
-## unit test
-
-Generate contracts for testing:
-```shell script
-# the first account of ganache
-node generate-system.js --mock true --network local
-node generate-systemReward.js --mock true
-node generate-validatorset.js --mock true
-node generate-slash.js --mock true
-node generate-crosschain.js --mock true
-node generate-tokenhub.js --mock true
-node generate-relayerhub.js --mock true
-node generate-tendermintlightclient.js --mock true
-node generate-relayerincentivizecontract.js --roundSize 30 --maximumWeight 3 --mock true
 ```
 
-Start ganache:
+Install foundry:
 ```shell script
-ganache-cli --mnemonic 'clock radar mass judge dismiss just intact mind resemble fringe diary casino' --gasLimit 100000000  -e 10000 --allowUnlimitedContractSize
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+forge install --no-git --no-commit foundry-rs/forge-std@v1.1.1
 ```
 
-Run truffle test:
-```shell script
-truffle compile
-truffle migrate
-truffle test
+Please make sure your dependency version is as follows:
+
+Node: v12.18.3 
+
+Truffle: v5.1.31 
+
+Solc: 0.6.4+commit.1dca32f3
+
+## Unit test
+
+Add follow line to .env file in project dir, replace `archive_node` with a valid bsc mainnet node url which should be in archive mode:
+
+```text
+RPC_BSC=${archive_node}
 ```
 
-Run hardhat test:
+You can get a free archive node endpoint from https://nodereal.io/.
+
+Run forge test:
 ```shell script
-npx hardhat compile
-npx hardhat test
+forge test
 ```
 
-Flatten all system contracts:
+## Flatten all system contracts
+
 ```shell script
 npm run flatten
 ```
 
-## how to generate genesis file.
- 
+All system contracts will be flattened and output into `${workspace}/contracts/flattened/`.
+
+## How to generate genesis file
+
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
 2. Edit `validators.js` file to alloc the initial validator set.
 3. Edit `generate-validatorset.js` file to change `fromChainId` and `toChainId`,
 4. Edit `generate-tokenhub.js` file to change `refundRelayReward`, `minimumRelayFee` and `maxGasForCallingBEP20`.
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
+
+## How to update contract interface for test
+
+```shell script
+// get metadata
+forge build
+
+// generate interface
+cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/lib/interface/I${contract_name}.sol
+```
 
 ## License
 
