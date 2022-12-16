@@ -53,30 +53,24 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event removeManagerByGovEvent(address _removedManager);
     event addManagerByGovEvent(address _addedManager);
     event registerManagerEvent(address _registeredManager);
-    event editRelayerEvent(address _relayerToBeAdded);
+    event addRelayerEvent(address _relayerToBeAdded);
     event removeRelayerEvent(address _removedRelayer);
 
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
         dues = INIT_DUES;
+        addInitRelayer(WHITELIST_1);
+        addInitRelayer(WHITELIST_2);
         alreadyInit = true;
+    }
 
-        // todo initialise the currently existing Managers and their relayer keys
-
-        managers[WHITELIST_1] = manager(requiredDeposit, dues);
-        managers[WHITELIST_2] = manager(requiredDeposit, dues);
-
-        managersRegistered[WHITELIST_1] = true;
-        managersRegistered[WHITELIST_2] = true;
-
-        relayManagersExistMap[WHITELIST_1] = true;
-        relayManagersExistMap[WHITELIST_2] = true;
-
-        managersAndRelayers[WHITELIST_1] = WHITELIST_1; // fixme current relayer
-        managersAndRelayers[WHITELIST_2] = WHITELIST_2; // fixme current relayer
-
-        // fixme initialise relayerExistsMap
+    function addInitRelayer(address addr) internal {
+        managers[addr] = manager(requiredDeposit, dues);
+        managersRegistered[addr] = true;
+        relayManagersExistMap[addr] = true;
+        managersAndRelayers[addr] = addr; // fixme current relayer
+        relayerExistsMap[addr] = true;
     }
 
     /*********************** Param update ********************************/
@@ -158,22 +152,19 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit registerManagerEvent(msg.sender);
     }
 
-    function addRelayer(address relayerToBeAdded) internal onlyRegisteredManager noProxy {
+    function addRelayer(address relayerToBeAdded) public onlyRegisteredManager noProxy {
         require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
+        if(managersAndRelayers[msg.sender] != address(0)) {
+            address r = managersAndRelayers[msg.sender];
+            delete (relayerExistsMap[r]);
+            emit removeRelayerEvent(r);
+        } 
+        
         managersAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
-        emit editRelayerEvent(relayerToBeAdded);
-    }
-
-    function editRelayer(address relayerToBeAdded) external onlyRegisteredManager noProxy {
-        require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
-        require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
-
-        managersAndRelayers[msg.sender] = relayerToBeAdded;
-        relayerExistsMap[relayerToBeAdded] = true;
-        emit editRelayerEvent(relayerToBeAdded);
+        emit addRelayerEvent(relayerToBeAdded);
     }
 
     function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
@@ -196,5 +187,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function isRelayer(address relayerAddress) external override view returns (bool){
         return relayerExistsMap[relayerAddress];
+    }
+
+    // TODO remove just for testing
+    function isManager(address relayerAddress) external view returns (bool){
+        return relayManagersExistMap[relayerAddress];
     }
 }

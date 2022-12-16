@@ -8,73 +8,199 @@ import "./System.sol";
 import "./lib/SafeMath.sol";
 
 
-contract RelayerHub is IRelayerHub, System, IParamSubscriber{
-  using SafeMath for uint256;
+contract RelayerHub is IRelayerHub, System, IParamSubscriber {
+    using SafeMath for uint256;
 
-  uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
-  uint256 public constant INIT_DUES =  1e17;
+    uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
+    uint256 public constant INIT_DUES = 1e17;
+  {% if network == 'local' %}
+    address public constant WHITELIST_1 = 0xA904540818AC9c47f2321F97F1069B9d8746c6DB;
+    address public constant WHITELIST_2 = 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344;
+  {% elif network == 'QA' %}
+    address public constant WHITELIST_1 = 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD;
+    address public constant WHITELIST_2 = 0x42D596440775C90db8d9187b47650986E1063493;
+  {% elif network == 'testnet' %}
+    address public constant WHITELIST_1 = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
+    address public constant WHITELIST_2 = 0x37B8516a0F88E65D677229b402ec6C1e0E333004;
+  {% else %}
+    address public constant WHITELIST_1 = 0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186;
+    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+  {% endif %}
+    uint256 public requiredDeposit;
+    uint256 public dues;
 
-  uint256 public requiredDeposit;
-  uint256 public dues;
+    mapping(address => manager) managers;
+    mapping(address => bool) managersRegistered;
+    mapping(address => bool) relayManagersExistMap;
+    mapping(address => address) managersAndRelayers;
+    mapping(address => bool) relayerExistsMap;
 
-  mapping(address =>relayer) relayers;
-  mapping(address =>bool) relayersExistMap;
-
-  struct relayer{
-    uint256 deposit;
-    uint256  dues;
-  }
-
-  modifier notContract() {
-    require(!isContract(msg.sender), "contract is not allowed to be a relayer");
-    _;
-  }
-
-  modifier noProxy() {
-    require(msg.sender == tx.origin, "no proxy is allowed");
-    _;
-  }
-
-  modifier noExist() {
-    require(!relayersExistMap[msg.sender], "relayer already exist");
-    _;
-  }
-
-  modifier exist() {
-    require(relayersExistMap[msg.sender], "relayer do not exist");
-    _;
-  }
-
-  event relayerRegister(address _relayer);
-  event relayerUnRegister(address _relayer);
-  event paramChange(string key, bytes value);
-
-
-  function init() external onlyNotInit{
-    requiredDeposit = INIT_REQUIRED_DEPOSIT;
-    dues = INIT_DUES;
-    alreadyInit = true;
-  }
-
-  /*********************** Param update ********************************/
-  function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov{
-    if (Memory.compareStrings(key,"requiredDeposit")) {
-      require(value.length == 32, "length of requiredDeposit mismatch");
-      uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
-      require(newRequiredDeposit > 1 && newRequiredDeposit <= 1e21 && newRequiredDeposit > dues, "the requiredDeposit out of range");
-      requiredDeposit = newRequiredDeposit;
-    } else if (Memory.compareStrings(key,"dues")) {
-      require(value.length == 32, "length of dues mismatch");
-      uint256 newDues = BytesToTypes.bytesToUint256(32, value);
-      require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
-      dues = newDues;
-    } else {
-      require(false, "unknown param");
+    struct manager {
+        uint256 deposit;
+        uint256 dues;
     }
-    emit paramChange(key, value);
-  }
 
-  function isRelayer(address sender) external override view returns (bool) {
-    return relayersExistMap[sender];
-  }
+    modifier onlyNonRegisteredManager() {
+        require(relayManagersExistMap[msg.sender], "manager does not exist");
+        _;
+    }
+
+    modifier onlyRegisteredManager() {
+        require(relayManagersExistMap[msg.sender], "manager does not exist");
+        require(managersRegistered[msg.sender], "manager not registered");
+        _;
+    }
+
+    modifier noProxy() {
+        require(msg.sender == tx.origin, "no proxy is allowed");
+        _;
+    }
+
+    event relayerRegister(address _relayer);
+    event relayerUnRegister(address _relayer);
+    event paramChange(string key, bytes value);
+
+    event removeManagerByGovEvent(address _removedManager);
+    event addManagerByGovEvent(address _addedManager);
+    event registerManagerEvent(address _registeredManager);
+    event addRelayerEvent(address _relayerToBeAdded);
+    event removeRelayerEvent(address _removedRelayer);
+
+
+    function init() external onlyNotInit {
+        requiredDeposit = INIT_REQUIRED_DEPOSIT;
+        dues = INIT_DUES;
+        addInitRelayer(WHITELIST_1);
+        addInitRelayer(WHITELIST_2);
+        alreadyInit = true;
+    }
+
+    function addInitRelayer(address addr) internal {
+        managers[addr] = manager(requiredDeposit, dues);
+        managersRegistered[addr] = true;
+        relayManagersExistMap[addr] = true;
+        managersAndRelayers[addr] = addr; // fixme current relayer
+        relayerExistsMap[addr] = true;
+    }
+
+    /*********************** Param update ********************************/
+    function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {
+        if (Memory.compareStrings(key, "requiredDeposit")) {
+            require(value.length == 32, "length of requiredDeposit mismatch");
+            uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
+            require(newRequiredDeposit > 1 && newRequiredDeposit <= 1e21 && newRequiredDeposit > dues, "the requiredDeposit out of range");
+            requiredDeposit = newRequiredDeposit;
+        } else if (Memory.compareStrings(key, "dues")) {
+            require(value.length == 32, "length of dues mismatch");
+            uint256 newDues = BytesToTypes.bytesToUint256(32, value);
+            require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
+            dues = newDues;
+        } else if (Memory.compareStrings(key, "addManager")) {
+
+            require(value.length == 20, "length of manager address mismatch");
+            address newManager = BytesToTypes.bytesToAddress(20, value);
+            addManagerByGov(newManager);
+
+        } else if (Memory.compareStrings(key, "removeManager")) {
+
+            require(value.length == 20, "length of manager address mismatch");
+            address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
+            removeManagerByGov(managerAddress);
+
+        } else {
+            require(false, "unknown param");
+        }
+        emit paramChange(key, value);
+    }
+
+    function removeManagerByGov(address payable managerToBeRemoved) internal {
+        removeManagerHelper(managerToBeRemoved);
+    }
+
+    function removeManager() external onlyRegisteredManager {
+        // here the manager removes himself
+        removeManagerHelper(payable(msg.sender));
+    }
+
+    function removeManagerHelper(address payable managerAddress) internal {
+        // check if the manager address already exists
+        require(relayManagersExistMap[managerAddress], "manager doesn't exist");
+
+        address relayerAddress = managersAndRelayers[managerAddress];
+
+        delete (relayManagersExistMap[managerAddress]);
+        delete (managersAndRelayers[managerAddress]);
+
+        manager memory a = managers[managerAddress];
+        managerAddress.transfer(a.deposit.sub(a.dues));
+        address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
+        systemPayable.transfer(a.dues);
+
+        delete (managers[managerAddress]);
+        delete (managersRegistered[managerAddress]);
+
+        // emit success event
+        emit removeManagerByGovEvent(managerAddress);
+        if (relayerAddress != address(0)) {
+            emit removeRelayerEvent(relayerAddress);
+        }
+    }
+
+    function addManagerByGov(address managerToBeAdded) internal {
+        require(!relayManagersExistMap[managerToBeAdded], "manager already exists");
+        require(!isContract(managerToBeAdded), "contract is not allowed to be a manager");
+
+        relayManagersExistMap[managerToBeAdded] = true;
+
+        emit addManagerByGovEvent(managerToBeAdded);
+    }
+
+    function registerManager() internal onlyNonRegisteredManager {
+        require(msg.value == requiredDeposit, "deposit value is not exactly the same");
+        managers[msg.sender] = manager(requiredDeposit, dues);
+        managersRegistered[msg.sender] = true;
+        emit registerManagerEvent(msg.sender);
+    }
+
+    function addRelayer(address relayerToBeAdded) public onlyRegisteredManager noProxy {
+        require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
+        require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
+
+        if(managersAndRelayers[msg.sender] != address(0)) {
+            address r = managersAndRelayers[msg.sender];
+            delete (relayerExistsMap[r]);
+            emit removeRelayerEvent(r);
+        } 
+        
+        managersAndRelayers[msg.sender] = relayerToBeAdded;
+        relayerExistsMap[relayerToBeAdded] = true;
+        emit addRelayerEvent(relayerToBeAdded);
+    }
+
+    function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
+        registerManager();
+        addRelayer(relayer);
+    }
+
+    function removeRelayer() external onlyRegisteredManager {
+        if (managersAndRelayers[msg.sender] == address(0)) {
+            require(false, "relayer doesn't exist for this manager");
+        }
+
+        address r = managersAndRelayers[msg.sender];
+
+        delete (relayerExistsMap[r]);
+        delete (managersAndRelayers[msg.sender]);
+
+        emit removeRelayerEvent(r);
+    }
+
+    function isRelayer(address relayerAddress) external override view returns (bool){
+        return relayerExistsMap[relayerAddress];
+    }
+
+    // TODO remove just for testing
+    function isManager(address relayerAddress) external view returns (bool){
+        return relayManagersExistMap[relayerAddress];
+    }
 }
