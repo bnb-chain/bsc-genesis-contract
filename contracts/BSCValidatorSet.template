@@ -189,6 +189,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
+
+  /**
+   * @dev Collect all fee of transactions from the current block and deposit it to the contract
+   *
+   * @param valAddr The validator address who produced the current block
+   */
   function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
@@ -362,6 +368,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return CODE_OK;
   }
 
+  /**
+   * @dev With each epoch, there will be a partial rotation between cabinets and candidates. Rotation is determined by this function
+   *
+   */
   function shuffle(address[] memory validators, uint256 epochNumber, uint startIdx, uint offset, uint limit, uint modNumber) internal pure {
     for (uint i; i<limit; ++i) {
       uint random = uint(keccak256(abi.encodePacked(epochNumber, startIdx+i))) % modNumber;
@@ -373,6 +383,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
+  /**
+   * @dev Get mining validators that are block producers in the current epoch, including most of the cabinets and a few of the candidates
+   *
+   */
   function getMiningValidators() public view returns(address[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
@@ -401,6 +415,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return miningValidators;
   }
 
+  /**
+   * @dev Get all validators, including all of the cabinets and all of the candidates
+   *
+   */
   function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
@@ -514,6 +532,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return true;
   }
 
+
+  /**
+   * @dev Enter maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
+   *
+   */
   function enterMaintenance() external initValidatorExtraSet {
     // check maintain config
     if (maxNumOfMaintaining == 0) {
@@ -528,6 +551,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     _enterMaintenance(msg.sender, index);
   }
 
+  /**
+   * @dev Exit maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
+   *
+   */
   function exitMaintenance() external {
     uint256 index = getCurrentValidatorIndex(msg.sender);
 
