@@ -193,6 +193,12 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /***************************** External functions *****************************/
+  /**
+   * @dev Delegate BNB from BSC to BC
+   *
+   * @param validator BC validator address encoded to evm address
+   * @param amount Amount user delegate to BC validator
+   */
   function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(amount >= minDelegation, "invalid delegate amount");
     require(msg.value >= amount.add(relayerFee), "not enough msg value");
@@ -219,6 +225,12 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     emit delegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
+  /**
+   * @dev Undelegate BNB from BC to BSC
+   *
+   * @param validator BC validator encoded address the user delegated
+   * @param amount BNB amount the user undelegates
+   */
   function undelegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
     require(msg.value >= relayerFee, "not enough relay fee");
     if (amount < minDelegation) {
@@ -253,6 +265,11 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     emit undelegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
   }
 
+  /**
+   * @dev Redelegate from validatorSrc to validatorDst on BC
+   *
+   * @param amount Amount that the user redelegates
+   */
   function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
     require(validatorSrc != validatorDst, "invalid redelegation");
     require(msg.value >= relayerFee, "not enough relay fee");
@@ -288,6 +305,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, oracleRelayerFee);
   }
 
+  /**
+   * @dev claim delegated reward from BC staking
+   *
+   */
   function claimReward() override external noReentrant returns(uint256 amount) {
     amount = distributedReward[msg.sender];
     require(amount > 0, "no pending reward");
@@ -298,6 +319,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     emit rewardClaimed(msg.sender, amount);
   }
 
+  /**
+   * @dev claim undelegated BNB from BC staking
+   *
+   */
   function claimUndelegated() override external noReentrant returns(uint256 amount) {
     amount = undelegated[msg.sender];
     require(amount > 0, "no undelegated funds");
