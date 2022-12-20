@@ -55,6 +55,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event registerManagerEvent(address _registeredManager);
     event addRelayerEvent(address _relayerToBeAdded);
     event removeRelayerEvent(address _removedRelayer);
+    event updateRelayerEvent(address _from, address _to);
 
 
     function init() external onlyNotInit {
@@ -153,37 +154,24 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit registerManagerEvent(msg.sender);
     }
 
+    // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
+    // in case of removal we can simply update it to a non-existing account
     function updateRelayer(address relayerToBeAdded) public onlyRegisteredManager {
         require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
-        if(managersAndRelayers[msg.sender] != address(0)) {
-            address r = managersAndRelayers[msg.sender];
-            delete (relayerExistsMap[r]);
-            emit removeRelayerEvent(r);
-        } 
-        
+        address oldRelayer = managersAndRelayers[msg.sender];
+        relayerExistsMap[oldRelayer] = false;
+
         managersAndRelayers[msg.sender] = relayerToBeAdded;
         relayerExistsMap[relayerToBeAdded] = true;
-        emit addRelayerEvent(relayerToBeAdded);
+
+        emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }
 
     function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
         registerManager();
         updateRelayer(relayer);
-    }
-
-    function removeRelayer() external onlyRegisteredManager {
-        if (managersAndRelayers[msg.sender] == address(0)) {
-            require(false, "relayer doesn't exist for this manager");
-        }
-
-        address r = managersAndRelayers[msg.sender];
-
-        delete (relayerExistsMap[r]);
-        delete (managersAndRelayers[msg.sender]);
-
-        emit removeRelayerEvent(r);
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){
