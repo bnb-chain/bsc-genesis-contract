@@ -19,6 +19,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 public requiredDeposit;
     uint256 public dues;
 
+    mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
+    mapping(address => bool) relayersExistMap;
+
     mapping(address => manager) managers;
     mapping(address => bool) managersRegistered;
     mapping(address => bool) relayManagersExistMap;
@@ -28,6 +31,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     struct manager {
         uint256 deposit;
         uint256 dues;
+    }
+
+    modifier onlyPreviousRegisteredRelayer() {
+        require(relayersExistMap[msg.sender], "relayer do not exist");
+        _;
     }
 
     modifier onlyNonRegisteredManager() {
@@ -46,6 +54,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
+    modifier onlyAllowedParty() {
+        require(msg.sender == 0xb005741528b86F5952469d80A8614591E3c5B632 || msg.sender == 0x446AA6E0DC65690403dF3F127750da1322941F3e, "the msg sender is not allowed to call update to ensure smooth transition");
+        // todo change the above address to appropriate ones
+        _;
+    }
+
+    event relayerUnRegister(address _relayer);
+
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
@@ -57,13 +73,25 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event removeRelayerEvent(address _removedRelayer);
     event updateRelayerEvent(address _from, address _to);
 
+    function exitOldRelayers() external onlyPreviousRegisteredRelayer {
+        relayer memory r = relayers[msg.sender];
+        msg.sender.transfer(r.deposit.sub(r.dues));
+        address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+        systemPayable.transfer(r.dues);
+        delete relayersExistMap[msg.sender];
+        delete relayers[msg.sender];
+        emit relayerUnRegister(msg.sender);
+    }
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
         dues = INIT_DUES;
+        alreadyInit = true;
+    }
+
+    function update() external onlyAllowedParty {
         addInitRelayer(WHITELIST_1);
         addInitRelayer(WHITELIST_2);
-        alreadyInit = true;
     }
 
     function addInitRelayer(address addr) internal {
