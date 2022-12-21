@@ -62,8 +62,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
-    event relayerUnRegister(address _relayer);
-
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
@@ -152,10 +150,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
 
-        manager memory a = managers[managerAddress];
-        managerAddress.transfer(a.deposit.sub(a.dues));
+        manager memory m = managers[managerAddress];
+        managerAddress.transfer(m.deposit.sub(m.dues));
         address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
-        systemPayable.transfer(a.dues);
+        systemPayable.transfer(m.dues);
 
         delete (managers[managerAddress]);
         delete (managersRegistered[managerAddress]);
@@ -177,7 +175,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit addManagerByGovEvent(managerToBeAdded);
     }
 
-    function registerManager() internal onlyNonRegisteredManager {
+    function registerManager() internal {
         require(msg.value == requiredDeposit, "deposit value is not exactly the same");
         managers[msg.sender] = manager(requiredDeposit, dues);
         managersRegistered[msg.sender] = true;
