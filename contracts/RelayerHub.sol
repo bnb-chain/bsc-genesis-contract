@@ -11,6 +11,8 @@ import "./lib/SafeMath.sol";
 contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     using SafeMath for uint256;
 
+    bool public alreadyUpdate;
+
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
     address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
@@ -88,8 +90,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function update() external onlyAllowedParty {
+        require(!alreadyUpdate, "the contract already updated");
         addInitRelayer(WHITELIST_1);
         addInitRelayer(WHITELIST_2);
+        alreadyUpdate = true;
     }
 
     function addInitRelayer(address addr) internal {
