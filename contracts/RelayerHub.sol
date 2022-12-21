@@ -25,8 +25,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     mapping(address => manager) managers;
     mapping(address => bool) managersRegistered;
     mapping(address => bool) relayManagersExistMap;
-    mapping(address => address) managersAndRelayers;
-    mapping(address => bool) relayerExistsMap;
+    mapping(address => address) managerToRelayer;
+    mapping(address => bool) currentRelayers;
 
     struct manager {
         uint256 deposit;
@@ -96,8 +96,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         managers[addr] = manager(requiredDeposit, dues);
         managersRegistered[addr] = true;
         relayManagersExistMap[addr] = true;
-        managersAndRelayers[addr] = addr; // fixme current relayer
-        relayerExistsMap[addr] = true;
+        managerToRelayer[addr] = addr; // fixme current relayer
+        currentRelayers[addr] = true;
     }
 
     /*********************** Param update ********************************/
@@ -143,10 +143,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         // check if the manager address already exists
         require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
-        address relayerAddress = managersAndRelayers[managerAddress];
+        address relayerAddress = managerToRelayer[managerAddress];
 
         delete (relayManagersExistMap[managerAddress]);
-        delete (managersAndRelayers[managerAddress]);
+        delete (managerToRelayer[managerAddress]);
 
         manager memory a = managers[managerAddress];
         managerAddress.transfer(a.deposit.sub(a.dues));
@@ -159,7 +159,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         // emit success event
         emit removeManagerByGovEvent(managerAddress);
         if (relayerAddress != address(0)) {
-            delete (relayerExistsMap[relayerAddress]);
+            delete (currentRelayers[relayerAddress]);
             emit updateRelayerEvent(relayerAddress, address(0));
         }
     }
@@ -183,14 +183,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal we can simply update it to a non-existing account
     function updateRelayer(address relayerToBeAdded) public onlyRegisteredManager {
-        require(!relayerExistsMap[relayerToBeAdded], "relayer already exists");
+        require(!currentRelayers[relayerToBeAdded], "relayer already exists");
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
-        address oldRelayer = managersAndRelayers[msg.sender];
-        relayerExistsMap[oldRelayer] = false;
+        address oldRelayer = managerToRelayer[msg.sender];
+        currentRelayers[oldRelayer] = false;
 
-        managersAndRelayers[msg.sender] = relayerToBeAdded;
-        relayerExistsMap[relayerToBeAdded] = true;
+        managerToRelayer[msg.sender] = relayerToBeAdded;
+        currentRelayers[relayerToBeAdded] = true;
 
         emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }
@@ -201,7 +201,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){
-        return relayerExistsMap[relayerAddress];
+        return currentRelayers[relayerAddress];
     }
 
     // TODO remove just for testing
