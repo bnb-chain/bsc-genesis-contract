@@ -34,7 +34,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     modifier onlyPreviousRegisteredRelayer() {
-        require(relayersExistMap[msg.sender], "relayer do not exist");
+        require(relayersExistMap[msg.sender], "relayer does not exist");
         _;
     }
 
@@ -56,7 +56,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     modifier onlyAllowedParty() {
         require(msg.sender == 0xb005741528b86F5952469d80A8614591E3c5B632 || msg.sender == 0x446AA6E0DC65690403dF3F127750da1322941F3e, "the msg sender is not allowed to call update to ensure smooth transition");
-        // todo change the above address to appropriate ones
+        // todo change the above address to appropriate ones which can call update()
         _;
     }
 
@@ -69,8 +69,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event removeManagerByGovEvent(address _removedManager);
     event addManagerByGovEvent(address _addedManager);
     event registerManagerEvent(address _registeredManager);
-    event addRelayerEvent(address _relayerToBeAdded);
-    event removeRelayerEvent(address _removedRelayer);
     event updateRelayerEvent(address _from, address _to);
 
     function exitOldRelayers() external onlyPreviousRegisteredRelayer {
@@ -133,15 +131,15 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function removeManagerByGov(address payable managerToBeRemoved) internal {
-        removeManagerHelper(managerToBeRemoved);
+        removeManager(managerToBeRemoved);
     }
 
-    function removeManager() external {
+    function removeManagerByHimself() external {
         // here the manager removes himself
-        removeManagerHelper(payable(msg.sender));
+        removeManager(payable(msg.sender));
     }
 
-    function removeManagerHelper(address payable managerAddress) internal {
+    function removeManager(address payable managerAddress) internal {
         // check if the manager address already exists
         require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
@@ -162,7 +160,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit removeManagerByGovEvent(managerAddress);
         if (relayerAddress != address(0)) {
             delete (relayerExistsMap[relayerAddress]);
-            emit removeRelayerEvent(relayerAddress);
+            emit updateRelayerEvent(relayerAddress, address(0));
         }
     }
 
