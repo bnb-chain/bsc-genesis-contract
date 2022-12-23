@@ -11,8 +11,6 @@ import "./lib/SafeMath.sol";
 contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     using SafeMath for uint256;
 
-    bool public alreadyUpdate;
-
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
     address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
@@ -24,11 +22,18 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
     mapping(address => bool) relayersExistMap;
 
+    struct relayer{
+        uint256 deposit;
+        uint256 dues;
+    }
+
     mapping(address => manager) managers;
     mapping(address => bool) managersRegistered;
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
+
+    bool public alreadyUpdate;
 
     struct manager {
         uint256 deposit;
@@ -53,12 +58,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     modifier noProxy() {
         require(msg.sender == tx.origin, "no proxy is allowed");
-        _;
-    }
-
-    modifier onlyAllowedParty() {
-        require(msg.sender == 0xb005741528b86F5952469d80A8614591E3c5B632 || msg.sender == 0x446AA6E0DC65690403dF3F127750da1322941F3e, "the msg sender is not allowed to call update to ensure smooth transition");
-        // todo change the above address to appropriate ones which can call update()
         _;
     }
 
@@ -87,7 +86,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         alreadyInit = true;
     }
 
-    function update() external onlyAllowedParty {
+    function update() external {
         require(!alreadyUpdate, "the contract already updated");
         addInitRelayer(WHITELIST_1);
         addInitRelayer(WHITELIST_2);
