@@ -20,6 +20,7 @@ interface BSCValidatorSet {
     event validatorJailed(address indexed validator);
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorSetUpdated();
+    event validatorSharing(address indexed validator, uint256 amount);
 
     function BIND_CHANNELID() external view returns (uint8);
     function BURN_ADDRESS() external view returns (address);
@@ -48,6 +49,8 @@ interface BSCValidatorSet {
     function MAX_NUM_OF_VALIDATORS() external view returns (uint256);
     function PRECISION() external view returns (uint256);
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
+    function SHARING_REWARD_INIT_RATIO() external view returns (uint256);
+    function SHARING_REWARD_SCALE() external view returns (uint256);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
@@ -100,6 +103,9 @@ interface BSCValidatorSet {
     function numOfCabinets() external view returns (uint256);
     function numOfJailed() external view returns (uint256);
     function numOfMaintaining() external view returns (uint256);
+    function sharingRewardFundingPool() external view returns (uint256);
+    function sharingRewardInitialized() external view returns (bool);
+    function sharingRewardPercent() external view returns (uint256);
     function totalInComing() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
     function validatorExtraSet(uint256) external view returns (uint256 enterMaintenanceHeight, bool isMaintaining);

@@ -74,6 +74,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfCandidates;
   uint256 public maxNumOfWorkingCandidates;
 
+  // BEP-176 redistribute part of block reward for sharing all validators according to produced blocks
+  // precision to 0.00% ~ 100.00%, default is 50.00%
+  uint256 public constant SHARING_REWARD_INIT_RATIO = 5000;
+  uint256 public constant SHARING_REWARD_SCALE = 10000;
+
+  // funding pool will redistribute by validator produced block proportion in updateValidatorSet,
+  // it accumulates reward by cut off sharingPercent of every block reward.
+  uint256 public sharingRewardFundingPool;
+  uint256 public sharingRewardPercent;
+  // sharingReward Init flag, default false, should not chg twice
+  bool public sharingRewardInitialized;
+
   struct Validator{
     address consensusAddress;
     address payable feeAddress;
@@ -91,6 +103,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isMaintaining;
 
     // reserve for future use
+    // BEP-176，Parlia will guarantee that miner must call deposit only once in a block, so we needn't check prevBlockNumber.
+    // slots[0] = blockCounter
     uint256[20] slots;
   }
 
@@ -131,6 +145,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event directTransferFail(address payable indexed validator, uint256 amount);
   event deprecatedDeposit(address indexed validator, uint256 amount);
   event validatorDeposit(address indexed validator, uint256 amount);
+  event validatorSharing(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(address indexed validator, uint256 amount);
   event failReasonWithStr(string message);
@@ -189,7 +204,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit initValidatorExtraSet{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
@@ -213,9 +228,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (validator.jailed) {
         emit deprecatedDeposit(valAddr,value);
       } else {
-        totalInComing = totalInComing.add(value);
-        validator.incoming = validator.incoming.add(value);
-        emit validatorDeposit(valAddr,value);
+        // handle block reward distribute and block counter
+        _accumulateRewardAndBlock(valAddr, index, value);
       }
     } else {
       // get incoming from deprecated validator;
@@ -262,6 +276,23 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint crossSize;
     uint directSize;
     uint validatorsNum = currentValidatorSet.length;
+
+    // redistribute sharing reward first
+    if (sharingRewardFundingPool > 0) {
+      uint256 totalBlockCount;
+      for (uint i; i < validatorsNum; ++i) {
+        totalBlockCount = totalBlockCount.add(validatorExtraSet[i].slots[0]);
+      }
+      if (totalBlockCount > 0) {
+        for (uint i; i < validatorsNum; ++i) {
+          uint256 addition = sharingRewardFundingPool.mul(validatorExtraSet[i].slots[0]).div(totalBlockCount);
+          currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(addition);
+        }
+      }
+      // reset sharingFundingPool, and left token in sharingFundingPool will send to systemReward automatically.
+      sharingRewardFundingPool = 0;
+    }
+
     for (uint i; i < validatorsNum; ++i) {
       if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
         crossSize ++;
@@ -582,6 +613,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(newNumOfCabinets > 0, "the numOfCabinets must be greater than 0");
       require(newNumOfCabinets <= MAX_NUM_OF_VALIDATORS, "the numOfCabinets must be less than MAX_NUM_OF_VALIDATORS");
       numOfCabinets = newNumOfCabinets;
+    }  else if (Memory.compareStrings(key, "sharingRewardPercent")) {
+      require(value.length == 32, "length of sharingRewardPercent mismatch");
+      uint256 newVal = BytesToTypes.bytesToUint256(32, value);
+      require(newVal <= SHARING_REWARD_SCALE, "the sharingRewardPercent must be less than SHARING_REWARD_SCALE");
+      // force set Initialized
+      if (!sharingRewardInitialized) {
+        sharingRewardInitialized = true;
+      }
+      sharingRewardPercent = newVal;
     } else {
       require(false, "unknown param");
     }
@@ -653,6 +693,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint i; i < n; ++i) {
       validatorExtraSet[i].isMaintaining = false;
       validatorExtraSet[i].enterMaintenanceHeight = 0;
+      // clear redistribution info
+      validatorExtraSet[i].slots[0] = 0;
     }
   }
 
@@ -670,6 +712,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     uint256 income = currentValidatorSet[index].incoming;
     currentValidatorSet[index].incoming = 0;
+    // clear block counter
+    ValidatorExtra storage extra = validatorExtraSet[index];
+    extra.slots[0] = 0;
     uint256 rest = currentValidatorSet.length - 1;
     emit validatorMisdemeanor(validator, income);
     if (rest == 0) {
@@ -697,6 +742,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (getValidators().length <= 1) {
       // will not remove the validator if it is the only one validator.
       currentValidatorSet[index].incoming = 0;
+      // clear block counter
+      ValidatorExtra storage extra = validatorExtraSet[index];
+      extra.slots[0] = 0;
       return false;
     }
     emit validatorFelony(validator, income);
@@ -811,6 +859,36 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     emit validatorExitMaintenance(validator);
+  }
+
+  function _accumulateRewardAndBlock(address valAddr, uint index, uint256 reward) private {
+
+    if (!sharingRewardInitialized) {
+      sharingRewardPercent = SHARING_REWARD_INIT_RATIO;
+      sharingRewardInitialized = true;
+    }
+
+    if (sharingRewardPercent > SHARING_REWARD_SCALE || SHARING_REWARD_SCALE == 0) {
+      // should not happen, still protect, cannot panic
+      return;
+    }
+
+    if (reward > 0) {
+      totalInComing = totalInComing.add(reward);
+      Validator storage validator = currentValidatorSet[index-1];
+      // split to dedicated reward, and shared reward
+      uint256 sharedReward = reward.mul(sharingRewardPercent).div(SHARING_REWARD_SCALE);
+      uint256 dedicatedReward = reward.sub(sharedReward);
+      validator.incoming = validator.incoming.add(dedicatedReward);
+      sharingRewardFundingPool = sharingRewardFundingPool.add(sharedReward);
+      // validatorDeposit show real block incoming
+      emit validatorDeposit(valAddr, dedicatedReward);
+      emit validatorSharing(valAddr, sharedReward);
+    }
+
+    // accumulate block counter
+    ValidatorExtra storage extra = validatorExtraSet[index-1];
+    extra.slots[0] = extra.slots[0].add(1);
   }
 
   //rlp encode & decode function

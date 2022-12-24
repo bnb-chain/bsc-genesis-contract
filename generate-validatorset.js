@@ -28,6 +28,12 @@ program.option(
     "0"
 )
 
+program.option(
+    "--initSharingRewardPercent <initSharingRewardPercent>",
+    "initSharingRewardPercent",
+    "5000"
+)
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -42,6 +48,7 @@ if (initValidatorSetBytes == ""){
 const data = {
   initValidatorSetBytes: initValidatorSetBytes,
   initBurnRatio: program.initBurnRatio,
+  initSharingRewardPercent: program.initSharingRewardPercent,
   mock: program.mock,
 };
 
