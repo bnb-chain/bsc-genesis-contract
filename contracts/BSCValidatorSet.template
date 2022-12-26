@@ -145,7 +145,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event directTransferFail(address payable indexed validator, uint256 amount);
   event deprecatedDeposit(address indexed validator, uint256 amount);
   event validatorDeposit(address indexed validator, uint256 amount);
-  event validatorSharing(address indexed validator, uint256 amount);
+  event rewardShared(address indexed validator, uint256 amount);
   event validatorMisdemeanor(address indexed validator, uint256 amount);
   event validatorFelony(address indexed validator, uint256 amount);
   event failReasonWithStr(string message);
@@ -868,7 +868,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       sharingRewardInitialized = true;
     }
 
-    if (sharingRewardPercent > SHARING_REWARD_SCALE || SHARING_REWARD_SCALE == 0) {
+    if (sharingRewardPercent > SHARING_REWARD_SCALE) {
       // should not happen, still protect, cannot panic
       return;
     }
@@ -883,7 +883,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       sharingRewardFundingPool = sharingRewardFundingPool.add(sharedReward);
       // validatorDeposit show real block incoming
       emit validatorDeposit(valAddr, dedicatedReward);
-      emit validatorSharing(valAddr, sharedReward);
+      emit rewardShared(valAddr, sharedReward);
     }
 
     // accumulate block counter
