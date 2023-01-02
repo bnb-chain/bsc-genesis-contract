@@ -16,13 +16,13 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
     address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
 
-    uint256 public requiredDeposit;
+    uint256 public requiredDeposit; // have to keep it to not break the storage layout
     uint256 public dues;
 
     mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
     mapping(address => bool) relayersExistMap;
 
-    struct relayer{
+    struct relayer {
         uint256 deposit;
         uint256 dues;
     }
@@ -36,13 +36,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     bool public alreadyUpdate;
 
     struct manager {
-        uint256 deposit;
         uint256 dues;
-    }
-
-    modifier onlyPreviousRegisteredRelayer() {
-        require(relayersExistMap[msg.sender], "relayer does not exist");
-        _;
     }
 
     modifier onlyNonRegisteredManager() {
@@ -61,6 +55,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
+    modifier exist() {
+        require(relayersExistMap[msg.sender], "relayer do not exist");
+        _;
+    }
+
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
@@ -70,7 +69,13 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event registerManagerEvent(address _registeredManager);
     event updateRelayerEvent(address _from, address _to);
 
-    function exitOldRelayers() external onlyPreviousRegisteredRelayer {
+    function init() external onlyNotInit {
+        requiredDeposit = INIT_REQUIRED_DEPOSIT;
+        dues = INIT_DUES;
+        alreadyInit = true;
+    }
+
+    function unregister() external exist onlyInit {
         relayer memory r = relayers[msg.sender];
         msg.sender.transfer(r.deposit.sub(r.dues));
         address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
@@ -78,12 +83,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete relayersExistMap[msg.sender];
         delete relayers[msg.sender];
         emit relayerUnRegister(msg.sender);
-    }
-
-    function init() external onlyNotInit {
-        requiredDeposit = INIT_REQUIRED_DEPOSIT;
-        dues = INIT_DUES;
-        alreadyInit = true;
     }
 
     function update() external {
@@ -94,7 +93,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function addInitRelayer(address addr) internal {
-        managers[addr] = manager(requiredDeposit, dues);
+        managers[addr] = manager(dues);
         managersRegistered[addr] = true;
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // fixme current relayer
@@ -150,7 +149,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (managerToRelayer[managerAddress]);
 
         manager memory m = managers[managerAddress];
-        managerAddress.transfer(m.deposit.sub(m.dues));
         address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
         systemPayable.transfer(m.dues);
 
@@ -175,8 +173,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function registerManager() internal {
-        require(msg.value == requiredDeposit, "deposit value is not exactly the same");
-        managers[msg.sender] = manager(requiredDeposit, dues);
+        managers[msg.sender] = manager(dues);
         managersRegistered[msg.sender] = true;
         emit registerManagerEvent(msg.sender);
     }
@@ -196,9 +193,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }
 
-    function registerManagerAddRelayer(address relayer) external payable onlyNonRegisteredManager {
+    function registerManagerAddRelayer(address r) external payable onlyNonRegisteredManager {
         registerManager();
-        updateRelayer(relayer);
+        updateRelayer(r);
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){
