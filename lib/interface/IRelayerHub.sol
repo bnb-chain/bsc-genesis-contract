@@ -36,4 +36,5 @@ interface RelayerHub {
     function requiredDeposit() external view returns (uint256);
     function unregister() external;
     function updateParam(string memory key, bytes memory value) external;
+    function registerManagerAddRelayer(address r) external payable;
 }
