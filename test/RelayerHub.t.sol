@@ -24,26 +24,28 @@ contract RelayerHubTest is Deployer {
     }
 
     function testAddManager() public {
+        RelayerHub newRelayerHub;
+
+        bytes memory relayerCode = vm.getDeployedCode("RelayerHub.sol");
+        vm.etch(RELAYERHUB_CONTRACT_ADDR, relayerCode);
+        newRelayerHub = RelayerHub(RELAYERHUB_CONTRACT_ADDR);
+
+        bytes memory key = "addManager";
         address manager = payable(addrSet[addrIdx++]);
         address newRelayer = payable(addrSet[addrIdx++]);
+        bytes memory valueBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueBytes.length == 20, "length of manager address mismatch in tests");
 
-        // testing if we can update "dues" param which is currently there on mainnet.
-        // this works fine in forge test
-        bytes memory keyDues = "dues";
-        uint256 valueDues = 23;
-        bytes memory testValueBytes = abi.encode(valueDues);
-        updateParamByGovHub(keyDues, testValueBytes, address(relayerHub));
+        updateParamByGovHub(key, valueBytes, address(newRelayerHub));
 
-        // testing if we can update "addManager" param which is currently NOT there on mainnet but exists locally.
-        // this gives error of "unknown param" in "forge test -vvvv --match-test testAddManager"
-        bytes memory key = "addManager";
-        bytes memory valueBytes = abi.encode(manager);
-        updateParamByGovHub(key, valueBytes, address(relayerHub));
-
-        // check if manager is there
+        // check if manager is there and can add a relayer
         vm.prank(manager, manager);
-        relayerHub.registerManagerAddRelayer(newRelayer);
+        newRelayerHub.registerManagerAddRelayer(newRelayer);
 
+        // do illegal call
+        vm.prank(newRelayer, newRelayer);
+        vm.expectRevert(bytes("manager does not exist"));
+        newRelayerHub.registerManagerAddRelayer(manager);
     }
 
     //  function testCannotRegister() public {
