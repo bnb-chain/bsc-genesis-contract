@@ -48,6 +48,37 @@ contract RelayerHubTest is Deployer {
         newRelayerHub.registerManagerAddRelayer(manager);
     }
 
+    // todo test data
+
+
+    // this checks if the previously existing unregister() function can support safe exit for existing relayers after hardfork
+    function testunregister() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        address existingRelayer1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+        vm.prank(existingRelayer1, existingRelayer1);
+        newRelayerHub.unregister();
+
+        address existingRelayer2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+        vm.prank(existingRelayer2, existingRelayer2);
+        newRelayerHub.unregister();
+
+        address nonExistingRelayer = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
+        vm.prank(nonExistingRelayer, nonExistingRelayer);
+        vm.expectRevert(bytes("relayer do not exist"));
+        newRelayerHub.unregister();
+    }
+
+    function helperGetNewRelayerHub() internal returns (RelayerHub) {
+        RelayerHub newRelayerHub;
+
+        bytes memory relayerCode = vm.getDeployedCode("RelayerHub.sol");
+        vm.etch(RELAYERHUB_CONTRACT_ADDR, relayerCode);
+        newRelayerHub = RelayerHub(RELAYERHUB_CONTRACT_ADDR);
+
+        return newRelayerHub;
+    }
+
     //  function testCannotRegister() public {
     //    address newRelayer = addrSet[addrIdx++];
     //    vm.startPrank(newRelayer, newRelayer);

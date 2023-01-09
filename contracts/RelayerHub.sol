@@ -96,7 +96,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         managers[addr] = manager(dues);
         managersRegistered[addr] = true;
         relayManagersExistMap[addr] = true;
-        managerToRelayer[addr] = addr; // fixme current relayer
+        managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
         currentRelayers[addr] = true;
     }
 
