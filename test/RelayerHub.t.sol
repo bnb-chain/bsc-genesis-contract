@@ -6,6 +6,7 @@ contract RelayerHubTest is Deployer {
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
+    event updateRelayerEvent(address _from, address _to);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -24,11 +25,7 @@ contract RelayerHubTest is Deployer {
     }
 
     function testAddManager() public {
-        RelayerHub newRelayerHub;
-
-        bytes memory relayerCode = vm.getDeployedCode("RelayerHub.sol");
-        vm.etch(RELAYERHUB_CONTRACT_ADDR, relayerCode);
-        newRelayerHub = RelayerHub(RELAYERHUB_CONTRACT_ADDR);
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
 
         bytes memory key = "addManager";
         address manager = payable(addrSet[addrIdx++]);
@@ -40,6 +37,8 @@ contract RelayerHubTest is Deployer {
 
         // check if manager is there and can add a relayer
         vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(payable(address(0)), newRelayer);
         newRelayerHub.registerManagerAddRelayer(newRelayer);
 
         // do illegal call
