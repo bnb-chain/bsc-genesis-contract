@@ -37,4 +37,5 @@ interface RelayerHub {
     function unregister() external;
     function updateParam(string memory key, bytes memory value) external;
     function registerManagerAddRelayer(address r) external payable;
+    function isManager(address relayerAddress) external view returns (bool);
 }

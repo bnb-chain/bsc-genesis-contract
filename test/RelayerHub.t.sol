@@ -7,6 +7,7 @@ contract RelayerHubTest is Deployer {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
     event updateRelayerEvent(address _from, address _to);
+    event removeManagerByGovEvent(address _manager);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -27,13 +28,13 @@ contract RelayerHubTest is Deployer {
     function testAddManager() public {
         RelayerHub newRelayerHub = helperGetNewRelayerHub();
 
-        bytes memory key = "addManager";
+        bytes memory keyAddManager = "addManager";
         address manager = payable(addrSet[addrIdx++]);
         address newRelayer = payable(addrSet[addrIdx++]);
-        bytes memory valueBytes = abi.encodePacked(bytes20(uint160(manager)));
-        require(valueBytes.length == 20, "length of manager address mismatch in tests");
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
 
-        updateParamByGovHub(key, valueBytes, address(newRelayerHub));
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
 
         // check if manager is there and can add a relayer
         vm.prank(manager, manager);
@@ -45,6 +46,22 @@ contract RelayerHubTest is Deployer {
         vm.prank(newRelayer, newRelayer);
         vm.expectRevert(bytes("manager does not exist"));
         newRelayerHub.registerManagerAddRelayer(manager);
+
+        bool isRelayerTrue = newRelayerHub.isRelayer(newRelayer);
+        assertTrue(isRelayerTrue);
+
+        bool isManagerTrue = newRelayerHub.isManager(manager);
+        assertTrue(isManagerTrue);
+
+        // remove manager test i.e. for removeManager()
+        bytes memory keyRemoveManager = "removeManager";
+        vm.expectEmit(true, true, false, true);
+        emit removeManagerByGovEvent(manager);
+        updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
+
+//        bool isRelayerFalse = newRelayerHub.isRelayer(manager);
+//        assertFalse(isRelayerFalse);
+
     }
 
     // todo test data
