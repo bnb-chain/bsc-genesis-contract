@@ -19,6 +19,10 @@ program.option(
     ""
 )
 
+program.option("--network <network>",
+    "network",
+    "mainnet");
+
 program.option(
     "--initBurnRatio <initBurnRatio>",
     "initBurnRatio",
@@ -38,6 +42,8 @@ require("./generate-tendermintlightclient");
 require("./generate-relayerincentivizecontract");
 require("./generate-crosschain");
 require("./generate-slash");
+require("./generate-relayerhub");
+require("./generate-staking");
 
 program.version("0.0.1")
 program.option(
@@ -139,6 +145,11 @@ Promise.all([
       "crossChain",
       "contracts/CrossChain.sol",
       "CrossChain"
+  ),
+  compileContract(
+    "staking",
+    "contracts/Staking.sol",
+    "Staking"
   )
 ]).then(result => {
 
