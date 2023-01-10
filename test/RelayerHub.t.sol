@@ -47,9 +47,11 @@ contract RelayerHubTest is Deployer {
         vm.expectRevert(bytes("manager does not exist"));
         newRelayerHub.registerManagerAddRelayer(manager);
 
+        // check if relayer is added
         bool isRelayerTrue = newRelayerHub.isRelayer(newRelayer);
         assertTrue(isRelayerTrue);
 
+        // check if manager is added
         bool isManagerTrue = newRelayerHub.isManager(manager);
         assertTrue(isManagerTrue);
 
@@ -59,15 +61,22 @@ contract RelayerHubTest is Deployer {
         emit removeManagerByGovEvent(manager);
         updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
 
-//        bool isRelayerFalse = newRelayerHub.isRelayer(manager);
-//        assertFalse(isRelayerFalse);
+        // check if relayer got removed
+        bool isRelayerFalse = newRelayerHub.isRelayer(newRelayer);
+        assertFalse(isRelayerFalse);
 
+        // check if manager got removed
+        bool isManagerFalse = newRelayerHub.isManager(manager);
+        assertFalse(isManagerFalse);
+
+        // check if the manager can remove himself
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+        vm.prank(manager, manager);
+        newRelayerHub.removeManagerByHimself();
     }
 
-    // todo test data
-
-
     // this checks if the previously existing unregister() function can support safe exit for existing relayers after hardfork
+    // this indirectly tests whether update() was called or not
     function testunregister() public {
         RelayerHub newRelayerHub = helperGetNewRelayerHub();
 
@@ -85,6 +94,8 @@ contract RelayerHubTest is Deployer {
         newRelayerHub.unregister();
     }
 
+    // helperGetNewRelayerHub() deploys the new RelayerHub into the existing mainnet data so that we can test
+    //  data compatibility
     function helperGetNewRelayerHub() internal returns (RelayerHub) {
         RelayerHub newRelayerHub;
 

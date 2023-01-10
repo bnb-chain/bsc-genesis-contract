@@ -85,6 +85,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit relayerUnRegister(msg.sender);
     }
 
+    // todo this is probably no longer needed, so remove this
     function update() external {
         require(!alreadyUpdate, "the contract already updated");
         addInitRelayer(WHITELIST_1);
