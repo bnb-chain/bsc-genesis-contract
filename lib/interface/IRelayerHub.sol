@@ -39,4 +39,5 @@ interface RelayerHub {
     function registerManagerAddRelayer(address r) external payable;
     function isManager(address relayerAddress) external view returns (bool);
     function removeManagerByHimself() external;
+    function update() external;
 }

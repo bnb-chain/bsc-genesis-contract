@@ -76,7 +76,6 @@ contract RelayerHubTest is Deployer {
     }
 
     // this checks if the previously existing unregister() function can support safe exit for existing relayers after hardfork
-    // this indirectly tests whether update() was called or not
     function testunregister() public {
         RelayerHub newRelayerHub = helperGetNewRelayerHub();
 
@@ -92,6 +91,33 @@ contract RelayerHubTest is Deployer {
         vm.prank(nonExistingRelayer, nonExistingRelayer);
         vm.expectRevert(bytes("relayer do not exist"));
         newRelayerHub.unregister();
+    }
+
+    function testCurrentRelayerTransition() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        // an existing manager/relayer won't be shown to be valid since update() isn't called
+        // note that for pre-hardfork, the relayer and manager are the same for simplicity
+        address existingRelayer1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+        bool isManagerFalse = newRelayerHub.isManager(existingRelayer1);
+        assertFalse(isManagerFalse);
+        bool isRelayerFalse = newRelayerHub.isRelayer(existingRelayer1);
+        assertFalse(isRelayerFalse);
+
+
+        // now we call update() and the existing relayer/manager should be shown to be valid
+        newRelayerHub.update();
+        bool isManagerTrue = newRelayerHub.isManager(existingRelayer1);
+        assertTrue(isManagerTrue);
+        bool isRelayerTrue = newRelayerHub.isRelayer(existingRelayer1);
+        assertTrue(isRelayerTrue);
+
+        // for completeness, now we test that a non-existing address isn't a relayer or manager
+        address nonExistingRelayer = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
+        bool isManagerFalse2 = newRelayerHub.isManager(nonExistingRelayer);
+        assertFalse(isManagerFalse2);
+        bool isRelayerFalse2 = newRelayerHub.isRelayer(nonExistingRelayer);
+        assertFalse(isRelayerFalse2);
     }
 
     // helperGetNewRelayerHub() deploys the new RelayerHub into the existing mainnet data so that we can test
