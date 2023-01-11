@@ -33,7 +33,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
 
-    bool public alreadyUpdate;
+    bool public whitelistInitDone;
 
     modifier onlyNonRegisteredManager() {
         require(relayManagersExistMap[msg.sender], "manager does not exist");
@@ -75,12 +75,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit relayerUnRegister(msg.sender);
     }
 
-    // todo this is probably no longer needed, so remove this
-    function update() external {
-        require(!alreadyUpdate, "the contract already updated");
+    function whitelistInit() external {
+        require(!whitelistInitDone, "the whitelists already updated");
         addInitRelayer(WHITELIST_1);
         addInitRelayer(WHITELIST_2);
-        alreadyUpdate = true;
+        whitelistInitDone = true;
     }
 
     function addInitRelayer(address addr) internal {

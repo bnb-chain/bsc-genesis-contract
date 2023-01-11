@@ -106,7 +106,7 @@ contract RelayerHubTest is Deployer {
 
 
         // now we call update() and the existing relayer/manager should be shown to be valid
-        newRelayerHub.update();
+        newRelayerHub.whitelistInit();
         bool isManagerTrue = newRelayerHub.isManager(existingRelayer1);
         assertTrue(isManagerTrue);
         bool isRelayerTrue = newRelayerHub.isRelayer(existingRelayer1);
