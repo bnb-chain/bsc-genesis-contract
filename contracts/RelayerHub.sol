@@ -27,7 +27,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         uint256 dues;
     }
 
-    mapping(address => uint256) managerDeus;
+    mapping(address => uint256) managerDues;
     mapping(address => bool) managersRegistered;
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
@@ -46,11 +46,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
-    modifier noProxy() {
-        require(msg.sender == tx.origin, "no proxy is allowed");
-        _;
-    }
-
     modifier exist() {
         require(relayersExistMap[msg.sender], "relayer do not exist");
         _;
@@ -60,7 +55,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
-    event removeManagerByGovEvent(address _removedManager);
+    event removeManagerEvent(address _removedManager);
     event addManagerByGovEvent(address _addedManager);
     event registerManagerEvent(address _registeredManager);
     event updateRelayerEvent(address _from, address _to);
@@ -90,7 +85,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function addInitRelayer(address addr) internal {
-        managerDeus[addr] = dues;
+        managerDues[addr] = dues;
         managersRegistered[addr] = true;
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
@@ -119,16 +114,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
             require(value.length == 20, "length of manager address mismatch");
             address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
-            removeManagerByGov(managerAddress);
+            removeManager(managerAddress);
 
         } else {
             require(false, "unknown param");
         }
         emit paramChange(key, value);
-    }
-
-    function removeManagerByGov(address payable managerToBeRemoved) internal {
-        removeManager(managerToBeRemoved);
     }
 
     function removeManagerByHimself() external {
@@ -145,15 +136,15 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
 
-        uint256 mDues = managerDeus[managerAddress];
+        uint256 mDues = managerDues[managerAddress];
         address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
         systemPayable.transfer(mDues);
 
-        delete (managerDeus[managerAddress]);
+        delete (managerDues[managerAddress]);
         delete (managersRegistered[managerAddress]);
 
         // emit success event
-        emit removeManagerByGovEvent(managerAddress);
+        emit removeManagerEvent(managerAddress);
         if (relayerAddress != address(0)) {
             delete (currentRelayers[relayerAddress]);
             emit updateRelayerEvent(relayerAddress, address(0));
@@ -169,12 +160,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit addManagerByGovEvent(managerToBeAdded);
     }
 
-    function registerManager() internal {
-        managerDeus[msg.sender] = dues;
-        managersRegistered[msg.sender] = true;
-        emit registerManagerEvent(msg.sender);
-    }
-
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal we can simply update it to a non-existing account
     function updateRelayer(address relayerToBeAdded) public onlyRegisteredManager {
@@ -182,7 +167,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];
-        currentRelayers[oldRelayer] = false;
+        delete currentRelayers[oldRelayer];
 
         managerToRelayer[msg.sender] = relayerToBeAdded;
         currentRelayers[relayerToBeAdded] = true;
@@ -191,7 +176,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function registerManagerAddRelayer(address r) external payable onlyNonRegisteredManager {
-        registerManager();
+        // register manager
+        managerDues[msg.sender] = dues;
+        managersRegistered[msg.sender] = true;
+        emit registerManagerEvent(msg.sender);
+
         updateRelayer(r);
     }
 

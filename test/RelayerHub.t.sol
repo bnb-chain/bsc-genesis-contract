@@ -7,7 +7,7 @@ contract RelayerHubTest is Deployer {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
     event updateRelayerEvent(address _from, address _to);
-    event removeManagerByGovEvent(address _manager);
+    event removeManagerEvent(address _manager);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -58,7 +58,7 @@ contract RelayerHubTest is Deployer {
         // remove manager test i.e. for removeManager()
         bytes memory keyRemoveManager = "removeManager";
         vm.expectEmit(true, true, false, true);
-        emit removeManagerByGovEvent(manager);
+        emit removeManagerEvent(manager);
         updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
 
         // check if relayer got removed
