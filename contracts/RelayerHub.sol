@@ -37,6 +37,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     modifier onlyNonRegisteredManager() {
         require(relayManagersExistMap[msg.sender], "manager does not exist");
+        require(!managersRegistered[msg.sender], "manager already registered");
         _;
     }
 
