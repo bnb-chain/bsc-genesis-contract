@@ -106,6 +106,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+
+  /**
+   * @dev Claim relayer reward to target account
+   *
+   * @param to Whose relay reward will be claimed.
+   * @param amount Reward amount
+   */
   function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if (actualAmount > REWARD_UPPER_LIMIT) {
@@ -122,6 +129,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return relayFee;
   }
 
+  /**
+   * @dev handle sync cross-chain package from BC
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory) {
     if (channelId == TRANSFER_IN_CHANNELID) {
       return handleTransferInSynPackage(msgBytes);
@@ -132,6 +145,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+  /**
+   * @dev handle ack cross-chain package from BC，it means cross-chain transfer successfully to BC
+   * and will refund the remaining token caused by different decimals between BSC and BC.
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
     if (channelId == TRANSFER_OUT_CHANNELID) {
       handleTransferOutAckPackage(msgBytes);
@@ -140,6 +160,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+  /**
+   * @dev handle failed ack cross-chain package from BC, it means failed to cross-chain transfer to BC and will refund the token.
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
     if (channelId == TRANSFER_OUT_CHANNELID) {
       handleTransferOutFailAckPackage(msgBytes);
@@ -381,6 +407,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
+  /**
+   * @dev request a cross-chain transfer from BSC to BC
+   *
+   * @param contractAddr The token contract which is transferred
+   * @param recipient The destination address of the cross-chain transfer on BC.
+   * @param amount The amount to transfer
+   * @param expireTime The expire time for the cross-chain transfer
+   */
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     require(msg.value%TEN_DECIMALS==0, "invalid received BNB amount: precision loss in amount conversion");
@@ -424,6 +458,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
+  /**
+   * @dev request a batch cross-chain BNB transfers from BSC to BC
+   *
+   * @param recipientAddrs The destination address of the cross-chain transfer on BC.
+   * @param amounts The amounts to transfer
+   * @param refundAddrs The refund addresses that receive the refund funds while failed to cross-chain transfer
+   * @param expireTime The expire time for these cross-chain transfers
+   */
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");

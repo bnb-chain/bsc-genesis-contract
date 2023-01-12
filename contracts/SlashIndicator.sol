@@ -82,6 +82,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** External func ********************************/
+  /**
+   * @dev Slash the validator who should have produced the current block
+   *
+   * @param validator The validator who should have produced the current block
+   */
   function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
     if (!IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator)) {
       return;
@@ -161,6 +166,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  /**
+   * @dev Send a felony cross-chain package to jail a validator
+   *
+   * @param validator Who will be jailed
+   */
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
