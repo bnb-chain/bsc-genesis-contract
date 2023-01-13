@@ -163,7 +163,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     // in case of removal we can simply update it to a non-existing account
     function updateRelayer(address relayerToBeAdded) public onlyRegisteredManager {
         // todo this is a bug which the current test doesn't capture. Write test which captures this and then add separate case for 0 address
-        require(!currentRelayers[relayerToBeAdded], "relayer already exists");
+        if (relayerToBeAdded != address(0)){
+            require(!currentRelayers[relayerToBeAdded], "relayer already exists");
+        }
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];

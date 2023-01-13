@@ -1,9 +1,13 @@
 pragma solidity ^0.8.10;
 
 interface RelayerHub {
+    event addManagerByGovEvent(address _addedManager);
     event paramChange(string key, bytes value);
+    event registerManagerEvent(address _registeredManager);
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
+    event removeManagerEvent(address _removedManager);
+    event updateRelayerEvent(address _from, address _to);
 
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
@@ -27,18 +31,21 @@ interface RelayerHub {
     function TRANSFER_IN_CHANNELID() external view returns (uint8);
     function TRANSFER_OUT_CHANNELID() external view returns (uint8);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
+    function WHITELIST_1() external view returns (address);
+    function WHITELIST_2() external view returns (address);
     function alreadyInit() external view returns (bool);
     function bscChainID() external view returns (uint16);
     function dues() external view returns (uint256);
     function init() external;
-    function isRelayer(address sender) external view returns (bool);
-    function register() external payable;
+    function isManager(address relayerAddress) external view returns (bool);
+    function isRelayer(address relayerAddress) external view returns (bool);
+    function registerManagerAddRelayer(address r) external payable;
+    function removeManagerByHimself() external;
     function requiredDeposit() external view returns (uint256);
     function unregister() external;
     function updateParam(string memory key, bytes memory value) external;
-    function registerManagerAddRelayer(address r) external payable;
-    function isManager(address relayerAddress) external view returns (bool);
-    function removeManagerByHimself() external;
+    function updateRelayer(address relayerToBeAdded) external;
     function whitelistInit() external;
-    function updateRelayer(address relayerToBeAdded) public;
+    function whitelistInitDone() external view returns (bool);
 }
+
