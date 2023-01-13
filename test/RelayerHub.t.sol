@@ -17,14 +17,6 @@ contract RelayerHubTest is Deployer {
         dues = relayerHub.dues();
     }
 
-    // new relayer register is suspended
-    function testRegister() public {
-        address newRelayer = addrSet[addrIdx++];
-        vm.prank(newRelayer, newRelayer);
-        vm.expectRevert(bytes("register suspended"));
-        relayerHub.register{value : 100 ether}();
-    }
-
     function testAddManager() public {
         RelayerHub newRelayerHub = helperGetNewRelayerHub();
 
@@ -55,6 +47,20 @@ contract RelayerHubTest is Deployer {
         bool isManagerTrue = newRelayerHub.isManager(manager);
         assertTrue(isManagerTrue);
 
+        // set relayer to something else
+        address newRelayer2 = payable(addrSet[addrIdx++]);
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer, newRelayer2);
+        newRelayerHub.updateRelayer(newRelayer2);
+
+        // set relayer to 0
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        newRelayerHub.updateRelayer(payable(address(0)));
+
+
         // remove manager test i.e. for removeManager()
         bytes memory keyRemoveManager = "removeManager";
         vm.expectEmit(true, true, false, true);
@@ -73,6 +79,45 @@ contract RelayerHubTest is Deployer {
         updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
         vm.prank(manager, manager);
         newRelayerHub.removeManagerByHimself();
+    }
+
+    function testRelayerAddingRemoving() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        address newRelayer = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(payable(address(0)), newRelayer);
+        newRelayerHub.registerManagerAddRelayer(newRelayer);
+
+        // set relayer to 0
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer, payable(address(0)));
+        newRelayerHub.updateRelayer(payable(address(0)));
+
+        // get a new manager, have its relayer registered and then try to remove the relayer for this manager
+        address manager2 = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes2 = abi.encodePacked(bytes20(uint160(manager2)));
+        require(valueManagerBytes2.length == 20, "length of manager2 address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes2, address(newRelayerHub));
+        address newRelayer2 = payable(addrSet[addrIdx++]);
+        vm.prank(manager2, manager2);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(payable(address(0)), newRelayer2);
+        newRelayerHub.registerManagerAddRelayer(newRelayer2);
+        // set relayer to 0
+        vm.prank(manager2, manager2);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        newRelayerHub.updateRelayer(payable(address(0)));
+
     }
 
     // this checks if the previously existing unregister() function can support safe exit for existing relayers after hardfork
@@ -130,6 +175,46 @@ contract RelayerHubTest is Deployer {
         newRelayerHub = RelayerHub(RELAYERHUB_CONTRACT_ADDR);
 
         return newRelayerHub;
+    }
+
+    function testRelayerAddingRemoving2() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        address newRelayer = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(payable(address(0)), newRelayer);
+        newRelayerHub.registerManagerAddRelayer(newRelayer);
+
+        address manager2 = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes2 = abi.encodePacked(bytes20(uint160(manager2)));
+        require(valueManagerBytes2.length == 20, "length of manager2 address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes2, address(newRelayerHub));
+        address newRelayer2 = payable(addrSet[addrIdx++]);
+        vm.prank(manager2, manager2);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(payable(address(0)), newRelayer2);
+        newRelayerHub.registerManagerAddRelayer(newRelayer2);
+
+        // set relayer to 0 for first manager
+        vm.prank(manager, manager);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer, payable(address(0)));
+        newRelayerHub.updateRelayer(payable(address(0)));
+
+
+        // set relayer to 0 for second manager
+        vm.prank(manager2, manager2);
+        vm.expectEmit(true, true, false, true);
+        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        newRelayerHub.updateRelayer(payable(address(0)));
+
     }
 
     //  function testCannotRegister() public {
