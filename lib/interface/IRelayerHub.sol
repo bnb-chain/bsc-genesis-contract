@@ -40,4 +40,5 @@ interface RelayerHub {
     function isManager(address relayerAddress) external view returns (bool);
     function removeManagerByHimself() external;
     function whitelistInit() external;
+    function updateRelayer(address relayerToBeAdded) public;
 }
