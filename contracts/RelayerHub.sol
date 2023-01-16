@@ -55,11 +55,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber{
     dues = INIT_DUES;
     alreadyInit = true;
   }
-  
+
   function register() external payable noExist onlyInit notContract noProxy{
     revert("register suspended");
   }
-  
 
   function  unregister() external exist onlyInit{
     relayer memory r = relayers[msg.sender];

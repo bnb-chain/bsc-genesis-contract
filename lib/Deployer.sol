@@ -121,4 +121,41 @@ contract Deployer is Test {
     govHub.handleSynPackage(GOV_CHANNELID, elements.encodeList());
     vm.stopPrank();
   }
+
+  function encodeOldValidatorSetUpdatePack(uint8 code, address[] memory valSet) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](2);
+    elements[0] = code.encodeUint();
+
+    bytes[] memory vals = new bytes[](valSet.length);
+    for (uint256 i; i < valSet.length; ++i) {
+      bytes[] memory tmp = new bytes[](4);
+      tmp[0] = valSet[i].encodeAddress();
+      tmp[1] = valSet[i].encodeAddress();
+      tmp[2] = valSet[i].encodeAddress();
+      tmp[3] = uint8(0x64).encodeUint();
+      vals[i] = tmp.encodeList();
+    }
+
+    elements[1] = vals.encodeList();
+    return elements.encodeList();
+  }
+
+  function encodeNewValidatorSetUpdatePack(uint8 code, address[] memory valSet, bytes[] memory voteAddrs) internal pure returns (bytes memory) {
+    bytes[] memory elements = new bytes[](2);
+    elements[0] = code.encodeUint();
+
+    bytes[] memory vals = new bytes[](valSet.length);
+    for (uint256 i; i < valSet.length; ++i) {
+      bytes[] memory tmp = new bytes[](5);
+      tmp[0] = valSet[i].encodeAddress();
+      tmp[1] = valSet[i].encodeAddress();
+      tmp[2] = valSet[i].encodeAddress();
+      tmp[3] = uint8(0x64).encodeUint();
+      tmp[4] = voteAddrs[i].encodeBytes();
+      vals[i] = tmp.encodeList();
+    }
+
+    elements[1] = vals.encodeList();
+    return elements.encodeList();
+  }
 }

@@ -3,10 +3,14 @@ pragma solidity ^0.8.10;
 import "../lib/Deployer.sol";
 
 contract SystemRewardTest is Deployer {
+  event paramChange(string key, bytes value);
   event rewardTo(address indexed to, uint256 amount);
   event rewardEmpty();
 
-  function setUp() public {}
+  function setUp() public {
+    bytes memory rewardCode = vm.getDeployedCode("SystemReward.sol");
+    vm.etch(address(systemReward), rewardCode);
+  }
 
   function testReceive(uint256 amount) public {
     vm.assume(amount < 1e20);
@@ -25,7 +29,6 @@ contract SystemRewardTest is Deployer {
   }
 
   function testClaimReward() public {
-    //    vm.assume(amount < 1e20);
     address newAccount = addrSet[addrIdx++];
 
     payable(address(systemReward)).transfer(1 ether);
@@ -42,5 +45,14 @@ contract SystemRewardTest is Deployer {
     emit rewardEmpty();
     vm.prank(LIGHT_CLIENT_ADDR);
     systemReward.claimRewards(newAccount, 1 ether);
+  }
+
+  function testGov() public {
+    bytes memory key = "updateOperator";
+    bytes memory valueBytes = abi.encodePacked(address(validator));
+    vm.expectEmit(false, false, false, true, address(systemReward));
+    emit paramChange(string(key), valueBytes);
+    updateParamByGovHub(key, valueBytes, address(systemReward));
+    assertTrue(systemReward.isOperator(address(validator)));
   }
 }

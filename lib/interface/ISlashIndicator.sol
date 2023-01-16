@@ -8,6 +8,20 @@ interface SlashIndicator {
     event unKnownResponse(uint32 code);
     event validatorSlashed(address indexed validator);
 
+    struct FinalityEvidence {
+        VoteData voteA;
+        VoteData voteB;
+        bytes voteAddr;
+    }
+
+    struct VoteData {
+        uint256 srcNum;
+        bytes32 srcHash;
+        uint256 tarNum;
+        bytes32 tarHash;
+        bytes sig;
+    }
+
     function BIND_CHANNELID() external view returns (uint8);
     function BSC_RELAYER_REWARD() external view returns (uint256);
     function CODE_OK() external view returns (uint32);
@@ -19,6 +33,7 @@ interface SlashIndicator {
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
+    function INIT_FINALITY_SLASH_REWARD_RATIO() external view returns (uint256);
     function LIGHT_CLIENT_ADDR() external view returns (address);
     function MISDEMEANOR_THRESHOLD() external view returns (uint256);
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
@@ -36,6 +51,7 @@ interface SlashIndicator {
     function bscChainID() external view returns (uint16);
     function clean() external;
     function felonyThreshold() external view returns (uint256);
+    function finalitySlashRewardRatio() external view returns (uint256);
     function getSlashIndicator(address validator) external view returns (uint256, uint256);
     function getSlashThresholds() external view returns (uint256, uint256);
     function handleAckPackage(uint8, bytes memory msgBytes) external;
@@ -47,6 +63,7 @@ interface SlashIndicator {
     function previousHeight() external view returns (uint256);
     function sendFelonyPackage(address validator) external;
     function slash(address validator) external;
+    function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) external;
     function updateParam(string memory key, bytes memory value) external;
     function validators(uint256) external view returns (address);
 }

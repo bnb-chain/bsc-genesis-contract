@@ -11,7 +11,6 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
   uint public numOperator;
   mapping(address => bool) operators;
 
-
   modifier doInit() {
     if (!alreadyInit) {
       operators[LIGHT_CLIENT_ADDR] = true;
@@ -22,12 +21,16 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     _;
   }
 
+  modifier onlyOperator() {
+    require(operators[msg.sender],"only operator is allowed to call the method");
+    _;
+  }
+
   event rewardTo(address indexed to, uint256 amount);
   event rewardEmpty();
   event receiveDeposit(address indexed from, uint256 amount);
   event updateOperator(address indexed operator);
   event paramChange(string key, bytes value);
-
 
   receive() external payable{
     if (msg.value>0) {
@@ -35,12 +38,7 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     }
   }
 
-  
-  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit returns (uint256) {
-    if (!operators[msg.sender]) {
-      return 0;
-    }
-
+  function claimRewards(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
