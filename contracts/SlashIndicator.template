@@ -240,7 +240,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     elements[0] = vote.srcNum.encodeUint();
     TypesToBytes.bytes32ToBytes(32, vote.srcHash, _bytes);
     elements[1] = _bytes.encodeBytes();
-    elements[2] = tarNum.encodeUint();
+    elements[2] = vote.tarNum.encodeUint();
     TypesToBytes.bytes32ToBytes(32, vote.tarHash, _bytes);
     elements[3] = _bytes.encodeBytes();
 
