@@ -224,6 +224,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     require(valAddr != address(0), "validator not exist");
 
+    require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
+      verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
+
     uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
     ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valAddr);
