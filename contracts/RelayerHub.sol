@@ -27,13 +27,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         uint256 dues;
     }
 
-    struct manager {
-        uint256 dues;
-        bool registered;
-    }
-
-    // mapping(address => manager) managers;
-    // address payable[] managerS;
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
@@ -83,8 +76,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function addInitRelayer(address addr) internal {
-//        managers[addr] = manager(dues, true);
-//        managerS.push(addr);
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
         currentRelayers[addr] = true;
