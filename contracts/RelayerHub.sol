@@ -27,8 +27,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         uint256 dues;
     }
 
-    mapping(address => uint256) managerDues;
-    mapping(address => bool) managersRegistered;
+    struct manager {
+        uint256 dues;
+        bool registered;
+    }
+
+    mapping(address => manager) managers;
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
@@ -37,12 +41,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     modifier onlyNonRegisteredManager() {
         require(relayManagersExistMap[msg.sender], "manager does not exist");
-        require(!managersRegistered[msg.sender], "manager already registered");
+        require(!managers[msg.sender].registered, "manager already registered");
         _;
     }
 
     modifier onlyRegisteredManager() {
-        require(managersRegistered[msg.sender], "manager not registered");
+        require(managers[msg.sender].registered, "manager not registered");
         _;
     }
 
@@ -84,8 +88,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function addInitRelayer(address addr) internal {
-        managerDues[addr] = dues;
-        managersRegistered[addr] = true;
+        managers[addr] = manager(dues, true);
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
         currentRelayers[addr] = true;
@@ -132,15 +135,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
         address relayerAddress = managerToRelayer[managerAddress];
 
+        manager memory m = managers[managerAddress];
+
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
 
-        uint256 mDues = managerDues[managerAddress];
         address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
-        systemPayable.transfer(mDues);
+        systemPayable.transfer(m.dues);
 
-        delete (managerDues[managerAddress]);
-        delete (managersRegistered[managerAddress]);
+        delete(managers[managerAddress]);
+
 
         // emit success event
         emit removeManagerEvent(managerAddress);
@@ -178,8 +182,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function registerManagerAddRelayer(address r) external payable onlyNonRegisteredManager {
         // register manager
-        managerDues[msg.sender] = dues;
-        managersRegistered[msg.sender] = true;
+        managers[msg.sender] = manager(dues, true);
         emit registerManagerEvent(msg.sender);
 
         updateRelayer(r);
