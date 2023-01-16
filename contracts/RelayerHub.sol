@@ -32,21 +32,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         bool registered;
     }
 
-    mapping(address => manager) managers;
+    // mapping(address => manager) managers;
+    // address payable[] managerS;
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
 
     bool public whitelistInitDone;
 
-    modifier onlyNonRegisteredManager() {
+    modifier onlyManager(){
         require(relayManagersExistMap[msg.sender], "manager does not exist");
-        require(!managers[msg.sender].registered, "manager already registered");
-        _;
-    }
-
-    modifier onlyRegisteredManager() {
-        require(managers[msg.sender].registered, "manager not registered");
         _;
     }
 
@@ -88,7 +83,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function addInitRelayer(address addr) internal {
-        managers[addr] = manager(dues, true);
+//        managers[addr] = manager(dues, true);
+//        managerS.push(addr);
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
         currentRelayers[addr] = true;
@@ -135,16 +131,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
         address relayerAddress = managerToRelayer[managerAddress];
 
-        manager memory m = managers[managerAddress];
-
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
-
-        address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
-        systemPayable.transfer(m.dues);
-
-        delete(managers[managerAddress]);
-
 
         // emit success event
         emit removeManagerEvent(managerAddress);
@@ -165,7 +153,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal we can simply update it to a non-existing account
-    function updateRelayer(address relayerToBeAdded) public onlyRegisteredManager {
+    function updateRelayer(address relayerToBeAdded) public onlyManager {
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
         }
@@ -180,13 +168,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }
 
-    function registerManagerAddRelayer(address r) external payable onlyNonRegisteredManager {
-        // register manager
-        managers[msg.sender] = manager(dues, true);
-        emit registerManagerEvent(msg.sender);
-
-        updateRelayer(r);
-    }
 
     function isRelayer(address relayerAddress) external override view returns (bool){
         return currentRelayers[relayerAddress];
