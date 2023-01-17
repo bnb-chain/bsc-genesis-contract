@@ -147,6 +147,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     function updateRelayer(address relayerToBeAdded) public onlyManager {
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
+            currentRelayers[relayerToBeAdded] = true;
         }
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
@@ -154,7 +155,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete currentRelayers[oldRelayer];
 
         managerToRelayer[msg.sender] = relayerToBeAdded;
-        currentRelayers[relayerToBeAdded] = true;
 
         emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }

@@ -60,6 +60,8 @@ contract RelayerHubTest is Deployer {
         emit updateRelayerEvent(newRelayer2, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
+        // ensure 0 address is not a relayer
+        assertFalse(newRelayerHub.isRelayer(address(0)));
 
         // remove manager test i.e. for removeManager()
         bytes memory keyRemoveManager = "removeManager";
