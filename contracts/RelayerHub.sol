@@ -83,28 +83,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     /*********************** Param update ********************************/
     function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {
-        if (Memory.compareStrings(key, "requiredDeposit")) {
-            require(value.length == 32, "length of requiredDeposit mismatch");
-            uint256 newRequiredDeposit = BytesToTypes.bytesToUint256(32, value);
-            require(newRequiredDeposit > 1 && newRequiredDeposit <= 1e21 && newRequiredDeposit > dues, "the requiredDeposit out of range");
-            requiredDeposit = newRequiredDeposit;
-        } else if (Memory.compareStrings(key, "dues")) {
-            require(value.length == 32, "length of dues mismatch");
-            uint256 newDues = BytesToTypes.bytesToUint256(32, value);
-            require(newDues > 0 && newDues < requiredDeposit, "the dues out of range");
-            dues = newDues;
-        } else if (Memory.compareStrings(key, "addManager")) {
-
+        if (Memory.compareStrings(key, "addManager")) {
             require(value.length == 20, "length of manager address mismatch");
             address newManager = BytesToTypes.bytesToAddress(20, value);
             addManagerByGov(newManager);
-
         } else if (Memory.compareStrings(key, "removeManager")) {
-
             require(value.length == 20, "length of manager address mismatch");
             address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
             removeManager(managerAddress);
-
         } else {
             require(false, "unknown param");
         }
@@ -159,12 +145,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
     }
 
-
     function isRelayer(address relayerAddress) external override view returns (bool){
         return currentRelayers[relayerAddress];
     }
 
-    // TODO remove just for testing
     function isManager(address relayerAddress) external view returns (bool){
         return relayManagersExistMap[relayerAddress];
     }
