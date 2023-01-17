@@ -260,7 +260,7 @@ contract('Clean SlashIndicator', (accounts) => {
       await slashInstance.slash(validators[i], { from: accountOne });
     }
 
-    // doclean
+    // do clean
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
 
     let res= (await slashInstance.getSlashValidators.call());
@@ -280,7 +280,7 @@ contract('Clean SlashIndicator', (accounts) => {
         await slashInstance.slash(validators[i], { from: accountOne });
       }
     }
-    // doclean
+    // do clean
     await validatorSetInstance.handleSynPackage(STAKE_CHANNEL_ID,packageBytes,{from: relayerAccount});
     res= (await slashInstance.getSlashValidators.call());
     assert.equal(res.length, 20);

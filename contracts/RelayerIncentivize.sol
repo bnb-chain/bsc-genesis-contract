@@ -56,9 +56,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
   receive() external payable{}
 
-  
   function addReward(address payable headerRelayerAddr, address payable packageRelayer, uint256 amount, bool fromSystemReward) onlyInit onlyCrossChainContract external override returns (bool) {
-  
     uint256 actualAmount;
     if (fromSystemReward) {
       actualAmount = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(address(uint160(INCENTIVIZE_ADDR)), amount.add(dynamicExtraIncentiveAmount));

@@ -11,7 +11,6 @@ import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./MerkleProof.sol";
 
-
 contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // constant variables
@@ -34,6 +33,9 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   mapping(uint8 => uint64) public channelSendSequenceMap;
   mapping(uint8 => uint64) public channelReceiveSequenceMap;
   mapping(uint8 => bool) public isRelayRewardFromSystemReward;
+
+  // to prevent the utilization of ancient block header
+  mapping(uint8 => uint64) public channelSyncedHeaderMap;
 
   // event
   event crossChainPackage(uint16 chainId, uint64 indexed oracleSequence, uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
@@ -65,6 +67,14 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   modifier onlyRegisteredContractChannel(uint8 channleId) {
     require(registeredContractChannelMap[msg.sender][channleId], "the contract and channel have not been registered");
+    _;
+  }
+
+  modifier headerInOrder(uint64 height, uint8 channelId) {
+    require(height >= channelSyncedHeaderMap[channelId], "too old header");
+    if (height != channelSyncedHeaderMap[channelId]) {
+      channelSyncedHeaderMap[channelId] = height;
+    }
     _;
   }
 
@@ -127,7 +137,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
     alreadyInit=true;
   }
 
-function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
+  function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes) public pure returns(bytes memory) {
     uint256 payloadLength = msgBytes.length + 33;
     bytes memory payload = new bytes(payloadLength);
     uint256 ptr;
@@ -189,21 +199,22 @@ function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgByte
     return (true, packageType, relayFee, msgBytes);
   }
 
-  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer
-      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) external {
+  function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId) onlyInit onlyRelayer onlyWhitelabelRelayer
+      sequenceInOrder(packageSequence, channelId) blockSynced(height) channelSupported(channelId) headerInOrder(height, channelId) external {
     bytes memory payloadLocal = payload; // fix error: stack too deep, try removing local variables
     bytes memory proofLocal = proof; // fix error: stack too deep, try removing local variables
     require(MerkleProof.validateMerkleProof(ILightClient(LIGHT_CLIENT_ADDR).getAppHash(height), STORE_NAME, generateKey(packageSequence, channelId), payloadLocal, proofLocal), "invalid merkle proof");
 
     address payable headerRelayer = ILightClient(LIGHT_CLIENT_ADDR).getSubmitter(height);
 
+    uint64 sequenceLocal = packageSequence; // fix error: stack too deep, try removing local variables
     uint8 channelIdLocal = channelId; // fix error: stack too deep, try removing local variables
     (bool success, uint8 packageType, uint256 relayFee, bytes memory msgBytes) = decodePayloadHeader(payloadLocal);
     if (!success) {
-      emit unsupportedPackage(packageSequence, channelIdLocal, payloadLocal);
+      emit unsupportedPackage(sequenceLocal, channelIdLocal, payloadLocal);
       return;
     }
-    emit receivedPackage(packageType, packageSequence, channelIdLocal);
+    emit receivedPackage(packageType, sequenceLocal, channelIdLocal);
     if (packageType == SYN_PACKAGE) {
       address handlerContract = channelHandlerContractMap[channelIdLocal];
       try IApplication(handlerContract).handleSynPackage(channelIdLocal, msgBytes) returns (bytes memory responsePayload) {

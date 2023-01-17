@@ -1,17 +1,16 @@
 node_modules/
 build/
+out/
 .idea/
 pids/
 logs/
+cache/
+
 contracts/flattened/*.sol
 
-#Hardhat files
-cache/
-artifacts/
-contracts/artifacts/
+# foundry lib
+lib/forge-std/
 
 .env
-.DS_Store
-
-types/
-typechain-types/
+package-lock.json
+yarn.lock

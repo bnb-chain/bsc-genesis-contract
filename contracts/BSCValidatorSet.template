@@ -128,7 +128,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     _;
-
   }
 
   modifier oncePerBlock() {
@@ -533,7 +532,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     uint256 totalWeight;
-    for (uint256 i = 0; i < weights.length; i++) {
+    for (uint256 i; i < weights.length; ++i) {
       totalWeight += weights[i];
     }
     if (totalWeight == 0) {
@@ -544,7 +543,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address valAddr;
     uint256 index;
 
-    for (uint256 i = 0; i < valAddrs.length; i++) {
+    for (uint256 i; i < valAddrs.length; ++i) {
       value = (totalValue * weights[i]) / totalWeight;
       valAddr = valAddrs[i];
       index = currentValidatorSetMap[valAddr];
@@ -711,7 +710,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint n = currentValidatorSet.length;
     uint m = validatorSet.length;
 
-    for (uint i; i<n; ++i) {
+    for (uint i; i < n; ++i) {
       Validator memory oldValidator = currentValidatorSet[i];
       delete currentValidatorSetMap[oldValidator.consensusAddress];
     }
@@ -751,16 +750,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function getVoteAddresses(address[] memory validators) internal view returns(bytes[] memory) {
-    // check if validatorExtraSet has been initialized
     uint n = currentValidatorSet.length;
     uint length = validators.length;
     bytes[] memory voteAddrs = new bytes[](length);
+
+    // check if validatorExtraSet has been initialized
     if (validatorExtraSet.length != n) {
       return voteAddrs;
     }
 
     for (uint i; i<length; ++i) {
-      voteAddrs[i] = validatorExtraSet[currentValidatorSetMap[validators[i]]].voteAddress;
+      voteAddrs[i] = validatorExtraSet[currentValidatorSetMap[validators[i]]-1].voteAddress;
     }
     return voteAddrs;
   }

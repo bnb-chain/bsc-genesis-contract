@@ -14,6 +14,10 @@ program.option(
     "System.sol",
     "./contracts/System.sol"
 )
+program.option("--network <network>",
+    "network",
+    "mainnet");
+
 program.option("--mock <mock>",
     "if use mock",
     false);
@@ -28,6 +32,7 @@ const data = {
   fromChainId: program.fromChainId,
   bscChainId: program.bscChainId,
   mock: program.mock,
+  network: program.network,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);

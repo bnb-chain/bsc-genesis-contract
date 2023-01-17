@@ -131,7 +131,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit validatorSlashed(validator);
   }
 
-
   // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
   // Clean is an effective implement to reorganize "validators" and "indicators".
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
@@ -230,28 +229,30 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
 
-  function verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal returns(bool) {
+  function verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns(bool) {
+    bytes[] memory elements = new bytes[](4);
+    bytes memory _bytes = new bytes(32);
+    elements[0] = vote.srcNum.encodeUint();
+    TypesToBytes.bytes32ToBytes(32, vote.srcHash, _bytes);
+    elements[1] = _bytes.encodeBytes();
+    elements[2] = vote.tarNum.encodeUint();
+    TypesToBytes.bytes32ToBytes(32, vote.tarHash, _bytes);
+    elements[3] = _bytes.encodeBytes();
+
+    TypesToBytes.bytes32ToBytes(32, keccak256(elements.encodeList()), _bytes);
 
     // assemble input data
-    bytes memory input = new bytes(272);
-    bytes memory _bytes = new bytes(32);
-    TypesToBytes.uintToBytes(32, vote.srcNum, _bytes);
+    bytes memory input = new bytes(176);
     bytesConcat(input, _bytes, 0, 32);
-    TypesToBytes.uintToBytes(32, vote.tarNum, _bytes);
-    bytesConcat(input, _bytes, 32, 32);
-    TypesToBytes.bytes32ToBytes(32, vote.srcHash, _bytes);
-    bytesConcat(input, _bytes, 64, 32);
-    TypesToBytes.bytes32ToBytes(32, vote.tarHash, _bytes);
-    bytesConcat(input, _bytes, 96, 32);
-    bytesConcat(input, vote.sig, 128, 96);
-    bytesConcat(input, voteAddr, 224, 48);
+    bytesConcat(input, vote.sig, 32, 96);
+    bytesConcat(input, voteAddr, 128, 48);
 
     // call the precompiled contract to verify the BLS signature
-    // the precompiled contract's address is 0x64
+    // the precompiled contract's address is 0x66
     bytes memory output = new bytes(1);
     assembly {
       let len := mload(input)
-      if iszero(staticcall(not(0), 0x64, add(input, 0x20), len, add(output, 0x20), 0x01)) {
+      if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) {
         revert(0, 0)
       }
     }
