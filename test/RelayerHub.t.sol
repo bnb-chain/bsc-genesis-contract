@@ -32,12 +32,12 @@ contract RelayerHubTest is Deployer {
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
         emit updateRelayerEvent(payable(address(0)), newRelayer);
-        newRelayerHub.registerManagerAddRelayer(newRelayer);
+        newRelayerHub.updateRelayer(newRelayer);
 
         // do illegal call
         vm.prank(newRelayer, newRelayer);
         vm.expectRevert(bytes("manager does not exist"));
-        newRelayerHub.registerManagerAddRelayer(manager);
+        newRelayerHub.updateRelayer(manager);
 
         // check if relayer is added
         bool isRelayerTrue = newRelayerHub.isRelayer(newRelayer);
@@ -94,7 +94,7 @@ contract RelayerHubTest is Deployer {
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
         emit updateRelayerEvent(payable(address(0)), newRelayer);
-        newRelayerHub.registerManagerAddRelayer(newRelayer);
+        newRelayerHub.updateRelayer(newRelayer);
 
         // set relayer to 0
         vm.prank(manager, manager);
@@ -111,7 +111,7 @@ contract RelayerHubTest is Deployer {
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
         emit updateRelayerEvent(payable(address(0)), newRelayer2);
-        newRelayerHub.registerManagerAddRelayer(newRelayer2);
+        newRelayerHub.updateRelayer(newRelayer2);
         // set relayer to 0
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
@@ -190,7 +190,7 @@ contract RelayerHubTest is Deployer {
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
         emit updateRelayerEvent(payable(address(0)), newRelayer);
-        newRelayerHub.registerManagerAddRelayer(newRelayer);
+        newRelayerHub.updateRelayer(newRelayer);
 
         address manager2 = payable(addrSet[addrIdx++]);
         bytes memory valueManagerBytes2 = abi.encodePacked(bytes20(uint160(manager2)));
@@ -200,7 +200,7 @@ contract RelayerHubTest is Deployer {
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
         emit updateRelayerEvent(payable(address(0)), newRelayer2);
-        newRelayerHub.registerManagerAddRelayer(newRelayer2);
+        newRelayerHub.updateRelayer(newRelayer2);
 
         // set relayer to 0 for first manager
         vm.prank(manager, manager);
