@@ -1,13 +1,12 @@
 pragma solidity ^0.8.10;
 
 interface RelayerHub {
-    event addManagerByGovEvent(address _addedManager);
+    event managerAdded(address _addedManager);
+    event managerRemoved(address _removedManager);
     event paramChange(string key, bytes value);
-    event registerManagerEvent(address _registeredManager);
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
-    event removeManagerEvent(address _removedManager);
-    event updateRelayerEvent(address _from, address _to);
+    event relayerUpdated(address _from, address _to);
 
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
@@ -39,7 +38,6 @@ interface RelayerHub {
     function init() external;
     function isManager(address relayerAddress) external view returns (bool);
     function isRelayer(address relayerAddress) external view returns (bool);
-    function registerManagerAddRelayer(address r) external payable;
     function removeManagerByHimself() external;
     function requiredDeposit() external view returns (uint256);
     function unregister() external;

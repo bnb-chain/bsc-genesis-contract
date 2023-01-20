@@ -47,10 +47,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
-    event removeManagerEvent(address _removedManager);
-    event addManagerByGovEvent(address _addedManager);
-    event registerManagerEvent(address _registeredManager);
-    event updateRelayerEvent(address _from, address _to);
+    event managerRemoved(address _removedManager);
+    event managerAdded(address _addedManager);
+    event relayerUpdated(address _from, address _to);
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
@@ -112,10 +111,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (managerToRelayer[managerAddress]);
 
         // emit success event
-        emit removeManagerEvent(managerAddress);
+        emit managerRemoved(managerAddress);
         if (relayerAddress != address(0)) {
             delete (currentRelayers[relayerAddress]);
-            emit updateRelayerEvent(relayerAddress, address(0));
+            emit relayerUpdated(relayerAddress, address(0));
         }
     }
 
@@ -125,7 +124,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
         relayManagersExistMap[managerToBeAdded] = true;
 
-        emit addManagerByGovEvent(managerToBeAdded);
+        emit managerAdded(managerToBeAdded);
     }
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
@@ -144,7 +143,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             delete managerToRelayer[msg.sender];
         }
 
-        emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
+        emit relayerUpdated(oldRelayer, relayerToBeAdded);
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){

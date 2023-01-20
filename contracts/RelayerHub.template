@@ -14,19 +14,19 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
 
-  {% if network == 'local' %}
-    address public constant WHITELIST_1 = 0xA904540818AC9c47f2321F97F1069B9d8746c6DB;
-    address public constant WHITELIST_2 = 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344;
-  {% elif network == 'QA' %}
-    address public constant WHITELIST_1 = 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD;
-    address public constant WHITELIST_2 = 0x42D596440775C90db8d9187b47650986E1063493;
-  {% elif network == 'testnet' %}
-    address public constant WHITELIST_1 = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
-    address public constant WHITELIST_2 = 0x37B8516a0F88E65D677229b402ec6C1e0E333004;
-  {% else %}
-    address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
-    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
-  {% endif %}
+    {% if network == 'local' %}
+      address public constant WHITELIST_1 = 0xA904540818AC9c47f2321F97F1069B9d8746c6DB;
+      address public constant WHITELIST_2 = 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344;
+    {% elif network == 'QA' %}
+      address public constant WHITELIST_1 = 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD;
+      address public constant WHITELIST_2 = 0x42D596440775C90db8d9187b47650986E1063493;
+    {% elif network == 'testnet' %}
+      address public constant WHITELIST_1 = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
+      address public constant WHITELIST_2 = 0x37B8516a0F88E65D677229b402ec6C1e0E333004;
+    {% else %}
+      address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+      address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+    {% endif %}
 
     uint256 public requiredDeposit; // have to keep it to not break the storage layout
     uint256 public dues;
@@ -59,10 +59,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
-    event removeManagerEvent(address _removedManager);
-    event addManagerByGovEvent(address _addedManager);
-    event registerManagerEvent(address _registeredManager);
-    event updateRelayerEvent(address _from, address _to);
+    event managerRemoved(address _removedManager);
+    event managerAdded(address _addedManager);
+    event relayerUpdated(address _from, address _to);
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
@@ -124,10 +123,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (managerToRelayer[managerAddress]);
 
         // emit success event
-        emit removeManagerEvent(managerAddress);
+        emit managerRemoved(managerAddress);
         if (relayerAddress != address(0)) {
             delete (currentRelayers[relayerAddress]);
-            emit updateRelayerEvent(relayerAddress, address(0));
+            emit relayerUpdated(relayerAddress, address(0));
         }
     }
 
@@ -137,24 +136,26 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
         relayManagersExistMap[managerToBeAdded] = true;
 
-        emit addManagerByGovEvent(managerToBeAdded);
+        emit managerAdded(managerToBeAdded);
     }
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal we can simply update it to a non-existing account
     function updateRelayer(address relayerToBeAdded) public onlyManager {
-        if (relayerToBeAdded != address(0)) {
-            require(!currentRelayers[relayerToBeAdded], "relayer already exists");
-            currentRelayers[relayerToBeAdded] = true;
-        }
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];
         delete currentRelayers[oldRelayer];
 
-        managerToRelayer[msg.sender] = relayerToBeAdded;
+        if (relayerToBeAdded != address(0)) {
+            require(!currentRelayers[relayerToBeAdded], "relayer already exists");
+            currentRelayers[relayerToBeAdded] = true;
+            managerToRelayer[msg.sender] = relayerToBeAdded;
+        } else {
+            delete managerToRelayer[msg.sender];
+        }
 
-        emit updateRelayerEvent(oldRelayer, relayerToBeAdded);
+        emit relayerUpdated(oldRelayer, relayerToBeAdded);
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){

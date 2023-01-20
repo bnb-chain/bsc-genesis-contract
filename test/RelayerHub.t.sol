@@ -6,8 +6,8 @@ contract RelayerHubTest is Deployer {
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
-    event updateRelayerEvent(address _from, address _to);
-    event removeManagerEvent(address _manager);
+    event relayerUpdated(address _from, address _to);
+    event managerRemoved(address _manager);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -31,7 +31,7 @@ contract RelayerHubTest is Deployer {
         // check if manager is there and can add a relayer
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(payable(address(0)), newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
 
         // do illegal call
@@ -51,13 +51,13 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer, newRelayer2);
+        emit relayerUpdated(newRelayer, newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
 
         // set relayer to 0
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        emit relayerUpdated(newRelayer2, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
         // ensure 0 address is not a relayer
@@ -66,7 +66,7 @@ contract RelayerHubTest is Deployer {
         // remove manager test i.e. for removeManager()
         bytes memory keyRemoveManager = "removeManager";
         vm.expectEmit(true, true, false, true);
-        emit removeManagerEvent(manager);
+        emit managerRemoved(manager);
         updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
 
         // check if relayer got removed
@@ -95,13 +95,13 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(payable(address(0)), newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
 
         // set relayer to 0
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer, payable(address(0)));
+        emit relayerUpdated(newRelayer, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
         // get a new manager, have its relayer registered and then try to remove the relayer for this manager
@@ -112,12 +112,12 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(payable(address(0)), newRelayer2);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
         // set relayer to 0
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        emit relayerUpdated(newRelayer2, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
     }
@@ -191,7 +191,7 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(payable(address(0)), newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
 
         address manager2 = payable(addrSet[addrIdx++]);
@@ -201,20 +201,20 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(payable(address(0)), newRelayer2);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
 
         // set relayer to 0 for first manager
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer, payable(address(0)));
+        emit relayerUpdated(newRelayer, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
 
         // set relayer to 0 for second manager
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit updateRelayerEvent(newRelayer2, payable(address(0)));
+        emit relayerUpdated(newRelayer2, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
 
     }
