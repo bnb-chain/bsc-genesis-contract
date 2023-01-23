@@ -88,7 +88,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             addManagerByGov(newManager);
         } else if (Memory.compareStrings(key, "removeManager")) {
             require(value.length == 20, "length of manager address mismatch");
-            address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
+            address managerAddress = BytesToTypes.bytesToAddress(20, value);
             removeManager(managerAddress);
         } else {
             require(false, "unknown param");
@@ -98,10 +98,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function removeManagerByHimself() external {
         // here the manager removes himself
-        removeManager(payable(msg.sender));
+        removeManager(msg.sender);
     }
 
-    function removeManager(address payable managerAddress) internal {
+    function removeManager(address managerAddress) internal {
         // check if the manager address already exists
         require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
