@@ -34,6 +34,11 @@ contract RelayerHubTest is Deployer {
         emit relayerUpdated(payable(address(0)), newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
 
+        // do updateRelayer() with the existing relayer
+        vm.prank(manager, manager);
+        vm.expectRevert(bytes("relayer already exists"));
+        newRelayerHub.updateRelayer(newRelayer);
+
         // do illegal call
         vm.prank(newRelayer, newRelayer);
         vm.expectRevert(bytes("manager does not exist"));
