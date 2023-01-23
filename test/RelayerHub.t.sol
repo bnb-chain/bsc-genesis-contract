@@ -8,6 +8,7 @@ contract RelayerHubTest is Deployer {
     event paramChange(string key, bytes value);
     event relayerUpdated(address _from, address _to);
     event managerRemoved(address _manager);
+    event managerAdded(address _manager);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -158,6 +159,8 @@ contract RelayerHubTest is Deployer {
 
 
         // now we call update() and the existing relayer/manager should be shown to be valid
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayerHub.WHITELIST_1());
         newRelayerHub.whitelistInit();
         bool isManagerTrue = newRelayerHub.isManager(existingRelayer1);
         assertTrue(isManagerTrue);
