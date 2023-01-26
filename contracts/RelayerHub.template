@@ -13,7 +13,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
-
+    
     {% if network == 'local' %}
       address public constant WHITELIST_1 = 0xA904540818AC9c47f2321F97F1069B9d8746c6DB;
       address public constant WHITELIST_2 = 0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344;
@@ -90,6 +90,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         relayManagersExistMap[addr] = true;
         managerToRelayer[addr] = addr; // for the current whitelisted relayers we are keeping manager and relayer address the same
         currentRelayers[addr] = true;
+        emit managerAdded(addr);
+        emit relayerUpdated(address(0), addr);
     }
 
     /*********************** Param update ********************************/
@@ -100,7 +102,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             addManagerByGov(newManager);
         } else if (Memory.compareStrings(key, "removeManager")) {
             require(value.length == 20, "length of manager address mismatch");
-            address payable managerAddress = payable(BytesToTypes.bytesToAddress(20, value));
+            address managerAddress = BytesToTypes.bytesToAddress(20, value);
             removeManager(managerAddress);
         } else {
             require(false, "unknown param");
@@ -110,10 +112,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function removeManagerByHimself() external {
         // here the manager removes himself
-        removeManager(payable(msg.sender));
+        removeManager(msg.sender);
     }
 
-    function removeManager(address payable managerAddress) internal {
+    function removeManager(address managerAddress) internal {
         // check if the manager address already exists
         require(relayManagersExistMap[managerAddress], "manager doesn't exist");
 
@@ -145,7 +147,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];
-        delete currentRelayers[oldRelayer];
 
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
@@ -155,6 +156,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
             delete managerToRelayer[msg.sender];
         }
 
+        delete currentRelayers[oldRelayer];
         emit relayerUpdated(oldRelayer, relayerToBeAdded);
     }
 
