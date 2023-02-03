@@ -16,8 +16,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
     address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
 
-    uint256 public requiredDeposit; // have to keep it to not break the storage layout
-    uint256 public dues;
+    uint256 internal requiredDeposit; // have to keep it to not break the storage layout
+    uint256 internal dues;
 
     mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
     mapping(address => bool) relayersExistMap;
@@ -43,7 +43,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
-    event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
