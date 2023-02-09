@@ -227,6 +227,43 @@ contract RelayerHubTest is Deployer {
 
     }
 
+    function testContractRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        address newRelayer = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+//        vm.prank(manager, manager);
+
+
+        uint64 nonceManager = vm.getNonce(manager);
+//        vm.setNonce(manager, nonceManager++);
+
+        address contractAddress = address(bytes20(keccak256(abi.encodePacked(manager, nonceManager))));
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(contractAddress);
+
+        bytes memory bytecode = "0x60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029";
+
+//        vm.prank(manager, manager);
+//        (bool success, bytes memory returnData) = address(contractAddress).deploy(bytecode);
+
+//        require(success, "Deployment failed");
+        vm.etch(contractAddress, bytecode);
+
+        assertEq(bytes32(bytecode), bytes32(address(contractAddress).code));
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(contractAddress));
+
+    }
+
     //  function testCannotRegister() public {
     //    address newRelayer = addrSet[addrIdx++];
     //    vm.startPrank(newRelayer, newRelayer);
