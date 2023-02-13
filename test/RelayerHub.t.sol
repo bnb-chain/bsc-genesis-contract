@@ -9,6 +9,7 @@ contract RelayerHubTest is Deployer {
     event relayerUpdated(address _from, address _to);
     event managerRemoved(address _manager);
     event managerAdded(address _manager);
+    event relayerAddedProvisionally(address _relayer);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -32,8 +33,13 @@ contract RelayerHubTest is Deployer {
         // check if manager is there and can add a relayer
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // do updateRelayer() with the existing relayer
         vm.prank(manager, manager);
@@ -57,8 +63,14 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(newRelayer, newRelayer2);
+//        emit relayerUpdated(newRelayer, newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        emit relayerUpdated(newRelayer, newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // set relayer to 0
         vm.prank(manager, manager);
@@ -76,7 +88,7 @@ contract RelayerHubTest is Deployer {
         updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
 
         // check if relayer got removed
-        bool isRelayerFalse = newRelayerHub.isRelayer(newRelayer);
+        bool isRelayerFalse = newRelayerHub.isRelayer(newRelayer2);
         assertFalse(isRelayerFalse);
 
         // check if manager got removed

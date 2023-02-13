@@ -153,6 +153,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
             delete currentRelayers[oldRelayer];
             emit relayerUpdated(oldRelayer, relayerToBeAdded);
+            return;
         }
 
         //        delete currentRelayers[oldRelayer];
