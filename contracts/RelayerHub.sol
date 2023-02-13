@@ -137,27 +137,20 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal we can simply update it to a non-existing account
-    function updateRelayer(address relayerToBeAdded) public onlyManager {// todo make it 2 step if relayer isn't address(0)
+    function updateRelayer(address relayerToBeAdded) public onlyManager {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];
 
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
-            //            currentRelayers[relayerToBeAdded] = true;
-
             provisionalRelayers[relayerToBeAdded] = true;
-            //            managerToRelayer[msg.sender] = relayerToBeAdded;
         } else {
             delete managerToRelayer[msg.sender];
-
             delete currentRelayers[oldRelayer];
             emit relayerUpdated(oldRelayer, relayerToBeAdded);
             return;
         }
-
-        //        delete currentRelayers[oldRelayer];
-        //        emit relayerUpdated(oldRelayer, relayerToBeAdded);
 
         emit relayerAddedProvisionally(relayerToBeAdded);
     }

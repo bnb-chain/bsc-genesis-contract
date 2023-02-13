@@ -64,7 +64,6 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-//        emit relayerUpdated(newRelayer, newRelayer2);
         emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
         assertFalse(newRelayerHub.isRelayer(newRelayer2));
@@ -269,16 +268,11 @@ contract RelayerHubTest is Deployer {
 
         bytes memory keyAddManager = "addManager";
         address manager = payable(addrSet[addrIdx++]);
-        address newRelayer = payable(addrSet[addrIdx++]);
         bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
         require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
         updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
 
-//        vm.prank(manager, manager);
-
-
         uint64 nonceManager = vm.getNonce(manager);
-//        vm.setNonce(manager, nonceManager++);
 
         address contractAddress = address(bytes20(keccak256(abi.encodePacked(manager, nonceManager))));
 
@@ -288,10 +282,6 @@ contract RelayerHubTest is Deployer {
 
         bytes memory bytecode = "0x60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029";
 
-//        vm.prank(manager, manager);
-//        (bool success, bytes memory returnData) = address(contractAddress).deploy(bytecode);
-
-//        require(success, "Deployment failed");
         vm.etch(contractAddress, bytecode);
 
         assertEq(bytes32(bytecode), bytes32(address(contractAddress).code));
