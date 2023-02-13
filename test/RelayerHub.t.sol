@@ -38,6 +38,7 @@ contract RelayerHubTest is Deployer {
         assertFalse(newRelayerHub.isRelayer(newRelayer));
 
         vm.prank(newRelayer, newRelayer);
+        vm.expectEmit(true, true, false, true);
         emit relayerUpdated(payable(address(0)), newRelayer);
         newRelayerHub.acceptBeingRelayer(manager);
 
@@ -113,8 +114,14 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // set relayer to 0
         vm.prank(manager, manager);
@@ -130,8 +137,15 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager2);
+
         // set relayer to 0
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
@@ -211,18 +225,29 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         address manager2 = payable(addrSet[addrIdx++]);
         bytes memory valueManagerBytes2 = abi.encodePacked(bytes20(uint160(manager2)));
         require(valueManagerBytes2.length == 20, "length of manager2 address mismatch in tests");
         updateParamByGovHub(keyAddManager, valueManagerBytes2, address(newRelayerHub));
         address newRelayer2 = payable(addrSet[addrIdx++]);
+
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager2);
 
         // set relayer to 0 for first manager
         vm.prank(manager, manager);
