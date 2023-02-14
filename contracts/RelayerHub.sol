@@ -158,6 +158,14 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     // acceptBeingRelayer needs to be called by the relayer after being added provisionally.
     // This 2 step process of relayer updating is required to avoid having a contract as a relayer.
     function acceptBeingRelayer(address manager) external onlyProvisionalRelayer {
+
+        // ensure code is zero for msg.sender and it is not a proxy
+        uint size;
+        address sender = msg.sender;
+        assembly { size := extcodesize(sender) }
+        require(size == 0, "provisional relayer is a contract");
+        require(tx.origin == msg.sender, "provisional relayer is a proxy");
+
         address oldRelayer = managerToRelayer[manager];
 
         currentRelayers[msg.sender] = true;

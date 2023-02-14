@@ -289,6 +289,37 @@ contract RelayerHubTest is Deployer {
         // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
         assertFalse(newRelayerHub.isRelayer(contractAddress));
 
+        // check if a contract relayer fails
+        vm.prank(contractAddress, contractAddress);
+        vm.expectRevert(bytes("provisional relayer is a contract"));
+        newRelayerHub.acceptBeingRelayer(manager);
+    }
+
+    function testProxyContractRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        uint64 nonceManager = vm.getNonce(manager);
+
+        address contractAddress = address(bytes20(keccak256(abi.encodePacked(manager, nonceManager))));
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(contractAddress);
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(contractAddress));
+
+        // check if a proxy relayer fails
+        vm.prank(contractAddress, manager);
+        vm.expectRevert(bytes("provisional relayer is a proxy"));
+        newRelayerHub.acceptBeingRelayer(manager);
+
     }
 
     //  function testCannotRegister() public {
