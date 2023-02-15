@@ -47,5 +47,7 @@ interface RelayerHub {
     function whitelistInit() external;
     function whitelistInitDone() external view returns (bool);
     function acceptBeingRelayer(address manager) external;
-}
+    function isProvisionalRelayer(address relayerAddress) external view returns (bool);
+
+    }
 

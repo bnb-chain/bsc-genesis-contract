@@ -31,6 +31,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
     mapping(address => bool) provisionalRelayers;
+    mapping(address => address) managerToProvisionalRelayer;
 
     bool public whitelistInitDone;
 
@@ -118,6 +119,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
 
+        delete (provisionalRelayers[managerToProvisionalRelayer[managerAddress]]);
+        delete (managerToProvisionalRelayer[managerAddress]);
+
         // emit success event
         emit managerRemoved(managerAddress);
         if (relayerAddress != address(0)) {
@@ -145,6 +149,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
             provisionalRelayers[relayerToBeAdded] = true;
+            managerToProvisionalRelayer[msg.sender] = relayerToBeAdded;
         } else {
             delete managerToRelayer[msg.sender];
             delete currentRelayers[oldRelayer];
@@ -180,6 +185,10 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function isRelayer(address relayerAddress) external override view returns (bool){
         return currentRelayers[relayerAddress];
+    }
+
+    function isProvisionalRelayer(address relayerAddress) external view returns (bool){
+        return provisionalRelayers[relayerAddress];
     }
 
     function isManager(address relayerAddress) external view returns (bool){

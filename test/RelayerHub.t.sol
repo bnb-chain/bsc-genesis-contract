@@ -322,6 +322,41 @@ contract RelayerHubTest is Deployer {
 
     }
 
+    // testManagerDeleteProvisionalRelayerRegistration checks the following scenario:
+    // If a relayer is added provisionally and the manager gets deleted by governance BEFORE relayer registers itself
+    //  then it shouldn't be able to register.
+    function testManagerDeleteProvisionalRelayerRegistration() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        // now delete manager before the relayer accepts being a relayer
+        bytes memory keyRemoveManager = "removeManager";
+        updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
+
+        assertFalse(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        // now the relayer tries to register itself which should fail as its manager is already removed
+        vm.prank(newRelayer, newRelayer);
+        vm.expectRevert(bytes("relayer is not a provisional relayer"));
+        newRelayerHub.acceptBeingRelayer(manager);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+    }
+
     //  function testCannotRegister() public {
     //    address newRelayer = addrSet[addrIdx++];
     //    vm.startPrank(newRelayer, newRelayer);
