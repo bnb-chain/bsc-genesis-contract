@@ -19,7 +19,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 internal requiredDeposit; // have to keep it to not break the storage layout
     uint256 internal dues;
 
-    mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
+    mapping(address => relayer) deprecatedRelayers; // old map holding the relayers which are to be allowed safe exit
     mapping(address => bool) relayersExistMap;
 
     struct relayer {
@@ -65,12 +65,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function unregister() external exist onlyInit {
-        relayer memory r = relayers[msg.sender];
+        relayer memory r = deprecatedRelayers[msg.sender];
         msg.sender.transfer(r.deposit.sub(r.dues));
         address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
         systemPayable.transfer(r.dues);
         delete relayersExistMap[msg.sender];
-        delete relayers[msg.sender];
+        delete deprecatedRelayers[msg.sender];
         emit relayerUnRegister(msg.sender);
     }
 
