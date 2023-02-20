@@ -145,6 +145,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
         address oldRelayer = managerToRelayer[msg.sender];
+        address oldProvisionalRelayer = managerToProvisionalRelayer[msg.sender];
 
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
@@ -153,6 +154,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         } else {
             delete managerToRelayer[msg.sender];
             delete currentRelayers[oldRelayer];
+            delete provisionalRelayers[oldProvisionalRelayer];
             emit relayerUpdated(oldRelayer, relayerToBeAdded);
             return;
         }
@@ -164,11 +166,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     // This 2 step process of relayer updating is required to avoid having a contract as a relayer.
     function acceptBeingRelayer(address manager) external onlyProvisionalRelayer {
 
-        // ensure code is zero for msg.sender and it is not a proxy
-        uint size;
-        address sender = msg.sender;
-        assembly { size := extcodesize(sender) }
-        require(size == 0, "provisional relayer is a contract");
+        // ensure msg.sender is not contract and it is not a proxy
+        require(!isContract(msg.sender), "provisional relayer is a contract");
         require(tx.origin == msg.sender, "provisional relayer is a proxy");
 
         address oldRelayer = managerToRelayer[manager];

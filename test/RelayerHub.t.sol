@@ -357,6 +357,30 @@ contract RelayerHubTest is Deployer {
 
     }
 
+    function testDeleteProvisionalRelayerWhileRemovingRelayer() public {
+        // Say a manager is there and adds its relayer provisionally and then decides to set it to address(0)
+        // In this case the relayer is added as a provisional only and not full relayer
+        // So the provisional relayer should also be deleted, especially if the relayer is yet to add itself as a full relayer
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+        assertTrue(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        // Now remove the relayer and ensure that it is deleted being a provisional relayer as well
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(address(0));
+        assertFalse(newRelayerHub.isProvisionalRelayer(newRelayer));
+    }
+
     //  function testCannotRegister() public {
     //    address newRelayer = addrSet[addrIdx++];
     //    vm.startPrank(newRelayer, newRelayer);
