@@ -381,6 +381,28 @@ contract RelayerHubTest is Deployer {
         assertFalse(newRelayerHub.isProvisionalRelayer(newRelayer));
     }
 
+    function testCorrectManagerForAcceptRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+        assertTrue(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        address randomManager = payable(addrSet[addrIdx++]);
+        vm.prank(newRelayer, newRelayer);
+        vm.expectRevert("provisional is not set for this manager");
+        newRelayerHub.acceptBeingRelayer(randomManager);
+
+    }
+
     //  function testCannotRegister() public {
     //    address newRelayer = addrSet[addrIdx++];
     //    vm.startPrank(newRelayer, newRelayer);

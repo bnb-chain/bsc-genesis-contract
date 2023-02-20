@@ -169,6 +169,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         // ensure msg.sender is not contract and it is not a proxy
         require(!isContract(msg.sender), "provisional relayer is a contract");
         require(tx.origin == msg.sender, "provisional relayer is a proxy");
+        require(managerToProvisionalRelayer[manager] == msg.sender, "provisional is not set for this manager");
 
         address oldRelayer = managerToRelayer[manager];
 
