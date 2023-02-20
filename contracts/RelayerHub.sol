@@ -140,7 +140,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
-    // in case of removal we can simply update it to a non-existing account
+    // in case of removal, we set relayerToBeAdded to be address(0)
     function updateRelayer(address relayerToBeAdded) public onlyManager {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
 
