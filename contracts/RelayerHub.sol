@@ -141,17 +141,16 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
     // in case of removal, we set relayerToBeAdded to be address(0)
-    function updateRelayer(address relayerToBeAdded) public onlyManager {
+    function updateRelayer(address relayerToBeAdded) external onlyManager {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
-
-        address oldRelayer = managerToRelayer[msg.sender];
-        address oldProvisionalRelayer = managerToProvisionalRelayer[msg.sender];
 
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
             provisionalRelayers[relayerToBeAdded] = true;
             managerToProvisionalRelayer[msg.sender] = relayerToBeAdded;
         } else {
+            address oldRelayer = managerToRelayer[msg.sender];
+            address oldProvisionalRelayer = managerToProvisionalRelayer[msg.sender];
             delete managerToRelayer[msg.sender];
             delete currentRelayers[oldRelayer];
             delete provisionalRelayers[oldProvisionalRelayer];
@@ -177,8 +176,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         currentRelayers[msg.sender] = true;
         managerToRelayer[manager] = msg.sender;
 
-        delete (provisionalRelayers[msg.sender]);
-
+        delete provisionalRelayers[msg.sender];
+        delete managerToProvisionalRelayer[manager];
         delete currentRelayers[oldRelayer];
         emit relayerUpdated(oldRelayer, msg.sender);
 
@@ -192,7 +191,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         return provisionalRelayers[relayerAddress];
     }
 
-    function isManager(address relayerAddress) external view returns (bool){
-        return relayManagersExistMap[relayerAddress];
+    function isManager(address managerAddress) external view returns (bool){
+        return relayManagersExistMap[managerAddress];
     }
 }
