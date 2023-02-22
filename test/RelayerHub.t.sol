@@ -9,6 +9,7 @@ contract RelayerHubTest is Deployer {
     event relayerUpdated(address _from, address _to);
     event managerRemoved(address _manager);
     event managerAdded(address _manager);
+    event relayerAddedProvisionally(address _relayer);
 
     uint256 public requiredDeposit;
     uint256 public dues;
@@ -32,8 +33,14 @@ contract RelayerHubTest is Deployer {
         // check if manager is there and can add a relayer
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // do updateRelayer() with the existing relayer
         vm.prank(manager, manager);
@@ -57,8 +64,13 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(newRelayer, newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        emit relayerUpdated(newRelayer, newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // set relayer to 0
         vm.prank(manager, manager);
@@ -76,7 +88,7 @@ contract RelayerHubTest is Deployer {
         updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
 
         // check if relayer got removed
-        bool isRelayerFalse = newRelayerHub.isRelayer(newRelayer);
+        bool isRelayerFalse = newRelayerHub.isRelayer(newRelayer2);
         assertFalse(isRelayerFalse);
 
         // check if manager got removed
@@ -101,8 +113,14 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         // set relayer to 0
         vm.prank(manager, manager);
@@ -118,8 +136,15 @@ contract RelayerHubTest is Deployer {
         address newRelayer2 = payable(addrSet[addrIdx++]);
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        vm.expectEmit(true, true, false, true);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager2);
+
         // set relayer to 0
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
@@ -199,18 +224,29 @@ contract RelayerHubTest is Deployer {
 
         vm.prank(manager, manager);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer);
+        emit relayerAddedProvisionally(newRelayer);
         newRelayerHub.updateRelayer(newRelayer);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        vm.prank(newRelayer, newRelayer);
+        emit relayerUpdated(payable(address(0)), newRelayer);
+        newRelayerHub.acceptBeingRelayer(manager);
 
         address manager2 = payable(addrSet[addrIdx++]);
         bytes memory valueManagerBytes2 = abi.encodePacked(bytes20(uint160(manager2)));
         require(valueManagerBytes2.length == 20, "length of manager2 address mismatch in tests");
         updateParamByGovHub(keyAddManager, valueManagerBytes2, address(newRelayerHub));
         address newRelayer2 = payable(addrSet[addrIdx++]);
+
         vm.prank(manager2, manager2);
         vm.expectEmit(true, true, false, true);
-        emit relayerUpdated(payable(address(0)), newRelayer2);
+        emit relayerAddedProvisionally(newRelayer2);
         newRelayerHub.updateRelayer(newRelayer2);
+        assertFalse(newRelayerHub.isRelayer(newRelayer2));
+
+        vm.prank(newRelayer2, newRelayer2);
+        emit relayerUpdated(payable(address(0)), newRelayer2);
+        newRelayerHub.acceptBeingRelayer(manager2);
 
         // set relayer to 0 for first manager
         vm.prank(manager, manager);
@@ -224,6 +260,146 @@ contract RelayerHubTest is Deployer {
         vm.expectEmit(true, true, false, true);
         emit relayerUpdated(newRelayer2, payable(address(0)));
         newRelayerHub.updateRelayer(payable(address(0)));
+
+    }
+
+    function testContractRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        uint64 nonceManager = vm.getNonce(manager);
+
+        address contractAddress = address(bytes20(keccak256(abi.encodePacked(manager, nonceManager))));
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(contractAddress);
+
+        bytes memory bytecode = "0x60606040525b600080fd00a165627a7a7230582012c9bd00152fa1c480f6827f81515bb19c3e63bf7ed9ffbb5fda0265983ac7980029";
+
+        vm.etch(contractAddress, bytecode);
+
+        assertEq(bytes32(bytecode), bytes32(address(contractAddress).code));
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(contractAddress));
+
+        // check if a contract relayer fails
+        vm.prank(contractAddress, contractAddress);
+        vm.expectRevert(bytes("provisional relayer is a contract"));
+        newRelayerHub.acceptBeingRelayer(manager);
+    }
+
+    function testProxyContractRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        uint64 nonceManager = vm.getNonce(manager);
+
+        address contractAddress = address(bytes20(keccak256(abi.encodePacked(manager, nonceManager))));
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(contractAddress);
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(contractAddress));
+
+        // check if a proxy relayer fails
+        vm.prank(contractAddress, manager);
+        vm.expectRevert(bytes("provisional relayer is a proxy"));
+        newRelayerHub.acceptBeingRelayer(manager);
+
+    }
+
+    // testManagerDeleteProvisionalRelayerRegistration checks the following scenario:
+    // If a relayer is added provisionally and the manager gets deleted by governance BEFORE relayer registers itself
+    //  then it shouldn't be able to register.
+    function testManagerDeleteProvisionalRelayerRegistration() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        // add the above address as relayer address which currently doesn't have code
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+
+        // here because the added relayer hasn't done the second step, therefore it shouldn't be added as a relayer
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+        // now delete manager before the relayer accepts being a relayer
+        bytes memory keyRemoveManager = "removeManager";
+        updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(newRelayerHub));
+
+        assertFalse(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        // now the relayer tries to register itself which should fail as its manager is already removed
+        vm.prank(newRelayer, newRelayer);
+        vm.expectRevert(bytes("relayer is not a provisional relayer"));
+        newRelayerHub.acceptBeingRelayer(manager);
+        assertFalse(newRelayerHub.isRelayer(newRelayer));
+
+    }
+
+    function testDeleteProvisionalRelayerWhileRemovingRelayer() public {
+        // Say a manager is there and adds its relayer provisionally and then decides to set it to address(0)
+        // In this case the relayer is added as a provisional only and not full relayer
+        // So the provisional relayer should also be deleted, especially if the relayer is yet to add itself as a full relayer
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+        assertTrue(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        // Now remove the relayer and ensure that it is deleted being a provisional relayer as well
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(address(0));
+        assertFalse(newRelayerHub.isProvisionalRelayer(newRelayer));
+    }
+
+    function testCorrectManagerForAcceptRelayer() public {
+        RelayerHub newRelayerHub = helperGetNewRelayerHub();
+
+        bytes memory keyAddManager = "addManager";
+        address manager = payable(addrSet[addrIdx++]);
+        bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
+        require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
+        updateParamByGovHub(keyAddManager, valueManagerBytes, address(newRelayerHub));
+
+        address newRelayer = payable(addrSet[addrIdx++]);
+
+        vm.prank(manager, manager);
+        newRelayerHub.updateRelayer(newRelayer);
+        assertTrue(newRelayerHub.isProvisionalRelayer(newRelayer));
+
+        address randomManager = payable(addrSet[addrIdx++]);
+        vm.prank(newRelayer, newRelayer);
+        vm.expectRevert("provisional is not set for this manager");
+        newRelayerHub.acceptBeingRelayer(randomManager);
 
     }
 

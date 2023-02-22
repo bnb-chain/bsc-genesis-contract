@@ -19,7 +19,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 internal requiredDeposit; // have to keep it to not break the storage layout
     uint256 internal dues;
 
-    mapping(address => relayer) relayers; // old map holding the relayers which are to be allowed safe exit
+    mapping(address => relayer) deprecatedRelayers; // old map holding the relayers which are to be allowed safe exit
     mapping(address => bool) relayersExistMap;
 
     struct relayer {
@@ -30,6 +30,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     mapping(address => bool) relayManagersExistMap;
     mapping(address => address) managerToRelayer;
     mapping(address => bool) currentRelayers;
+    mapping(address => bool) provisionalRelayers;
+    mapping(address => address) managerToProvisionalRelayer;
 
     bool public whitelistInitDone;
 
@@ -43,12 +45,18 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         _;
     }
 
+    modifier onlyProvisionalRelayer() {
+        require(provisionalRelayers[msg.sender], "relayer is not a provisional relayer");
+        _;
+    }
+
     event relayerUnRegister(address _relayer);
     event paramChange(string key, bytes value);
 
     event managerRemoved(address _removedManager);
     event managerAdded(address _addedManager);
     event relayerUpdated(address _from, address _to);
+    event relayerAddedProvisionally(address _relayer);
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
@@ -57,12 +65,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     function unregister() external exist onlyInit {
-        relayer memory r = relayers[msg.sender];
+        relayer memory r = deprecatedRelayers[msg.sender];
         msg.sender.transfer(r.deposit.sub(r.dues));
         address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
         systemPayable.transfer(r.dues);
         delete relayersExistMap[msg.sender];
-        delete relayers[msg.sender];
+        delete deprecatedRelayers[msg.sender];
         emit relayerUnRegister(msg.sender);
     }
 
@@ -111,6 +119,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete (relayManagersExistMap[managerAddress]);
         delete (managerToRelayer[managerAddress]);
 
+        delete (provisionalRelayers[managerToProvisionalRelayer[managerAddress]]);
+        delete (managerToProvisionalRelayer[managerAddress]);
+
         // emit success event
         emit managerRemoved(managerAddress);
         if (relayerAddress != address(0)) {
@@ -129,29 +140,58 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     // updateRelayer() can be used to add relayer for the first time, update it in future and remove it
-    // in case of removal we can simply update it to a non-existing account
-    function updateRelayer(address relayerToBeAdded) public onlyManager {
+    // in case of removal, we set relayerToBeAdded to be address(0)
+    function updateRelayer(address relayerToBeAdded) external onlyManager {
         require(!isContract(relayerToBeAdded), "contract is not allowed to be a relayer");
-
-        address oldRelayer = managerToRelayer[msg.sender];
 
         if (relayerToBeAdded != address(0)) {
             require(!currentRelayers[relayerToBeAdded], "relayer already exists");
-            currentRelayers[relayerToBeAdded] = true;
-            managerToRelayer[msg.sender] = relayerToBeAdded;
+            provisionalRelayers[relayerToBeAdded] = true;
+            managerToProvisionalRelayer[msg.sender] = relayerToBeAdded;
         } else {
+            address oldRelayer = managerToRelayer[msg.sender];
+            address oldProvisionalRelayer = managerToProvisionalRelayer[msg.sender];
             delete managerToRelayer[msg.sender];
+            delete currentRelayers[oldRelayer];
+            delete provisionalRelayers[oldProvisionalRelayer];
+            delete managerToProvisionalRelayer[msg.sender];
+            emit relayerUpdated(oldRelayer, relayerToBeAdded);
+            return;
         }
 
+        emit relayerAddedProvisionally(relayerToBeAdded);
+    }
+
+    // acceptBeingRelayer needs to be called by the relayer after being added provisionally.
+    // This 2 step process of relayer updating is required to avoid having a contract as a relayer.
+    function acceptBeingRelayer(address manager) external onlyProvisionalRelayer {
+
+        // ensure msg.sender is not contract and it is not a proxy
+        require(!isContract(msg.sender), "provisional relayer is a contract");
+        require(tx.origin == msg.sender, "provisional relayer is a proxy");
+        require(managerToProvisionalRelayer[manager] == msg.sender, "provisional is not set for this manager");
+
+        address oldRelayer = managerToRelayer[manager];
+
+        currentRelayers[msg.sender] = true;
+        managerToRelayer[manager] = msg.sender;
+
+        delete provisionalRelayers[msg.sender];
+        delete managerToProvisionalRelayer[manager];
         delete currentRelayers[oldRelayer];
-        emit relayerUpdated(oldRelayer, relayerToBeAdded);
+        emit relayerUpdated(oldRelayer, msg.sender);
+
     }
 
     function isRelayer(address relayerAddress) external override view returns (bool){
         return currentRelayers[relayerAddress];
     }
 
-    function isManager(address relayerAddress) external view returns (bool){
-        return relayManagersExistMap[relayerAddress];
+    function isProvisionalRelayer(address relayerAddress) external view returns (bool){
+        return provisionalRelayers[relayerAddress];
+    }
+
+    function isManager(address managerAddress) external view returns (bool){
+        return relayManagersExistMap[managerAddress];
     }
 }

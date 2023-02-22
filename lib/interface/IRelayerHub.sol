@@ -7,6 +7,7 @@ interface RelayerHub {
     event relayerRegister(address _relayer);
     event relayerUnRegister(address _relayer);
     event relayerUpdated(address _from, address _to);
+    event relayerAddedProvisionally(address _relayer);
 
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
@@ -45,5 +46,8 @@ interface RelayerHub {
     function updateRelayer(address relayerToBeAdded) external;
     function whitelistInit() external;
     function whitelistInitDone() external view returns (bool);
-}
+    function acceptBeingRelayer(address manager) external;
+    function isProvisionalRelayer(address relayerAddress) external view returns (bool);
+
+    }
 
