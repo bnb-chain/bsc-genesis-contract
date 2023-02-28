@@ -115,6 +115,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
   event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
   event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
+  event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -282,6 +283,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     require(largeTransferLimit > 0, "zero limit not allowed");
     require(contractAddrToBEP2Symbol[bep20Token] != bytes32(0x00), "not bound");
     largeTransferLimitMap[bep20Token] = largeTransferLimit;
+
+    emit LargeTransferLimitSet(bep20Token, msg.sender, largeTransferLimit);
   }
 
   // BEP-171: Security Enhancement for Cross-Chain Module
