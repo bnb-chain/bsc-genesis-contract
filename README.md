@@ -24,6 +24,17 @@ Truffle: v5.1.31
 
 Solc: 0.6.4+commit.1dca32f3
 
+Tips: You can manage multi version of Solc and Node:
+```Shell
+## Install solc-select and solc
+pip3 install solc-select
+solc-select install 0.6.4 && solc-select use 0.6.4
+
+## Install nvm and node
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
+nvm install  12.18.3 && nvm use 12.18.3
+```
+
 ## Unit test
 
 Add follow line to .env file in project dir, replace `archive_node` with a valid bsc mainnet node url which should be in archive mode:
@@ -55,6 +66,15 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 4. Edit `generate-tokenhub.js` file to change `refundRelayReward`, `minimumRelayFee` and `maxGasForCallingBEP20`.
 5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
 6. run ` node generate-genesis.js` will generate genesis.json
+
+## How to generate mainnet/testnet/QA genesis file
+
+```shell 
+npm run generate-mainnet
+npm run generate-testnet
+npm run generate-QA
+```
+Check the `genesis.json` file and you can get the exact compiled bytecode for different network.
 
 ## How to update contract interface for test
 
