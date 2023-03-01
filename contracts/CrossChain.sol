@@ -276,7 +276,6 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   function handlePackage(bytes calldata payload, bytes calldata proof, uint64 height, uint64 packageSequence, uint8 channelId)
   onlyInit
   onlyRelayer
-  onlyWhitelabelRelayer
   sequenceInOrder(packageSequence, channelId)
   blockSynced(height)
   channelSupported(channelId)
