@@ -46,4 +46,9 @@ contract MockTokenHub is ITokenHub {
     }
     return true;
   }
+
+  function cancelTransferIn(address tokenAddress, address attacker) override external {
+    address CROSS_CHAIN_CONTRACT_ADDR = address(0x0000000000000000000000000000000000002000);
+    require(msg.sender == CROSS_CHAIN_CONTRACT_ADDR, "only cross chain contract can call this function");
+  }
 }

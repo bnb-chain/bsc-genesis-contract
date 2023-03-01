@@ -74,4 +74,7 @@ interface TokenHub {
     function unbindToken(bytes32 bep2Symbol, address contractAddr) external;
     function updateParam(string memory key, bytes memory value) external;
     function withdrawStakingBNB(uint256 amount) external returns (bool);
+
+    function withdrawUnlockedToken(address tokenAddress, address recipient) external;
+    function lockInfoMap(address token, address recipient) external returns (uint256 amount, uint256 unlockAt);
 }
