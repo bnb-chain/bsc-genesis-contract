@@ -10,6 +10,7 @@ import "../lib/interface/IMiniToken.sol";
 contract TokenHubTest is Deployer {
   using RLPEncode for *;
   using RLPDecode for *;
+  uint256 constant public INIT_LOCK_PERIOD = 12 hours;
 
   event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
@@ -55,6 +56,17 @@ contract TokenHubTest is Deployer {
     address miniAddr = deployCode("MiniToken.sol");
     miniToken = MiniToken(miniAddr);
     vm.label(miniAddr, "MiniToken");
+
+
+    address deployAddr = deployCode("TokenHub.sol");
+    vm.etch(TOKEN_HUB_ADDR, deployAddr.code);
+    tokenHub = TokenHub(TOKEN_HUB_ADDR);
+    vm.label(address(tokenHub), "TokenHub");
+
+    deployAddr = deployCode("CrossChain.sol");
+    vm.etch(CROSS_CHAIN_CONTRACT_ADDR, deployAddr.code);
+    crossChain = CrossChain(CROSS_CHAIN_CONTRACT_ADDR);
+    vm.label(address(crossChain), "CrossChain");
   }
 
   function testBindFailed() public {
@@ -263,6 +275,206 @@ contract TokenHubTest is Deployer {
       ++idx;
     }
     require(success, "rlp decode refund package failed");
+  }
+
+  function testLargeTransferIn() public {
+    // Bind
+    bytes memory pack = buildBindPackage(uint8(0), bytes32("ABC-9C7"), address(abcToken), 1e8, 99e6, uint8(18));
+    vm.prank(address(crossChain));
+    tokenManager.handleSynPackage(BIND_CHANNELID, pack);
+    abcToken.approve(address(tokenManager), 1e6 * 1e18);
+    tokenManager.approveBind{value: 1e16}(address(abcToken), "ABC-9C7");
+
+    assertEq(tokenHub.getBoundBep2Symbol(address(abcToken)), "ABC-9C7", "wrong bep2 symbol");
+    assertEq(tokenHub.getBoundContract("ABC-9C7"), address(abcToken), "wrong token contract address");
+    assertEq(address(tokenManager).balance, 0, "tokenManager balance should be 0");
+
+    // Expired transferIn
+    address recipient = addrSet[addrIdx++];
+    address refundAddr = addrSet[addrIdx++];
+    assertEq(abcToken.balanceOf(recipient), 0);
+    pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
+
+    vm.warp(block.timestamp + 5);
+    vm.prank(address(crossChain));
+    bytes memory payload = tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
+    RLPDecode.Iterator memory iter = payload.toRLPItem().iterator();
+    bool success;
+    uint256 idx;
+    bytes32 bep2TokenSymbol;
+    uint256 refAmount;
+    address refAddr;
+    uint32 status;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        bep2TokenSymbol = bytes32(iter.next().toUint());
+        assertEq(bep2TokenSymbol, bytes32("ABC-9C7"), "wrong token symbol in refund package");
+      } else if (idx == 1) {
+        refAmount = iter.next().toUint();
+        assertEq(refAmount, 115e7, "wrong amount in refund package");
+      } else if (idx == 2) {
+        refAddr = iter.next().toAddress();
+        assertEq(refAddr, refundAddr, "wrong refund address in refund package");
+      } else if (idx == 3) {
+        status = uint32(iter.next().toUint());
+        assertEq(status, uint32(0x01), "wrong status code in refund package");
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
+    }
+    require(success, "rlp decode refund package failed");
+
+    // TransferIn succeed
+    recipient = addrSet[addrIdx++];
+    refundAddr = addrSet[addrIdx++];
+    assertEq(abcToken.balanceOf(recipient), 0);
+    pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
+    vm.prank(address(crossChain));
+    tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
+    assertEq(abcToken.balanceOf(recipient), 115e17, "wrong balance");
+
+    // BNB transferIn without lock
+    address _recipient = addrSet[addrIdx++];
+    address _refundAddr = addrSet[addrIdx++];
+    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 9999 * 1e18, _recipient, _refundAddr);
+    uint256 balance = _recipient.balance;
+    vm.prank(address(crossChain));
+    tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, _pack);
+    assertEq(_recipient.balance - balance, 9999 * 1e18, "wrong balance");
+
+    // BNB transferIn with lock
+    _recipient = addrSet[addrIdx++];
+    _refundAddr = addrSet[addrIdx++];
+    _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
+    balance = _recipient.balance;
+    vm.prank(address(crossChain));
+    tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, _pack);
+    // while BNB amount >= 10000 ether, locking fixed hours
+    assertEq(_recipient.balance - balance, 0, "wrong balance");
+    (uint256 amount, uint256 unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
+    assertEq(amount, 10000 * 1e18, "wrong locked amount");
+    assertEq(unlockAt, block.timestamp + INIT_LOCK_PERIOD, "wrong unlockAt");
+
+    // withdraw unlocked BNB
+    vm.warp(block.timestamp + INIT_LOCK_PERIOD);
+    tokenHub.withdrawUnlockedToken(address(0), _recipient);
+    assertEq(_recipient.balance - balance, 10000 * 1e18, "wrong balance");
+
+    // BNB transferIn to a non-payable address
+    _recipient = address(lightClient);
+    _refundAddr = addrSet[addrIdx++];
+    _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 1e18, _recipient, _refundAddr);
+    balance = _recipient.balance;
+    vm.prank(address(crossChain));
+    bytes memory _payload = tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, _pack);
+    assertEq(_recipient.balance, balance);
+    iter = _payload.toRLPItem().iterator();
+    success = false;
+    idx = 0;
+    while (iter.hasNext()) {
+      if (idx == 0) {
+        bep2TokenSymbol = bytes32(iter.next().toUint());
+        assertEq(bep2TokenSymbol, bytes32("BNB"), "wrong token symbol in refund package");
+      } else if (idx == 1) {
+        refAmount = iter.next().toUint();
+        assertEq(refAmount, 1e8, "wrong amount in refund package");
+      } else if (idx == 2) {
+        refAddr = iter.next().toAddress();
+        assertEq(refAddr, _refundAddr, "wrong refund address in refund package");
+      } else if (idx == 3) {
+        status = uint32(iter.next().toUint());
+        assertEq(status, uint32(0x04), "wrong status code in refund package");
+        success = true;
+      } else {
+        break;
+      }
+      ++idx;
+    }
+    require(success, "rlp decode refund package failed");
+  }
+
+  function testSuspend() public {
+    vm.prank(block.coinbase);
+    crossChain.suspend();
+    assert(crossChain.isSuspended());
+
+    vm.prank(block.coinbase);
+    vm.expectRevert(bytes("suspended"));
+    crossChain.suspend();
+
+    // BNB transferIn with lock
+    address _recipient = addrSet[addrIdx++];
+    address _refundAddr = addrSet[addrIdx++];
+    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
+    uint256 balance = _recipient.balance;
+    uint256 amount;
+    uint256 unlockAt;
+
+    address relayer = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+    uint64 height = crossChain.channelSyncedHeaderMap(TRANSFER_IN_CHANNELID);
+    uint64 seq = crossChain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
+    vm.startPrank(relayer, relayer);
+    vm.expectRevert(bytes("suspended"));
+    crossChain.handlePackage(
+      "",
+      "",
+      height,
+      seq,
+      TRANSFER_IN_CHANNELID
+    );
+    vm.stopPrank();
+
+    address[] memory _validators = validator.getValidators();
+    vm.prank(_validators[0]);
+    crossChain.reopen();
+    assert(crossChain.isSuspended());
+    vm.prank(_validators[1]);
+    crossChain.reopen();
+    assert(!crossChain.isSuspended());
+    vm.prank(relayer, relayer);
+    vm.expectRevert(bytes("invalid merkle proof"));
+    crossChain.handlePackage(
+      "",
+      "",
+      height,
+      seq,
+      TRANSFER_IN_CHANNELID
+    );
+    vm.stopPrank();
+  }
+
+  function testCancelTransfer() public {
+    // BNB transferIn with lock
+    address _recipient = addrSet[addrIdx++];
+    address _refundAddr = addrSet[addrIdx++];
+    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
+    uint256 balance = _recipient.balance;
+    uint256 amount;
+    uint256 unlockAt;
+
+    vm.prank(address(crossChain));
+    tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, _pack);
+
+    // while BNB amount >= 10000 ether, locking fixed hours
+    assertEq(_recipient.balance - balance, 0, "wrong balance");
+    (amount, unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
+    assertEq(amount, 10000 * 1e18, "wrong locked amount");
+    assertEq(unlockAt, block.timestamp + INIT_LOCK_PERIOD, "wrong unlockAt");
+
+    // cancelTransferIn by validators
+    address[] memory _validators = validator.getValidators();
+    vm.prank(_validators[0]);
+    crossChain.cancelTransfer(address(0), _recipient);
+    (amount, unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
+    assertEq(amount, 10000 * 1e18, "wrong locked amount");
+    assertEq(unlockAt, block.timestamp + INIT_LOCK_PERIOD, "wrong unlockAt");
+
+    vm.prank(block.coinbase);
+    crossChain.cancelTransfer(address(0), _recipient);
+    (amount, unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
+    assertEq(amount, 0, "wrong locked amount after cancelTransfer");
   }
 
   function testTransferOut() public {

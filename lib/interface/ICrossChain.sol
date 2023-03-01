@@ -68,4 +68,11 @@ interface CrossChain {
     function sendSynPackage(uint8 channelId, bytes memory msgBytes, uint256 relayFee) external;
     function txCounter() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
+
+    function cancelTransfer(address tokenAddr, address attacker) external;
+    function reopen() external;
+    function suspend() external;
+    function quorumMap(bytes32) external view returns (uint16);
+    function isSuspended() external view returns (bool);
+    function emergencyProposals(bytes32) external view returns (uint16 quorum, uint128 expiredAt, bytes32 contentHash, address[] memory);
 }
