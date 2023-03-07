@@ -23,6 +23,7 @@ program.parse(process.argv);
 
 const data = {
   mock: program.mock,
+  network: program.network,
 };
 
 const templateString = fs.readFileSync(program.template).toString();
