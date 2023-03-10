@@ -36,6 +36,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   event unKnownResponse(uint32 code);
   event crashResponse();
 
+  event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
+
   struct Indicator {
     uint256 height;
     uint256 count;
@@ -82,6 +84,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   /*********************** External func ********************************/
+  /**
+   * @dev Slash the validator who should have produced the current block
+   *
+   * @param validator The validator who should have produced the current block
+   */
   function slash(address validator) external onlyCoinbase onlyInit oncePerBlock onlyZeroGasPrice{
     if (!IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isCurrentValidator(validator)) {
       return;
@@ -98,7 +105,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (indicator.count % felonyThreshold == 0) {
       indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {} catch (bytes memory reason) {
+        emit failedFelony(validator, indicator.count, reason);
+      }
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
     }
@@ -161,6 +170,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  /**
+   * @dev Send a felony cross-chain package to jail a validator
+   *
+   * @param validator Who will be jailed
+   */
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
