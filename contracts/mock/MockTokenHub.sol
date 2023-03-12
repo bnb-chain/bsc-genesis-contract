@@ -10,11 +10,11 @@ contract MockTokenHub is ITokenHub {
     return (1e16);
   }
 
-  function getContractAddrByBEP2Symbol(bytes32 bep2Symbol) external view override(ITokenHub) returns(address) {
+  function getContractAddrByBEP2Symbol(bytes32) external view override(ITokenHub) returns(address) {
     return address(0x0);
   }
 
-  function getBep2SymbolByContractAddr(address contractAddr) external view override(ITokenHub) returns(bytes32) {
+  function getBep2SymbolByContractAddr(address) external view override(ITokenHub) returns(bytes32) {
     return bytes32(0x0);
   }
 
@@ -47,7 +47,7 @@ contract MockTokenHub is ITokenHub {
     return true;
   }
 
-  function cancelTransferIn(address tokenAddress, address attacker) override external {
+  function cancelTransferIn(address, address) override external {
     address CROSS_CHAIN_CONTRACT_ADDR = address(0x0000000000000000000000000000000000002000);
     require(msg.sender == CROSS_CHAIN_CONTRACT_ADDR, "only cross chain contract can call this function");
   }
