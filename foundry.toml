@@ -3,7 +3,7 @@ src = 'contracts'
 test = 'test'
 script = 'script'
 out = 'out'
-fs_permissions = [{ access = "read-write", path = "./" }]
+fs_permissions = [{ access = "read-write", path = "./out" }]
 libs = ['lib', 'node_modules']
 remappings = [
     'ds-test/=lib/forge-std/lib/ds-test/src/',
