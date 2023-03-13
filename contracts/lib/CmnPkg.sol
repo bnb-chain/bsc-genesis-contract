@@ -32,7 +32,7 @@ library CmnPkg {
             } else {
                 break;
             }
-            idx++;
+            ++idx;
         }
         return (ackPkg, success);
     }

@@ -67,7 +67,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
       }
     }
 
-    countInRound++;
+    ++countInRound;
 
     uint256 reward = calculateRewardForHeaderRelayer(actualAmount);
     collectedRewardForHeaderRelayer = collectedRewardForHeaderRelayer.add(reward);
@@ -76,12 +76,12 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     if (headerRelayersSubmitCount[headerRelayerAddr]==0) {
       headerRelayerAddressRecord.push(headerRelayerAddr);
     }
-    headerRelayersSubmitCount[headerRelayerAddr]++;
+    ++headerRelayersSubmitCount[headerRelayerAddr];
 
     if (packageRelayersSubmitCount[packageRelayer]==0) {
       packageRelayerAddressRecord.push(packageRelayer);
     }
-    packageRelayersSubmitCount[packageRelayer]++;
+    ++packageRelayersSubmitCount[packageRelayer];
 
     if (countInRound>=ROUND_SIZE) {
       emit distributeCollectedReward(roundSequence, collectedRewardForHeaderRelayer, collectedRewardForTransferRelayer);
@@ -91,7 +91,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
       relayerRewardVault[packageRelayer] = relayerRewardVault[packageRelayer].add(callerHeaderReward).add(callerPackageReward);
 
-      roundSequence++;
+      ++roundSequence;
       countInRound = 0;
     }
     return true;
@@ -121,7 +121,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 totalWeight=0;
     address payable[] memory relayers = headerRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
-    for (uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; ++index) {
       address relayer = relayers[index];
       uint256 weight = calculateHeaderRelayerWeight(headerRelayersSubmitCount[relayer]);
       relayerWeight[index] = weight;
@@ -131,7 +131,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 callerReward = totalReward.mul(callerCompensationMolecule).div(callerCompensationDenominator);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
-    for (uint256 index = 1; index < relayers.length; index++) {
+    for (uint256 index = 1; index < relayers.length; ++index) {
       uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayerRewardVault[relayers[index]] = relayerRewardVault[relayers[index]].add(reward);
       remainReward = remainReward.sub(reward);
@@ -139,7 +139,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     relayerRewardVault[relayers[0]] = relayerRewardVault[relayers[0]].add(remainReward);
 
     collectedRewardForHeaderRelayer = 0;
-    for (uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; ++index) {
       delete headerRelayersSubmitCount[relayers[index]];
     }
     delete headerRelayerAddressRecord;
@@ -152,7 +152,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 totalWeight=0;
     address payable[] memory relayers = packageRelayerAddressRecord;
     uint256[] memory relayerWeight = new uint256[](relayers.length);
-    for (uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; ++index) {
       address relayer = relayers[index];
       uint256 weight = calculateTransferRelayerWeight(packageRelayersSubmitCount[relayer]);
       relayerWeight[index] = weight;
@@ -162,7 +162,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 callerReward = totalReward.mul(callerCompensationMolecule).div(callerCompensationDenominator);
     totalReward = totalReward.sub(callerReward);
     uint256 remainReward = totalReward;
-    for (uint256 index = 1; index < relayers.length; index++) {
+    for (uint256 index = 1; index < relayers.length; ++index) {
       uint256 reward = relayerWeight[index].mul(totalReward).div(totalWeight);
       relayerRewardVault[relayers[index]] = relayerRewardVault[relayers[index]].add(reward);
       remainReward = remainReward.sub(reward);
@@ -170,7 +170,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     relayerRewardVault[relayers[0]] = relayerRewardVault[relayers[0]].add(remainReward);
 
     collectedRewardForTransferRelayer = 0;
-    for (uint256 index = 0; index < relayers.length; index++) {
+    for (uint256 index = 0; index < relayers.length; ++index) {
       delete packageRelayersSubmitCount[relayers[index]];
     }
     delete packageRelayerAddressRecord;
