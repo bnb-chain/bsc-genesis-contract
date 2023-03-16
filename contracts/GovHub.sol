@@ -85,7 +85,7 @@ contract GovHub is System, IApplication{
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (pkg, success);
   }
