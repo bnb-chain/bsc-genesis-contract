@@ -404,13 +404,13 @@ contract TokenHubTest is Deployer {
     vm.expectRevert(bytes("suspended"));
     crossChain.suspend();
 
-    // BNB transferIn with lock
-    address _recipient = addrSet[addrIdx++];
-    address _refundAddr = addrSet[addrIdx++];
-    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
-    uint256 balance = _recipient.balance;
-    uint256 amount;
-    uint256 unlockAt;
+//    // BNB transferIn with lock
+//    address _recipient = addrSet[addrIdx++];
+//    address _refundAddr = addrSet[addrIdx++];
+//    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
+//    uint256 balance = _recipient.balance;
+//    uint256 amount;
+//    uint256 unlockAt;
 
     address relayer = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
     uint64 height = crossChain.channelSyncedHeaderMap(TRANSFER_IN_CHANNELID);
@@ -512,7 +512,6 @@ contract TokenHubTest is Deployer {
 
     uint256 balance = abcToken.balanceOf(address(this));
     abcToken.approve(address(tokenHub), amount);
-    //TODO expectEmit crossChainPackage
     vm.expectEmit(true, false, false, true, address(tokenHub));
     emit transferOutSuccess(address(abcToken), address(this), amount, relayerFee);
     tokenHub.transferOut{value: relayerFee}(address(abcToken), recipient, amount, expireTime);
@@ -573,7 +572,29 @@ contract TokenHubTest is Deployer {
     tokenHub.batchTransferOutBNB{value: 5e16}(recipients, amounts, refundAddrs, expireTime);
   }
 
-  //TODO testOverflow
+  function testOverflow() public {
+    uint64 expireTime = uint64(block.timestamp + 150);
+    address recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
+    uint256 amount = 115792089237316195423570985008687907853269984665640564039457584007903129639936;
+    uint256 relayerFee = 1e16;
+
+    vm.expectRevert(bytes("SafeMath: addition overflow"));
+    tokenHub.transferOut{value: relayerFee}(address(0), recipient, amount, expireTime);
+
+    // batch transfer out
+    address[] memory recipients = new address[](2);
+    address[] memory refundAddrs = new address[](2);
+    uint256[] memory amounts = new uint256[](2);
+    for (uint256 i; i < 2; ++i) {
+      recipients[i] = addrSet[addrIdx];
+      refundAddrs[i] = addrSet[addrIdx++];
+    }
+    amounts[0] = 100000000000000000000000000000000000000000000000000000000000000000000000000000;
+    amounts[1] = 15792089237316195423570985008687907853269984665640564039457584007910000000000;
+
+    vm.expectRevert(bytes("SafeMath: addition overflow"));
+    tokenHub.batchTransferOutBNB{value: 2e16}(recipients, amounts, refundAddrs, expireTime);
+  }
 
   function testUnbind() public {
     // Bind first

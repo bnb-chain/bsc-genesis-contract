@@ -74,7 +74,7 @@ library RLPEncode {
             return new bytes(0);
         }
         bytes memory payload = self[0];
-        for (uint i = 1; i < self.length; i++) {
+        for (uint i = 1; i < self.length; ++i) {
             payload = mergeBytes(payload, self[i]);
         }
         return mergeBytes(encodeLength(payload.length, LIST_OFFSET), payload);
@@ -200,7 +200,7 @@ library RLPEncode {
         } else {
             i = 0;
         }
-        for (; i < 32; i++) {
+        for (; i < 32; ++i) {
             if (b[i] != 0) {
                 break;
             }

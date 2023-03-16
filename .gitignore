@@ -12,5 +12,3 @@ contracts/flattened/*.sol
 lib/forge-std/
 
 .env
-package-lock.json
-yarn.lock

@@ -58,9 +58,7 @@ library RLPEncode {
      */
     function encodeBool(bool self) internal pure returns (bytes memory) {
         bytes memory rs = new bytes(1);
-        if (self) {
-            rs[0] = bytes1(uint8(1));
-        }
+        rs[0] = (self ? bytes1(0x01) : bytes1(0x80));
         return rs;
     }
 
@@ -74,7 +72,7 @@ library RLPEncode {
             return new bytes(0);
         }
         bytes memory payload = self[0];
-        for (uint i = 1; i < self.length; i++) {
+        for (uint i = 1; i < self.length; ++i) {
             payload = mergeBytes(payload, self[i]);
         }
         return mergeBytes(encodeLength(payload.length, LIST_OFFSET), payload);
@@ -200,7 +198,7 @@ library RLPEncode {
         } else {
             i = 0;
         }
-        for (; i < 32; i++) {
+        for (; i < 32; ++i) {
             if (b[i] != 0) {
                 break;
             }
