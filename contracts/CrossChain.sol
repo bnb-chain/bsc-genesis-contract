@@ -13,7 +13,6 @@ import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./MerkleProof.sol";
 
-
 contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   // constant variables
@@ -339,13 +338,13 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
 
   function sendPackage(uint64 packageSequence, uint8 channelId, bytes memory payload) internal whenNotSuspended {
     if (block.number > previousTxHeight) {
-      oracleSequence++;
+      ++oracleSequence;
       txCounter = 1;
       previousTxHeight=block.number;
     } else {
-      txCounter++;
+      ++txCounter;
       if (txCounter>batchSizeForOracle) {
-        oracleSequence++;
+        ++oracleSequence;
         txCounter = 1;
       }
     }
@@ -358,7 +357,7 @@ contract CrossChain is System, ICrossChain, IParamSubscriber{
   external override {
     uint64 sendSequence = channelSendSequenceMap[channelId];
     sendPackage(sendSequence, channelId, encodePayload(SYN_PACKAGE, relayFee, msgBytes));
-    sendSequence++;
+    ++sendSequence;
     channelSendSequenceMap[channelId] = sendSequence;
   }
 

@@ -172,7 +172,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
           success = true;
         }
         else break;
-        idx++;
+        ++idx;
     }
     return (bindSynPkg, success);
   }
@@ -302,7 +302,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (mirrorSynPackage, success);
   }
@@ -323,7 +323,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (mirrorAckPackage, success);
   }
@@ -343,7 +343,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
     string memory symbol = IBEP20(bep20Addr).symbol();
     bytes memory symbolBytes = bytes(symbol);
     require(symbolBytes.length>=MINIMUM_BEP20_SYMBOL_LEN && symbolBytes.length<=MAXIMUM_BEP20_SYMBOL_LEN, "symbol length must be in [2,8]");
-    for (uint8 i = 0; i < symbolBytes.length; i++) {
+    for (uint8 i = 0; i < symbolBytes.length; ++i) {
       require((symbolBytes[i]>='A' && symbolBytes[i]<='Z') || (symbolBytes[i]>='a' && symbolBytes[i]<='z') || (symbolBytes[i]>='0' && symbolBytes[i]<='9'), "symbol should only contain alphabet and number");
     }
     address(uint160(TOKEN_HUB_ADDR)).transfer(msg.value.sub(mirrorFee));
@@ -426,7 +426,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (syncSynPackage, success);
   }
@@ -445,7 +445,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (syncAckPackage, success);
   }
@@ -590,7 +590,7 @@ contract TokenManager is System, IApplication, IParamSubscriber {
       return false;
     }
     bool symbolMatch = true;
-    for (uint256 index=0; index < bep20SymbolBytes.length; index++) {
+    for (uint256 index=0; index < bep20SymbolBytes.length; ++index) {
       if (bep20SymbolBytes[index] != bep2TokenSymbolBytes[index]) {
         symbolMatch = false;
         break;

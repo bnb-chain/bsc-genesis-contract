@@ -65,7 +65,7 @@ library RLPDecode {
 
         uint memPtr = item.memPtr + _payloadOffset(item.memPtr);
         uint dataLen;
-        for (uint i = 0; i < items; i++) {
+        for (uint i = 0; i < items; ++i) {
             dataLen = _itemLength(memPtr);
             result[i] = RLPItem(dataLen, memPtr);
             memPtr = memPtr + dataLen;
@@ -178,7 +178,7 @@ library RLPDecode {
         uint endPtr = item.memPtr + item.len;
         while (currPtr < endPtr) {
             currPtr = currPtr + _itemLength(currPtr); // skip over an item
-            count++;
+            ++count;
         }
 
         return count;

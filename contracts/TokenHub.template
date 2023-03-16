@@ -227,7 +227,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (transInSynPkg, success);
   }
@@ -386,14 +386,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         else if (idx == 1) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAmounts = new uint256[](list.length);
-          for (uint256 index=0; index<list.length; index++) {
+          for (uint256 index=0; index<list.length; ++index) {
             transOutAckPkg.refundAmounts[index] = list[index].toUint();
           }
         }
         else if (idx == 2) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAddrs = new address[](list.length);
-          for (uint256 index=0; index<list.length; index++) {
+          for (uint256 index=0; index<list.length; ++index) {
             transOutAckPkg.refundAddrs[index] = list[index].toAddress();
           }
         }
@@ -404,7 +404,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         else {
           break;
         }
-        idx++;
+        ++idx;
     }
     return (transOutAckPkg, success);
   }
@@ -417,7 +417,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function doRefund(TransferOutAckPackage memory transOutAckPkg) internal {
     if (transOutAckPkg.contractAddr==address(0x0)) {
-      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; ++index) {
         (bool success, ) = transOutAckPkg.refundAddrs[index].call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transOutAckPkg.refundAmounts[index]}("");
         if (!success) {
           emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
@@ -426,7 +426,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         }
       }
     } else {
-      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; ++index) {
         bool success = IBEP20(transOutAckPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index]);
         if (success) {
           emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
@@ -451,19 +451,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       } else if (idx == 2) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.amounts = new uint256[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.amounts[index] = list[index].toUint();
         }
       } else if (idx == 3) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.recipients = new address[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.recipients[index] = list[index].toAddress();
         }
       } else if (idx == 4) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.refundAddrs = new address[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.refundAddrs[index] = list[index].toAddress();
         }
       } else if (idx == 5) {
@@ -472,7 +472,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (transOutSynPkg, success);
   }
@@ -484,7 +484,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     transOutAckPkg.contractAddr = transOutSynPkg.contractAddr;
     transOutAckPkg.refundAmounts = transOutSynPkg.amounts;
     uint256 bep20TokenDecimals = bep20ContractDecimals[transOutSynPkg.contractAddr];
-    for (uint idx=0;idx<transOutSynPkg.amounts.length;idx++) {
+    for (uint idx=0;idx<transOutSynPkg.amounts.length;++idx) {
       transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep20TokenDecimals);
     }
     transOutAckPkg.refundAddrs = transOutSynPkg.refundAddrs;
@@ -501,19 +501,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 batchLength = transOutSynPkg.amounts.length;
 
     bytes[] memory amountsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
       amountsElements[index] = transOutSynPkg.amounts[index].encodeUint();
     }
     elements[2] = amountsElements.encodeList();
 
     bytes[] memory recipientsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
        recipientsElements[index] = transOutSynPkg.recipients[index].encodeAddress();
     }
     elements[3] = recipientsElements.encodeList();
 
     bytes[] memory refundAddrsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
        refundAddrsElements[index] = transOutSynPkg.refundAddrs[index].encodeAddress();
     }
     elements[4] = refundAddrsElements.encodeList();
@@ -590,7 +590,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 totalAmount = 0;
     uint256 rewardForRelayer;
     uint256[] memory convertedAmounts = new uint256[](batchLength);
-    for (uint i = 0; i < batchLength; i++) {
+    for (uint i = 0; i < batchLength; ++i) {
       require(amounts[i]%TEN_DECIMALS==0, "invalid transfer amount: precision loss in amount conversion");
       totalAmount = totalAmount.add(amounts[i]);
       convertedAmounts[i] = amounts[i].div(TEN_DECIMALS);
@@ -657,6 +657,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
     delete bep2SymbolToContractAddr[bep2Symbol];
     delete contractAddrToBEP2Symbol[contractAddr];
+    delete bep20ContractDecimals[contractAddr];
   }
 
   function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
@@ -665,9 +666,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
        mstore(add(symbolBytes, 32), symbol)
      }
      uint8 symbolLength = 0;
-     for (uint8 j = 0; j < 32; j++) {
+     for (uint8 j = 0; j < 32; ++j) {
        if (symbolBytes[j] != 0) {
-         symbolLength++;
+         ++symbolLength;
        } else {
          break;
        }
@@ -713,15 +714,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       mstore(add(bep2SymbolBytes,32), bep2SymbolBytes32)
     }
     uint8 bep2SymbolLength = 0;
-    for (uint8 j = 0; j < 32; j++) {
+    for (uint8 j = 0; j < 32; ++j) {
       if (bep2SymbolBytes[j] != 0) {
-        bep2SymbolLength++;
+        ++bep2SymbolLength;
       } else {
         break;
       }
     }
     bytes memory bep2Symbol = new bytes(bep2SymbolLength);
-    for (uint8 j = 0; j < bep2SymbolLength; j++) {
+    for (uint8 j = 0; j < bep2SymbolLength; ++j) {
         bep2Symbol[j] = bep2SymbolBytes[j];
     }
     return string(bep2Symbol);
