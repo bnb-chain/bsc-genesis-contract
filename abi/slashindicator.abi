@@ -7,6 +7,31 @@
   },
   {
     "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "slashCount",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "failReason",
+        "type": "bytes"
+      }
+    ],
+    "name": "failedFelony",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [],
     "name": "indicatorCleaned",
     "type": "event"
