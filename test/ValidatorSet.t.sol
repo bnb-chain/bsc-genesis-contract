@@ -46,7 +46,7 @@ contract ValidatorSetTest is Deployer {
     vm.etch(address(validator), validatorCode);
 
     // add operator
-    bytes memory key = "updateOperator";
+    bytes memory key = "addOperator";
     bytes memory valueBytes = abi.encodePacked(address(validator));
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);

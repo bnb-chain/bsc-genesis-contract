@@ -48,11 +48,17 @@ contract SystemRewardTest is Deployer {
   }
 
   function testGov() public {
-    bytes memory key = "updateOperator";
+    bytes memory key = "addOperator";
     bytes memory valueBytes = abi.encodePacked(address(validator));
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);
     updateParamByGovHub(key, valueBytes, address(systemReward));
     assertTrue(systemReward.isOperator(address(validator)));
+
+    key = "deleteOperator";
+    vm.expectEmit(false, false, false, true, address(systemReward));
+    emit paramChange(string(key), valueBytes);
+    updateParamByGovHub(key, valueBytes, address(systemReward));
+    assertFalse(systemReward.isOperator(address(validator)));
   }
 }

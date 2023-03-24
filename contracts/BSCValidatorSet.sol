@@ -55,7 +55,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-  uint256 public constant INIT_BURN_RATIO = 0;
+  uint256 public constant INIT_BURN_RATIO = 1000;
   uint256 public burnRatio;
   bool public burnRatioInitialized;
 
@@ -299,9 +299,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint validatorsNum = currentValidatorSet.length;
       for (uint i; i<validatorsNum; ++i) {
         if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
-          --crossSize;
+          ++crossSize;
         } else if (currentValidatorSet[i].incoming > 0) {
-          --directSize;
+          ++directSize;
         }
       }
 
@@ -329,11 +329,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           crossIndexes[crossSize] = i;
           crossTotal = crossTotal.add(value);
-          --crossSize;
+          ++crossSize;
         } else if (currentValidatorSet[i].incoming > 0) {
           directAddrs[directSize] = currentValidatorSet[i].feeAddress;
           directAmounts[directSize] = currentValidatorSet[i].incoming;
-          --directSize;
+          ++directSize;
         }
       }
 
@@ -422,8 +422,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    */
   function getLivingValidators() external view override returns (address[] memory, bytes[] memory) {
     uint n = currentValidatorSet.length;
-    uint living = 0;
-    for (uint i=0; i<n; i++) {
+    uint living;
+    for (uint i; i<n; ++i) {
       if (!currentValidatorSet[i].jailed) {
         living ++;
       }
@@ -432,7 +432,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bytes[] memory voteAddrs = new bytes[](living);
     living = 0;
     if (validatorExtraSet.length == n) {
-      for (uint i=0; i<n; i++) {
+      for (uint i; i<n; ++i) {
         if (!currentValidatorSet[i].jailed) {
           consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
           voteAddrs[living] = validatorExtraSet[i].voteAddress;
@@ -440,7 +440,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
       }
     } else {
-      for (uint i=0; i<n; i++) {
+      for (uint i; i<n; ++i) {
         if (!currentValidatorSet[i].jailed) {
           consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
           living ++;
@@ -560,7 +560,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address valAddr;
     uint256 index;
 
-    for (uint256 i; i< alAddrs.length; ++i) {
+    for (uint256 i; i<valAddrs.length; ++i) {
       value = (totalValue * weights[i]) / totalWeight;
       valAddr = valAddrs[i];
       index = currentValidatorSetMap[valAddr];
@@ -700,7 +700,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "maintainSlashScale")) {
       require(value.length == 32, "length of maintainSlashScale mismatch");
       uint256 newMaintainSlashScale = BytesToTypes.bytesToUint256(32, value);
-      require(newMaintainSlashScale > 0, "the maintainSlashScale must be greater than 0");
+      require(newMaintainSlashScale > 0 && newMaintainSlashScale < 10, "the maintainSlashScale must be greater than 0 and less than 10");
       maintainSlashScale = newMaintainSlashScale;
     } else if (Memory.compareStrings(key, "maxNumOfWorkingCandidates")) {
       require(value.length == 32, "length of maxNumOfWorkingCandidates mismatch");
@@ -739,7 +739,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint i; i<n; ++i) {
       bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
-      for (uint j=0; j<m; ++j) {
+      for (uint j; j<m; ++j) {
         if (oldValidator.consensusAddress == validatorSet[j].consensusAddress) {
           stale = false;
           break;
@@ -759,21 +759,21 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint k = n < m ? n:m;
     for (uint i; i<k; ++i) {
       if (!isSameValidator(validatorSet[i], currentValidatorSet[i])) {
-      currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
-      currentValidatorSet[i] = validatorSet[i];
-      validatorExtraSet[i].voteAddress = voteAddrs[i];
-      validatorExtraSet[i].isMaintaining = false;
-      validatorExtraSet[i].enterMaintenanceHeight = 0;
+        currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
+        currentValidatorSet[i] = validatorSet[i];
+        validatorExtraSet[i].voteAddress = voteAddrs[i];
+        validatorExtraSet[i].isMaintaining = false;
+        validatorExtraSet[i].enterMaintenanceHeight = 0;
       } else {
         currentValidatorSet[i].incoming = 0;
       }
     }
     if (m>n) {
-      ValidatorExtra memory _validatorExtra;
-      for (uint i = n; i < m; i++) {
-        _validatorExtra.voteAddress = voteAddrs[i];
+      ValidatorExtra memory validatorExtra;
+      for (uint i=n; i < m; ++i) {
+        validatorExtra.voteAddress = voteAddrs[i];
         currentValidatorSet.push(validatorSet[i]);
-        validatorExtraSet.push(_validatorExtra);
+        validatorExtraSet.push(validatorExtra);
         currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
       }
     }
@@ -1012,7 +1012,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         success = true;
       } else if (idx == 4) {
         voteAddr = iter.next().toBytes();
-        success = true;
       } else {
         break;
       }
@@ -1021,5 +1020,4 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (validator, voteAddr, success);
   }
 
-    
 }

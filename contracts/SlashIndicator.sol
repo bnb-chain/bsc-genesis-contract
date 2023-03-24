@@ -143,15 +143,15 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
   // Clean is an effective implement to reorganize "validators" and "indicators".
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
-    if(validators.length == 0){
+    if (validators.length == 0) {
       return;
     }
-    uint i = 0;
+    uint i;
     uint j = validators.length-1;
-    for (; i<=j;) {
+    for ( ; i<=j; ) {
       bool findLeft = false;
       bool findRight = false;
-      for(; i<j; ++i){
+      for( ; i<j; ++i){
         Indicator memory leftIndicator = indicators[validators[i]];
         if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
           leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
@@ -161,7 +161,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
           break;
         }
       }
-      for(; i<=j ; --j){
+      for( ; i<=j; --j){
         Indicator memory rightIndicator = indicators[validators[j]];
         if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
           rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;

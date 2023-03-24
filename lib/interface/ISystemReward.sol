@@ -5,7 +5,8 @@ interface SystemReward {
     event receiveDeposit(address indexed from, uint256 amount);
     event rewardEmpty();
     event rewardTo(address indexed to, uint256 amount);
-    event updateOperator(address indexed operator);
+    event addOperator(address indexed operator);
+    event deleteOperator(address indexed operator);
 
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
