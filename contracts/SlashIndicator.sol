@@ -95,7 +95,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
     Indicator memory indicator = indicators[validator];
     if (indicator.exist) {
-      indicator.count++;
+      ++indicator.count;
     } else {
       indicator.exist = true;
       indicator.count = 1;
@@ -127,7 +127,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     for (;i <= j;) {
       bool findLeft = false;
       bool findRight = false;
-      for(;i<j;i++){
+      for(;i<j;++i){
         Indicator memory leftIndicator = indicators[validators[i]];
         if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
           leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
@@ -137,7 +137,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
           break;
         }
       }
-      for(;i<=j;j--){
+      for(;i<=j;--j){
         Indicator memory rightIndicator = indicators[validators[j]];
         if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
           rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;
@@ -164,8 +164,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
         break;
       }
       // move to next
-      i++;
-      j--;
+      ++i;
+      --j;
     }
     emit indicatorCleaned();
   }

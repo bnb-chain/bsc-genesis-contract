@@ -65,7 +65,7 @@ library RLPDecode {
 
         uint memPtr = item.memPtr + _payloadOffset(item.memPtr);
         uint dataLen;
-        for (uint i = 0; i < items; i++) {
+        for (uint i = 0; i < items; ++i) {
             dataLen = _itemLength(memPtr);
             result[i] = RLPItem(dataLen, memPtr);
             memPtr = memPtr + dataLen;
@@ -109,7 +109,11 @@ library RLPDecode {
             result := byte(0, mload(memPtr))
         }
 
-        return result == 0 ? false : true;
+        if (result == 0 || result == STRING_SHORT_START) {
+            return false;
+        } else {
+            return true;
+        }
     }
 
     function toAddress(RLPItem memory item) internal pure returns (address) {
@@ -178,7 +182,7 @@ library RLPDecode {
         uint endPtr = item.memPtr + item.len;
         while (currPtr < endPtr) {
             currPtr = currPtr + _itemLength(currPtr); // skip over an item
-            count++;
+            ++count;
         }
 
         return count;

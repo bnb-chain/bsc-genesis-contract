@@ -52,13 +52,13 @@ contract SystemReward is System, ISystemReward{
 
   function addOperator(address operator) external doInit onlyOperatorNotExist(operator) {
     operators[operator] = true;
-    numOperator ++;
+    ++numOperator;
     emit newOperator(operator);
   }
 
   function removeOperator(address operator) external doInit onlyOperatorExist(operator) {
     delete operators[operator];
-    numOperator --;
+    --numOperator;
     emit deleteOperator(operator);
   }
   {% endif %}

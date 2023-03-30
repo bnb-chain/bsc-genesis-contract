@@ -33,7 +33,7 @@ library TypesToBytes {
     
     function stringToBytes(uint _offst, bytes memory _input, bytes memory _output) internal pure {
         uint256 stack_size = _input.length / 32;
-        if (_input.length % 32 > 0) stack_size++;
+        if (_input.length % 32 > 0) ++stack_size;
         
         assembly {
             stack_size := add(stack_size,1)//adding because of 32 first bytes memory as the length
