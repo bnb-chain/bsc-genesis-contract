@@ -9,6 +9,8 @@ import "./interface/ISystemReward.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPEncode.sol";
 import "./lib/RLPDecode.sol";
+import "./lib/BytesToTypes.sol";
+import "./lib/Memory.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
@@ -57,6 +59,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint32 status;
   }
 
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  struct LockInfo {
+    uint256 amount;
+    uint256 unlockAt;
+  }
+
   // transfer in channel
   uint8 constant public   TRANSFER_IN_SUCCESS = 0;
   uint8 constant public   TRANSFER_IN_FAILURE_TIMEOUT = 1;
@@ -83,6 +91,17 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   mapping(address => bytes32) private contractAddrToBEP2Symbol;
   mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  uint256 constant public INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
+  uint256 constant public INIT_LOCK_PERIOD = 12 hours;
+  // the lock period for large cross-chain transfer
+  uint256 public lockPeriod;
+  // token address => largeTransferLimit amount, address(0) means BNB
+  mapping(address => uint256) public largeTransferLimitMap;
+  // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
+  mapping(address => mapping(address => LockInfo)) public lockInfoMap;
+  uint8 internal reentryLock;
+
   event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);
   event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
   event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
@@ -92,7 +111,24 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event unexpectedPackage(uint8 channelId, bytes msgBytes);
   event paramChange(string key, bytes value);
 
-  constructor() public {}
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+  event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
+  event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
+  event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  modifier onlyTokenOwner(address bep20Token) {
+    require(msg.sender == IBEP20(bep20Token).getOwner(), "not owner of BEP20 token");
+    _;
+  }
+
+  modifier noReentrant() {
+    require(reentryLock != 2, "No re-entrancy");
+    reentryLock = 2;
+    _;
+    reentryLock = 1;
+  }
 
   function init() onlyNotInit external {
     relayFee = INIT_MINIMUM_RELAY_FEE;
@@ -106,6 +142,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+
+  /**
+   * @dev Claim relayer reward to target account
+   *
+   * @param to Whose relay reward will be claimed.
+   * @param amount Reward amount
+   */
   function claimRewards(address payable to, uint256 amount) onlyInit onlyRelayerIncentivize external override returns(uint256) {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if (actualAmount > REWARD_UPPER_LIMIT) {
@@ -122,6 +165,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return relayFee;
   }
 
+  /**
+   * @dev handle sync cross-chain package from BC
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override returns(bytes memory) {
     if (channelId == TRANSFER_IN_CHANNELID) {
       return handleTransferInSynPackage(msgBytes);
@@ -132,6 +181,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+  /**
+   * @dev handle ack cross-chain package from BC，it means cross-chain transfer successfully to BC
+   * and will refund the remaining token caused by different decimals between BSC and BC.
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
     if (channelId == TRANSFER_OUT_CHANNELID) {
       handleTransferOutAckPackage(msgBytes);
@@ -140,6 +196,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     }
   }
 
+  /**
+   * @dev handle failed ack cross-chain package from BC, it means failed to cross-chain transfer to BC and will refund the token.
+   *
+   * @param channelId The channel for cross-chain communication
+   * @param msgBytes The rlp encoded message bytes sent from BC
+   */
   function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) onlyInit onlyCrossChainContract external override {
     if (channelId == TRANSFER_OUT_CHANNELID) {
       handleTransferOutFailAckPackage(msgBytes);
@@ -165,7 +227,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         success = true;
       }
       else break;
-      idx++;
+      ++idx;
     }
     return (transInSynPkg, success);
   }
@@ -205,10 +267,16 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       if (address(this).balance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
-      if (!success) {
-        return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
+
+      // BEP-171: Security Enhancement for Cross-Chain Module
+      if (!_checkAndLockTransferIn(transInSynPkg)) {
+        // directly transfer to the recipient
+        (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
+        if (!success) {
+          return TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT;
+        }
       }
+
       emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
       return TRANSFER_IN_SUCCESS;
     } else {
@@ -222,14 +290,87 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       if (actualBalance < transInSynPkg.amount) {
         return TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE;
       }
-      bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
-      if (success) {
-        emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
-        return TRANSFER_IN_SUCCESS;
-      } else {
-        return TRANSFER_IN_FAILURE_UNKNOWN;
+
+      // BEP-171: Security Enhancement for Cross-Chain Module
+      if (!_checkAndLockTransferIn(transInSynPkg)) {
+        bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
+        if (!success) {
+          return TRANSFER_IN_FAILURE_UNKNOWN;
+        }
       }
+
+      emit transferInSuccess(transInSynPkg.contractAddr, transInSynPkg.recipient, transInSynPkg.amount);
+      return TRANSFER_IN_SUCCESS;
     }
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function setLargeTransferLimit(address bep20Token, uint256 largeTransferLimit) external onlyTokenOwner(bep20Token) {
+    require(largeTransferLimit > 0, "zero limit not allowed");
+    require(contractAddrToBEP2Symbol[bep20Token] != bytes32(0x00), "not bound");
+    largeTransferLimitMap[bep20Token] = largeTransferLimit;
+
+    emit LargeTransferLimitSet(bep20Token, msg.sender, largeTransferLimit);
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function withdrawUnlockedToken(address tokenAddress, address recipient) external noReentrant {
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
+    require(lockInfo.amount > 0, "no locked amount");
+    require(block.timestamp >= lockInfo.unlockAt, "still on locking period");
+
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
+
+    bool _success;
+    if (tokenAddress == address(0x0)) {
+      (_success, ) = recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: _amount}("");
+    } else {
+      _success = IBEP20(tokenAddress).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(recipient, _amount);
+    }
+    require(_success, "withdraw unlocked token failed");
+
+    emit WithdrawUnlockedToken(tokenAddress, recipient, _amount);
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function cancelTransferIn(address tokenAddress, address attacker) override external onlyCrossChainContract {
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
+    require(lockInfo.amount > 0, "no locked amount");
+
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
+
+    emit CancelTransfer(tokenAddress, attacker, _amount);
+  }
+
+  // BEP-171: Security Enhancement for Cross-Chain Module
+  function _checkAndLockTransferIn(TransferInSynPackage memory transInSynPkg) internal returns (bool isLocked) {
+    // check if BEP-171 params init
+    if (largeTransferLimitMap[address(0x0)] == 0 && lockPeriod == 0) {
+      largeTransferLimitMap[address(0x0)] = INIT_BNB_LARGE_TRANSFER_LIMIT;
+      lockPeriod = INIT_LOCK_PERIOD;
+    }
+
+    // check if it is over large transfer limit
+    uint256 _limit = largeTransferLimitMap[transInSynPkg.contractAddr];
+    if (_limit == 0 || transInSynPkg.amount < _limit) {
+      return false;
+    }
+
+    // it is over the large transfer limit
+    // add time lock to recipient
+    LockInfo storage lockInfo = lockInfoMap[transInSynPkg.contractAddr][transInSynPkg.recipient];
+    lockInfo.amount = lockInfo.amount.add(transInSynPkg.amount);
+    lockInfo.unlockAt = block.timestamp + lockPeriod;
+
+    emit LargeTransferLocked(
+      transInSynPkg.contractAddr,
+      transInSynPkg.recipient,
+      transInSynPkg.amount,
+      lockInfo.unlockAt
+    );
+    return true;
   }
 
   function decodeTransferOutAckPackage(bytes memory msgBytes) internal pure returns(TransferOutAckPackage memory, bool) {
@@ -245,14 +386,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         else if (idx == 1) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAmounts = new uint256[](list.length);
-          for (uint256 index=0; index<list.length; index++) {
+          for (uint256 index=0; index<list.length; ++index) {
             transOutAckPkg.refundAmounts[index] = list[index].toUint();
           }
         }
         else if (idx == 2) {
           RLPDecode.RLPItem[] memory list = iter.next().toList();
           transOutAckPkg.refundAddrs = new address[](list.length);
-          for (uint256 index=0; index<list.length; index++) {
+          for (uint256 index=0; index<list.length; ++index) {
             transOutAckPkg.refundAddrs[index] = list[index].toAddress();
           }
         }
@@ -263,7 +404,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         else {
           break;
         }
-        idx++;
+        ++idx;
     }
     return (transOutAckPkg, success);
   }
@@ -276,7 +417,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   function doRefund(TransferOutAckPackage memory transOutAckPkg) internal {
     if (transOutAckPkg.contractAddr==address(0x0)) {
-      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; ++index) {
         (bool success, ) = transOutAckPkg.refundAddrs[index].call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transOutAckPkg.refundAmounts[index]}("");
         if (!success) {
           emit refundFailure(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
@@ -285,7 +426,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         }
       }
     } else {
-      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; index++) {
+      for (uint256 index = 0; index<transOutAckPkg.refundAmounts.length; ++index) {
         bool success = IBEP20(transOutAckPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index]);
         if (success) {
           emit refundSuccess(transOutAckPkg.contractAddr, transOutAckPkg.refundAddrs[index], transOutAckPkg.refundAmounts[index], transOutAckPkg.status);
@@ -310,19 +451,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       } else if (idx == 2) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.amounts = new uint256[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.amounts[index] = list[index].toUint();
         }
       } else if (idx == 3) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.recipients = new address[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.recipients[index] = list[index].toAddress();
         }
       } else if (idx == 4) {
         RLPDecode.RLPItem[] memory list = iter.next().toList();
         transOutSynPkg.refundAddrs = new address[](list.length);
-        for (uint256 index=0; index<list.length; index++) {
+        for (uint256 index=0; index<list.length; ++index) {
           transOutSynPkg.refundAddrs[index] = list[index].toAddress();
         }
       } else if (idx == 5) {
@@ -331,7 +472,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (transOutSynPkg, success);
   }
@@ -343,7 +484,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     transOutAckPkg.contractAddr = transOutSynPkg.contractAddr;
     transOutAckPkg.refundAmounts = transOutSynPkg.amounts;
     uint256 bep20TokenDecimals = bep20ContractDecimals[transOutSynPkg.contractAddr];
-    for (uint idx=0;idx<transOutSynPkg.amounts.length;idx++) {
+    for (uint idx=0;idx<transOutSynPkg.amounts.length;++idx) {
       transOutSynPkg.amounts[idx] = convertFromBep2Amount(transOutSynPkg.amounts[idx], bep20TokenDecimals);
     }
     transOutAckPkg.refundAddrs = transOutSynPkg.refundAddrs;
@@ -360,19 +501,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 batchLength = transOutSynPkg.amounts.length;
 
     bytes[] memory amountsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
       amountsElements[index] = transOutSynPkg.amounts[index].encodeUint();
     }
     elements[2] = amountsElements.encodeList();
 
     bytes[] memory recipientsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
        recipientsElements[index] = transOutSynPkg.recipients[index].encodeAddress();
     }
     elements[3] = recipientsElements.encodeList();
 
     bytes[] memory refundAddrsElements = new bytes[](batchLength);
-    for (uint256 index = 0; index< batchLength; index++) {
+    for (uint256 index = 0; index< batchLength; ++index) {
        refundAddrsElements[index] = transOutSynPkg.refundAddrs[index].encodeAddress();
     }
     elements[4] = refundAddrsElements.encodeList();
@@ -381,6 +522,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return elements.encodeList();
   }
 
+  /**
+   * @dev request a cross-chain transfer from BSC to BC
+   *
+   * @param contractAddr The token contract which is transferred
+   * @param recipient The destination address of the cross-chain transfer on BC.
+   * @param amount The amount to transfer
+   * @param expireTime The expire time for the cross-chain transfer
+   */
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
     require(msg.value%TEN_DECIMALS==0, "invalid received BNB amount: precision loss in amount conversion");
@@ -424,6 +573,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return true;
   }
 
+  /**
+   * @dev request a batch cross-chain BNB transfers from BSC to BC
+   *
+   * @param recipientAddrs The destination address of the cross-chain transfer on BC.
+   * @param amounts The amounts to transfer
+   * @param refundAddrs The refund addresses that receive the refund funds while failed to cross-chain transfer
+   * @param expireTime The expire time for these cross-chain transfers
+   */
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs, uint64 expireTime) external override onlyInit payable returns (bool) {
     require(recipientAddrs.length == amounts.length, "Length of recipientAddrs doesn't equal to length of amounts");
     require(recipientAddrs.length == refundAddrs.length, "Length of recipientAddrs doesn't equal to length of refundAddrs");
@@ -433,7 +590,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 totalAmount = 0;
     uint256 rewardForRelayer;
     uint256[] memory convertedAmounts = new uint256[](batchLength);
-    for (uint i = 0; i < batchLength; i++) {
+    for (uint i = 0; i < batchLength; ++i) {
       require(amounts[i]%TEN_DECIMALS==0, "invalid transfer amount: precision loss in amount conversion");
       totalAmount = totalAmount.add(amounts[i]);
       convertedAmounts[i] = amounts[i].div(TEN_DECIMALS);
@@ -469,6 +626,14 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       }
       require(newRelayFee <= 1e18 && newRelayFee%(TEN_DECIMALS)==0, "the relayFee out of range");
       relayFee = newRelayFee;
+    } else if (Memory.compareStrings(key, "largeTransferLockPeriod")) {
+      uint256 newLockPeriod = BytesToTypes.bytesToUint256(32, value);
+      require(newLockPeriod <= 1 weeks, "lock period too long");
+      lockPeriod = newLockPeriod;
+    } else if (Memory.compareStrings(key, "bnbLargeTransferLimit")) {
+      uint256 newBNBLargeTransferLimit = BytesToTypes.bytesToUint256(32, value);
+      require(newBNBLargeTransferLimit >= 100 ether, "bnb large transfer limit too small");
+      largeTransferLimitMap[address(0x0)] = newBNBLargeTransferLimit;
     } else {
       require(false, "unknown param");
     }
@@ -492,6 +657,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override onlyTokenManager {
     delete bep2SymbolToContractAddr[bep2Symbol];
     delete contractAddrToBEP2Symbol[contractAddr];
+    delete bep20ContractDecimals[contractAddr];
   }
 
   function isMiniBEP2Token(bytes32 symbol) internal pure returns(bool) {
@@ -500,9 +666,9 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
        mstore(add(symbolBytes, 32), symbol)
      }
      uint8 symbolLength = 0;
-     for (uint8 j = 0; j < 32; j++) {
+     for (uint8 j = 0; j < 32; ++j) {
        if (symbolBytes[j] != 0) {
-         symbolLength++;
+         ++symbolLength;
        } else {
          break;
        }
@@ -548,15 +714,15 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       mstore(add(bep2SymbolBytes,32), bep2SymbolBytes32)
     }
     uint8 bep2SymbolLength = 0;
-    for (uint8 j = 0; j < 32; j++) {
+    for (uint8 j = 0; j < 32; ++j) {
       if (bep2SymbolBytes[j] != 0) {
-        bep2SymbolLength++;
+        ++bep2SymbolLength;
       } else {
         break;
       }
     }
     bytes memory bep2Symbol = new bytes(bep2SymbolLength);
-    for (uint8 j = 0; j < bep2SymbolLength; j++) {
+    for (uint8 j = 0; j < bep2SymbolLength; ++j) {
         bep2Symbol[j] = bep2SymbolBytes[j];
     }
     return string(bep2Symbol);

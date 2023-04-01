@@ -189,6 +189,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
+
+  /**
+   * @dev Collect all fee of transactions from the current block and deposit it to the contract
+   *
+   * @param valAddr The validator address who produced the current block
+   */
   function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
@@ -236,7 +242,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       emit validatorEmptyJailed(v.consensusAddress);
       return CODE_OK;
     }
-    numOfJailed ++;
+    ++numOfJailed;
     currentValidatorSet[index-1].jailed = true;
     emit validatorJailed(v.consensusAddress);
     return CODE_OK;
@@ -264,9 +270,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint validatorsNum = currentValidatorSet.length;
     for (uint i; i < validatorsNum; ++i) {
       if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
-        crossSize ++;
+        ++crossSize;
       } else if (currentValidatorSet[i].incoming > 0) {
-        directSize ++;
+        ++directSize;
       }
     }
 
@@ -294,11 +300,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
         crossIndexes[crossSize] = i;
         crossTotal = crossTotal.add(value);
-        crossSize ++;
+        ++crossSize;
       } else if (currentValidatorSet[i].incoming > 0) {
         directAddrs[directSize] = currentValidatorSet[i].feeAddress;
         directAmounts[directSize] = currentValidatorSet[i].incoming;
-        directSize ++;
+        ++directSize;
       }
     }
 
@@ -362,6 +368,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return CODE_OK;
   }
 
+  /**
+   * @dev With each epoch, there will be a partial rotation between cabinets and candidates. Rotation is determined by this function
+   *
+   */
   function shuffle(address[] memory validators, uint256 epochNumber, uint startIdx, uint offset, uint limit, uint modNumber) internal pure {
     for (uint i; i<limit; ++i) {
       uint random = uint(keccak256(abi.encodePacked(epochNumber, startIdx+i))) % modNumber;
@@ -373,6 +383,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
+  /**
+   * @dev Get mining validators that are block producers in the current epoch, including most of the cabinets and a few of the candidates
+   *
+   */
   function getMiningValidators() public view returns(address[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
@@ -401,12 +415,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return miningValidators;
   }
 
+  /**
+   * @dev Get all validators, including all of the cabinets and all of the candidates
+   *
+   */
   function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
     uint valid = 0;
     for (uint i; i<n; ++i) {
       if (isWorkingValidator(i)) {
-        valid ++;
+        ++valid;
       }
     }
     address[] memory consensusAddrs = new address[](valid);
@@ -414,7 +432,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint i; i<n; ++i) {
       if (isWorkingValidator(i)) {
         consensusAddrs[valid] = currentValidatorSet[i].consensusAddress;
-        valid ++;
+        ++valid;
       }
     }
     return consensusAddrs;
@@ -480,7 +498,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     bool isMaintaining = validatorExtraSet[index].isMaintaining;
     if (_felony(validator, index) && isMaintaining) {
-      numOfMaintaining--;
+      --numOfMaintaining;
     }
   }
 
@@ -514,6 +532,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return true;
   }
 
+
+  /**
+   * @dev Enter maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
+   *
+   */
   function enterMaintenance() external initValidatorExtraSet {
     // check maintain config
     if (maxNumOfMaintaining == 0) {
@@ -528,6 +551,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     _enterMaintenance(msg.sender, index);
   }
 
+  /**
+   * @dev Exit maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
+   *
+   */
   function exitMaintenance() external {
     uint256 index = getCurrentValidatorIndex(msg.sender);
 
@@ -562,7 +589,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "maintainSlashScale")) {
       require(value.length == 32, "length of maintainSlashScale mismatch");
       uint256 newMaintainSlashScale = BytesToTypes.bytesToUint256(32, value);
-      require(newMaintainSlashScale > 0, "the maintainSlashScale must be greater than 0");
+      require(newMaintainSlashScale > 0 && newMaintainSlashScale < 10, "the maintainSlashScale must be greater than 0 and less than 10");
       maintainSlashScale = newMaintainSlashScale;
     } else if (Memory.compareStrings(key, "maxNumOfWorkingCandidates")) {
       require(value.length == 32, "length of maxNumOfWorkingCandidates mismatch");
@@ -595,7 +622,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return (false, "the number of validators exceed the limit");
     }
     for (uint i; i < validatorSet.length; ++i) {
-      for (uint j = 0; j<i; j++) {
+      for (uint j = 0; j<i; ++j) {
         if (validatorSet[i].consensusAddress == validatorSet[j].consensusAddress) {
           return (false, "duplicate consensus address of validatorSet");
         }
@@ -611,7 +638,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint i; i<n; ++i) {
       bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
-      for (uint j = 0;j<m;j++) {
+      for (uint j = 0;j<m;++j) {
         if (oldValidator.consensusAddress == validatorSet[j].consensusAddress) {
           stale = false;
           break;
@@ -754,7 +781,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       for (uint k; k < _validatorSet.length; ++k) {
         if (_validatorSet[k].consensusAddress == validator) {
           _validatorSet[k].jailed = true;
-          numOfFelony++;
+          ++numOfFelony;
           break;
         }
       }
@@ -766,7 +793,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint index; index < _validatorSet.length; ++index) {
       if (!_validatorSet[index].jailed) {
         unjailedValidatorSet[i] = _validatorSet[index];
-        i++;
+        ++i;
       }
     }
 
@@ -774,7 +801,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function _enterMaintenance(address validator, uint256 index) private {
-    numOfMaintaining++;
+    ++numOfMaintaining;
     validatorExtraSet[index].isMaintaining = true;
     validatorExtraSet[index].enterMaintenanceHeight = block.number;
     emit validatorEnterMaintenance(validator);
@@ -787,7 +814,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     // step 0: modify numOfMaintaining
-    numOfMaintaining--;
+    --numOfMaintaining;
 
     // step 1: calculate slashCount
     uint256 slashCount =
@@ -837,7 +864,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (validatorSetPkg, success);
   }
@@ -860,7 +887,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (validator, success);
   }

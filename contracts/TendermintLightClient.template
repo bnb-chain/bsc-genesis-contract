@@ -149,16 +149,16 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     }
 
     uint8 chainIDLength = 0;
-    for (uint8 j = 0; j < 32; j++) {
+    for (uint8 j = 0; j < 32; ++j) {
       if (chainIDBytes[j] != 0) {
-        chainIDLength++;
+        ++chainIDLength;
       } else {
         break;
       }
     }
 
     bytes memory chainIDStr = new bytes(chainIDLength);
-    for (uint8 j = 0; j < chainIDLength; j++) {
+    for (uint8 j = 0; j < chainIDLength; ++j) {
       chainIDStr[j] = chainIDBytes[j];
     }
 

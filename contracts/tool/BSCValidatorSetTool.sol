@@ -39,7 +39,7 @@ contract BSCValidatorSetTool {
       } else if (idx == 1) {
         RLPDecode.RLPItem[] memory items = iter.next().toList();
         validatorSetPkg.validatorSet =new Validator[](items.length);
-        for (uint j = 0;j<items.length;j++) {
+        for (uint j = 0;j<items.length;++j) {
           (Validator memory val, bool ok) = decodeValidator(items[j]);
           if (!ok) {
             return false;
@@ -50,7 +50,7 @@ contract BSCValidatorSetTool {
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return success;
   }
@@ -73,7 +73,7 @@ contract BSCValidatorSetTool {
       } else {
         break;
       }
-      idx++;
+      ++idx;
     }
     return (validator, success);
   }
