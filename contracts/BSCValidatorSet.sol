@@ -548,10 +548,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     uint256 totalValue;
     uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
-    if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
-      totalValue = balanceOfSystemReward/100;
-    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
-      totalValue = (balanceOfSystemReward - previousBalanceOfSystemReward)*finalityRewardRatio/100;
+    if (balanceOfSystemReward.sub(MAX_SYSTEM_REWARD_BALANCE) > 0) {
+      totalValue = balanceOfSystemReward.div(100);
+    } else if (balanceOfSystemReward.sub(previousBalanceOfSystemReward) > 0) {
+      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward).mul(finalityRewardRatio).div(100));
+    } else {
+      return;
     }
 
     totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
@@ -735,7 +737,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
       require(value.length == 32, "length of finalityRewardRatio mismatch");
       uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio < 100, "the finalityRewardRatio is out of range");
+      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio <= 100, "the finalityRewardRatio is out of range");
       finalityRewardRatio = newFinalityRewardRatio;
     } else {
       require(false, "unknown param");

@@ -540,19 +540,24 @@ contract ValidatorSetTest is Deployer {
       weights[i] = 1;
     }
 
-    vm.deal(address(systemReward), 1 ether);
+    vm.deal(address(systemReward), 99 ether);
     vm.expectRevert(bytes("the message sender must be the block producer"));
     validator.distributeFinalityReward(addrs, weights);
 
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit finalityRewardDeposit(addrs[0], 5e15);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit finalityRewardDeposit(addrs[9], 5e15);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit deprecatedFinalityRewardDeposit(addrs[10], 5e15);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit deprecatedFinalityRewardDeposit(addrs[19], 5e15);
+    // first time distribution will init the config and return
     vm.startPrank(address(coinbase));
+    validator.distributeFinalityReward(addrs, weights);
+    vm.deal(address(systemReward), 100 ether);
+    vm.roll(block.number + 1);
+
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit finalityRewardDeposit(addrs[0], 25e15);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit finalityRewardDeposit(addrs[9], 25e15);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit deprecatedFinalityRewardDeposit(addrs[10], 25e15);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit deprecatedFinalityRewardDeposit(addrs[19], 25e15);
     validator.distributeFinalityReward(addrs, weights);
     vm.stopPrank();
   }
