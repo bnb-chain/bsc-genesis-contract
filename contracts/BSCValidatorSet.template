@@ -76,10 +76,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public constant INIT_FINALITY_REWARD_RATIO = 10;
+  uint256 public constant INIT_FINALITY_REWARD_RATIO = 50;
+  uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
 
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
+  uint256 public previousBalanceOfSystemReward;
 
   struct Validator {
     address consensusAddress;
@@ -537,22 +539,24 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
+    // first time to call this function
     if (finalityRewardRatio == 0) {
       finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
-    }
-
-    uint256 totalValue;
-    totalValue = (address(SYSTEM_REWARD_ADDR).balance * finalityRewardRatio) / 100;
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
-    if (totalValue == 0) {
+      previousBalanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
       return;
     }
 
-    uint256 totalWeight;
-    for (uint256 i; i<weights.length; ++i) {
-      totalWeight += weights[i];
+    uint256 totalValue;
+    uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
+    if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
+      totalValue = balanceOfSystemReward/100;
+    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
+      totalValue = (balanceOfSystemReward - previousBalanceOfSystemReward)*finalityRewardRatio/100;
     }
-    if (totalWeight == 0) {
+
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
+    previousBalanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
+    if (totalValue == 0) {
       return;
     }
 
