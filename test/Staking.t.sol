@@ -7,9 +7,7 @@ contract StakingTest is Deployer {
 
   event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
   event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 oracleRelayerFee);
-  event redelegateSubmitted(
-    address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee
-  );
+  event redelegateSubmitted(address indexed delegator, address indexed validatorSrc, address indexed validatorDst, uint256 amount, uint256 oracleRelayerFee);
   event rewardReceived(address indexed delegator, uint256 amount);
   event rewardClaimed(address indexed delegator, uint256 amount);
   event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);

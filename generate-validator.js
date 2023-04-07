@@ -1,10 +1,11 @@
 const fs = require("fs");
 const readline = require('readline');
 const nunjucks = require("nunjucks");
-
+const BLSKeys = require("./BLSkeystore.json");
 
 async function processValidatorConf() {
-  const fileStream = fs.createReadStream(__dirname + '/validators.conf');
+  const fileStream = fs.createReadStream(__dirname + "/validators.conf");
+  const publicKey = BLSKeys.public_key;
 
   const rl = readline.createInterface({
     input: fileStream,
@@ -19,14 +20,16 @@ async function processValidatorConf() {
       feeAddr: vs[1],
       bscFeeAddr: vs[2],
       votingPower: vs[3],
-    })
+      bLSPublicKey: "0x" + publicKey.pop()
+    });
   }
   return validators
 }
 
-processValidatorConf().then(function (validators) {
+processValidatorConf().then(function (validators, bLSPublicKeys) {
   const data = {
-    validators: validators
+    validators: validators,
+    bLSPublicKeys: bLSPublicKeys,
   };
   const templateString = fs.readFileSync(__dirname + '/validators.template').toString();
   const resultString = nunjucks.renderString(templateString, data);
