@@ -58,9 +58,7 @@ library RLPEncode {
      */
     function encodeBool(bool self) internal pure returns (bytes memory) {
         bytes memory rs = new bytes(1);
-        if (self) {
-            rs[0] = bytes1(uint8(1));
-        }
+        rs[0] = (self ? bytes1(0x01) : bytes1(0x80));
         return rs;
     }
 

@@ -18,6 +18,8 @@
     "eulerBlock": 2,
     "gibbsBlock": 3,
     "moranBlock": 4,
+    "bonehBlock": 5,
+    "lynnBlock": 6,
     "parlia": {
       "period": 3,
       "epoch": 200

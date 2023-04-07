@@ -1,12 +1,17 @@
 pragma solidity 0.6.4;
+pragma experimental ABIEncoderV2;
+
 import "./System.sol";
 import "./lib/BytesToTypes.sol";
+import "./lib/TypesToBytes.sol";
+import "./lib/BytesLib.sol";
 import "./lib/Memory.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IApplication.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ICrossChain.sol";
+import "./interface/ISystemReward.sol";
 import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
@@ -28,6 +33,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public  misdemeanorThreshold;
   uint256 public  felonyThreshold;
 
+  // BEP-126 Fast Finality
+  uint256 public constant INIT_FINALITY_SLASH_REWARD_RATIO = 20;
+
+  uint256 public finalitySlashRewardRatio;
+
   event validatorSlashed(address indexed validator);
   event indicatorCleaned();
   event paramChange(string key, bytes value);
@@ -42,6 +52,21 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     uint256 height;
     uint256 count;
     bool exist;
+  }
+
+  // Proof that a validator misbehaved in fast finality
+  struct VoteData {
+    uint256 srcNum;
+    bytes32 srcHash;
+    uint256 tarNum;
+    bytes32 tarHash;
+    bytes sig;
+  }
+
+  struct FinalityEvidence {
+    VoteData voteA;
+    VoteData voteB;
+    bytes voteAddr;
   }
 
   modifier oncePerBlock() {
@@ -115,19 +140,18 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit validatorSlashed(validator);
   }
 
-
   // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
   // Clean is an effective implement to reorganize "validators" and "indicators".
   function clean() external override(ISlashIndicator) onlyValidatorContract onlyInit{
-    if(validators.length == 0){
+    if (validators.length == 0) {
       return;
     }
-    uint i = 0;
+    uint i;
     uint j = validators.length-1;
-    for (;i <= j;) {
+    for ( ; i<=j; ) {
       bool findLeft = false;
       bool findRight = false;
-      for(;i<j;++i){
+      for( ; i<j; ++i){
         Indicator memory leftIndicator = indicators[validators[i]];
         if(leftIndicator.count > felonyThreshold/DECREASE_RATE){
           leftIndicator.count = leftIndicator.count - felonyThreshold/DECREASE_RATE;
@@ -137,7 +161,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
           break;
         }
       }
-      for(;i<=j;--j){
+      for( ; i<=j; --j){
         Indicator memory rightIndicator = indicators[validators[j]];
         if(rightIndicator.count > felonyThreshold/DECREASE_RATE){
           rightIndicator.count = rightIndicator.count - felonyThreshold/DECREASE_RATE;
@@ -170,6 +194,46 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
+    if (finalitySlashRewardRatio == 0) {
+      finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
+    }
+
+    // Basic check
+    require(_evidence.voteA.srcNum+256 > block.number &&
+      _evidence.voteB.srcNum+256 > block.number, "too old block involved");
+    require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
+      _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
+    require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
+      _evidence.voteB.srcNum < _evidence.voteB.tarNum, "srcNum bigger than tarNum");
+
+    // Vote rules check
+    require((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) ||
+      (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
+      _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
+
+    // BLS verification
+    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    address valAddr;
+    bytes memory voteAddr = _evidence.voteAddr;
+    for (uint i; i < voteAddrs.length; ++i) {
+      if (BytesLib.equal(voteAddrs[i],  voteAddr)) {
+        valAddr = vals[i];
+        break;
+      }
+    }
+    require(valAddr != address(0), "validator not exist");
+
+    require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
+      verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
+
+    uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valAddr);
+    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(valAddr), 0);
+    emit validatorSlashed(valAddr);
+  }
+
   /**
    * @dev Send a felony cross-chain package to jail a validator
    *
@@ -177,6 +241,45 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
    */
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+  }
+
+  function verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns(bool) {
+    bytes[] memory elements = new bytes[](4);
+    bytes memory _bytes = new bytes(32);
+    elements[0] = vote.srcNum.encodeUint();
+    TypesToBytes.bytes32ToBytes(32, vote.srcHash, _bytes);
+    elements[1] = _bytes.encodeBytes();
+    elements[2] = vote.tarNum.encodeUint();
+    TypesToBytes.bytes32ToBytes(32, vote.tarHash, _bytes);
+    elements[3] = _bytes.encodeBytes();
+
+    TypesToBytes.bytes32ToBytes(32, keccak256(elements.encodeList()), _bytes);
+
+    // assemble input data
+    bytes memory input = new bytes(176);
+    bytesConcat(input, _bytes, 0, 32);
+    bytesConcat(input, vote.sig, 32, 96);
+    bytesConcat(input, voteAddr, 128, 48);
+
+    // call the precompiled contract to verify the BLS signature
+    // the precompiled contract's address is 0x66
+    bytes memory output = new bytes(1);
+    assembly {
+      let len := mload(input)
+      if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) {
+        revert(0, 0)
+      }
+    }
+    if (BytesLib.toUint8(output, 0) != uint8(1)) {
+      return false;
+    }
+    return true;
+  }
+
+  function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
+    for (uint i; i<len; ++i) {
+      data[index++] = _bytes[i];
+    }
   }
 
   /*********************** Param update ********************************/
@@ -191,6 +294,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
+    } else if (Memory.compareStrings(key, "finalitySlashRewardRatio")) {
+      require(value.length == 32, "length of finalitySlashRewardRatio mismatch");
+      uint256 newFinalitySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newFinalitySlashRewardRatio >= 10 && newFinalitySlashRewardRatio < 100, "the finality slash reward ratio out of range");
+      finalitySlashRewardRatio = newFinalitySlashRewardRatio;
     } else {
       require(false, "unknown param");
     }
