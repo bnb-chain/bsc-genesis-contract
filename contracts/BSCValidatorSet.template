@@ -442,7 +442,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
       }
     } else {
-      for (uint i=0; i<n; i++) {
+      for (uint i; i<n; ++i) {
         if (!currentValidatorSet[i].jailed) {
           consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
           living ++;
@@ -559,6 +559,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
     previousBalanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
     if (totalValue == 0) {
+      return;
+    }
+
+    uint256 totalWeight;
+    for (uint256 i; i<weights.length; ++i) {
+      totalWeight += weights[i];
+    }
+    if (totalWeight == 0) {
       return;
     }
 
@@ -776,7 +784,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     if (m>n) {
       ValidatorExtra memory _validatorExtra;
-      for (uint i = n; i < m; i++) {
+      for (uint i=n; i < m; ++i) {
         _validatorExtra.voteAddress = voteAddrs[i];
         currentValidatorSet.push(validatorSet[i]);
         validatorExtraSet.push(_validatorExtra);
