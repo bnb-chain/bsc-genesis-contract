@@ -751,17 +751,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint m = validatorSet.length;
 
     for (uint i; i<n; ++i) {
-      bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
-      for (uint j; j<m; ++j) {
-        if (oldValidator.consensusAddress == validatorSet[j].consensusAddress) {
-          stale = false;
-          break;
-        }
-      }
-      if (stale) {
-        delete currentValidatorSetMap[oldValidator.consensusAddress];
-      }
+      delete currentValidatorSetMap[oldValidator.consensusAddress];
     }
 
     if (n>m) {
@@ -772,15 +763,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     uint k = n < m ? n:m;
     for (uint i; i<k; ++i) {
-      if (!isSameValidator(validatorSet[i], currentValidatorSet[i])) {
-        currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
-        currentValidatorSet[i] = validatorSet[i];
-        validatorExtraSet[i].voteAddress = voteAddrs[i];
-        validatorExtraSet[i].isMaintaining = false;
-        validatorExtraSet[i].enterMaintenanceHeight = 0;
-      } else {
-        currentValidatorSet[i].incoming = 0;
-      }
+      currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
+      currentValidatorSet[i] = validatorSet[i];
+      validatorExtraSet[i].voteAddress = voteAddrs[i];
+      validatorExtraSet[i].isMaintaining = false;
+      validatorExtraSet[i].enterMaintenanceHeight = 0;
     }
     if (m>n) {
       ValidatorExtra memory _validatorExtra;
