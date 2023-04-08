@@ -524,6 +524,19 @@ contract ValidatorSetTest is Deployer {
     for (uint256 i; i < newValidators.length; ++i) {
       assertEq(voteAddrs[i], abi.encodePacked(vals[i]));
     }
+
+    // edit vote addr for existed validator
+    for (uint256 i; i < newValidators.length; ++i) {
+      newVoteAddrs[i] = abi.encodePacked(newValidators[i], "0x1234567890");
+    }
+    vm.startPrank(address(crossChain));
+    validator.handleSynPackage(STAKING_CHANNELID, encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs));
+    vm.stopPrank();
+
+    (vals, voteAddrs) = validator.getLivingValidators();
+    for (uint256 i; i < newValidators.length; ++i) {
+      assertEq(voteAddrs[i], abi.encodePacked(newValidators[i], "0x1234567890"));
+    }
   }
 
   function testDistributeFinalityReward() public {
