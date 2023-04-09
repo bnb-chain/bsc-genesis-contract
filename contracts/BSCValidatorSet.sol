@@ -548,10 +548,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     uint256 totalValue;
     uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
-    if (balanceOfSystemReward.sub(MAX_SYSTEM_REWARD_BALANCE) > 0) {
+    if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
       totalValue = balanceOfSystemReward.div(100);
-    } else if (balanceOfSystemReward.sub(previousBalanceOfSystemReward) > 0) {
-      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward).mul(finalityRewardRatio).div(100));
+    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
+      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward)).mul(finalityRewardRatio).div(100);
     } else {
       return;
     }
