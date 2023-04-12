@@ -562,6 +562,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return;
     }
 
+    uint256 totalWeight;
+    for (uint256 i; i<weights.length; ++i) {
+      totalWeight += weights[i];
+    }
+    if (totalWeight == 0) {
+      return;
+    }
+
     uint256 value;
     address valAddr;
     uint256 index;
