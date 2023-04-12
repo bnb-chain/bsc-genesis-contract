@@ -88,8 +88,10 @@ function compileContract(key, contractFile, contractName) {
       `======= ${contractFile}:${contractName} =======\nBinary of the runtime part:`,
       "@@@@"
     )
-
     const matched = compiledData.match(/@@@@\n([a-f0-9]+)/)
+    if (!matched) {
+      throw new Error(`Can not compile: ${contractName}`);
+    }
     return { key, compiledData: matched[1], contractName, contractFile }
   })
 }
