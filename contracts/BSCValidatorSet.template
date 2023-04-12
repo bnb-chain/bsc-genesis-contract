@@ -2,6 +2,7 @@ pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
 import "./System.sol";
+import "./lib/BytesLib.sol";
 import "./lib/BytesToTypes.sol";
 import "./lib/Memory.sol";
 import "./interface/ILightClient.sol";
@@ -418,10 +419,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  /**
-   * @dev Get mining validators that are block producers in the current epoch, including most of the cabinets and a few of the candidates
-   *
-   */
   function getLivingValidators() external view override returns (address[] memory, bytes[] memory) {
     uint n = currentValidatorSet.length;
     uint living;
@@ -442,7 +439,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
       }
     } else {
-      for (uint i=0; i<n; i++) {
+      for (uint i; i<n; ++i) {
         if (!currentValidatorSet[i].jailed) {
           consensusAddrs[living] = currentValidatorSet[i].consensusAddress;
           living ++;
@@ -452,6 +449,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return (consensusAddrs, voteAddrs);
   }
 
+  /**
+   * @dev Get mining validators that are block producers in the current epoch, including most of the cabinets and a few of the candidates
+   */
   function getMiningValidators() external view override returns(address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
     uint256 _numOfCabinets = numOfCabinets;
@@ -548,10 +548,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     uint256 totalValue;
     uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
-    if (balanceOfSystemReward.sub(MAX_SYSTEM_REWARD_BALANCE) > 0) {
+    if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
       totalValue = balanceOfSystemReward.div(100);
-    } else if (balanceOfSystemReward.sub(previousBalanceOfSystemReward) > 0) {
-      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward).mul(finalityRewardRatio).div(100));
+    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
+      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward)).mul(finalityRewardRatio).div(100);
     } else {
       return;
     }
@@ -746,15 +746,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** Internal Functions **************************/
-  function doUpdateState(Validator[] memory validatorSet, bytes[] memory voteAddrs) private {
+  function doUpdateState(Validator[] memory newValidatorSet, bytes[] memory newVoteAddrs) private {
     uint n = currentValidatorSet.length;
-    uint m = validatorSet.length;
+    uint m = newValidatorSet.length;
 
+    // delete stale validators
     for (uint i; i<n; ++i) {
       bool stale = true;
       Validator memory oldValidator = currentValidatorSet[i];
       for (uint j; j<m; ++j) {
-        if (oldValidator.consensusAddress == validatorSet[j].consensusAddress) {
+        if (oldValidator.consensusAddress == newValidatorSet[j].consensusAddress) {
           stale = false;
           break;
         }
@@ -764,31 +765,39 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
+    // if old validator set is larger than new validator set, pop the extra validators
     if (n>m) {
       for (uint i=m; i<n; ++i) {
         currentValidatorSet.pop();
         validatorExtraSet.pop();
       }
     }
+
     uint k = n < m ? n:m;
     for (uint i; i<k; ++i) {
-      if (!isSameValidator(validatorSet[i], currentValidatorSet[i])) {
-        currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
-        currentValidatorSet[i] = validatorSet[i];
-        validatorExtraSet[i].voteAddress = voteAddrs[i];
+      // if the validator is not the same, update the validator set directly
+      if (!isSameValidator(newValidatorSet[i], currentValidatorSet[i])) {
+        currentValidatorSetMap[newValidatorSet[i].consensusAddress] = i+1;
+        currentValidatorSet[i] = newValidatorSet[i];
+        validatorExtraSet[i].voteAddress = newVoteAddrs[i];
         validatorExtraSet[i].isMaintaining = false;
         validatorExtraSet[i].enterMaintenanceHeight = 0;
       } else {
+        // if the validator is the same, update the vote address if it is different
+        if (!BytesLib.equal(newVoteAddrs[i], validatorExtraSet[i].voteAddress)) {
+          validatorExtraSet[i].voteAddress = newVoteAddrs[i];
+        }
         currentValidatorSet[i].incoming = 0;
       }
     }
+
     if (m>n) {
       ValidatorExtra memory _validatorExtra;
-      for (uint i = n; i < m; i++) {
-        _validatorExtra.voteAddress = voteAddrs[i];
-        currentValidatorSet.push(validatorSet[i]);
+      for (uint i=n; i < m; ++i) {
+        _validatorExtra.voteAddress = newVoteAddrs[i];
+        currentValidatorSet.push(newValidatorSet[i]);
         validatorExtraSet.push(_validatorExtra);
-        currentValidatorSetMap[validatorSet[i].consensusAddress] = i+1;
+        currentValidatorSetMap[newValidatorSet[i].consensusAddress] = i+1;
       }
     }
 
@@ -802,6 +811,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
+  /**
+   * @dev Check if two validators are the same
+   *
+   * Vote address is not considered
+   */
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
     return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
   }
