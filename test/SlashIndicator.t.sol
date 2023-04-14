@@ -4,7 +4,6 @@ import "../lib/Deployer.sol";
 
 contract SlashIndicatorTest is Deployer {
   event validatorSlashed(address indexed validator);
-  event indicatorCleaned();
   event paramChange(string key, bytes value);
 
   address public coinbase;
@@ -265,42 +264,4 @@ contract SlashIndicatorTest is Deployer {
       }
     }
   }
-
-  //  function testFinality() public {
-  //    address[] memory vals = new address[](20);
-  //    bytes[] memory voteAddrs = new bytes[](20);
-  //    for (uint256 i; i < vals.length; ++i) {
-  //      vals[i] = addrSet[addrIdx++];
-  //      voteAddrs[i] = abi.encodePacked(vals[i]);
-  //    }
-  //    vm.prank(address(crossChain));
-  //    validator.handleSynPackage(STAKING_CHANNELID, encodeNewValidatorSetUpdatePack(0x00, vals, voteAddrs));
-  //
-  //    // case1: valid finality evidence: same target block
-  //    uint256 srcNumA = block.number - 20;
-  //    uint256 tarNumA = block.number - 10;
-  //    uint256 srcNumB = block.number - 15;
-  //    uint256 tarNumB = tarNumA;
-  //    SlashIndicator.VoteData memory voteA;
-  //    voteA.srcNum = srcNumA;
-  //    voteA.srcHash = blockhash(srcNumA);
-  //    voteA.tarNum = tarNumA;
-  //    voteA.tarHash = blockhash(tarNumA);
-  //    voteA.sig = abi.encode("sigA");
-  //
-  //    SlashIndicator.VoteData memory voteB;
-  //    voteB.srcNum = srcNumB;
-  //    voteB.srcHash = blockhash(srcNumB);
-  //    voteB.tarNum = tarNumB;
-  //    voteB.tarHash = blockhash(tarNumB);
-  //    voteB.sig = abi.encode("sigB");
-  //
-  //    SlashIndicator.FinalityEvidence memory evidence;
-  //    evidence.voteA = voteA;
-  //    evidence.voteB = voteB;
-  //    evidence.voteAddr = voteAddrs[0];
-  //
-  //    vm.prank(relayer);
-  //    slash.submitFinalityViolationEvidence(evidence);
-  //  }
 }
