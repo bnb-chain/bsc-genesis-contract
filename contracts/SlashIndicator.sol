@@ -39,6 +39,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public finalitySlashRewardRatio;
 
   event validatorSlashed(address indexed validator);
+  event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
   event indicatorCleaned();
   event paramChange(string key, bytes value);
 
@@ -47,6 +48,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   event crashResponse();
 
   event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
+  event failedVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
 
   struct Indicator {
     uint256 height;
@@ -213,26 +215,29 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
 
     // BLS verification
-    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
-    address valAddr;
-    bytes memory voteAddr = _evidence.voteAddr;
-    for (uint i; i < voteAddrs.length; ++i) {
-      if (BytesLib.equal(voteAddrs[i],  voteAddr)) {
-        valAddr = vals[i];
-        break;
-      }
-    }
-    require(valAddr != address(0), "validator not exist");
-
     require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
       verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
 
-    uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
-    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valAddr);
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(valAddr), 0);
-    emit validatorSlashed(valAddr);
+    // reward sender and felony validator if validator found
+    (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    for (uint i; i < voteAddrs.length; ++i) {
+      if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony( vals[i]);
+        break;
+      }
+    }
+
+    // send slash msg to bc
+    bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
+    try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
+      emit maliciousVoteSlashed(voteAddrSlice);
+    } catch (bytes memory reason) {
+      emit failedVoteSlash(voteAddrSlice, reason);
+    }
   }
+
 
   /**
    * @dev Send a felony cross-chain package to jail a validator
@@ -314,6 +319,15 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function encodeSlashPackage(address valAddr) internal view returns (bytes memory) {
     bytes[] memory elements = new bytes[](4);
     elements[0] = valAddr.encodeAddress();
+    elements[1] = uint256(block.number).encodeUint();
+    elements[2] = uint256(bscChainID).encodeUint();
+    elements[3] = uint256(block.timestamp).encodeUint();
+    return elements.encodeList();
+  }
+
+  function encodeVoteSlashPackage(bytes memory voteAddr) internal view returns (bytes memory) {
+    bytes[] memory elements = new bytes[](4);
+    elements[0] = voteAddr.encodeBytes();
     elements[1] = uint256(block.number).encodeUint();
     elements[2] = uint256(bscChainID).encodeUint();
     elements[3] = uint256(block.timestamp).encodeUint();
