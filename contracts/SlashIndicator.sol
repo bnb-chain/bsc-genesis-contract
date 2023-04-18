@@ -48,7 +48,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   event crashResponse();
 
   event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
-  event failedVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
+  event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
 
   struct Indicator {
     uint256 height;
@@ -234,7 +234,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
       emit maliciousVoteSlashed(voteAddrSlice);
     } catch (bytes memory reason) {
-      emit failedVoteSlash(voteAddrSlice, reason);
+      emit failedMaliciousVoteSlash(voteAddrSlice, reason);
     }
   }
 
