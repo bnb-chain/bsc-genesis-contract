@@ -37,6 +37,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public constant INIT_FINALITY_SLASH_REWARD_RATIO = 20;
 
   uint256 public finalitySlashRewardRatio;
+  uint256 public enableMaliciousVoteSlash;
 
   event validatorSlashed(address indexed validator);
   event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
@@ -197,6 +198,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
+    require(enableMaliciousVoteSlash > 0, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
     }
@@ -304,6 +306,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFinalitySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);
       require(newFinalitySlashRewardRatio >= 10 && newFinalitySlashRewardRatio < 100, "the finality slash reward ratio out of range");
       finalitySlashRewardRatio = newFinalitySlashRewardRatio;
+    } else if (Memory.compareStrings(key, "enableMaliciousVoteSlash")) {
+      require(value.length == 32, "length of enableMaliciousVoteSlash mismatch");
+      enableMaliciousVoteSlash = BytesToTypes.bytesToUint256(32, value);
     } else {
       require(false, "unknown param");
     }
