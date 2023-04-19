@@ -551,6 +551,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
       totalValue = balanceOfSystemReward.div(100);
     } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
+      // when a slash happens, theres will no rewards in some epoches,
+      // it's tolerated because slash happens rarely
       totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward)).mul(finalityRewardRatio).div(100);
     } else {
       return;
