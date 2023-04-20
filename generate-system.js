@@ -32,7 +32,6 @@ const data = {
   fromChainId: program.fromChainId,
   bscChainId: program.bscChainId,
   mock: program.mock,
-  network: program.network,
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);

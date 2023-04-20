@@ -74,8 +74,7 @@ contract TokenHubTest is Deployer {
     vm.prank(address(crossChain));
     tokenManager.handleSynPackage(BIND_CHANNELID, pack);
 
-    (, bytes32 symbol, address addr, uint256 totalSupply, uint256 peggyAmount, uint8 decimal,) =
-      tokenManager.bindPackageRecord(bytes32("ABC-9C7"));
+    (, bytes32 symbol, address addr, uint256 totalSupply, uint256 peggyAmount, uint8 decimal,) = tokenManager.bindPackageRecord(bytes32("ABC-9C7"));
     assertEq(symbol, bytes32("ABC-9C7"), "wrong symbol");
     assertEq(addr, address(abcToken), "wrong token address");
     assertEq(totalSupply, 1e8 * 1e18, "wrong total supply");
@@ -776,9 +775,7 @@ contract TokenHubTest is Deployer {
     tokenManager.mirror{value: miniRelayerFee + mirrorFee}(address(xyzToken), expireTime);
 
     // Mirror fail ack
-    pack = buildMirrorFailAckPackage(
-      address(this), address(xyzToken), bytes32("XYZ Token"), uint8(18), bytes32("XYZ"), 1e8 * 1e18, mirrorFee / 1e10, expireTime
-    );
+    pack = buildMirrorFailAckPackage(address(this), address(xyzToken), bytes32("XYZ Token"), uint8(18), bytes32("XYZ"), 1e8 * 1e18, mirrorFee / 1e10, expireTime);
     vm.prank(address(crossChain));
     tokenManager.handleFailAckPackage(MIRROR_CHANNELID, pack);
     assertEq(address(tokenManager).balance, 0, "wrong balance in tokenManager");
@@ -888,11 +885,7 @@ contract TokenHubTest is Deployer {
     tokenManager.sync{value: miniRelayerFee + mirrorFee}(address(xyzToken), expireTime);
   }
 
-  function buildBindPackage(uint8 bindType, bytes32 symbol, address addr, uint256 totalSupply, uint256 peggyAmount, uint8 decimal)
-    internal
-    view
-    returns (bytes memory)
-  {
+  function buildBindPackage(uint8 bindType, bytes32 symbol, address addr, uint256 totalSupply, uint256 peggyAmount, uint8 decimal) internal view returns (bytes memory) {
     uint256 timestamp = block.timestamp;
     uint256 expireTime = timestamp + 3;
     bytes[] memory elements = new bytes[](7);
@@ -906,11 +899,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildTransferInPackage(bytes32 symbol, address tokenAddr, uint256 amount, address recipient, address refundAddr)
-    internal
-    view
-    returns (bytes memory)
-  {
+  function buildTransferInPackage(bytes32 symbol, address tokenAddr, uint256 amount, address recipient, address refundAddr) internal view returns (bytes memory) {
     uint256 timestamp = block.timestamp;
     uint256 expireTime = timestamp + 3;
     bytes[] memory elements = new bytes[](6);
@@ -923,13 +912,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildBatchTransferOutFailAckPackage(
-    bytes32 symbol,
-    address tokenAddr,
-    uint256[] memory amounts,
-    address[] memory recipients,
-    address[] memory refundAddrs
-  ) internal view returns (bytes memory) {
+  function buildBatchTransferOutFailAckPackage(bytes32 symbol, address tokenAddr, uint256[] memory amounts, address[] memory recipients, address[] memory refundAddrs) internal view returns (bytes memory) {
     uint256 length = amounts.length;
     bytes[] memory amtBytes = new bytes[](length);
     bytes[] memory recipientBytes = new bytes[](length);
@@ -952,11 +935,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildRefundPackage(address tokenAddr, uint256[] memory amounts, address[] memory recipients, uint32 status)
-    internal
-    pure
-    returns (bytes memory)
-  {
+  function buildRefundPackage(address tokenAddr, uint256[] memory amounts, address[] memory recipients, uint32 status) internal pure returns (bytes memory) {
     uint256 length = amounts.length;
     bytes[] memory amtBytes = new bytes[](length);
     bytes[] memory recipientBytes = new bytes[](length);
@@ -973,11 +952,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildMirrorAckPackage(address sender, address tokenAddr, uint8 decimal, bytes32 symbol, uint256 mirrorFee, uint8 errCode)
-    internal
-    pure
-    returns (bytes memory)
-  {
+  function buildMirrorAckPackage(address sender, address tokenAddr, uint8 decimal, bytes32 symbol, uint256 mirrorFee, uint8 errCode) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](6);
     elements[0] = sender.encodeAddress();
     elements[1] = tokenAddr.encodeAddress();
@@ -988,16 +963,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildMirrorFailAckPackage(
-    address sender,
-    address tokenAddr,
-    bytes32 name,
-    uint8 decimal,
-    bytes32 symbol,
-    uint256 supply,
-    uint256 mirrorFee,
-    uint256 expireTime
-  ) internal pure returns (bytes memory) {
+  function buildMirrorFailAckPackage(address sender, address tokenAddr, bytes32 name, uint8 decimal, bytes32 symbol, uint256 supply, uint256 mirrorFee, uint256 expireTime) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](8);
     elements[0] = sender.encodeAddress();
     elements[1] = tokenAddr.encodeAddress();
@@ -1019,11 +985,7 @@ contract TokenHubTest is Deployer {
     return elements.encodeList();
   }
 
-  function buildSyncFailAckPackage(address sender, address tokenAddr, bytes32 symbol, uint256 supply, uint256 syncFee, uint256 expireTime)
-    internal
-    pure
-    returns (bytes memory)
-  {
+  function buildSyncFailAckPackage(address sender, address tokenAddr, bytes32 symbol, uint256 supply, uint256 syncFee, uint256 expireTime) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](6);
     elements[0] = sender.encodeAddress();
     elements[1] = tokenAddr.encodeAddress();

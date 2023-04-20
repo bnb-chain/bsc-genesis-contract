@@ -1,9 +1,12 @@
 pragma solidity ^0.8.10;
 
 interface SystemReward {
+    event paramChange(string key, bytes value);
     event receiveDeposit(address indexed from, uint256 amount);
     event rewardEmpty();
     event rewardTo(address indexed to, uint256 amount);
+    event addOperator(address indexed operator);
+    event deleteOperator(address indexed operator);
 
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
@@ -31,4 +34,5 @@ interface SystemReward {
     function claimRewards(address to, uint256 amount) external returns (uint256);
     function isOperator(address addr) external view returns (bool);
     function numOperator() external view returns (uint256);
+    function updateParam(string memory key, bytes memory value) external;
 }
