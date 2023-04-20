@@ -13,8 +13,11 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
-    address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
-    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+
+    
+      address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+      address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+    
 
     uint256 internal requiredDeposit; // have to keep it to not break the storage layout
     uint256 internal dues;
