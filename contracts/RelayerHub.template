@@ -8,7 +8,6 @@ import "./System.sol";
 import "./lib/SafeMath.sol";
 
 
-<<<<<<< HEAD
 contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     using SafeMath for uint256;
 
@@ -130,72 +129,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         address relayerAddress = managerToRelayer[managerAddress];
 
         delete (relayManagersExistMap[managerAddress]);
-<<<<<<< HEAD
-        delete (managersAndRelayers[managerAddress]);
-=======
-contract RelayerHub is IRelayerHub, System, IParamSubscriber{
-  using SafeMath for uint256;
-
-  uint256 public constant INIT_REQUIRED_DEPOSIT =  1e20;
-  uint256 public constant INIT_DUES =  1e17;
-
-  uint256 public requiredDeposit;
-  uint256 public dues;
-
-  mapping(address =>relayer) relayers;
-  mapping(address =>bool) relayersExistMap;
-
-  struct relayer{
-    uint256 deposit;
-    uint256  dues;
-  }
-
-  modifier notContract() {
-    require(!isContract(msg.sender), "contract is not allowed to be a relayer");
-    _;
-  }
-
-  modifier noProxy() {
-    require(msg.sender == tx.origin, "no proxy is allowed");
-    _;
-  }
-
-  modifier noExist() {
-    require(!relayersExistMap[msg.sender], "relayer already exist");
-    _;
-  }
-
-  modifier exist() {
-    require(relayersExistMap[msg.sender], "relayer do not exist");
-    _;
-  }
-
-  event relayerRegister(address _relayer);
-  event relayerUnRegister(address _relayer);
-  event paramChange(string key, bytes value);
-
-
-  function init() external onlyNotInit{
-    requiredDeposit = INIT_REQUIRED_DEPOSIT;
-    dues = INIT_DUES;
-    alreadyInit = true;
-  }
-
-  function register() external payable noExist onlyInit notContract noProxy{
-    revert("register suspended");
-  }
->>>>>>> ad7b631 (feat: add foundry test (#194))
-
-        manager memory a = managers[managerAddress];
-        managerAddress.transfer(a.deposit.sub(a.dues));
-        address payable systemPayable = payable(address(uint160(SYSTEM_REWARD_ADDR)));
-        systemPayable.transfer(a.dues);
-
-        delete (managers[managerAddress]);
-        delete (managersRegistered[managerAddress]);
-=======
         delete (managerToRelayer[managerAddress]);
->>>>>>> d1c4947 (template file update + correct whitelist mainnet addr)
 
         delete (provisionalRelayers[managerToProvisionalRelayer[managerAddress]]);
         delete (managerToProvisionalRelayer[managerAddress]);
