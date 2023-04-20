@@ -15,21 +15,19 @@ const bLSPublicKeys = [
 ];
 
 // ===============  Do not edit below ====
-function generateExtradata(validators, bLSPublicKeys) {
+function generateExtradata(validators) {
   let extraVanity =Buffer.alloc(32);
-  let validatorsBytes = extraDataSerialize(validators, bLSPublicKeys);
+  let validatorsBytes = extraDataSerialize(validators);
   let extraSeal =Buffer.alloc(65);
   return Buffer.concat([extraVanity,validatorsBytes,extraSeal]);
 }
 
-function extraDataSerialize(validators, bLSPublicKeys) {
+function extraDataSerialize(validators) {
   let n = validators.length;
   let arr = [];
   for(let i = 0;i<n;i++){
     let validator = validators[i];
-    let BLSPublicKey = bLSPublicKeys[i];
     arr.push(Buffer.from(web3.utils.hexToBytes(validator.consensusAddr)));
-    arr.push(Buffer.from(web3.utils.hexToBytes(BLSPublicKey)));
   }
   return Buffer.concat(arr);
 }
@@ -50,7 +48,7 @@ function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
   return web3.utils.bytesToHex(RLP.encode(pkg));
 }
 
-extraValidatorBytes = generateExtradata(validators, bLSPublicKeys);
+extraValidatorBytes = generateExtradata(validators);
 validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 
 exports = module.exports = {

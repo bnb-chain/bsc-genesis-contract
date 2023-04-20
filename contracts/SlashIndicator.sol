@@ -240,7 +240,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-
   /**
    * @dev Send a felony cross-chain package to jail a validator
    *
