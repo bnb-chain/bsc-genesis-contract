@@ -329,7 +329,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
           crossAmounts[crossSize] = value.sub(relayFee);
-          crossRefundAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
+          crossRefundAddrs[crossSize] = currentValidatorSet[i].feeAddress;
           crossIndexes[crossSize] = i;
           crossTotal = crossTotal.add(value);
           ++crossSize;
