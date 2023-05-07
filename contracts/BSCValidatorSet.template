@@ -83,6 +83,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
   uint256 public previousBalanceOfSystemReward;
+  bytes[] public previousVoteAddrFullSet;
+  bytes[] public currentVoteAddrFullSet;
 
   struct Validator {
     address consensusAddress;
@@ -803,6 +805,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
+    // update vote addr full set
+    setPreviousVoteAddrFullSet();
+    setCurrentVoteAddrFullSet();
+
     // make sure all new validators are cleared maintainInfo
     // should not happen, still protect
     numOfMaintaining = 0;
@@ -836,6 +842,72 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       voteAddrs[i] = validatorExtraSet[currentValidatorSetMap[validators[i]]-1].voteAddress;
     }
     return voteAddrs;
+  }
+
+  function setPreviousVoteAddrFullSet() private {
+    uint n = previousVoteAddrFullSet.length;
+    uint m = currentVoteAddrFullSet.length;
+
+    if (n>m) {
+      for (uint i=m; i<n; ++i) {
+        previousVoteAddrFullSet.pop();
+      }
+    }
+
+    uint k = n < m ? n:m;
+    for (uint i; i<k; ++i) {
+      if (!BytesLib.equal(previousVoteAddrFullSet[i], currentVoteAddrFullSet[i])) {
+        previousVoteAddrFullSet[i] = currentVoteAddrFullSet[i];
+      }
+    }
+
+    if (m>n) {
+      for (uint i=n; i < m; ++i) {
+        previousVoteAddrFullSet.push(currentVoteAddrFullSet[i]);
+      }
+    }
+  }
+
+  function setCurrentVoteAddrFullSet() private {
+    uint n = currentVoteAddrFullSet.length;
+    uint m = validatorExtraSet.length;
+
+    if (n>m) {
+      for (uint i=m; i<n; ++i) {
+        currentVoteAddrFullSet.pop();
+      }
+    }
+
+    uint k = n < m ? n:m;
+    for (uint i; i<k; ++i) {
+      if (!BytesLib.equal(currentVoteAddrFullSet[i], validatorExtraSet[i].voteAddress)) {
+        currentVoteAddrFullSet[i] = validatorExtraSet[i].voteAddress;
+      }
+    }
+
+    if (m>n) {
+      for (uint i=n; i < m; ++i) {
+        currentVoteAddrFullSet.push(validatorExtraSet[i].voteAddress);
+      }
+    }
+  }
+
+  function isMonitoredForMaliciousVote(bytes calldata voteAddr) external override view returns (bool) {
+    uint m = currentVoteAddrFullSet.length;
+    for (uint i; i<m; ++i) {
+      if (BytesLib.equal(voteAddr, currentVoteAddrFullSet[i])) {
+        return true;
+      }
+    }
+
+    uint n = previousVoteAddrFullSet.length;
+    for (uint i; i<n; ++i) {
+      if (BytesLib.equal(voteAddr, previousVoteAddrFullSet[i])) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   function _misdemeanor(address validator) private returns (uint256) {
