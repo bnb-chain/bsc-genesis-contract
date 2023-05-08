@@ -216,6 +216,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
       _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
 
+    // check voteAddr to protect validators from being slashed for old voteAddr
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMonitoredForMaliciousVote(_evidence.voteAddr),"voteAddr is not found");
+
     // BLS verification
     require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
       verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
