@@ -10,6 +10,9 @@ const validators = [
     votingPower: 0x0000000000000064
   }
 ];
+const bLSPublicKeys = [
+   "0x85e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588",
+];
 
 // ===============  Do not edit below ====
 function generateExtradata(validators) {
@@ -29,7 +32,7 @@ function extraDataSerialize(validators) {
   return Buffer.concat(arr);
 }
 
-function validatorUpdateRlpEncode(validators) {
+function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
   let n = validators.length;
   let vals = [];
   for(let i = 0;i<n;i++) {
@@ -38,6 +41,7 @@ function validatorUpdateRlpEncode(validators) {
       validators[i].bscFeeAddr,
       validators[i].feeAddr,
       validators[i].votingPower,
+      bLSPublicKeys[i]
     ]);
   }
   let pkg = [0x00, vals];
@@ -45,7 +49,7 @@ function validatorUpdateRlpEncode(validators) {
 }
 
 extraValidatorBytes = generateExtradata(validators);
-validatorSetBytes = validatorUpdateRlpEncode(validators);
+validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,

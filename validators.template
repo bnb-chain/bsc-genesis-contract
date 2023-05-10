@@ -11,6 +11,10 @@ const validators = [
      "votingPower": {{ v.votingPower }},
    },{% endfor %}
 ];
+const bLSPublicKeys = [
+  {% for v in validators %}
+   "{{ v.bLSPublicKey }}",{% endfor %}
+];
 
 // ===============  Do not edit below ====
 function generateExtradata(validators) {
@@ -30,7 +34,7 @@ function extraDataSerialize(validators) {
   return Buffer.concat(arr);
 }
 
-function validatorUpdateRlpEncode(validators) {
+function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
   let n = validators.length;
   let vals = [];
   for (let i = 0;i<n;i++) {
@@ -39,6 +43,7 @@ function validatorUpdateRlpEncode(validators) {
       validators[i].bscFeeAddr,
       validators[i].feeAddr,
       validators[i].votingPower,
+      bLSPublicKeys[i]
     ]);
   }
   let pkg = [0x00, vals];
@@ -46,7 +51,7 @@ function validatorUpdateRlpEncode(validators) {
 }
 
 extraValidatorBytes = generateExtradata(validators);
-validatorSetBytes = validatorUpdateRlpEncode(validators);
+validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,
