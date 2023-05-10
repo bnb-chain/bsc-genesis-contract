@@ -37,6 +37,6 @@ const data = {
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();
-const resultString = nunjucks.renderString(templateString, data);
+constconst resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
 console.log("CrossChain file updated.");
