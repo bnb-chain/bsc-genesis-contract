@@ -1,7 +1,7 @@
 
-constconst program = require("commander");
+nunjucksst program = require("commander");
 const fs = require("fs");
-const nunjucks = require("nunjucks");
+const nunjucksnunjucks = require("nunjucks");
 
 
 program.version("0.0.1");
