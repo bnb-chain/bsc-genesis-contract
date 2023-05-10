@@ -204,8 +204,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
 
     // Basic check
-    require(_evidence.voteA.srcNum+256 > block.number &&
-      _evidence.voteB.srcNum+256 > block.number, "too old block involved");
+    require(_evidence.voteA.tarNum+256 > block.number &&
+      _evidence.voteB.tarNum+256 > block.number, "target block too old");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
       _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
