@@ -86,6 +86,16 @@ forge build
 cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/lib/interface/I${contract_name}.sol
 ```
 
+## BEP-171 unlock bot
+```shell script
+npm install ts-node -g
+
+cp .env.example .env
+# set UNLOCK_RECEIVER, OPERATOR_PRIVATE_KEY to .env
+
+ts-node scripts/bep171-unlock-bot.ts 
+```
+
 ## License
 
 The library is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0),
