@@ -1,6 +1,6 @@
 # bsc-genesis-contracts
 
-This repo hold all the genesis contracts on Binance Smart chain. More details in [doc-site](https://docs.bnbchain.org/docs/learn/system-contract).
+This repo hold all the genesis contracts on BNB Smart chain. More details in [doc-site](https://docs.bnbchain.org/docs/learn/system-contract).
 
 ## Prepare
 
