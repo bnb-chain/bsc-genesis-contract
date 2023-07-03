@@ -652,7 +652,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       || !isWorkingValidator(index)                                 // - 3. check if not working(not jailed and not maintaining)
       || validatorExtraSet[index].enterMaintenanceHeight > 0        // - 5. check if has Maintained during current 24-hour period
                                                                     // current validators are selected every 24 hours(from 00:00:00 UTC to 23:59:59 UTC)
-                                                                    // for more details, refer to https://github.com/bnb-chain/docs-site/blob/master/docs/smart-chain/validator/Binance%20Smart%20Chain%20Validator%20FAQs%20-%20Updated.md
       || getValidators().length <= 1                                // - 6. check num of remaining working validators
     ) {
       return false;

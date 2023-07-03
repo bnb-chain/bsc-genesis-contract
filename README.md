@@ -1,6 +1,6 @@
 # bsc-genesis-contracts
 
-This repo hold all the genesis contracts on Binance Smart chain. More details in [doc-site](https://docs.bnbchain.org/docs/learn/system-contract).
+This repo hold all the genesis contracts on BNB Smart chain. More details in [doc-site](https://docs.bnbchain.org/docs/learn/system-contract).
 
 ## Prepare
 
@@ -84,6 +84,16 @@ forge build
 
 // generate interface
 cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/lib/interface/I${contract_name}.sol
+```
+
+## BEP-171 unlock bot
+```shell script
+npm install ts-node -g
+
+cp .env.example .env
+# set UNLOCK_RECEIVER, OPERATOR_PRIVATE_KEY to .env
+
+ts-node scripts/bep171-unlock-bot.ts 
 ```
 
 ## License
