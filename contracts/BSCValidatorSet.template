@@ -168,9 +168,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function init() external onlyNotInit{
     (IbcValidatorSetPackage memory validatorSetPkg, bool valid)= decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
     require(valid, "failed to parse init validatorSet");
+    {% if network == 'local' %} 
+    ValidatorExtra memory validatorExtra;
+    {% endif %}
     for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {
       currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
       currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i+1;
+      {% if network == 'local' %} 
+      validatorExtraSet.push(validatorExtra);
+      validatorExtraSet[i].voteAddress = validatorSetPkg.voteAddrs[i];
+      {% endif %}
     }
     expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
     alreadyInit = true;

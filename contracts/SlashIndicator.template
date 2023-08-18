@@ -94,6 +94,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
     alreadyInit = true;
+    {% if network == 'local' %}
+    enableMaliciousVoteSlash = true;
+    {% endif %}
   }
 
   /*********************** Implement cross chain app ********************************/
