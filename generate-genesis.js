@@ -8,9 +8,7 @@ const validators = require("./validators")
 const init_holders = require("./init_holders")
 
 
-program.option("--bscChainId <bscChainId>",
-    "bscChainId",
-    "0060");
+
 program.option("-c, --chainid <chainid>", "chain id", "714")
 
 program.option("--whitelist1Address <whitelist1Address>", "first whitelisted address", "0xb005741528b86F5952469d80A8614591E3c5B632");
