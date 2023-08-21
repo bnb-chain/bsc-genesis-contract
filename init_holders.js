@@ -10,7 +10,7 @@ const init_holders = [
   },
   
   {
-     address: "a",
+     address: "0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186",
      balance: web3.utils.toBN("500000000000000000000000000").toString("hex") // 500000000e18
   }, 
   

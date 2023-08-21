@@ -15,17 +15,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     uint256 public constant INIT_DUES = 1e17;
 
     {% if network == 'local' %}
-      address public constant WHITELIST_1 = {{whitelist1Address}};
-      address public constant WHITELIST_2 = {{whitelist2Address}};
+    address public constant WHITELIST_1 = {{whitelist1Address}};
+    address public constant WHITELIST_2 = {{whitelist2Address}};
     {% elif network == 'QA' %}
-      address public constant WHITELIST_1 = 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD;
-      address public constant WHITELIST_2 = 0x42D596440775C90db8d9187b47650986E1063493;
+    address public constant WHITELIST_1 = 0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD;
+    address public constant WHITELIST_2 = 0x42D596440775C90db8d9187b47650986E1063493;
     {% elif network == 'testnet' %}
-      address public constant WHITELIST_1 = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
-      address public constant WHITELIST_2 = 0x37B8516a0F88E65D677229b402ec6C1e0E333004;
+    address public constant WHITELIST_1 = 0x9fB29AAc15b9A4B7F17c3385939b007540f4d791;
+    address public constant WHITELIST_2 = 0x37B8516a0F88E65D677229b402ec6C1e0E333004;
     {% else %}
-      address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
-      address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
+    address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
     {% endif %}
 
     uint256 internal requiredDeposit; // have to keep it to not break the storage layout
@@ -74,7 +74,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
         dues = INIT_DUES;
         {% if network == 'mock' %}
-            whitelistInit();
+        whitelistInit();
         {% endif %}
         alreadyInit = true;
     }
