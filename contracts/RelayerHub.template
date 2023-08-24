@@ -73,7 +73,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;
         dues = INIT_DUES;
-        {% if network == 'mock' %}
+        {% if network == 'local' %}
         whitelistInit();
         {% endif %}
         alreadyInit = true;
