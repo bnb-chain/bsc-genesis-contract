@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
 import "./StBNB.sol";
-import "../System.sol";
+import "./System.sol";
 
 interface IStakeHub {
     function isPaused() external view returns (bool);
@@ -43,18 +43,6 @@ contract StakePool is System, StBNB {
     event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
-    modifier onlyStakeHub() {
-        address sender = _msgSender();
-        require(sender == STAKE_HUB_ADDR, "NOT_STAKE_HUB");
-        _;
-    }
-
-    modifier onlyValidatorSet() {
-        address sender = _msgSender();
-        require(sender == VALIDATOR_CONTRACT_ADDR, "NOT_VALIDATOR_SET");
-        _;
-    }
-
     modifier whenNotPaused() {
         require(!IStakeHub(STAKE_HUB_ADDR).isPaused(), "CONTRACT_IS_STOPPED");
         _;
@@ -109,7 +97,7 @@ contract StakePool is System, StBNB {
 
         uint256 totalShares;
         while (number != 0) {
-            bytes32 hash = _unbondRequestsQueue[_delegator].peekFront();
+            bytes32 hash = _unbondRequestsQueue[_delegator].front();
             UnbondRequest memory request = _unbondRequests[hash];
             if (block.timestamp < request.unlockTime) {
                 break;
@@ -137,13 +125,13 @@ contract StakePool is System, StBNB {
         return totalBnbAmount;
     }
 
-    function distributeReward(uint256 _bnbAmount) external onlyValidatorSet {
+    function distributeReward(uint256 _bnbAmount) external onlyValidatorContract {
         _totalReceivedReward += _bnbAmount;
         _totalPooledBNB += _bnbAmount;
         emit RewardReceived(_bnbAmount);
     }
 
-    function felony(uint256 _bnbAmount) external onlyValidatorSet {
+    function felony(uint256 _bnbAmount) external onlyValidatorContract {
         _totalPooledBNB -= _bnbAmount;
         uint256 sharesAmount = getSharesByPooledBNB(_bnbAmount);
         _burn(validator, sharesAmount);
