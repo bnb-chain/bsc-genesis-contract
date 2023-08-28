@@ -16,6 +16,10 @@ import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
 
+interface IStakeHub {
+  function distributeReward(address validator, uint256 reward) external payable;
+  function felony(address validator) external returns (bool);
+}
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
@@ -86,6 +90,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   bytes[] public previousVoteAddrFullSet;
   bytes[] public currentVoteAddrFullSet;
 
+  // BC_fusion
+  uint256 public constant INIT_VOTING_POWER_MULTIPLIER = 1;
+  uint256 public bcVotingPowerMultiplier;
+
   struct Validator {
     address consensusAddress;
     address payable feeAddress;
@@ -99,14 +107,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   struct ValidatorExtra {
     // BEP-127 Temporary Maintenance
-    uint256 enterMaintenanceHeight;     // the height from where the validator enters Maintenance
+    uint256 enterMaintenanceHeight; // the height from where the validator enters Maintenance
     bool isMaintaining;
 
     // BEP-126 Fast Finality
     bytes voteAddress;
 
+    // BC-fusion
+    uint256 votingPowerMultiplier;
+    bool isMigrated;
+
     // reserve for future use
-    uint256[19] slots;
+    uint256[17] slots;
   }
 
   /*********************** cross chain package **************************/
@@ -245,8 +257,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (validator.jailed) {
         emit deprecatedDeposit(valAddr,value);
       } else {
-        totalInComing = totalInComing.add(value);
-        validator.incoming = validator.incoming.add(value);
+        if (_isMigrated(index - 1)) {
+          IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr, value);
+        } else {
+          totalInComing = totalInComing.add(value);
+          validator.incoming = validator.incoming.add(value);
+        }
         emit validatorDeposit(valAddr,value);
       }
     } else {
@@ -587,8 +603,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         if (validator.jailed) {
           emit deprecatedFinalityRewardDeposit(valAddr, value);
         } else {
-          totalInComing = totalInComing.add(value);
-          validator.incoming = validator.incoming.add(value);
+            if (_isMigrated(index - 1)) {
+                IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr, value);
+            } else {
+                totalInComing = totalInComing.add(value);
+                validator.incoming = validator.incoming.add(value);
+            }
           emit finalityRewardDeposit(valAddr, value);
         }
       } else {
@@ -609,6 +629,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       workingValidatorCount = 1;
     }
   }
+
+  function isMigrated(address validator) public view override returns (bool) {
+    uint256 index = currentValidatorSetMap[validator];
+    if (index > 0) {
+      return _isMigrated(index - 1);
+    }
+    return false;
+  }
+
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash initValidatorExtraSet override {
     uint256 validatorIndex = _misdemeanor(validator);
@@ -660,7 +689,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     return true;
   }
-
 
   /**
    * @dev Enter maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
@@ -918,6 +946,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // the actually index
     index = index - 1;
 
+    // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
+    if (validatorExtraSet[index].isMigrated) {
+      return index;
+    }
+
     uint256 income = currentValidatorSet[index].incoming;
     currentValidatorSet[index].incoming = 0;
     uint256 rest = currentValidatorSet.length - 1;
@@ -962,6 +995,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     currentValidatorSet.pop();
     validatorExtraSet.pop();
 
+    // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
+    if (_isMigrated(index)) {
+      return IStakeHub(STAKE_HUB_ADDR).felony(validator);
+    }
+
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     uint256 averageDistribute = income / rest;
     if (averageDistribute != 0) {
       uint n = currentValidatorSet.length;
@@ -969,7 +1008,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     return true;
   }
 
@@ -1063,6 +1101,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     emit validatorExitMaintenance(validator);
+  }
+
+  function _isMigrated(uint256 index) internal view returns (bool) {
+    return validatorExtraSet[index].isMigrated;
   }
 
   //rlp encode & decode function

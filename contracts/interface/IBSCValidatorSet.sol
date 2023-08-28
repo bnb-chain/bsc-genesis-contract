@@ -8,4 +8,5 @@ interface IBSCValidatorSet {
   function getLivingValidators() external view returns(address[] memory, bytes[] memory);
   function getMiningValidators() external view returns(address[] memory, bytes[] memory);
   function isMonitoredForMaliciousVote(bytes calldata voteAddr) external view returns (bool);
+  function isMigrated(address validator) external view returns (bool);
 }

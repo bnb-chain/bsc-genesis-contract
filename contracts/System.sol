@@ -31,6 +31,7 @@ contract System {
   address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
+  address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
 
   modifier onlyCoinbase() {
     require(msg.sender == block.coinbase, "the message sender must be the block producer");
