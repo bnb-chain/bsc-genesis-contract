@@ -1,6 +1,7 @@
-pragma solidity 0.8.16;
+pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IGovHub.sol";
@@ -12,8 +13,8 @@ import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/ITokenManager.sol";
 import "./interface/ITendermintLightClient.sol";
-import "../lib/RLPEncode.sol";
-import "../lib/RLPDecode.sol";
+import "./RLPEncode.sol";
+import "./RLPDecode.sol";
 
 contract Deployer is Test {
   using RLPEncode for *;

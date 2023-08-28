@@ -1,16 +1,15 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
-import "../lib/interface/IABCToken.sol";
-import "../lib/interface/IDEFToken.sol";
-import "../lib/interface/IXYZToken.sol";
-import "../lib/interface/IMaliciousToken.sol";
-import "../lib/interface/IMiniToken.sol";
+import "./utils/Deployer.sol";
+
+import "./utils/interface/ITestToken.sol";
+import "./utils/test_token/XYZToken.sol";
 
 contract TokenHubTest is Deployer {
   using RLPEncode for *;
   using RLPDecode for *;
-  uint256 constant public INIT_LOCK_PERIOD = 12 hours;
+
+  uint256 public constant INIT_LOCK_PERIOD = 12 hours;
 
   event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
   event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
@@ -28,21 +27,21 @@ contract TokenHubTest is Deployer {
   event paramChange(string key, bytes value);
   event crossChainPackage();
 
-  ABCToken public abcToken;
-  DEFToken public defToken;
+  ITestToken public abcToken;
+  ITestToken public defToken;
   XYZToken public xyzToken;
-  MaliciousToken public maliciousToken;
-  MiniToken public miniToken;
+  ITestToken public maliciousToken;
+  ITestToken public miniToken;
 
   receive() external payable {}
 
   function setUp() public {
     address abcAddr = deployCode("ABCToken.sol");
-    abcToken = ABCToken(abcAddr);
+    abcToken = ITestToken(abcAddr);
     vm.label(abcAddr, "ABCToken");
 
     address defAddr = deployCode("DEFToken.sol");
-    defToken = DEFToken(defAddr);
+    defToken = ITestToken(defAddr);
     vm.label(defAddr, "DEFToken");
 
     address xyzAddr = deployCode("XYZToken.sol");
@@ -50,13 +49,12 @@ contract TokenHubTest is Deployer {
     vm.label(xyzAddr, "XYZToken");
 
     address maliciousAddr = deployCode("MaliciousToken.sol");
-    maliciousToken = MaliciousToken(maliciousAddr);
+    maliciousToken = ITestToken(maliciousAddr);
     vm.label(maliciousAddr, "MaliciousToken");
 
     address miniAddr = deployCode("MiniToken.sol");
-    miniToken = MiniToken(miniAddr);
+    miniToken = ITestToken(miniAddr);
     vm.label(miniAddr, "MiniToken");
-
 
     address deployAddr = deployCode("TokenHub.sol");
     vm.etch(TOKEN_HUB_ADDR, deployAddr.code);
@@ -403,26 +401,20 @@ contract TokenHubTest is Deployer {
     vm.expectRevert(bytes("suspended"));
     crossChain.suspend();
 
-//    // BNB transferIn with lock
-//    address _recipient = addrSet[addrIdx++];
-//    address _refundAddr = addrSet[addrIdx++];
-//    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
-//    uint256 balance = _recipient.balance;
-//    uint256 amount;
-//    uint256 unlockAt;
+    //    // BNB transferIn with lock
+    //    address _recipient = addrSet[addrIdx++];
+    //    address _refundAddr = addrSet[addrIdx++];
+    //    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
+    //    uint256 balance = _recipient.balance;
+    //    uint256 amount;
+    //    uint256 unlockAt;
 
     address relayer = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
     uint64 height = crossChain.channelSyncedHeaderMap(TRANSFER_IN_CHANNELID);
     uint64 seq = crossChain.channelReceiveSequenceMap(TRANSFER_IN_CHANNELID);
     vm.startPrank(relayer, relayer);
     vm.expectRevert(bytes("suspended"));
-    crossChain.handlePackage(
-      "",
-      "",
-      height,
-      seq,
-      TRANSFER_IN_CHANNELID
-    );
+    crossChain.handlePackage("", "", height, seq, TRANSFER_IN_CHANNELID);
     vm.stopPrank();
 
     address[] memory _validators = validator.getValidators();
@@ -434,14 +426,7 @@ contract TokenHubTest is Deployer {
     assert(!crossChain.isSuspended());
     vm.prank(relayer, relayer);
     vm.expectRevert(bytes("invalid merkle proof"));
-    crossChain.handlePackage(
-      "",
-      "",
-      height,
-      seq,
-      TRANSFER_IN_CHANNELID
-    );
-    vm.stopPrank();
+    crossChain.handlePackage("", "", height, seq, TRANSFER_IN_CHANNELID);
   }
 
   function testCancelTransfer() public {

@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract SlashIndicatorTest is Deployer {
   event validatorSlashed(address indexed validator);
