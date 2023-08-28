@@ -310,7 +310,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
       }
 
-      //cross transfer
+      // cross transfer
       address[] memory crossAddrs = new address[](crossSize);
       uint256[] memory crossAmounts = new uint256[](crossSize);
       uint256[] memory crossIndexes = new uint256[](crossSize);

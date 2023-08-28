@@ -38,7 +38,7 @@ abstract contract StBNB is IERC20, ContextUpgradeable {
      * @return the name of the token.
      */
     function name() external pure returns (string memory) {
-        return "BSC staked BNB 2.0";
+        return "BSC staked BNB";
     }
 
     /**
@@ -344,4 +344,11 @@ abstract contract StBNB is IERC20, ContextUpgradeable {
     function _sharesOf(address _account) internal view returns (uint256) {
         return _shares[_account];
     }
+
+    /**
+    * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[50] private __gap;
 }

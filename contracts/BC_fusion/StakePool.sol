@@ -4,15 +4,17 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
 import "./StBNB.sol";
-import "./SystemConfig.sol";
+import "../System.sol";
 
 interface IStakeHub {
     function isPaused() external view returns (bool);
     function getUnbondTime() external view returns (uint256);
 }
 
-contract StakePool is SystemConfig, StBNB {
+contract StakePool is System, StBNB {
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
+
+    uint256 public constant MAX_CLAIM_NUMBER = 20;
 
     /*----------------- storage -----------------*/
     address public validator;
@@ -26,38 +28,40 @@ contract StakePool is SystemConfig, StBNB {
     mapping(address => DoubleEndedQueueUpgradeable.Bytes32Deque) private _unbondRequestsQueue;
     // user => locked shares
     mapping(address => uint256) private _lockedShares;
+    // user => personal unbond sequence
+    mapping(address => uint256) private _unbondSequence;
 
     struct UnbondRequest {
-        uint256 amount;
+        uint256 sharesAmount;
         uint256 unlockTime;
     }
 
     /*----------------- events -----------------*/
-    event Delegated(address indexed sender, uint256 amount);
-    event RewardReceived(uint256 amount);
-    event UnbondRequested(address indexed sender, uint256 amount, uint256 unlockTime);
-    event UnbondClaimed(address indexed sender, uint256 amount);
+    event Delegated(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
+    event RewardReceived(uint256 bnbAmount);
+    event UnbondRequested(address indexed sender, uint256 sharesAmount, uint256 unlockTime);
+    event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
     modifier onlyStakeHub() {
         address sender = _msgSender();
-        require(sender == STAKE_HUB, "NOT_STAKE_HUB");
+        require(sender == STAKE_HUB_ADDR, "NOT_STAKE_HUB");
         _;
     }
 
     modifier onlyValidatorSet() {
         address sender = _msgSender();
-        require(sender == VALIDATOR_SET, "NOT_VALIDATOR_SET");
+        require(sender == VALIDATOR_CONTRACT_ADDR, "NOT_VALIDATOR_SET");
         _;
     }
 
     modifier whenNotPaused() {
-        require(!IStakeHub(STAKE_HUB).isPaused(), "CONTRACT_IS_STOPPED");
+        require(!IStakeHub(STAKE_HUB_ADDR).isPaused(), "CONTRACT_IS_STOPPED");
         _;
     }
 
     /*----------------- external functions -----------------*/
-    function initialize(address _validator, uint256 _selfDelegateAmt) public payable initializer {
+    function initialize(address _validator, uint256 _selfDelegateAmt) public initializer {
         validator = _validator;
 
         _bootstrapInitialHolder(_selfDelegateAmt);
@@ -70,7 +74,7 @@ contract StakePool is SystemConfig, StBNB {
         return _stake(_delegator, _bnbAmount);
     }
 
-    function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub whenNotPaused {
+    function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub whenNotPaused returns (uint256) {
         require(_sharesAmount != 0, "ZERO_UNDELEGATE");
         require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
 
@@ -79,44 +83,69 @@ contract StakePool is SystemConfig, StBNB {
         _lockedShares[_delegator] += _sharesAmount;
 
         // add to the queue
+        _unbondSequence[_delegator] += 1; // increase the sequence first to avoid zero sequence
+        bytes32 hash = keccak256(abi.encodePacked(_delegator, _unbondSequence[_delegator]));
+
+        uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).getUnbondTime();
         UnbondRequest memory request =
-            UnbondRequest({amount: _sharesAmount, unlockTime: block.timestamp + IStakeHub(STAKE_HUB).getUnbondTime()});
-        bytes32 hash = keccak256(abi.encodePacked(_delegator, _sharesAmount, block.timestamp));
-        _unbondRequests[hash] = request;
+                        UnbondRequest({sharesAmount: _sharesAmount, unlockTime: unlockTime});
+         _unbondRequests[hash] = request;
         _unbondRequestsQueue[_delegator].pushBack(hash);
 
         emit UnbondRequested(_delegator, _sharesAmount, request.unlockTime);
+        return unlockTime;
     }
 
-    function claim(address _delegator) external onlyStakeHub whenNotPaused returns (uint256) {
+    function claim(address _delegator, uint256 number) external onlyStakeHub whenNotPaused returns (uint256) {
         require(_unbondRequestsQueue[_delegator].length() != 0, "NO_UNBOND_REQUEST");
+        // number == 0 means claim all
+        if (number == 0) {
+            number = _unbondRequestsQueue[_delegator].length();
+        }
+        if (number > _unbondRequestsQueue[_delegator].length()) {
+            number = _unbondRequestsQueue[_delegator].length();
+        }
+        require(number <= MAX_CLAIM_NUMBER, "TOO_MANY_REQUESTS"); // prevent too many loop in one transaction
 
-        bytes32 hash = _unbondRequestsQueue[_delegator].front();
-        UnbondRequest memory request = _unbondRequests[hash];
-        require(block.timestamp >= request.unlockTime, "NOT_UNLOCKED");
+        uint256 totalShares;
+        while (number != 0) {
+            bytes32 hash = _unbondRequestsQueue[_delegator].peekFront();
+            UnbondRequest memory request = _unbondRequests[hash];
+            if (block.timestamp < request.unlockTime) {
+                break;
+            }
+            // request is non-existed(should not happen)
+            if (request.sharesAmount == 0 && request.unlockTime == 0) {
+                continue;
+            }
 
-        // remove from the queue
-        _unbondRequestsQueue[_delegator].popFront();
-        delete _unbondRequests[hash];
+            // remove from the queue
+            _unbondRequestsQueue[_delegator].popFront();
+            delete _unbondRequests[hash];
+
+            totalShares += request.sharesAmount;
+            number -= 1;
+        }
 
         // unlock and burn the shares
-        _lockedShares[_delegator] -= request.amount;
-        _burn(address(this), request.amount);
-        emit UnbondClaimed(_delegator, request.amount);
+        _lockedShares[_delegator] -= totalShares;
+        uint256 totalBnbAmount = getPooledBNBByShares(totalShares);
+        _burn(address(this), totalShares);
+        emit UnbondClaimed(_delegator, totalShares, totalBnbAmount);
 
-        uint256 bnbAmount = getPooledBNBByShares(request.amount);
-        _totalPooledBNB -= bnbAmount;
-        return bnbAmount;
+        _totalPooledBNB -= totalBnbAmount;
+        return totalBnbAmount;
     }
 
-    function distributeReward(uint256 _amount) external onlyValidatorSet {
-        _totalReceivedReward += _amount;
-        _totalPooledBNB += _amount;
-        emit RewardReceived(_amount);
+    function distributeReward(uint256 _bnbAmount) external onlyValidatorSet {
+        _totalReceivedReward += _bnbAmount;
+        _totalPooledBNB += _bnbAmount;
+        emit RewardReceived(_bnbAmount);
     }
 
-    function felony(uint256 _amount) external onlyValidatorSet {
-        uint256 sharesAmount = getSharesByPooledBNB(_amount);
+    function felony(uint256 _bnbAmount) external onlyValidatorSet {
+        _totalPooledBNB -= _bnbAmount;
+        uint256 sharesAmount = getSharesByPooledBNB(_bnbAmount);
         _burn(validator, sharesAmount);
     }
 
@@ -145,7 +174,7 @@ contract StakePool is SystemConfig, StBNB {
 
         uint256 sharesAmount = getSharesByPooledBNB(_bnbAmount);
         _totalPooledBNB += _bnbAmount;
-        emit Delegated(_delegator, _bnbAmount);
+        emit Delegated(_delegator, sharesAmount, _bnbAmount);
 
         _mint(_delegator, sharesAmount);
         return sharesAmount;
@@ -158,7 +187,7 @@ contract StakePool is SystemConfig, StBNB {
         // mint initial tokens to the validator
         // shares is equal to the amount of BNB staked
         _totalPooledBNB = _initAmount;
-        emit Delegated(validator, _initAmount);
+        emit Delegated(validator, _initAmount, _initAmount);
         _mint(validator, _initAmount);
     }
 
