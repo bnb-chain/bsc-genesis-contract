@@ -20,8 +20,8 @@
     "rlp": "^2.2.7",
     "truffle-flattener": "1.4.4",
     "web3": "^1.7.0",
-    "@openzeppelin/contracts": "^4.8.3",
-    "@openzeppelin/contracts-upgradeable": "^4.8.3"
+    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3"
   },
   "devDependencies": {
     "truffle": "5.1.14"
