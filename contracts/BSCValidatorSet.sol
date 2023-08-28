@@ -17,7 +17,7 @@ import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
 
 interface IStakeHub {
-  function distributeReward(address validator, uint256 reward) external payable;
+  function distributeReward(address validator) external payable;
   function felony(address validator) external returns (bool);
 }
 
@@ -258,7 +258,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit deprecatedDeposit(valAddr,value);
       } else {
         if (_isMigrated(index - 1)) {
-          IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr, value);
+          IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr);
         } else {
           totalInComing = totalInComing.add(value);
           validator.incoming = validator.incoming.add(value);
@@ -604,7 +604,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           emit deprecatedFinalityRewardDeposit(valAddr, value);
         } else {
             if (_isMigrated(index - 1)) {
-                IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr, value);
+                IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr);
             } else {
                 totalInComing = totalInComing.add(value);
                 validator.incoming = validator.incoming.add(value);
