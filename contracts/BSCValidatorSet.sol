@@ -19,6 +19,7 @@ import "./lib/CmnPkg.sol";
 interface IStakeHub {
   function distributeReward(address validator) external payable;
   function downtimeSlash(address valAddr) external;
+  function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
 }
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
@@ -92,7 +93,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   // BC_fusion
   uint256 public constant INIT_VOTING_POWER_MULTIPLIER = 1;
+  uint256 public constant INIT_MAX_ELIGIBLE_VALIDATORS= 29;
+
   uint256 public bcVotingPowerMultiplier;
+  uint256 public maxEligibleValidators;
 
   struct Validator {
     address consensusAddress;
@@ -307,11 +311,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
+    // get migrated validators
+    (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+    (Validator[] memory migratedValidators, bytes[] memory migratedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
+
     // step 0: force all maintaining validators to exit `Temporary Maintenance`
     // - 1. validators exit maintenance
     // - 2. clear all maintainInfo
     // - 3. get unjailed validators from validatorSet
-    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(migratedValidators, migratedVoteAddrs);
 
     {
       //step 1: do calculate distribution, do not make it as an internal function for saving gas.
@@ -343,6 +351,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         return ERROR_RELAYFEE_TOO_LARGE;
       }
       for (uint i; i<validatorsNum; ++i) {
+        // As migrated validators incoming is 0, so we do not need to consider it.
         if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
           crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
@@ -1110,6 +1119,59 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   function _isMigrated(uint256 index) internal view returns (bool) {
     return validatorExtraSet[index].isMigrated;
+  }
+
+  function _mergeValidatorSet(Validator[] memory validatorSet1, bytes[] memory voteAddrSet1, Validator[] memory validatorSet2, bytes[] memory voteAddrSet2) internal returns (Validator[] memory, bytes[] memory) {
+    uint256 _length = maxEligibleValidators;
+    if (validatorSet1.length + validatorSet2.length < _length) {
+      _length = validatorSet1.length + validatorSet2.length;
+    }
+    Validator[] memory mergedValidatorSet = new Validator[](_length);
+    bytes[] memory mergedVoteAddrSet = new bytes[](_length);
+
+    uint256 i;
+    uint256 j;
+    uint256 k;
+    while ((i < validatorSet1.length || j < validatorSet2.length) && k < _length) {
+      if (i == validatorSet1.length) {
+        mergedValidatorSet[k] = validatorSet2[j];
+        mergedVoteAddrSet[k] = voteAddrSet2[j];
+        ++j;
+        ++k;
+        continue;
+      }
+
+      if (j == validatorSet2.length) {
+        mergedValidatorSet[k] = validatorSet1[i];
+        mergedVoteAddrSet[k] = voteAddrSet1[i];
+        ++i;
+        ++k;
+        continue;
+      }
+
+      if (validatorSet1[i].votingPower > validatorSet2[j].votingPower) {
+        mergedValidatorSet[k] = validatorSet1[i];
+        mergedVoteAddrSet[k] = voteAddrSet1[i];
+        ++i;
+      } else if (validatorSet1[i].votingPower < validatorSet2[j].votingPower) {
+        mergedValidatorSet[k] = validatorSet2[j];
+        mergedVoteAddrSet[k] = voteAddrSet2[j];
+        ++j;
+      } else {
+        if (validatorSet1[i].consensusAddress < validatorSet2[j].consensusAddress) {
+          mergedValidatorSet[k] = validatorSet1[i];
+          mergedVoteAddrSet[k] = voteAddrSet1[i];
+          ++i;
+        } else {
+          mergedValidatorSet[k] = validatorSet2[j];
+          mergedVoteAddrSet[k] = voteAddrSet2[j];
+          ++j;
+        }
+      }
+      ++k;
+    }
+
+    return (mergedValidatorSet, mergedVoteAddrSet);
   }
 
   //rlp encode & decode function
