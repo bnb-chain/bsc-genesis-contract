@@ -311,15 +311,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
-    // get migrated validators
-    (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
-    (Validator[] memory migratedValidators, bytes[] memory migratedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
-
     // step 0: force all maintaining validators to exit `Temporary Maintenance`
     // - 1. validators exit maintenance
     // - 2. clear all maintainInfo
     // - 3. get unjailed validators from validatorSet
-    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(migratedValidators, migratedVoteAddrs);
+    Validator[] memory validatorSetTemp;
+    bytes[] memory voteAddrsTemp;
+    {
+      // get migrated validators
+      (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+      (Validator[] memory migratedValidators, bytes[] memory migratedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
+
+      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(migratedValidators, migratedVoteAddrs);
+    }
 
     {
       //step 1: do calculate distribution, do not make it as an internal function for saving gas.
@@ -1121,7 +1125,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return validatorExtraSet[index].isMigrated;
   }
 
-  function _mergeValidatorSet(Validator[] memory validatorSet1, bytes[] memory voteAddrSet1, Validator[] memory validatorSet2, bytes[] memory voteAddrSet2) internal returns (Validator[] memory, bytes[] memory) {
+  function _mergeValidatorSet(Validator[] memory validatorSet1, bytes[] memory voteAddrSet1, Validator[] memory validatorSet2, bytes[] memory voteAddrSet2) internal view returns (Validator[] memory, bytes[] memory) {
     uint256 _length = maxEligibleValidators;
     if (validatorSet1.length + validatorSet2.length < _length) {
       _length = validatorSet1.length + validatorSet2.length;

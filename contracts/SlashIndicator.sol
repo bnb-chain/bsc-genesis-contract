@@ -18,7 +18,7 @@ import "./lib/RLPEncode.sol";
 interface IStakeHub {
   function downtimeSlash(address valAddr) external;
   function maliciousVoteSlash(bytes calldata voteAddr) external;
-  function doubleSignSlash(bytes calldata voteAddr) external;
+  function doubleSignSlash(address valAddr) external;
   function getValidatorByVoteAddr(bytes calldata voteAddr) external view returns (address);
 }
 
@@ -283,7 +283,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
 
     bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
-    if (IStakeHub.getValidatorByVoteAddr(_evidence.voteAddr) != address(0)) {
+    if (IStakeHub(STAKE_HUB_ADDR).getValidatorByVoteAddr(_evidence.voteAddr) != address(0)) {
       try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr) {
         emit maliciousVoteSlashed(voteAddrSlice);
       } catch (bytes memory reason) {
@@ -305,7 +305,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     _headerEmptyCheck(headers[0]);
     _headerEmptyCheck(headers[1]);
     require(headers[0].number == headers[1].number, "different block number");
-    require(BytesLib.equal(headers[0].parentHash, headers[1].parentHash), "different parent hash");
+    require(headers[0].parentHash == headers[1].parentHash, "different parent hash");
 
     bytes memory sig1 = _getSignatureFromExtra(headers[0].extra);
     bytes memory sig2 = _getSignatureFromExtra(headers[1].extra);
@@ -315,7 +315,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     address signer1 = _extractSignerFromHeader(headers[0]);
     address signer2 = _extractSignerFromHeader(headers[1]);
     require(signer1 == signer2, "different signer");
-    require(IBSCValidatorSet.isMigrated(signer1), "validator not migrated");
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer1), "validator not migrated");
 
     // check evidence age
     uint256 evidenceTime = headers[0].time;
