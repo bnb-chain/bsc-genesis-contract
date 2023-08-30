@@ -18,7 +18,7 @@ import "./lib/CmnPkg.sol";
 
 interface IStakeHub {
   function distributeReward(address validator) external payable;
-  function felony(address validator) external returns (bool);
+  function downtimeSlash(address valAddr) external;
 }
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
@@ -406,10 +406,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       emit systemTransfer(address(this).balance);
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
+
     // step 5: do update validator set state
     totalInComing = 0;
     numOfJailed = 0;
-    if (validatorSetTemp.length>0) {
+    if (validatorSetTemp.length > 0) {
       doUpdateState(validatorSetTemp, voteAddrsTemp);
     }
 
@@ -947,7 +948,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     index = index - 1;
 
     // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
-    if (validatorExtraSet[index].isMigrated) {
+    if (_isMigrated(index)) {
       return index;
     }
 
@@ -997,7 +998,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
     if (_isMigrated(index)) {
-      return IStakeHub(STAKE_HUB_ADDR).felony(validator);
+      return true;
     }
 
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
@@ -1094,7 +1095,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
-      ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
+      if (_isMigrated(index)) {
+        IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator);
+      } else {
+        ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
+      }
       isFelony = true;
     } else if (slashCount >= misdemeanorThreshold) {
       _misdemeanor(validator);
