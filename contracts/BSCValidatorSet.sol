@@ -18,7 +18,6 @@ import "./lib/CmnPkg.sol";
 
 interface IStakeHub {
   function distributeReward(address validator) external payable;
-  function downtimeSlash(address valAddr) external;
   function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
 }
 
@@ -1109,7 +1108,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
       if (_isMigrated(index)) {
-        IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator);
+        ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
       } else {
         ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
       }

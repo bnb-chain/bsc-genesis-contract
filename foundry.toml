@@ -29,12 +29,13 @@ runs = 1024
 
 [fmt]
 line_length = 240
-tab_width = 2
+tab_width = 4
 bracket_spacing = false
 int_types = 'long'
 func_attrs_with_params_multiline = true
 quote_style = 'double'
-number_underscore = 'preserve'
+number_underscore = 'thousands'
+multiline_func_header = 'params_first'
 
 [rpc_endpoints]
 bsc = "${RPC_BSC}" # set by .env

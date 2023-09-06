@@ -48,17 +48,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   // BC-fusion
   uint256 public constant EXTRA_SEAL_LENGTH = 65;
-
-  uint256 public constant INIT_DOWNTIME_SLASH_AMOUNT = 50 ether;
-  uint256 public constant INIT_DOUBLE_SIGN_SLASH_AMOUNT = 10000 ether;
-  uint256 public constant INIT_DOWNTIME_JAIL_TIME = 172800000000000;
-  uint256 public constant INIT_DOUBLE_SIGN_JAIL_TIME = 9223372036854775807;
   uint256 public constant INIT_MAX_EVIDENCE_AGE = 259200000000000;
 
-  uint256 public downtimeSlashAmount;
-  uint256 public doubleSignSlashAmount;
-  uint256 public downtimeJailTime;
-  uint256 public doubleSignJailTime;
   uint256 public maxEvidenceAge;
 
   event validatorSlashed(address indexed validator);
@@ -175,9 +166,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
       if (IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(validator)) {
-        try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) {} catch (bytes memory reason) {
-          emit failedFelony(validator, indicator.count, reason);
-        }
+        downtimeSlash(validator, indicator.count);
       } else {
         // send slash msg to bc if validator is not migrated
         try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {} catch (bytes memory reason) {
@@ -243,6 +232,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       --j;
     }
     emit indicatorCleaned();
+  }
+
+  function downtimeSlash(address validator, uint256 count) public override {
+    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) {}
+    catch (bytes memory reason) {
+      emit failedFelony(validator, count, reason);
+    }
   }
 
   function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
