@@ -32,6 +32,7 @@ contract StakeHub is System, Initializable {
     /*----------------- constant -----------------*/
     uint256 public constant INIT_MIN_SELF_DELEGATION = 2000 ether;
     uint256 public constant INIT_MIN_DELEGATION_CHANGE = 1 ether;
+    uint256 public constant INIT_MAX_ELECTED_VALIDATORS = 29;
     uint256 public constant INIT_DOWNTIME_SLASH_AMOUNT = 50 ether;
     uint256 public constant INIT_DOUBLE_SIGN_SLASH_AMOUNT = 10_000 ether;
     uint256 public constant INIT_DOWNTIME_JAIL_TIME = 172_800_000_000_000;
@@ -39,10 +40,12 @@ contract StakeHub is System, Initializable {
 
     /*----------------- storage -----------------*/
     uint8 private _initialized;
+    bool private _stakingPaused;
 
     // stake params
     uint256 public minSelfDelegation;
     uint256 public minDelegationChange;
+    uint256 public maxElectedValidators;
 
     // slash params
     uint256 public downtimeSlashAmount;
@@ -60,6 +63,7 @@ contract StakeHub is System, Initializable {
     uint256 public totalPooledBNB;
 
     IBSCValidatorSet.Validator[] public eligibleValidators;
+    uint256[] public eligibleValidatorDelegatedAmounts;
     bytes[] public eligibleValidatorVoteAddrs;
 
     struct Validator {
@@ -101,6 +105,7 @@ contract StakeHub is System, Initializable {
         SlashType slashType;
     }
 
+    /*----------------- modifiers -----------------*/
     modifier onlyInitialized() {
         require(_initialized != 0, "NOT_INITIALIZED");
         _;
@@ -111,9 +116,11 @@ contract StakeHub is System, Initializable {
         _;
     }
 
+    /*----------------- init -----------------*/
     function initialize() public initializer {
         minSelfDelegation = INIT_MIN_SELF_DELEGATION;
         minDelegationChange = INIT_MIN_DELEGATION_CHANGE;
+        maxElectedValidators = INIT_MAX_ELECTED_VALIDATORS;
         downtimeSlashAmount = INIT_DOWNTIME_SLASH_AMOUNT;
         doubleSignSlashAmount = INIT_DOUBLE_SIGN_SLASH_AMOUNT;
         downtimeJailTime = INIT_DOWNTIME_JAIL_TIME;
@@ -122,6 +129,7 @@ contract StakeHub is System, Initializable {
         _initialized = 1;
     }
 
+    /*----------------- external functions -----------------*/
     function createValidator(bytes calldata voteAddress, bytes calldata blsProof, Commission calldata commission, Description calldata description) external payable onlyInitialized {
         uint256 delegation = msg.value;
         require(delegation >= minSelfDelegation, "INVALID_SELF_DELEGATION");
@@ -195,6 +203,8 @@ contract StakeHub is System, Initializable {
         valInfo.totalShares += _shares;
         valInfo.totalPooledBNB += _bnbAmount;
         totalPooledBNB += _bnbAmount;
+
+        _updateEligibleValidators(validator, valInfo.totalPooledBNB, valInfo.voteAddress);
     }
 
     function undelegate(address validator, uint256 _sharesAmount) public onlyInitialized validatorExist(validator) {
@@ -208,6 +218,8 @@ contract StakeHub is System, Initializable {
         valInfo.totalShares -= _sharesAmount;
         valInfo.totalPooledBNB -= _bnbAmount;
         totalPooledBNB -= _bnbAmount;
+
+        _updateEligibleValidators(validator, valInfo.totalPooledBNB, valInfo.voteAddress);
     }
 
     function redelegate(address srcValidator, address dstValidator, uint256 _sharesAmount) public onlyInitialized validatorExist(srcValidator) validatorExist(dstValidator) {
@@ -226,8 +238,12 @@ contract StakeHub is System, Initializable {
         srcValInfo.totalPooledBNB -= _bnbAmount;
         dstValInfo.totalShares += _newSharesAmount;
         dstValInfo.totalPooledBNB += _bnbAmount;
+
+        _updateEligibleValidators(srcValidator, srcValInfo.totalPooledBNB, srcValInfo.voteAddress);
+        _updateEligibleValidators(dstValidator, dstValInfo.totalPooledBNB, dstValInfo.voteAddress);
     }
 
+    /*----------------- system functions -----------------*/
     function distributeReward(address validator) external payable onlyInitialized onlyValidatorContract {
         Validator storage valInfo = validators[validator];
         require(!valInfo.jailed, "VALIDATOR_JAILED");
@@ -309,10 +325,28 @@ contract StakeHub is System, Initializable {
         slashRecords[slashKey] = record;
     }
 
+    /*----------------- gov -----------------*/
+    function pauseStaking() external onlyInitialized onlyGov {
+        _stakingPaused = true;
+    }
+
+    function resumeStaking() external onlyInitialized onlyGov {
+        _stakingPaused = false;
+    }
+
+    // TODO
+    // update params
+
+    /*----------------- view functions -----------------*/
     function getValidatorByVoteAddr(bytes calldata voteAddr) external view returns (address) {
         return _getValidatorByVoteAddr(voteAddr);
     }
 
+    function isPaused() external view returns (bool) {
+        return _stakingPaused;
+    }
+
+    /*----------------- internal functions -----------------*/
     function _getValidatorByVoteAddr(bytes calldata voteAddr) internal view returns (address) {
         return voteAddressToValidator[voteAddr];
     }
@@ -331,6 +365,37 @@ contract StakeHub is System, Initializable {
     }
 
     function _updateEligibleValidators(address validator, uint256 delegation, bytes calldata voteAddress) internal {
-        // TODO
+        if (eligibleValidators.length > maxElectedValidators) {
+            for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
+                delete eligibleValidators[i];
+                delete eligibleValidatorDelegatedAmounts[i];
+                delete eligibleValidatorVoteAddrs[i];
+            }
+        } else if (eligibleValidators.length < maxElectedValidators) {
+            eligibleValidators.push(IBSCValidatorSet.Validator({consensusAddress: address(0), feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: 0, jailed: false, incoming: 0}));
+            eligibleValidatorDelegatedAmounts.push(0);
+            eligibleValidatorVoteAddrs.push(bytes(""));
+        }
+
+        for (uint256 i; i < eligibleValidators.length; ++i) {
+            if (delegation > eligibleValidatorDelegatedAmounts[i]) {
+                uint256 endIdx = eligibleValidators.length - 1;
+                for (uint256 j = i; j < eligibleValidators.length; ++j) {
+                    if (eligibleValidators[j].consensusAddress == validator) {
+                        endIdx = j;
+                        break;
+                    }
+                }
+                for (uint256 k = endIdx; k > i; --k) {
+                    eligibleValidators[k] = eligibleValidators[k - 1];
+                    eligibleValidatorDelegatedAmounts[k] = eligibleValidatorDelegatedAmounts[k - 1];
+                    eligibleValidatorVoteAddrs[k] = eligibleValidatorVoteAddrs[k - 1];
+                }
+                eligibleValidators[i] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(delegation), jailed: false, incoming: 0});
+                eligibleValidatorDelegatedAmounts[i] = delegation;
+                eligibleValidatorVoteAddrs[i] = voteAddress;
+                break;
+            }
+        }
     }
 }

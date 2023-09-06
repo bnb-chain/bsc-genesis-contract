@@ -5,6 +5,7 @@ contract System {
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
+    address public constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
     address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
 
     modifier onlyValidatorContract() {
@@ -14,6 +15,11 @@ contract System {
 
     modifier onlySlash() {
         require(msg.sender == SLASH_CONTRACT_ADDR, "the message sender must be slash contract");
+        _;
+    }
+
+    modifier onlyGov() {
+        require(msg.sender == GOV_HUB_ADDR, "the message sender must be governance contract");
         _;
     }
 
