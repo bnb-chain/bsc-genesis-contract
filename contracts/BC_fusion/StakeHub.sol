@@ -38,6 +38,9 @@ contract StakeHub is System, Initializable {
     uint256 public constant INIT_DOWNTIME_JAIL_TIME = 172_800_000_000_000;
     uint256 public constant INIT_DOUBLE_SIGN_JAIL_TIME = 9_223_372_036_854_775_807;
 
+    uint256 public constant BLS_PUBKEY_LENGTH = 48;
+    uint256 public constant BLS_SIG_LENGTH = 96;
+
     /*----------------- storage -----------------*/
     uint8 private _initialized;
     bool private _stakingPaused;
@@ -140,7 +143,7 @@ contract StakeHub is System, Initializable {
         require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
 
         // check vote address
-        _checkVoteAddress(voteAddress, blsProof);
+        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
         voteAddressToValidator[voteAddress] = validator;
 
         // deploy stake pool
@@ -169,8 +172,7 @@ contract StakeHub is System, Initializable {
         Validator storage valInfo = validators[msg.sender];
         require(voteAddressToValidator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
 
-        _checkVoteAddress(voteAddress, blsProof);
-
+        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
         voteAddressToValidator[voteAddress] = msg.sender;
         valInfo.voteAddress = voteAddress;
     }
@@ -219,7 +221,8 @@ contract StakeHub is System, Initializable {
         valInfo.totalPooledBNB -= _bnbAmount;
         totalPooledBNB -= _bnbAmount;
 
-        _updateEligibleValidators(validator, valInfo.totalPooledBNB, valInfo.voteAddress);
+        bytes memory voteAddr = valInfo.voteAddress;
+        _updateEligibleValidators(validator, valInfo.totalPooledBNB, voteAddr);
     }
 
     function redelegate(address srcValidator, address dstValidator, uint256 _sharesAmount) public onlyInitialized validatorExist(srcValidator) validatorExist(dstValidator) {
@@ -239,8 +242,10 @@ contract StakeHub is System, Initializable {
         dstValInfo.totalShares += _newSharesAmount;
         dstValInfo.totalPooledBNB += _bnbAmount;
 
-        _updateEligibleValidators(srcValidator, srcValInfo.totalPooledBNB, srcValInfo.voteAddress);
-        _updateEligibleValidators(dstValidator, dstValInfo.totalPooledBNB, dstValInfo.voteAddress);
+        bytes memory srcValVoteAddr = srcValInfo.voteAddress;
+        bytes memory dstValVoteAddr = dstValInfo.voteAddress;
+        _updateEligibleValidators(srcValidator, srcValInfo.totalPooledBNB, srcValVoteAddr);
+        _updateEligibleValidators(dstValidator, dstValInfo.totalPooledBNB, dstValVoteAddr);
     }
 
     /*----------------- system functions -----------------*/
@@ -355,8 +360,43 @@ contract StakeHub is System, Initializable {
         return keccak256(abi.encodePacked(valAddr, height, slashType));
     }
 
-    function _checkVoteAddress(bytes calldata voteAddress, bytes calldata blsProof) internal view {
-        // TODO
+    function _bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
+        for (uint i; i<len; ++i) {
+            data[index++] = _bytes[i];
+        }
+    }
+
+    function _checkVoteAddress(bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {
+        require(voteAddress.length == BLS_PUBKEY_LENGTH, "INVALID_VOTE_ADDRESS");
+        require(blsProof.length == BLS_SIG_LENGTH, "INVALID_BLS_PROOF");
+
+        // get msg hash
+        bytes32 msgHash = keccak256(abi.encodePacked(voteAddress, bscChainID));
+        bytes memory msgBz = new bytes(32);
+        assembly {
+            mstore(add(msgBz, 32), msgHash)
+        }
+
+        // assemble input data
+        bytes memory input = new bytes(176);
+        _bytesConcat(input, msgBz, 0, 32);
+        _bytesConcat(input, blsProof, 32, 96);
+        _bytesConcat(input, voteAddress, 128, 48);
+
+        // call the precompiled contract to verify the BLS signature
+        // the precompiled contract's address is 0x66
+        bytes memory output = new bytes(1);
+        assembly {
+            let len := mload(input)
+            if iszero(staticcall(not(0), 0x66, add(input, 0x20), len, add(output, 0x20), 0x01)) {
+                revert(0, 0)
+            }
+        }
+        uint8 result = uint8(output[0]);
+        if (result != uint8(1)) {
+            return false;
+        }
+        return true;
     }
 
     function _deployStakePool(address validator) internal returns (address) {
@@ -364,7 +404,7 @@ contract StakeHub is System, Initializable {
         return address(0);
     }
 
-    function _updateEligibleValidators(address validator, uint256 delegation, bytes calldata voteAddress) internal {
+    function _updateEligibleValidators(address validator, uint256 delegation, bytes memory voteAddress) internal {
         if (eligibleValidators.length > maxElectedValidators) {
             for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
                 delete eligibleValidators[i];

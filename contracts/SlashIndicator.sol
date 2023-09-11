@@ -94,11 +94,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     bytes32 txHash;
     bytes32 receiptHash;
     bytes bloom;
-    uint256 difficulty;
-    uint256 number;
-    uint256 gasLimit;
-    uint256 gasUsed;
-    uint256 time;
+    uint64 difficulty;
+    uint64 number;
+    uint64 gasLimit;
+    uint64 gasUsed;
+    uint64 time;
     bytes extra;
     bytes32 mixDigest;
     bytes8 nonce;

@@ -45,7 +45,7 @@ contract StakePool is System, StBNB {
 
     /*----------------- modifiers -----------------*/
     modifier whenNotPaused() {
-        require(!IStakeHub(STAKE_HUB_ADDR).isPaused(), "CONTRACT_IS_STOPPED");
+        require(!IStakeHub(STAKE_HUB_ADDR).isPaused(), "STAKE_STOPPED");
         _;
     }
 
