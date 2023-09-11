@@ -389,9 +389,27 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return sig;
   }
 
-  function _extractSignerFromHeader(BscHeader memory header) internal returns (address) {
-    // TODO
-    return address(0);
+  function _extractSignerFromHeader(BscHeader memory header) internal returns (address signer) {
+    bytes memory chainIdBz = new bytes(32);
+    TypesToBytes.uintToBytes(32, bscChainID, chainIdBz);
+
+    bytes memory headerBz = abi.encode(header);
+    uint256 headerLength = headerBz.length;
+    uint256 length = headerLength + 32; // 32 bytes for chainId
+
+    bytes memory input = new bytes(length);
+    _bytesConcat(input, chainIdBz, 0, 32);
+    _bytesConcat(input, headerBz, 32, headerLength);
+
+    bytes memory output = new bytes(20);
+    assembly {
+      let len := mload(input)
+      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x14)) {
+        revert(0, 0)
+      }
+    }
+
+    signer = BytesToTypes.bytesToAddress(20, output);
   }
 
   /*********************** Param update ********************************/
