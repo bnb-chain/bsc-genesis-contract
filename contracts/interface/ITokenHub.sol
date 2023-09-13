@@ -14,6 +14,9 @@ interface ITokenHub {
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
     external payable returns (bool);
+  
+  function unlock(address contractAddr, address recipient, uint256 amount)
+    external payable;
 
   /* solium-disable-next-line */
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,

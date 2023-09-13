@@ -22,6 +22,10 @@ contract MockTokenHub is ITokenHub {
 
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
 
+  function unlock(address, address, uint256)
+  external override(ITokenHub) payable {
+  }
+
   function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {
     return true;

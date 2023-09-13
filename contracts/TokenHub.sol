@@ -523,6 +523,19 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   /**
+   * @dev request a BC token aridrop transfer from BSC
+   *
+   * @param contractAddr The token contract which is transferred
+   * @param recipient The destination address of the transfer on BSC.
+   * @param amount The amount to transfer
+   */
+  function unlock(address contractAddr, address recipient, uint256 amount) external override onlyInit payable {
+    require(IBEP20(contractAddr).balanceOf(address(this)) < amount, "InsufficientBalance");
+
+    IBEP20(contractAddr).transfer(recipient, amount);
+  }
+
+  /**
    * @dev request a cross-chain transfer from BSC to BC
    *
    * @param contractAddr The token contract which is transferred
