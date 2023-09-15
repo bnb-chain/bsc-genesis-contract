@@ -40,6 +40,7 @@ if (initValidatorSetBytes == ""){
   initValidatorSetBytes = validators.validatorSetBytes.slice(2);
 }
 const data = {
+  network : program.network,
   initValidatorSetBytes: initValidatorSetBytes,
   initBurnRatio: program.initBurnRatio,
   mock: program.mock,

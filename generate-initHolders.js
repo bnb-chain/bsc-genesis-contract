@@ -2,29 +2,33 @@ const program = require("commander");
 const fs = require("fs");
 const nunjucks = require("nunjucks");
 
+nunjucks.configure('views', { autoescape: true});
+
 program.version("0.0.1");
 program.option(
     "-t, --template <template>",
-    "system template file",
-    "./contracts/SystemReward.template"
+    "init holders template file",
+    "./init_holders.template"
 );
 
 program.option(
     "-o, --output <output-file>",
-    "SystemReward.sol",
-    "./contracts/SystemReward.sol"
-)
-program.option("--mock <mock>",
-    "if use mock",
-    false);
+    "init_holders.js",
+    "./init_holders.js"
+);
+
+program.option("--initHolders <initHolders...>",
+" A list of addresses separated by comma", (value) => {
+return value.split(',');
+});
 
 program.parse(process.argv);
 
+
 const data = {
-  network: program.network,
-  mock: program.mock,
+  initHolders:  program.initHolders
 };
 const templateString = fs.readFileSync(program.template).toString();
 const resultString = nunjucks.renderString(templateString, data);
 fs.writeFileSync(program.output, resultString);
-console.log("System reward file updated.");
+console.log("init_holders file updated.");
