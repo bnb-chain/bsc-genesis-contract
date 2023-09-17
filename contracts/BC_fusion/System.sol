@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 contract System {
-    uint16 constant public bscChainID = 0x0060;
+    uint16 public constant bscChainID = 0x0060;
 
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;

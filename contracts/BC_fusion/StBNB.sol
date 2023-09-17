@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
 
 /**
  * @title Interest-bearing ERC20-like token for BSC New Staking protocol.
@@ -24,7 +24,7 @@ import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
  * for emergency scenarios, e.g. a protocol bug, where one might want
  * to freeze all token transfers and approvals until the emergency is resolved.
  */
-abstract contract StBNB is IERC20, ContextUpgradeable {
+abstract contract StBNB is IERC20, Context {
     uint256 internal constant INFINITE_ALLOWANCE = type(uint256).max;
 
     // which also represents the balances of all token holders
@@ -63,15 +63,6 @@ abstract contract StBNB is IERC20, ContextUpgradeable {
      */
     function totalSupply() external view returns (uint256) {
         return _getTotalShares();
-    }
-
-    /**
-     * @return the entire amount of BNB controlled by the protocol.
-     *
-     * @dev The sum of all BNB balances in the protocol.
-     */
-    function getTotalPooledBNB() external view returns (uint256) {
-        return _getTotalPooledBNB();
     }
 
     /**
@@ -203,27 +194,6 @@ abstract contract StBNB is IERC20, ContextUpgradeable {
     function getTotalShares() external view returns (uint256) {
         return _getTotalShares();
     }
-
-    /**
-     * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
-     */
-    function getSharesByPooledBNB(uint256 _bnbAmount) public view returns (uint256) {
-        return (_bnbAmount * _getTotalShares()) / _getTotalPooledBNB();
-    }
-
-    /**
-     * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
-     */
-    function getPooledBNBByShares(uint256 _sharesAmount) public view returns (uint256) {
-        return (_sharesAmount * _getTotalPooledBNB()) / _getTotalShares();
-    }
-
-    /**
-     * @return the total amount (in wei) of BNB controlled by the protocol.
-     * @dev This is used for calculating tokens from shares and vice versa.
-     * @dev This function is required to be implemented in a derived contract.
-     */
-    function _getTotalPooledBNB() internal view virtual returns (uint256);
 
     /**
      * @notice Moves `_amount` tokens from `_sender` to `_recipient`.

@@ -389,7 +389,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return sig;
   }
 
-  function _extractSignerFromHeader(BscHeader memory header) internal returns (address signer) {
+  function _extractSignerFromHeader(BscHeader memory header) internal view returns (address signer) {
     bytes memory chainIdBz = new bytes(32);
     TypesToBytes.uintToBytes(32, bscChainID, chainIdBz);
 

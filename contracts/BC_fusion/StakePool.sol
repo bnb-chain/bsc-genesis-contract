@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
 import "./StBNB.sol";
@@ -9,15 +11,20 @@ import "./System.sol";
 interface IStakeHub {
     function isPaused() external view returns (bool);
     function getUnbondTime() external view returns (uint256);
+    function transferGasLimit() external view returns (uint256);
 }
 
-contract StakePool is System, StBNB {
+contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     uint256 public constant MAX_CLAIM_NUMBER = 20;
 
     /*----------------- storage -----------------*/
     address public validator;
+
+    // for slash
+    bool private _freeze;
+    uint256 private _remainingSlashBnbAmount;
 
     uint256 private _totalReceivedReward; // just for statistics
     uint256 private _totalPooledBNB; // total reward plus total BNB staked in the pool
@@ -58,10 +65,12 @@ contract StakePool is System, StBNB {
     }
 
     function delegate(address _delegator) external payable onlyStakeHub whenNotPaused returns (uint256) {
+        require(msg.value != 0, "ZERO_DEPOSIT");
         return _stake(_delegator, msg.value);
     }
 
     function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub whenNotPaused returns (uint256) {
+        require(_sharesAmount != 0, "ZERO_AMOUNT");
         require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
 
         _lockedShares[_delegator] += _sharesAmount;
@@ -97,7 +106,11 @@ contract StakePool is System, StBNB {
         return _bnbAmount;
     }
 
-    function claim(address payable _delegator, uint256 number) external onlyStakeHub whenNotPaused returns (uint256) {
+    function claim(address payable _delegator, uint256 number) external onlyStakeHub whenNotPaused nonReentrant returns (uint256) {
+        if (_delegator == validator) {
+            require(!_freeze, "FROZEN");
+        }
+
         require(_unbondRequestsQueue[_delegator].length() != 0, "NO_UNBOND_REQUEST");
         // number == 0 means claim all
         if (number == 0) {
@@ -117,11 +130,6 @@ contract StakePool is System, StBNB {
                 break;
             }
 
-            // request is non-existed(should not happen)
-            if (request.sharesAmount == 0 && request.unlockTime == 0) {
-                continue;
-            }
-
             _totalShares += request.sharesAmount;
             _totalBnbAmount += request.bnbAmount;
 
@@ -133,7 +141,8 @@ contract StakePool is System, StBNB {
         }
 
         _lockedShares[_delegator] -= _totalShares;
-        (bool success,) = _delegator.call{value: _totalBnbAmount}("");
+        uint256 gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
+        (bool success,) = _delegator.call{value: _totalBnbAmount, gas: gasLimit}("");
         require(success, "CLAIM_FAILED");
 
         emit UnbondClaimed(_delegator, _totalShares, _totalBnbAmount);
@@ -151,61 +160,69 @@ contract StakePool is System, StBNB {
         uint256 selfDelegation = _sharesOf(validator);
         uint256 _slashShares = getSharesByPooledBNB(_slashBnbAmount);
 
-        uint256 _remainingSlashBnbAmount = _slashBnbAmount;
-        uint256 _remainingSlashShares = _slashShares;
+        uint256 _remain;
         if (_slashShares <= selfDelegation) {
             _totalPooledBNB -= _slashBnbAmount;
             _burn(validator, _slashShares);
-            _remainingSlashBnbAmount = 0;
+            _remain = 0;
         } else {
             uint256 selfDelegationTokens = getPooledBNBByShares(selfDelegation);
             _totalPooledBNB -= selfDelegationTokens;
             _burn(validator, selfDelegation);
 
-            _remainingSlashBnbAmount -= selfDelegationTokens;
-            _remainingSlashShares -= selfDelegation;
+            _remain = _slashBnbAmount - selfDelegationTokens;
 
-            uint256 _unbondingShares = _lockedShares[validator];
-            while (_remainingSlashBnbAmount > 0 && _unbondingShares > 0) {
-                bytes32 hash = _unbondRequestsQueue[validator].front();
-                UnbondRequest memory request = _unbondRequests[hash];
-
-                if (request.bnbAmount > _remainingSlashBnbAmount) {
-                    // slash the request
-                    _unbondRequests[hash].sharesAmount -= _remainingSlashShares;
-                    _unbondRequests[hash].bnbAmount -= _remainingSlashBnbAmount;
-                    _unbondingShares -= _remainingSlashShares;
-                    _remainingSlashBnbAmount = 0;
-                    break;
-                } else {
-                    // slash the request and remove from the queue
-                    _unbondingShares -= request.sharesAmount;
-                    _remainingSlashBnbAmount -= request.bnbAmount;
-                    _remainingSlashShares -= request.sharesAmount;
-                    _unbondRequestsQueue[validator].popFront();
-                    delete _unbondRequests[hash];
-                }
-            }
-
-            _lockedShares[validator] = _unbondingShares;
+            _freeze = true;
+            _remainingSlashBnbAmount += _remain;
         }
 
-        uint256 _realSlashBnbAmount = _slashBnbAmount - _remainingSlashBnbAmount;
+        uint256 _realSlashBnbAmount = _slashBnbAmount - _remain;
         (bool success,) = SYSTEM_REWARD_ADDR.call{value: _realSlashBnbAmount}("");
         require(success, "TRANSFER_FAILED");
         return _realSlashBnbAmount;
     }
 
+    function payFine() external payable {
+        require(_freeze, "NOT_FROZEN");
+        require(msg.sender == validator, "NOT_VALIDATOR");
+        require(msg.value == _remainingSlashBnbAmount, "INVALID_AMOUNT");
+
+        _freeze = false;
+        _remainingSlashBnbAmount = 0;
+
+        (bool success,) = SYSTEM_REWARD_ADDR.call{value: msg.value}("");
+        require(success, "TRANSFER_FAILED");
+    }
+
     /*----------------- view functions -----------------*/
-    function totalReceivedReward() external view returns (uint256) {
-        return _getTotalReceivedReward();
+    /**
+     * @return the entire amount of BNB controlled by the protocol.
+     *
+     * @dev The sum of all BNB balances in the protocol.
+     */
+    function getTotalPooledBNB() external view returns (uint256) {
+        return _totalPooledBNB;
     }
 
-    function totalPooledBNB() external view returns (uint256) {
-        return _getTotalPooledBNB();
+    /**
+     * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
+     */
+    function getSharesByPooledBNB(uint256 _bnbAmount) public view returns (uint256) {
+        return (_bnbAmount * _getTotalShares()) / _totalPooledBNB;
     }
 
-    function lockedShares(address _delegator) external view returns (uint256) {
+    /**
+     * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
+     */
+    function getPooledBNBByShares(uint256 _sharesAmount) public view returns (uint256) {
+        return (_sharesAmount * _totalPooledBNB) / _getTotalShares();
+    }
+
+    function getTotalReceivedReward() external view returns (uint256) {
+        return _totalReceivedReward;
+    }
+
+    function getLockedShares(address _delegator) external view returns (uint256) {
         return _lockedShares[_delegator];
     }
 
@@ -236,13 +253,5 @@ contract StakePool is System, StBNB {
         _totalPooledBNB = _initAmount;
         emit Delegated(validator, _initAmount, _initAmount);
         _mint(validator, _initAmount);
-    }
-
-    function _getTotalPooledBNB() internal view override returns (uint256) {
-        return _totalPooledBNB;
-    }
-
-    function _getTotalReceivedReward() internal view returns (uint256) {
-        return _totalReceivedReward;
     }
 }
