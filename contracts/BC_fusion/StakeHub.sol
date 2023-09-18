@@ -37,6 +37,7 @@ contract StakeHub is System, Initializable {
     uint256 public constant INIT_MIN_SELF_DELEGATION_BNB = 2000 ether;
     uint256 public constant INIT_MIN_DELEGATION_BNB_CHANGE = 1 ether;
     uint256 public constant INIT_MAX_ELECTED_VALIDATORS = 29;
+    uint256 public constant INIT_UNBOND_PERIOD = 7 days;
     uint256 public constant INIT_DOWNTIME_SLASH_AMOUNT = 50 ether;
     uint256 public constant INIT_DOUBLE_SIGN_SLASH_AMOUNT = 10_000 ether;
     uint256 public constant INIT_DOWNTIME_JAIL_TIME = 172_800_000_000_000;
@@ -55,6 +56,7 @@ contract StakeHub is System, Initializable {
     uint256 public minSelfDelegationBNB;
     uint256 public minDelegationBNBChange;
     uint256 public maxElectedValidators;
+    uint256 public unbondPeriod;
 
     // slash params
     uint256 public downtimeSlashAmount;
@@ -146,6 +148,7 @@ contract StakeHub is System, Initializable {
         minSelfDelegationBNB = INIT_MIN_SELF_DELEGATION_BNB;
         minDelegationBNBChange = INIT_MIN_DELEGATION_BNB_CHANGE;
         maxElectedValidators = INIT_MAX_ELECTED_VALIDATORS;
+        unbondPeriod = INIT_UNBOND_PERIOD;
         downtimeSlashAmount = INIT_DOWNTIME_SLASH_AMOUNT;
         doubleSignSlashAmount = INIT_DOUBLE_SIGN_SLASH_AMOUNT;
         downtimeJailTime = INIT_DOWNTIME_JAIL_TIME;

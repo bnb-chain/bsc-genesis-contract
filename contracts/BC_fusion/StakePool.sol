@@ -9,7 +9,7 @@ import "./StBNB.sol";
 import "./System.sol";
 
 interface IStakeHub {
-    function getUnbondTime() external view returns (uint256);
+    function unbondPeriod() external view returns (uint256);
     function transferGasLimit() external view returns (uint256);
 }
 
@@ -78,7 +78,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         _unbondSequence[_delegator] += 1; // increase the sequence first to avoid zero sequence
         bytes32 hash = keccak256(abi.encodePacked(_delegator, _unbondSequence[_delegator]));
 
-        uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).getUnbondTime();
+        uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
         UnbondRequest memory request = UnbondRequest({sharesAmount: _sharesAmount, bnbAmount: _bnbAmount, unlockTime: unlockTime});
         _unbondRequests[hash] = request;
         _unbondRequestsQueue[_delegator].pushBack(hash);
