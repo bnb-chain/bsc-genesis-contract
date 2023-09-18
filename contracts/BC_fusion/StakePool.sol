@@ -9,7 +9,6 @@ import "./StBNB.sol";
 import "./System.sol";
 
 interface IStakeHub {
-    function isPaused() external view returns (bool);
     function getUnbondTime() external view returns (uint256);
     function transferGasLimit() external view returns (uint256);
 }
@@ -26,7 +25,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     bool private _freeze;
     uint256 private _remainingSlashBnbAmount;
 
-    uint256 private _totalReceivedReward; // just for statistics
     uint256 private _totalPooledBNB; // total reward plus total BNB staked in the pool
 
     // hash of the unbond request => unbond request
@@ -51,10 +49,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
-    modifier whenNotPaused() {
-        require(!IStakeHub(STAKE_HUB_ADDR).isPaused(), "STAKE_STOPPED");
-        _;
-    }
 
     /*----------------- external functions -----------------*/
     function initialize(address _validator) public payable initializer {
@@ -64,12 +58,12 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         _bootstrapInitialHolder(msg.value);
     }
 
-    function delegate(address _delegator) external payable onlyStakeHub whenNotPaused returns (uint256) {
+    function delegate(address _delegator) external payable onlyStakeHub returns (uint256) {
         require(msg.value != 0, "ZERO_DEPOSIT");
         return _stake(_delegator, msg.value);
     }
 
-    function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub whenNotPaused returns (uint256) {
+    function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
         require(_sharesAmount != 0, "ZERO_AMOUNT");
         require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
 
@@ -93,7 +87,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         return _bnbAmount;
     }
 
-    function redelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub whenNotPaused returns (uint256) {
+    function redelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
         require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
 
         // calculate the BNB amount and update state
@@ -106,7 +100,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         return _bnbAmount;
     }
 
-    function claim(address payable _delegator, uint256 number) external onlyStakeHub whenNotPaused nonReentrant returns (uint256) {
+    function claim(address payable _delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
         if (_delegator == validator) {
             require(!_freeze, "FROZEN");
         }
@@ -151,7 +145,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
 
     function distributeReward() external payable onlyStakeHub {
         uint256 _bnbAmount = msg.value;
-        _totalReceivedReward += _bnbAmount;
         _totalPooledBNB += _bnbAmount;
         emit RewardReceived(_bnbAmount);
     }
@@ -218,12 +211,16 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         return (_sharesAmount * _totalPooledBNB) / _getTotalShares();
     }
 
-    function getTotalReceivedReward() external view returns (uint256) {
-        return _totalReceivedReward;
-    }
-
     function getLockedShares(address _delegator) external view returns (uint256) {
         return _lockedShares[_delegator];
+    }
+
+    function getSelfDelegation() external view returns (uint256) {
+        return _sharesOf(validator);
+    }
+
+    function getSelfDelegationBNB() external view returns (uint256) {
+        return getPooledBNBByShares(_sharesOf(validator));
     }
 
     /*----------------- internal functions -----------------*/
