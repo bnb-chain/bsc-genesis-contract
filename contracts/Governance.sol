@@ -43,7 +43,7 @@ contract Governance is System {
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
   uint256 public pollSubmitThreshold;
-  uint256 public executeSupportRate;
+  uint256 public minExecutableSupportRate;
 
   enum ProposalState { Pending, Active, Defeated, Canceled, Timelocked, AwaitingExecution, Executed, Expired }
   struct ParamProposalRequest {
@@ -255,10 +255,10 @@ contract Governance is System {
       uint256 newPollSubmitThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newPollSubmitThreshold >= 10 ether && newPollSubmitThreshold <= 2e8 ether, "invalid new pollSubmitThreshold");
       pollSubmitThreshold = newPollSubmitThreshold;
-    } else if (Memory.compareStrings(key, "executeSupportRate")) {
-      uint256 newExecuteSupportRate = BytesToTypes.bytesToUint256(32, value);
-      require(newExecuteSupportRate >= 50 && newExecuteSupportRate <= 100, "invalid new executeSupportRate");
-      executeSupportRate = newExecuteSupportRate;
+    } else if (Memory.compareStrings(key, "minExecutableSupportRate")) {
+      uint256 newMinExecutableSupportRate = BytesToTypes.bytesToUint256(32, value);
+      require(newMinExecutableSupportRate >= 50 && newMinExecutableSupportRate <= 100, "invalid new minExecutableSupportRate");
+      minExecutableSupportRate = newMinExecutableSupportRate;
     } else {
       require(false, "unknown param");
     }
@@ -324,8 +324,8 @@ contract Governance is System {
     if (pollSubmitThreshold == 0) {
       pollSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
     }
-    if (executeSupportRate == 0) {
-      executeSupportRate = INIT_PROPOSAL_EXECUTE_SUPPORT_RATE;
+    if (minExecutableSupportRate == 0) {
+      minExecutableSupportRate = INIT_PROPOSAL_EXECUTE_SUPPORT_RATE;
     }
   }
 
@@ -334,7 +334,7 @@ contract Governance is System {
     ParamProposal storage proposal = paramProposals[proposalId];
 
     uint256 totalVotingPower = proposal.forVotingPower + proposal.againstVotingPower;
-    uint256 executionVotingPowerThreshold = totalVotingPower.mul(executeSupportRate).div(PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE);
+    uint256 executionVotingPowerThreshold = totalVotingPower.mul(minExecutableSupportRate).div(PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE);
 
     if (proposal.canceled) {
       return ProposalState.Canceled;
