@@ -50,6 +50,11 @@ contract GovHub is System, IApplication{
     require(false, "receive unexpected fail ack package");
   }
 
+  function updateParam(string calldata key, bytes calldata value, address target) external onlyGovernance {
+    ParamChangePackage memory proposal = ParamChangePackage(key, value, target);
+    notifyUpdates(proposal);
+  }
+
   function notifyUpdates(ParamChangePackage memory proposal) internal returns(uint32) {
 
     if (!isContract(proposal.target)) {

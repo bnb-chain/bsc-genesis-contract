@@ -31,6 +31,7 @@ contract System {
   address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
+  address public constant GOVERNANCE_ADDR = 0x0000000000000000000000000000000000002010;
 
   modifier onlyCoinbase() {
     require(msg.sender == block.coinbase, "the message sender must be the block producer");
@@ -59,6 +60,11 @@ contract System {
 
   modifier onlyGov() {
     require(msg.sender == GOV_HUB_ADDR, "the message sender must be governance contract");
+    _;
+  }
+
+  modifier onlyGovernance() {
+    require(msg.sender == GOVERNANCE_ADDR, "the message sender must be governance v2 contract");
     _;
   }
 
