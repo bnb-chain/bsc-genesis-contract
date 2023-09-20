@@ -4,6 +4,8 @@ pragma experimental ABIEncoderV2;
 import "./System.sol";
 import "./interface/IBSCValidatorSetV2.sol";
 import "./lib/SafeMath.sol";
+import "./lib/Memory.sol";
+import "./lib/BytesToTypes.sol";
 
 interface IGovHub {
   function updateParam(string calldata key, bytes calldata value, address target) external;
@@ -15,22 +17,27 @@ interface IShare {
   function getVotingPower(uint256 shareAmount) external returns (uint256 votingPower);
 }
 
+// TODO: add IGovernance extend
 contract Governance is System {
   using SafeMath for uint256;
 
   uint256 public constant INIT_VOTING_PERIOD = 1 weeks;
+  uint256 public constant INIT_POLL_VOTING_PERIOD = 2 weeks;
   uint256 public constant INIT_EXECUTION_DELAY = 1 days;
   uint256 public constant INIT_EXECUTION_EXPIRATION = 3 days;
-  uint256 public constant INIT_QUORUM_VOTING_POWER = 1e7;
+  uint256 public constant INIT_QUORUM_VOTING_POWER = 1e7 ether;
+  uint256 public constant INIT_POLL_SUBMIT_THRESHOLD = 50 ether;
 
   // locker => share contract => LockShare
   mapping(address => mapping(address => LockShare)) private lockShareMap;
   ParamProposal[] public paramProposals;
   Poll[] public polls;
   uint256 public votingPeriod;
+  uint256 public pollVotingPeriod;
   uint256 public executionDelay;
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
+  uint256 public pollSubmitThreshold;
 
   enum ProposalState { Pending, Active, Defeated, Timelocked, AwaitingExecution, Executed, Expired }
   struct ParamProposalRequest {
@@ -42,6 +49,7 @@ contract Governance is System {
   struct ParamProposal {
     ParamProposalRequest[] requests;
 
+    address proposer;
     string description;
 
     // vote starts at
@@ -54,6 +62,7 @@ contract Governance is System {
   }
 
   struct Poll {
+    address proposer;
     string description;
 
     // vote starts at
@@ -71,6 +80,8 @@ contract Governance is System {
     uint256[] votedProposalIds;
     uint256[] votedPollIds;
   }
+
+  event paramChange(string key, bytes value);
 
   modifier onlyCabinet() {
     uint256 indexPlus = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(msg.sender);
@@ -92,7 +103,7 @@ contract Governance is System {
     }
 
     require(requests.length > 0, "empty proposal");
-    ParamProposal memory proposal = ParamProposal(requests, description, voteAt, voteAt + votingPeriod, 0, 0, false);
+    ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false);
     paramProposals.push(proposal);
   }
 
@@ -110,15 +121,18 @@ contract Governance is System {
     }
   }
 
-  function submitPoll(string calldata description, uint256 voteAt) external {
+  function submitPoll(string calldata description, uint256 voteAt, address shareContract) external {
     _paramInit();
+    address proposer = msg.sender;
+    LockShare memory lockShare = lockShareMap[proposer][shareContract];
+    require(lockShare.votingPower >= pollSubmitThreshold, "locked voting power not enough");
 
     require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
     if (voteAt == 0) {
       voteAt = block.timestamp;
     }
 
-    Poll memory poll = Poll(description, voteAt, voteAt + votingPeriod, 0, 0);
+    Poll memory poll = Poll(proposer, description, voteAt, voteAt + votingPeriod, 0, 0);
     polls.push(poll);
   }
 
@@ -155,6 +169,39 @@ contract Governance is System {
     } else {
       _voteForPoll(msg.sender, id, support, shareContract);
     }
+  }
+
+  function updateParam(string calldata key, bytes calldata value) external onlyGov {
+    require(value.length == 32, "expected value length is 32");
+
+    if (Memory.compareStrings(key, "votingPeriod")) {
+      uint256 newVotingPeriod = BytesToTypes.bytesToUint256(32, value);
+      require(newVotingPeriod > 0 && newVotingPeriod <= 10 weeks, "invalid new votingPeriod");
+      votingPeriod = newVotingPeriod;
+    } else if (Memory.compareStrings(key, "pollVotingPeriod")) {
+      uint256 newPollVotingPeriod = BytesToTypes.bytesToUint256(32, value);
+      require(newPollVotingPeriod > 1 weeks && newPollVotingPeriod <= 10 weeks, "invalid new pollVotingPeriod");
+      pollVotingPeriod = newPollVotingPeriod;
+    } else if (Memory.compareStrings(key, "executionDelay")) {
+      uint256 newExecutionDelay = BytesToTypes.bytesToUint256(32, value);
+      require(newExecutionDelay > 0 && newExecutionDelay <= 7 days, "invalid new executionDelay");
+      executionDelay = newExecutionDelay;
+    } else if (Memory.compareStrings(key, "executionExpiration")) {
+      uint256 newExecutionExpiration = BytesToTypes.bytesToUint256(32, value);
+      require(newExecutionExpiration > 0 && newExecutionExpiration <= 7 days, "invalid new executionExpiration");
+      executionExpiration = newExecutionExpiration;
+    } else if (Memory.compareStrings(key, "quorumVotingPower")) {
+      uint256 newQuorumVotingPower = BytesToTypes.bytesToUint256(32, value);
+      require(newQuorumVotingPower >= 10000 ether && newQuorumVotingPower <= 2e8 ether, "invalid new quorumVotingPower");
+      quorumVotingPower = newQuorumVotingPower;
+    } else if (Memory.compareStrings(key, "pollSubmitThreshold")) {
+      uint256 newPollSubmitThreshold = BytesToTypes.bytesToUint256(32, value);
+      require(newPollSubmitThreshold >= 10 ether && newPollSubmitThreshold <= 2e8 ether, "invalid new pollSubmitThreshold");
+      pollSubmitThreshold = newPollSubmitThreshold;
+    } else {
+      require(false, "unknown param");
+    }
+    emit paramChange(key, value);
   }
 
   function _voteForProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
@@ -197,6 +244,9 @@ contract Governance is System {
     if (votingPeriod == 0) {
       votingPeriod = INIT_VOTING_PERIOD;
     }
+    if (pollVotingPeriod == 0) {
+      pollVotingPeriod = INIT_POLL_VOTING_PERIOD;
+    }
     if (executionDelay == 0) {
       executionDelay = INIT_EXECUTION_DELAY;
     }
@@ -206,10 +256,13 @@ contract Governance is System {
     if (quorumVotingPower == 0) {
       quorumVotingPower = INIT_QUORUM_VOTING_POWER;
     }
+    if (pollSubmitThreshold == 0) {
+      pollSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
+    }
   }
 
   function state(uint256 proposalId) public view returns (ProposalState) {
-    require(proposalId < proposalLength() && proposalId >= 0, "invalid proposal id");
+    require(proposalId < proposalLength(), "invalid proposal id");
     ParamProposal storage proposal = paramProposals[proposalId];
 
     if (block.timestamp <= proposal.startAt) {
@@ -220,7 +273,7 @@ contract Governance is System {
       return ProposalState.Defeated;
     } else if (proposal.executed) {
       return ProposalState.Executed;
-    } else if (block.timestamp >= proposal.endAt.add(executionExpiration)) {
+    } else if (block.timestamp >= proposal.endAt.add(executionDelay).add(executionExpiration)) {
       return ProposalState.Expired;
     } else if (block.timestamp >= proposal.endAt.add(executionDelay)) {
       return ProposalState.AwaitingExecution;
@@ -230,7 +283,7 @@ contract Governance is System {
   }
 
   function pollState(uint256 pollId) public view returns (ProposalState) {
-    require(pollId < pollLength() && pollId >= 0, "invalid poll id");
+    require(pollId < pollLength(), "invalid poll id");
     Poll storage poll = polls[pollId];
 
     if (block.timestamp <= poll.startAt) {
@@ -240,7 +293,7 @@ contract Governance is System {
     } else if (poll.forVotingPower <= poll.againstVotingPower || poll.forVotingPower + poll.againstVotingPower < quorumVotingPower) {
       return ProposalState.Defeated;
     } else {
-      return ProposalState.Timelocked;
+      return ProposalState.AwaitingExecution;
     }
   }
 
