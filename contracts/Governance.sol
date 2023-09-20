@@ -35,15 +35,19 @@ contract Governance is System {
 
   // locker => share contract => LockShare
   mapping(address => mapping(address => LockShare)) private lockShareMap;
-  ParamProposal[] public paramProposals;
-  Poll[] public polls;
+
+  // for proposal
+  ParamProposal[] public proposals;
   uint256 public votingPeriod;
-  uint256 public pollVotingPeriod;
   uint256 public executionDelay;
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
-  uint256 public pollSubmitThreshold;
   uint256 public minExecutableSupportRate;
+
+  // for poll
+  Poll[] public polls;
+  uint256 public pollVotingPeriod;
+  uint256 public pollSubmitThreshold;
 
   enum ProposalState { Pending, Active, Defeated, Canceled, Timelocked, AwaitingExecution, Executed, Expired }
   struct ParamProposalRequest {
@@ -131,15 +135,15 @@ contract Governance is System {
 
     require(requests.length > 0, "empty proposal");
     ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false, false);
-    paramProposals.push(proposal);
+    proposals.push(proposal);
 
-    emit ProposalCreated(paramProposals.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
+    emit ProposalCreated(proposals.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
   }
 
   function cancelProposal(uint256 proposalId) external {
     _paramInit();
 
-    ParamProposal storage proposal = paramProposals[proposalId];
+    ParamProposal storage proposal = proposals[proposalId];
     require(msg.sender == proposal.proposer, "only proposer");
     ProposalState _state = proposalState(proposalId);
     require(
@@ -158,7 +162,7 @@ contract Governance is System {
 
     require(proposalState(proposalId) == ProposalState.AwaitingExecution, "vote not awaiting execution");
 
-    ParamProposal storage proposal = paramProposals[proposalId];
+    ParamProposal storage proposal = proposals[proposalId];
     proposal.executed = true;
 
     ParamProposalRequest memory request;
@@ -269,7 +273,7 @@ contract Governance is System {
     require(proposalState(proposalId) == ProposalState.Active, "vote not active");
 
     LockShare storage lockShare = lockShareMap[voter][shareContract];
-    ParamProposal storage proposal = paramProposals[proposalId];
+    ParamProposal storage proposal = proposals[proposalId];
 
     for (uint256 i = 0; i < lockShare.votedProposalIds.length; i++) {
       require(lockShare.votedProposalIds[i] != proposalId, "already voted");
@@ -331,7 +335,7 @@ contract Governance is System {
 
   function proposalState(uint256 proposalId) public view returns (ProposalState) {
     require(proposalId < proposalLength(), "invalid proposal id");
-    ParamProposal storage proposal = paramProposals[proposalId];
+    ParamProposal storage proposal = proposals[proposalId];
 
     uint256 totalVotingPower = proposal.forVotingPower + proposal.againstVotingPower;
     uint256 executionVotingPowerThreshold = totalVotingPower.mul(minExecutableSupportRate).div(PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE);
@@ -371,7 +375,7 @@ contract Governance is System {
   }
 
   function proposalLength() public view returns (uint256) {
-    return paramProposals.length;
+    return proposals.length;
   }
 
   function pollLength() public view returns (uint256) {
