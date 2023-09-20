@@ -134,10 +134,12 @@ contract Governance is System {
     }
 
     require(requests.length > 0, "empty proposal");
-    ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false, false);
+
+    uint256 endAt = voteAt + votingPeriod;
+    ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, endAt, 0, 0, false, false);
     proposals.push(proposal);
 
-    emit ProposalCreated(proposals.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
+    emit ProposalCreated(proposals.length - 1, msg.sender, description, voteAt, endAt);
   }
 
   function cancelProposal(uint256 proposalId) external {
@@ -185,10 +187,11 @@ contract Governance is System {
       voteAt = block.timestamp;
     }
 
-    Poll memory poll = Poll(proposer, description, voteAt, voteAt + votingPeriod, 0, 0);
+    uint256 endAt = voteAt + pollVotingPeriod;
+    Poll memory poll = Poll(proposer, description, voteAt, endAt, 0, 0);
     polls.push(poll);
 
-    emit PollCreated(polls.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
+    emit PollCreated(polls.length - 1, msg.sender, description, voteAt, endAt);
   }
 
   function lockShare(address shareContract, uint256 shareAmount) external {
