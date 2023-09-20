@@ -197,7 +197,7 @@ contract Governance is System {
 
     IShare(shareContract).lockToGovernance(voter, shareAmount);
     lockShare.amount = lockShare.amount.add(shareAmount);
-    lockShare.votingPower = votingPower;
+    lockShare.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, lockShare.amount);
   }
 
   function unlockShare(address shareContract, uint256 shareAmount) external {
