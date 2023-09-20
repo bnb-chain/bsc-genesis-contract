@@ -14,7 +14,10 @@ interface IGovHub {
 interface IShare {
   function lockToGovernance(address from, uint256 shareAmount) external;
   function unlockFromGovernance(address to, uint256 shareAmount) external;
-  function getVotingPower(uint256 shareAmount) external returns (uint256 votingPower);
+}
+
+interface IStakeHub {
+  function getVotingPower(address shareContract, uint256 shareAmount) external returns (uint256 votingPower);
 }
 
 // TODO: add IGovernance extend
@@ -185,30 +188,36 @@ contract Governance is System {
   }
 
   function lockShare(address shareContract, uint256 shareAmount) external {
+    uint256 votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, shareAmount);
+    require(votingPower > 0, "no votingPower");
+
     address voter = msg.sender;
     LockShare storage lockShare = lockShareMap[voter][shareContract];
     require(lockShare.votedProposalIds.length == 0, "still voting");
 
     IShare(shareContract).lockToGovernance(voter, shareAmount);
     lockShare.amount = lockShare.amount.add(shareAmount);
-    lockShare.votingPower = IShare(shareContract).getVotingPower(lockShare.amount);
+    lockShare.votingPower = votingPower;
   }
 
   function unlockShare(address shareContract, uint256 shareAmount) external {
     address voter = msg.sender;
     LockShare storage lockShare = lockShareMap[voter][shareContract];
-    require(shareAmount <= lockShare.amount, "invalid share amount");
+    require(shareAmount > 0 && shareAmount <= lockShare.amount, "invalid share amount");
 
     if (lockShare.votedProposalIds.length > 0) {
+      ProposalState _state;
       for (uint256 i = 0; i < lockShare.votedProposalIds.length; i++) {
-        require(proposalState(lockShare.votedProposalIds[i]) != ProposalState.Active, "still voting");
+        _state = proposalState(lockShare.votedProposalIds[i]);
+        require(_state != ProposalState.Pending && _state != ProposalState.Active, "vote not ended");
       }
       delete lockShare.votedProposalIds;
     }
 
-    IShare(shareContract).unlockFromGovernance(voter, shareAmount);
     lockShare.amount = lockShare.amount.sub(shareAmount);
-    lockShare.votingPower = IShare(shareContract).getVotingPower(lockShare.amount);
+    lockShare.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, lockShare.amount);
+
+    IShare(shareContract).unlockFromGovernance(voter, shareAmount);
   }
 
   function castVote(bool isProposal, uint256 id, bool support, address shareContract) external {
