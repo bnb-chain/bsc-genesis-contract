@@ -27,6 +27,8 @@ contract Governance is System {
   uint256 public constant INIT_EXECUTION_EXPIRATION = 3 days;
   uint256 public constant INIT_QUORUM_VOTING_POWER = 1e7 ether;
   uint256 public constant INIT_POLL_SUBMIT_THRESHOLD = 50 ether;
+  uint256 public constant INIT_PROPOSAL_EXECUTE_SUPPORT_RATE = 50;
+  uint256 public constant PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE = 100;
 
   // locker => share contract => LockShare
   mapping(address => mapping(address => LockShare)) private lockShareMap;
@@ -38,8 +40,9 @@ contract Governance is System {
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
   uint256 public pollSubmitThreshold;
+  uint256 public executeSupportRate;
 
-  enum ProposalState { Pending, Active, Defeated, Timelocked, AwaitingExecution, Executed, Expired }
+  enum ProposalState { Pending, Active, Defeated, Canceled, Timelocked, AwaitingExecution, Executed, Expired }
   struct ParamProposalRequest {
     string key;
     bytes value;
@@ -59,6 +62,7 @@ contract Governance is System {
     uint256 forVotingPower;
     uint256 againstVotingPower;
     bool executed;
+    bool canceled;
   }
 
   struct Poll {
@@ -90,7 +94,7 @@ contract Governance is System {
     uint256 startAt,
     uint256 endAt
   );
-  event ProposalExecuted(uint256 indexed proposalId);
+  event ProposalExecuted(uint256 indexed proposalId, address indexed executor);
   event ProposalVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address shareContract, uint256 shareAmount, uint256 votingPower);
 
   event PollCreated(
@@ -123,15 +127,33 @@ contract Governance is System {
     }
 
     require(requests.length > 0, "empty proposal");
-    ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false);
+    ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false, false);
     paramProposals.push(proposal);
 
     emit ProposalCreated(paramProposals.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
   }
 
+  function cancelProposal(uint256 proposalId) external {
+    _paramInit();
+
+    ParamProposal storage proposal = paramProposals[proposalId];
+    require(msg.sender == proposal.proposer, "only proposer");
+    ProposalState _state = proposalState(proposalId);
+    require(
+      _state == ProposalState.Pending &&
+      _state == ProposalState.Active &&
+      _state == ProposalState.Timelocked &&
+      _state == ProposalState.AwaitingExecution,
+      "invalid proposal state"
+    );
+
+    proposal.canceled = true;
+  }
+
   function executeProposal(uint256 proposalId) external onlyCabinet {
     _paramInit();
-    require(state(proposalId) == ProposalState.AwaitingExecution, "vote not awaiting execution");
+
+    require(proposalState(proposalId) == ProposalState.AwaitingExecution, "vote not awaiting execution");
 
     ParamProposal storage proposal = paramProposals[proposalId];
     proposal.executed = true;
@@ -142,7 +164,7 @@ contract Governance is System {
       IGovHub(GOV_HUB_ADDR).updateParam(request.key, request.value, request.target);
     }
 
-    emit ProposalExecuted(proposalId);
+    emit ProposalExecuted(proposalId, msg.sender);
   }
 
   function submitPoll(string calldata description, uint256 voteAt, address shareContract) external {
@@ -179,7 +201,7 @@ contract Governance is System {
 
     if (lockShare.votedProposalIds.length > 0) {
       for (uint256 i = 0; i < lockShare.votedProposalIds.length; i++) {
-        require(state(lockShare.votedProposalIds[i]) != ProposalState.Active, "still voting");
+        require(proposalState(lockShare.votedProposalIds[i]) != ProposalState.Active, "still voting");
       }
       delete lockShare.votedProposalIds;
     }
@@ -224,6 +246,10 @@ contract Governance is System {
       uint256 newPollSubmitThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newPollSubmitThreshold >= 10 ether && newPollSubmitThreshold <= 2e8 ether, "invalid new pollSubmitThreshold");
       pollSubmitThreshold = newPollSubmitThreshold;
+    } else if (Memory.compareStrings(key, "executeSupportRate")) {
+      uint256 newExecuteSupportRate = BytesToTypes.bytesToUint256(32, value);
+      require(newExecuteSupportRate >= 50 && newExecuteSupportRate <= 100, "invalid new executeSupportRate");
+      executeSupportRate = newExecuteSupportRate;
     } else {
       require(false, "unknown param");
     }
@@ -231,7 +257,7 @@ contract Governance is System {
   }
 
   function _voteForProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
-    require(state(proposalId) == ProposalState.Active, "vote not active");
+    require(proposalState(proposalId) == ProposalState.Active, "vote not active");
 
     LockShare storage lockShare = lockShareMap[voter][shareContract];
     ParamProposal storage proposal = paramProposals[proposalId];
@@ -289,17 +315,25 @@ contract Governance is System {
     if (pollSubmitThreshold == 0) {
       pollSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
     }
+    if (executeSupportRate == 0) {
+      executeSupportRate = INIT_PROPOSAL_EXECUTE_SUPPORT_RATE;
+    }
   }
 
-  function state(uint256 proposalId) public view returns (ProposalState) {
+  function proposalState(uint256 proposalId) public view returns (ProposalState) {
     require(proposalId < proposalLength(), "invalid proposal id");
     ParamProposal storage proposal = paramProposals[proposalId];
 
-    if (block.timestamp <= proposal.startAt) {
+    uint256 totalVotingPower = proposal.forVotingPower + proposal.againstVotingPower;
+    uint256 executionVotingPowerThreshold = totalVotingPower.mul(executeSupportRate).div(PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE);
+
+    if (proposal.canceled) {
+      return ProposalState.Canceled;
+    } else if (block.timestamp <= proposal.startAt) {
       return ProposalState.Pending;
     } else if (block.timestamp <= proposal.endAt) {
       return ProposalState.Active;
-    } else if (proposal.forVotingPower <= proposal.againstVotingPower || proposal.forVotingPower + proposal.againstVotingPower < quorumVotingPower) {
+    } else if (proposal.forVotingPower <= executionVotingPowerThreshold ||  totalVotingPower < quorumVotingPower) {
       return ProposalState.Defeated;
     } else if (proposal.executed) {
       return ProposalState.Executed;
