@@ -82,6 +82,26 @@ contract Governance is System {
   }
 
   event paramChange(string key, bytes value);
+  event ProposalCreated(
+    uint256 indexed id,
+
+    address indexed proposer,
+    string description,
+    uint256 startAt,
+    uint256 endAt
+  );
+  event ProposalExecuted(uint256 indexed proposalId);
+  event ProposalVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address shareContract, uint256 shareAmount, uint256 votingPower);
+
+  event PollCreated(
+    uint256 indexed id,
+
+    address indexed proposer,
+    string description,
+    uint256 startAt,
+    uint256 endAt
+  );
+  event PollVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address shareContract, uint256 shareAmount, uint256 votingPower);
 
   modifier onlyCabinet() {
     uint256 indexPlus = IBSCValidatorSetV2(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(msg.sender);
@@ -105,6 +125,8 @@ contract Governance is System {
     require(requests.length > 0, "empty proposal");
     ParamProposal memory proposal = ParamProposal(requests, msg.sender, description, voteAt, voteAt + votingPeriod, 0, 0, false);
     paramProposals.push(proposal);
+
+    emit ProposalCreated(paramProposals.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
   }
 
   function executeProposal(uint256 proposalId) external onlyCabinet {
@@ -119,6 +141,8 @@ contract Governance is System {
       request = proposal.requests[i];
       IGovHub(GOV_HUB_ADDR).updateParam(request.key, request.value, request.target);
     }
+
+    emit ProposalExecuted(proposalId);
   }
 
   function submitPoll(string calldata description, uint256 voteAt, address shareContract) external {
@@ -134,6 +158,8 @@ contract Governance is System {
 
     Poll memory poll = Poll(proposer, description, voteAt, voteAt + votingPeriod, 0, 0);
     polls.push(poll);
+
+    emit PollCreated(polls.length - 1, msg.sender, description, voteAt, voteAt + votingPeriod);
   }
 
   function lockShare(address shareContract, uint256 shareAmount) external {
@@ -220,6 +246,8 @@ contract Governance is System {
     } else {
       proposal.againstVotingPower = proposal.againstVotingPower.add(lockShare.votingPower);
     }
+
+    emit ProposalVoted(proposalId, voter, support, shareContract, lockShare.amount, lockShare.votingPower);
   }
 
   function _voteForPoll(address voter, uint256 pollId, bool support, address shareContract) internal {
@@ -238,6 +266,8 @@ contract Governance is System {
     } else {
       poll.againstVotingPower = poll.againstVotingPower.add(lockShare.votingPower);
     }
+
+    emit PollVoted(pollId, voter, support, shareContract, lockShare.amount, lockShare.votingPower);
   }
 
   function _paramInit() internal {
