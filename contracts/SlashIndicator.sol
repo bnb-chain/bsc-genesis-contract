@@ -16,9 +16,9 @@ import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
 interface IStakeHub {
-  function downtimeSlash(address valAddr) external;
-  function maliciousVoteSlash(bytes calldata voteAddr) external;
-  function doubleSignSlash(address valAddr) external;
+  function downtimeSlash(address valAddr, uint256 height) external;
+  function maliciousVoteSlash(bytes calldata voteAddr, uint256 height) external;
+  function doubleSignSlash(address valAddr, uint256 height) external;
   function getValidatorByVoteAddr(bytes calldata voteAddr) external view returns (address);
 }
 
@@ -45,12 +45,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   uint256 public finalitySlashRewardRatio;
   bool public enableMaliciousVoteSlash;
-
-  // BC-fusion
-  uint256 public constant EXTRA_SEAL_LENGTH = 65;
-  uint256 public constant INIT_MAX_EVIDENCE_AGE = 259200000000000;
-
-  uint256 public maxEvidenceAge;
 
   event validatorSlashed(address indexed validator);
   event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
@@ -83,25 +77,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     VoteData voteA;
     VoteData voteB;
     bytes voteAddr;
-  }
-
-  // BC-fusion
-  struct BscHeader {
-    bytes32 parentHash;
-    bytes32 uncleHash;
-    address coinbase;
-    bytes32 root;
-    bytes32 txHash;
-    bytes32 receiptHash;
-    bytes bloom;
-    uint64 difficulty;
-    uint64 number;
-    uint64 gasLimit;
-    uint64 gasUsed;
-    uint64 time;
-    bytes extra;
-    bytes32 mixDigest;
-    bytes8 nonce;
   }
 
   modifier oncePerBlock() {
@@ -235,7 +210,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function downtimeSlash(address validator, uint256 count) public override {
-    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) {}
+    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator, block.number) {}
     catch (bytes memory reason) {
       emit failedFelony(validator, count, reason);
     }
@@ -278,9 +253,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       }
     }
 
+    uint256 slashHeight = _evidence.voteA.srcNum;
+    if (_evidence.voteB.srcNum < slashHeight) {
+      slashHeight = _evidence.voteB.srcNum;
+    }
     bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
     if (IStakeHub(STAKE_HUB_ADDR).getValidatorByVoteAddr(_evidence.voteAddr) != address(0)) {
-      try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr) {
+      try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr, slashHeight) {
         emit maliciousVoteSlashed(voteAddrSlice);
       } catch (bytes memory reason) {
         emit failedMaliciousVoteSlash(voteAddrSlice, reason);
@@ -295,34 +274,35 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitDoubleSignEvidence(BscHeader[] memory headers) public onlyInit {
-    // basic check
-    require(headers.length == 2, "wrong number of headers");
-    _headerEmptyCheck(headers[0]);
-    _headerEmptyCheck(headers[1]);
-    require(headers[0].number == headers[1].number, "different block number");
-    require(headers[0].parentHash == headers[1].parentHash, "different parent hash");
+  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
+    require(header1.length != 0 && header2.length != 0, "empty header");
 
-    bytes memory sig1 = _getSignatureFromExtra(headers[0].extra);
-    bytes memory sig2 = _getSignatureFromExtra(headers[1].extra);
-    require(!BytesLib.equal(sig1, sig2), "two identical headers");
+    bytes[] memory elements = new bytes(3);
+    elements[0] = bscChainID.encodeUint();
+    elements[1] = header1.encodeBytes();
+    elements[2] = header2.encodeBytes();
 
-    // signature verification
-    address signer1 = _extractSignerFromHeader(headers[0]);
-    address signer2 = _extractSignerFromHeader(headers[1]);
-    require(signer1 == signer2, "different signer");
-    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer1), "validator not migrated");
-
-    // check evidence age
-    uint256 evidenceTime = headers[0].time;
-    if (evidenceTime < headers[1].time) {
-      evidenceTime = headers[1].time;
+    // call precompile contract to verify evidence
+    bytes memory input = elements.encodeList();
+    bytes memory output = new bytes(52);
+    assembly {
+      let len := mload(input)
+      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x34)) {
+        revert(0, 0)
+      }
     }
-    require(block.timestamp - evidenceTime < maxEvidenceAge, "evidence too old");
+
+    address signer;
+    uint256 height;
+    assembly {
+      signer := mload(add(bz, 0x14))
+      height := mload(add(bz, 0x34))
+    }
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer), "validator not migrated");
 
     // slash validator
-    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer1);
-    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer1);
+    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
+    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height);
   }
 
   /**
@@ -371,45 +351,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     for (uint i; i<len; ++i) {
       data[index++] = _bytes[i];
     }
-  }
-
-  function _headerEmptyCheck(BscHeader memory header) internal pure {
-    require(header.number != 0, "header number is zero");
-    require(header.difficulty != 0, "header difficulty is zero");
-    require(header.extra.length != 0, "header extra is empty");
-  }
-
-  function _getSignatureFromExtra(bytes memory extra) internal pure returns (bytes memory) {
-    uint256 len = extra.length;
-    require(len >= EXTRA_SEAL_LENGTH, "extra length is too short");
-    bytes memory sig = new bytes(len - EXTRA_SEAL_LENGTH);
-    for (uint i; i < sig.length; ++i) {
-      sig[i] = extra[len-EXTRA_SEAL_LENGTH+i];
-    }
-    return sig;
-  }
-
-  function _extractSignerFromHeader(BscHeader memory header) internal view returns (address signer) {
-    bytes memory chainIdBz = new bytes(32);
-    TypesToBytes.uintToBytes(32, bscChainID, chainIdBz);
-
-    bytes memory headerBz = abi.encode(header);
-    uint256 headerLength = headerBz.length;
-    uint256 length = headerLength + 32; // 32 bytes for chainId
-
-    bytes memory input = new bytes(length);
-    _bytesConcat(input, chainIdBz, 0, 32);
-    _bytesConcat(input, headerBz, 32, headerLength);
-
-    bytes memory output = new bytes(20);
-    assembly {
-      let len := mload(input)
-      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x14)) {
-        revert(0, 0)
-      }
-    }
-
-    signer = BytesToTypes.bytesToAddress(20, output);
   }
 
   /*********************** Param update ********************************/

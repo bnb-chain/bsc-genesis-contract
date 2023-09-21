@@ -51,11 +51,14 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     /*----------------- modifiers -----------------*/
 
     /*----------------- external functions -----------------*/
-    function initialize(address _validator) public payable initializer {
+    function initialize(address _validator, uint256 minSelfDelegationBNB) public payable initializer {
         validator = _validator;
 
         assert(msg.value != 0);
         _bootstrapInitialHolder(msg.value);
+
+        // transfer to stakeHub
+        _transfer(validator, STAKE_HUB_ADDR, minSelfDelegationBNB);
     }
 
     function delegate(address _delegator) external payable onlyStakeHub returns (uint256) {
@@ -173,6 +176,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         (bool success,) = SYSTEM_REWARD_ADDR.call{value: _realSlashBnbAmount}("");
         require(success, "TRANSFER_FAILED");
         return _realSlashBnbAmount;
+    }
+
+    function lockToGovernance(uint256 from, uint256 _sharesAmount) external onlyStakeHub returns(uint256) {
+        _transfer(from, GOVERNANCE_ADDR, _sharesAmount);
+        return getPooledBNBByShares(_sharesAmount);
     }
 
     function payFine() external payable {

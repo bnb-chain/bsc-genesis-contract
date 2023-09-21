@@ -230,6 +230,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
+  function updateValidatorSetV2() external onlyInit onlyCoinbase {
+    if ()
+  }
 
   /**
    * @dev Collect all fee of transactions from the current block and deposit it to the contract
