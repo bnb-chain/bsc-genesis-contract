@@ -231,7 +231,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** External Functions **************************/
   function updateValidatorSetV2() external onlyInit onlyCoinbase {
-    if ()
+    // TODO
   }
 
   /**

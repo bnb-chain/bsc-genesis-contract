@@ -151,7 +151,7 @@ contract StakeHub is System {
     }
 
     /*----------------- init -----------------*/
-    function initialize() public initializer {
+    function initialize() public {
         transferGasLimit = INIT_TRANSFER_GAS_LIMIT;
 
         minSelfDelegationBNB = INIT_MIN_SELF_DELEGATION_BNB;
@@ -371,7 +371,7 @@ contract StakeHub is System {
         }
     }
 
-    function lockToGovernance(address validator, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(validator) validatorNotJailed(validator) returns(uint256) {
+    function lockToGovernance(address validator, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(validator) validatorNotJailed(validator) returns (uint256) {
         address pool = validators[validator].poolModule;
 
         return IStakePool(pool).lockToGovernance(from, _sharesAmount);
@@ -386,7 +386,7 @@ contract StakeHub is System {
         _stakingPaused = false;
     }
 
-    function updateParam(string calldata key, bytes calldata value) override external onlyInitialized onlyGov {
+    function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
         // TODO: add all params
         if (_compareStrings(key, "minSelfDelegationBNB")) {
             require(value.length == 32, "length of expireTimeSecondGap mismatch");
@@ -415,6 +415,12 @@ contract StakeHub is System {
     /*----------------- internal functions -----------------*/
     function _compareStrings(string memory a, string memory b) internal pure returns (bool) {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
+    }
+
+    function _bytesToUint256(uint256 _offset, bytes memory _input) internal pure returns (uint256 _output) {
+        assembly {
+            _output := mload(add(_input, _offset))
+        }
     }
 
     function _getValidatorByVoteAddr(bytes calldata voteAddr) internal view returns (address) {

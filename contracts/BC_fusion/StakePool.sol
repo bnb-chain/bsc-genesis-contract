@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 
-import "./StBNB.sol";
 import "./System.sol";
 
 interface IStakeHub {
@@ -13,10 +12,16 @@ interface IStakeHub {
     function transferGasLimit() external view returns (uint256);
 }
 
-contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
+contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgradeable {
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
+    /*----------------- constant -----------------*/
     uint256 public constant MAX_CLAIM_NUMBER = 20;
+
+    string public constant EIP712_NAME = "BSC validator pool";
+    string public constant EIP712_VERSION = "1.0.0";
+    string public constant ERC20_NAME = "BSC staked BNB";
+    string public constant ERC20_SYMBOL = "stBNB";
 
     /*----------------- storage -----------------*/
     address public validator;
@@ -52,6 +57,9 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
 
     /*----------------- external functions -----------------*/
     function initialize(address _validator, uint256 minSelfDelegationBNB) public payable initializer {
+        __EIP712_init_unchained(EIP712_NAME, EIP712_VERSION);
+        __ERC20_init_unchained(ERC20_NAME, ERC20_SYMBOL);
+
         validator = _validator;
 
         assert(msg.value != 0);
@@ -68,7 +76,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
 
     function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
         require(_sharesAmount != 0, "ZERO_AMOUNT");
-        require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
+        require(_sharesAmount <= balanceOf(_delegator), "INSUFFICIENT_BALANCE");
 
         _lockedShares[_delegator] += _sharesAmount;
 
@@ -91,7 +99,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     }
 
     function redelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
-        require(_sharesAmount <= _sharesOf(_delegator), "INSUFFICIENT_BALANCE");
+        require(_sharesAmount <= balanceOf(_delegator), "INSUFFICIENT_BALANCE");
 
         // calculate the BNB amount and update state
         uint256 _bnbAmount = getPooledBNBByShares(_sharesAmount);
@@ -153,7 +161,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     }
 
     function slash(uint256 _slashBnbAmount) external onlyStakeHub returns (uint256) {
-        uint256 selfDelegation = _sharesOf(validator);
+        uint256 selfDelegation = balanceOf(validator);
         uint256 _slashShares = getSharesByPooledBNB(_slashBnbAmount);
 
         uint256 _remain;
@@ -178,7 +186,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
         return _realSlashBnbAmount;
     }
 
-    function lockToGovernance(uint256 from, uint256 _sharesAmount) external onlyStakeHub returns(uint256) {
+    function lockToGovernance(address from, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
         _transfer(from, GOVERNANCE_ADDR, _sharesAmount);
         return getPooledBNBByShares(_sharesAmount);
     }
@@ -209,14 +217,14 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
     function getSharesByPooledBNB(uint256 _bnbAmount) public view returns (uint256) {
-        return (_bnbAmount * _getTotalShares()) / _totalPooledBNB;
+        return (_bnbAmount * totalSupply()) / _totalPooledBNB;
     }
 
     /**
      * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
      */
     function getPooledBNBByShares(uint256 _sharesAmount) public view returns (uint256) {
-        return (_sharesAmount * _totalPooledBNB) / _getTotalShares();
+        return (_sharesAmount * _totalPooledBNB) / totalSupply();
     }
 
     function getLockedShares(address _delegator) external view returns (uint256) {
@@ -224,11 +232,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
     }
 
     function getSelfDelegation() external view returns (uint256) {
-        return _sharesOf(validator);
+        return balanceOf(validator);
     }
 
     function getSelfDelegationBNB() external view returns (uint256) {
-        return getPooledBNBByShares(_sharesOf(validator));
+        return getPooledBNBByShares(balanceOf(validator));
     }
 
     /*----------------- internal functions -----------------*/
@@ -251,7 +259,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, StBNB {
 
     function _bootstrapInitialHolder(uint256 _initAmount) internal {
         assert(validator != address(0));
-        assert(_getTotalShares() == 0);
+        assert(totalSupply() == 0);
 
         // mint initial tokens to the validator
         // shares is equal to the amount of BNB staked

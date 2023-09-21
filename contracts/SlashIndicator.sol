@@ -277,7 +277,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
     require(header1.length != 0 && header2.length != 0, "empty header");
 
-    bytes[] memory elements = new bytes(3);
+    bytes[] memory elements = new bytes[](3);
     elements[0] = bscChainID.encodeUint();
     elements[1] = header1.encodeBytes();
     elements[2] = header2.encodeBytes();
@@ -295,8 +295,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     address signer;
     uint256 height;
     assembly {
-      signer := mload(add(bz, 0x14))
-      height := mload(add(bz, 0x34))
+      signer := mload(add(output, 0x14))
+      height := mload(add(output, 0x34))
     }
     require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer), "validator not migrated");
 
