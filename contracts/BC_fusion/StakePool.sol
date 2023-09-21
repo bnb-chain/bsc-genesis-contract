@@ -161,20 +161,20 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     }
 
     function slash(uint256 _slashBnbAmount) external onlyStakeHub returns (uint256) {
-        uint256 selfDelegation = balanceOf(validator);
+        uint256 _securityDeposit = balanceOf(STAKE_HUB_ADDR);
         uint256 _slashShares = getSharesByPooledBNB(_slashBnbAmount);
 
         uint256 _remain;
-        if (_slashShares <= selfDelegation) {
+        if (_slashShares <= _securityDeposit) {
             _totalPooledBNB -= _slashBnbAmount;
-            _burn(validator, _slashShares);
+            _burn(STAKE_HUB_ADDR, _slashShares);
             _remain = 0;
         } else {
-            uint256 selfDelegationTokens = getPooledBNBByShares(selfDelegation);
-            _totalPooledBNB -= selfDelegationTokens;
-            _burn(validator, selfDelegation);
+            uint256 _securityDepositBNB = getPooledBNBByShares(_securityDeposit);
+            _totalPooledBNB -= _securityDepositBNB;
+            _burn(STAKE_HUB_ADDR, _securityDeposit);
 
-            _remain = _slashBnbAmount - selfDelegationTokens;
+            _remain = _slashBnbAmount - _securityDepositBNB;
 
             _freeze = true;
             _remainingSlashBnbAmount += _remain;
@@ -231,12 +231,13 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         return _lockedShares[_delegator];
     }
 
-    function getSelfDelegation() external view returns (uint256) {
-        return balanceOf(validator);
+    function getSelfDelegationBNB() external view returns (uint256) {
+        uint256 _shares = balanceOf(validator) + balanceOf(STAKE_HUB_ADDR) + balanceOf(GOVERNANCE_ADDR);
+        return getPooledBNBByShares(_shares);
     }
 
-    function getSelfDelegationBNB() external view returns (uint256) {
-        return getPooledBNBByShares(balanceOf(validator));
+    function getSecurityDepositBNB() external view returns (uint256) {
+        return getPooledBNBByShares(balanceOf(STAKE_HUB_ADDR));
     }
 
     /*----------------- internal functions -----------------*/

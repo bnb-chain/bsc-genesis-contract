@@ -27,9 +27,10 @@ interface IStakePool {
     function redelegate(address delegator, uint256 sharesAmount) external returns (uint256);
     function distributeReward() external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
-    function getSelfDelegation() external view returns (uint256);
     function getSelfDelegationBNB() external view returns (uint256);
+    function getSecurityDepositBNB() external view returns (uint256);
     function lockToGovernance(address from, uint256 sharesAmount) external returns (uint256);
+    function transfer(address to, uint256 amount) external returns (bool);
 }
 
 contract StakeHub is System {
@@ -240,7 +241,7 @@ contract StakeHub is System {
         require(valInfo.jailed, "NOT_JAILED");
 
         address pool = valInfo.poolModule;
-        require(IStakePool(pool).getSelfDelegationBNB() >= doubleSignSlashAmount, "NOT_ENOUGH_SELF_DELEGATION");
+        require(IStakePool(pool).getSecurityDepositBNB() >= minSelfDelegationBNB, "NOT_ENOUGH_SELF_DELEGATION");
         require(valInfo.jailUntil <= block.timestamp, "STILL_JAILED");
 
         valInfo.jailed = false;
@@ -251,7 +252,7 @@ contract StakeHub is System {
         require(_bnbAmount >= minDelegationBNBChange, "INVALID_DELEGATION_AMOUNT");
         address delegator = msg.sender;
         Validator memory valInfo = validators[validator];
-        if (IStakePool(valInfo.poolModule).getSelfDelegation() < minSelfDelegationBNB) {
+        if (IStakePool(valInfo.poolModule).getSecurityDepositBNB() < minSelfDelegationBNB) {
             // only self delegation
             require(delegator == validator, "ONLY_SELF_DELEGATION");
         }
@@ -265,9 +266,7 @@ contract StakeHub is System {
         address delegator = msg.sender;
         Validator memory valInfo = validators[validator];
 
-        if (delegator == validator && IStakePool(valInfo.poolModule).getSelfDelegationBNB() < doubleSignSlashAmount) {
-            validators[validator].jailed = true;
-        }
+        IStakePool(valInfo.poolModule).undelegate(delegator, _sharesAmount);
 
         _updateEligibleValidators(validator, valInfo.voteAddress);
     }
@@ -286,6 +285,17 @@ contract StakeHub is System {
         bytes memory dstValVoteAddr = dstValInfo.voteAddress;
         _updateEligibleValidators(srcValidator, srcValVoteAddr);
         _updateEligibleValidators(dstValidator, dstValVoteAddr);
+    }
+
+    function claimSecurityDeposit(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
+        Validator memory valInfo = validators[validator];
+        address pool = valInfo.poolModule;
+        require(IStakePool(pool).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
+
+        IStakePool(pool).transfer(msg.sender, _sharesAmount);
+        if (IStakePool(pool).getSecurityDepositBNB() < minSelfDelegationBNB) {
+            valInfo.jailed = true;
+        }
     }
 
     function claim(address validator, uint256 requestNumber) external onlyInitialized validatorExist(validator) {
@@ -389,7 +399,7 @@ contract StakeHub is System {
     function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
         // TODO: add all params
         if (_compareStrings(key, "minSelfDelegationBNB")) {
-            require(value.length == 32, "length of expireTimeSecondGap mismatch");
+            require(value.length == 32, "length of minSelfDelegationBNB mismatch");
             uint256 newMinSelfDelegationBNB = _bytesToUint256(32, value);
             require(newMinSelfDelegationBNB >= 1000 ether, "the minSelfDelegationBNB is out of range");
             newMinSelfDelegationBNB = newMinSelfDelegationBNB;
@@ -476,7 +486,7 @@ contract StakeHub is System {
     }
 
     function _updateEligibleValidators(address validator, bytes memory voteAddress) internal {
-        uint256 delegation = IStakePool(validators[validator].poolModule).balanceOf(validator);
+        uint256 delegation = IStakePool(pool).getSelfDelegationBNB();
         if (eligibleValidators.length > maxElectedValidators) {
             for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
                 delete eligibleValidators[i];
