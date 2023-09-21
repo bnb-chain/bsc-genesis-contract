@@ -231,11 +231,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         return _lockedShares[_delegator];
     }
 
-    function getSelfDelegationBNB() external view returns (uint256) {
-        uint256 _shares = balanceOf(validator) + balanceOf(STAKE_HUB_ADDR) + balanceOf(GOVERNANCE_ADDR);
-        return getPooledBNBByShares(_shares);
-    }
-
     function getSecurityDepositBNB() external view returns (uint256) {
         return getPooledBNBByShares(balanceOf(STAKE_HUB_ADDR));
     }

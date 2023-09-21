@@ -18,7 +18,6 @@ interface IBSCValidatorSet {
 
 interface IStakePool {
     function initialize(address validator, uint256 minSelfDelegationBNB) external payable;
-    function balanceOf(address delegator) external view returns (uint256);
     function claim(address delegator, uint256 requestNumber) external;
     function getPooledBNBByShares(uint256 sharesAmount) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
@@ -27,9 +26,10 @@ interface IStakePool {
     function redelegate(address delegator, uint256 sharesAmount) external returns (uint256);
     function distributeReward() external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
-    function getSelfDelegationBNB() external view returns (uint256);
     function getSecurityDepositBNB() external view returns (uint256);
     function lockToGovernance(address from, uint256 sharesAmount) external returns (uint256);
+    function balanceOf(address delegator) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
@@ -486,7 +486,7 @@ contract StakeHub is System {
     }
 
     function _updateEligibleValidators(address validator, bytes memory voteAddress) internal {
-        uint256 delegation = IStakePool(pool).getSelfDelegationBNB();
+        uint256 delegation = IStakePool(pool).totalSupply();
         if (eligibleValidators.length > maxElectedValidators) {
             for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
                 delete eligibleValidators[i];

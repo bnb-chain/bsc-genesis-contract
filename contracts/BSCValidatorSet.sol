@@ -250,7 +250,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     // step 2: do update validator set state
-    totalInComing = 0;
     numOfJailed = 0;
     if (validatorSetTemp.length > 0) {
       doUpdateState(validatorSetTemp, voteAddrsTemp);
