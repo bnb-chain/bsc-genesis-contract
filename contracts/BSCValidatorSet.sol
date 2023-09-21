@@ -12,6 +12,7 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
+import "./interface/ICrossChain.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
@@ -231,7 +232,33 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** External Functions **************************/
   function updateValidatorSetV2() external onlyInit onlyCoinbase {
-    // TODO
+    if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).channelHandlerContractMap(STAKING_CHANNELID) != address(0)) {
+      return;
+    }
+
+    // step 0: force all maintaining validators to exit `Temporary Maintenance`
+    // - 1. validators exit maintenance
+    // - 2. clear all maintainInfo
+    // - 3. get unjailed validators from validatorSet
+    (Validator[] memory validatorSet, bytes[] memory voteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+    (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+
+    // step 1: do dusk transfer
+    if (address(this).balance>0) {
+      emit systemTransfer(address(this).balance);
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
+    }
+
+    // step 2: do update validator set state
+    totalInComing = 0;
+    numOfJailed = 0;
+    if (validatorSetTemp.length > 0) {
+      doUpdateState(validatorSetTemp, voteAddrsTemp);
+    }
+
+    // step 3: clean slash contract
+    ISlashIndicator(SLASH_CONTRACT_ADDR).clean();
+    emit validatorSetUpdated();
   }
 
   /**
@@ -322,9 +349,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     {
       // get migrated validators
       (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
-      (Validator[] memory migratedValidators, bytes[] memory migratedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
+      (Validator[] memory mergedValidators, bytes[] memory mergedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
 
-      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(migratedValidators, migratedVoteAddrs);
+      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(mergedValidators, migratedVoteAddrs);
     }
 
     {
