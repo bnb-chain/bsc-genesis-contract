@@ -88,8 +88,8 @@ contract Governance is System {
 
   Vote[] public votes;
   // for proposal
-  ParamChangeRequest[] public paramChangeRequests;
-  Proposal[] public proposals;
+  ProposalTransaction[] public proposalTxs;
+  ExecutableProposal[] public executableProposals;
 
   uint256 public votingPeriod;
   uint256 public executionDelay;
@@ -98,12 +98,12 @@ contract Governance is System {
   uint256 public minExecutableSupportRate;
 
   // for poll
-  Poll[] public polls;
-  uint256 public pollVotingPeriod;
-  uint256 public pollSubmitThreshold;
+  TextProposal[] public textProposals;
+  uint256 public textProposalVotingPeriod;
+  uint256 public textProposalSubmitThreshold;
 
   enum ProposalState { Pending, Active, Defeated, Canceled, Timelocked, AwaitingExecution, Executed, Expired }
-  struct ParamChangeRequest {
+  struct ProposalTransaction {
     string key;
     bytes value;
     address target;
@@ -115,7 +115,7 @@ contract Governance is System {
     bool support;
   }
 
-  struct Proposal {
+  struct ExecutableProposal {
     uint256[] requestIds;
     uint256[] voteIds;
 
@@ -132,7 +132,7 @@ contract Governance is System {
     bool canceled;
   }
 
-  struct Poll {
+  struct TextProposal {
     uint256[] voteIds;
 
     address proposer;
@@ -187,7 +187,7 @@ contract Governance is System {
     _;
   }
 
-  function submitProposal(ParamChangeRequest[] memory requests, string memory _description, uint256 voteAt) public onlyCabinet {
+  function submitProposal(ProposalTransaction[] memory requests, string memory _description, uint256 voteAt) public onlyCabinet {
     _paramInit();
 
     require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
@@ -199,12 +199,12 @@ contract Governance is System {
     require(totalRequests > 0, "empty param change request");
     uint256 endAt = voteAt + votingPeriod;
 
-    Proposal memory proposal;
+    ExecutableProposal memory proposal;
     uint256[] memory requestIds = new uint256[](totalRequests);
     uint256[] memory voteIds = new uint256[](totalRequests);
 
     for (uint256 i = 0; i < totalRequests; i++) {
-      paramChangeRequests.push(requests[i]);
+      proposalTxs.push(requests[i]);
       requestIds[i] = requests.length - 1;
     }
 
@@ -215,15 +215,15 @@ contract Governance is System {
     proposal.startAt = voteAt;
     proposal.endAt = endAt;
 
-    proposals.push(proposal);
+    executableProposals.push(proposal);
 
-    emit ProposalCreated(proposals.length - 1, msg.sender, _description, voteAt, endAt);
+    emit ProposalCreated(executableProposals.length - 1, msg.sender, _description, voteAt, endAt);
   }
 
   function cancelProposal(uint256 proposalId) external {
     _paramInit();
 
-    Proposal storage proposal = proposals[proposalId];
+    ExecutableProposal storage proposal = executableProposals[proposalId];
     require(msg.sender == proposal.proposer, "only proposer");
     ProposalState _state = proposalState(proposalId);
     require(
@@ -242,12 +242,12 @@ contract Governance is System {
 
     require(proposalState(proposalId) == ProposalState.AwaitingExecution, "vote not awaiting execution");
 
-    Proposal storage proposal = proposals[proposalId];
+    ExecutableProposal storage proposal = executableProposals[proposalId];
     proposal.executed = true;
 
-    ParamChangeRequest memory request;
+    ProposalTransaction memory request;
     for (uint256 i = 0; i < proposal.requestIds.length; i++) {
-      request = paramChangeRequests[proposal.requestIds[i]];
+      request = proposalTxs[proposal.requestIds[i]];
       IGovHub(GOV_HUB_ADDR).updateParam(request.key, request.value, request.target);
     }
 
@@ -258,23 +258,23 @@ contract Governance is System {
     _paramInit();
     address proposer = msg.sender;
     ShareLock memory lock = lockShareMap[proposer][shareContract];
-    require(lock.votingPower >= pollSubmitThreshold, "locked voting power not enough");
+    require(lock.votingPower >= textProposalSubmitThreshold, "locked voting power not enough");
 
     require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
     if (voteAt == 0) {
       voteAt = block.timestamp;
     }
 
-    uint256 endAt = voteAt + pollVotingPeriod;
-    Poll memory poll;
+    uint256 endAt = voteAt + textProposalVotingPeriod;
+    TextProposal memory poll;
     poll.proposer = proposer;
     poll.description = description;
     poll.startAt = voteAt;
     poll.endAt = endAt;
 
-    polls.push(poll);
+    textProposals.push(poll);
 
-    emit PollCreated(polls.length - 1, msg.sender, description, voteAt, endAt);
+    emit PollCreated(textProposals.length - 1, msg.sender, description, voteAt, endAt);
   }
 
   function lockShare(address shareContract, uint256 shareAmount) external {
@@ -318,9 +318,9 @@ contract Governance is System {
     votes.push(v);
 
     if (isProposal) {
-      _voteForProposal(voter, id, support, shareContract);
+      _voteForExecutableProposal(voter, id, support, shareContract);
     } else {
-      _voteForPoll(voter, id, support, shareContract);
+      _voteForTextProposal(voter, id, support, shareContract);
     }
   }
 
@@ -331,10 +331,10 @@ contract Governance is System {
       uint256 newVotingPeriod = _bytesToUint256(32, value);
       require(newVotingPeriod > 0 && newVotingPeriod <= 10 weeks, "invalid new votingPeriod");
       votingPeriod = newVotingPeriod;
-    } else if (_compareStrings(key, "pollVotingPeriod")) {
-      uint256 newPollVotingPeriod = _bytesToUint256(32, value);
-      require(newPollVotingPeriod > 1 weeks && newPollVotingPeriod <= 10 weeks, "invalid new pollVotingPeriod");
-      pollVotingPeriod = newPollVotingPeriod;
+    } else if (_compareStrings(key, "textProposalVotingPeriod")) {
+      uint256 newTextProposalVotingPeriod = _bytesToUint256(32, value);
+      require(newTextProposalVotingPeriod > 1 weeks && newTextProposalVotingPeriod <= 10 weeks, "invalid new textProposalVotingPeriod");
+      textProposalVotingPeriod = newTextProposalVotingPeriod;
     } else if (_compareStrings(key, "executionDelay")) {
       uint256 newExecutionDelay = _bytesToUint256(32, value);
       require(newExecutionDelay > 0 && newExecutionDelay <= 7 days, "invalid new executionDelay");
@@ -347,10 +347,10 @@ contract Governance is System {
       uint256 newQuorumVotingPower = _bytesToUint256(32, value);
       require(newQuorumVotingPower >= 10000 ether && newQuorumVotingPower <= 2e8 ether, "invalid new quorumVotingPower");
       quorumVotingPower = newQuorumVotingPower;
-    } else if (_compareStrings(key, "pollSubmitThreshold")) {
-      uint256 newPollSubmitThreshold = _bytesToUint256(32, value);
-      require(newPollSubmitThreshold >= 10 ether && newPollSubmitThreshold <= 2e8 ether, "invalid new pollSubmitThreshold");
-      pollSubmitThreshold = newPollSubmitThreshold;
+    } else if (_compareStrings(key, "textProposalSubmitThreshold")) {
+      uint256 newTextProposalSubmitThreshold = _bytesToUint256(32, value);
+      require(newTextProposalSubmitThreshold >= 10 ether && newTextProposalSubmitThreshold <= 2e8 ether, "invalid new textProposalSubmitThreshold");
+      textProposalSubmitThreshold = newTextProposalSubmitThreshold;
     } else if (_compareStrings(key, "minExecutableSupportRate")) {
       uint256 newMinExecutableSupportRate = _bytesToUint256(32, value);
       require(newMinExecutableSupportRate >= 50 && newMinExecutableSupportRate <= 100, "invalid new minExecutableSupportRate");
@@ -361,11 +361,11 @@ contract Governance is System {
     emit paramChange(key, value);
   }
 
-  function _voteForProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
+  function _voteForExecutableProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
     require(proposalState(proposalId) == ProposalState.Active, "vote not active");
 
     ShareLock storage lock = lockShareMap[voter][shareContract];
-    Proposal storage proposal = proposals[proposalId];
+    ExecutableProposal storage proposal = executableProposals[proposalId];
 
     for (uint256 i = 0; i < lock.votedProposalIds.length; i++) {
       require(lock.votedProposalIds[i] != proposalId, "already voted");
@@ -383,11 +383,11 @@ contract Governance is System {
     emit ProposalVoted(proposalId, voter, support, shareContract, lock.amount, lock.votingPower);
   }
 
-  function _voteForPoll(address voter, uint256 pollId, bool support, address shareContract) internal {
+  function _voteForTextProposal(address voter, uint256 pollId, bool support, address shareContract) internal {
     require(pollState(pollId) == ProposalState.Active, "vote not active");
 
     ShareLock storage lock = lockShareMap[voter][shareContract];
-    Poll storage poll = polls[pollId];
+    TextProposal storage proposal = textProposals[pollId];
 
     for (uint256 i = 0; i < lock.votedPollIds.length; i++) {
       require(lock.votedPollIds[i] != pollId, "already voted");
@@ -395,11 +395,11 @@ contract Governance is System {
 
     lock.votedPollIds.push(pollId);
 
-    poll.voteIds.push(votes.length - 1);
+    proposal.voteIds.push(votes.length - 1);
     if (support) {
-      poll.forVotingPower = poll.forVotingPower + lock.votingPower;
+      proposal.forVotingPower = proposal.forVotingPower + lock.votingPower;
     } else {
-      poll.againstVotingPower = poll.againstVotingPower + lock.votingPower;
+      proposal.againstVotingPower = proposal.againstVotingPower + lock.votingPower;
     }
 
     emit PollVoted(pollId, voter, support, shareContract, lock.amount, lock.votingPower);
@@ -409,8 +409,8 @@ contract Governance is System {
     if (votingPeriod == 0) {
       votingPeriod = INIT_VOTING_PERIOD;
     }
-    if (pollVotingPeriod == 0) {
-      pollVotingPeriod = INIT_POLL_VOTING_PERIOD;
+    if (textProposalVotingPeriod == 0) {
+      textProposalVotingPeriod = INIT_POLL_VOTING_PERIOD;
     }
     if (executionDelay == 0) {
       executionDelay = INIT_EXECUTION_DELAY;
@@ -421,8 +421,8 @@ contract Governance is System {
     if (quorumVotingPower == 0) {
       quorumVotingPower = INIT_QUORUM_VOTING_POWER;
     }
-    if (pollSubmitThreshold == 0) {
-      pollSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
+    if (textProposalSubmitThreshold == 0) {
+      textProposalSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
     }
     if (minExecutableSupportRate == 0) {
       minExecutableSupportRate = INIT_MIN_EXECUTE_SUPPORT_RATE;
@@ -431,7 +431,7 @@ contract Governance is System {
 
   function proposalState(uint256 proposalId) public view returns (ProposalState) {
     require(proposalId < proposalLength(), "invalid proposal id");
-    Proposal storage proposal = proposals[proposalId];
+    ExecutableProposal storage proposal = executableProposals[proposalId];
 
     uint256 totalVotingPower = proposal.forVotingPower + proposal.againstVotingPower;
     uint256 executionVotingPowerThreshold = totalVotingPower * minExecutableSupportRate / PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE;
@@ -457,7 +457,7 @@ contract Governance is System {
 
   function pollState(uint256 pollId) public view returns (ProposalState) {
     require(pollId < pollLength(), "invalid poll id");
-    Poll storage poll = polls[pollId];
+    TextProposal storage poll = textProposals[pollId];
 
     if (block.timestamp <= poll.startAt) {
       return ProposalState.Pending;
@@ -471,10 +471,10 @@ contract Governance is System {
   }
 
   function proposalLength() public view returns (uint256) {
-    return proposals.length;
+    return executableProposals.length;
   }
 
   function pollLength() public view returns (uint256) {
-    return polls.length;
+    return textProposals.length;
   }
 }
