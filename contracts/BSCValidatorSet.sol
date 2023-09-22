@@ -12,10 +12,13 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
-import "./interface/ICrossChain.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
+
+interface ICrossChain {
+  function channelHandlerContractMap(uint8 channelId) external view returns (address);
+}
 
 interface IStakeHub {
   function distributeReward(address validator) external payable;
@@ -56,7 +59,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   // key is the `consensusAddress` of `Validator`,
   // value is the index of the element in `currentValidatorSet`.
-  mapping(address =>uint256) public currentValidatorSetMap;
+  mapping(address => uint256) public currentValidatorSetMap;
   uint256 public numOfJailed;
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
@@ -241,15 +244,23 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // - 2. clear all maintainInfo
     // - 3. get unjailed validators from validatorSet
     (Validator[] memory validatorSet, bytes[] memory voteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
-    (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
 
-    // step 1: do dusk transfer
+    // step 1: distribute incoming
+    for (uint i; i < currentValidatorSet.length; ++i) {
+      if (currentValidatorSet[i].incoming > 0) {
+        IStakeHub(STAKE_HUB_ADDR).distributeReward{value : currentValidatorSet[i].incoming}(currentValidatorSet[i].consensusAddress);
+      }
+    }
+
+    // step 2: do dusk transfer
     if (address(this).balance>0) {
       emit systemTransfer(address(this).balance);
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
 
-    // step 2: do update validator set state
+    // step 3: do update validator set state
+    totalInComing = 0;
     numOfJailed = 0;
     if (validatorSetTemp.length > 0) {
       doUpdateState(validatorSetTemp, voteAddrsTemp);
@@ -289,12 +300,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       if (validator.jailed) {
         emit deprecatedDeposit(valAddr,value);
       } else {
-        if (_isMigrated(index - 1)) {
-          IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr);
-        } else {
-          totalInComing = totalInComing.add(value);
-          validator.incoming = validator.incoming.add(value);
-        }
+        totalInComing = totalInComing.add(value);
+        validator.incoming = validator.incoming.add(value);
         emit validatorDeposit(valAddr,value);
       }
     } else {
@@ -350,7 +357,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
       (Validator[] memory mergedValidators, bytes[] memory mergedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
 
-      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(mergedValidators, migratedVoteAddrs);
+      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(mergedValidators, mergedVoteAddrs);
     }
 
     {
@@ -382,9 +389,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
         return ERROR_RELAYFEE_TOO_LARGE;
       }
-      for (uint i; i<validatorsNum; ++i) {
-        // As migrated validators incoming is 0, so we do not need to consider it.
-        if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
+      for (uint i; i < validatorsNum; ++i) {
+        if (_isMigrated(i)) {
+          directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
+          directAmounts[directSize] = currentValidatorSet[i].incoming;
+          ++directSize;
+        } else if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
           crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
           crossAmounts[crossSize] = value.sub(relayFee);
@@ -430,13 +440,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
 
       // step 3: direct transfer
-      if (directAddrs.length>0) {
-        for (uint i; i<directAddrs.length; ++i) {
-          bool success = directAddrs[i].send(directAmounts[i]);
-          if (success) {
-            emit directTransfer(directAddrs[i], directAmounts[i]);
+      if (directAddrs.length > 0) {
+        for (uint i; i < directAddrs.length; ++i) {
+          if (isMigrated(directAddrs[i])) {
+            IStakeHub(STAKE_HUB_ADDR).distributeReward{value : directAmounts[i]}(directAddrs[i]);
           } else {
-            emit directTransferFail(directAddrs[i], directAmounts[i]);
+            bool success = directAddrs[i].send(directAmounts[i]);
+            if (success) {
+              emit directTransfer(directAddrs[i], directAmounts[i]);
+            } else {
+              emit directTransferFail(directAddrs[i], directAmounts[i]);
+            }
           }
         }
       }
@@ -645,12 +659,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         if (validator.jailed) {
           emit deprecatedFinalityRewardDeposit(valAddr, value);
         } else {
-            if (_isMigrated(index - 1)) {
-                IStakeHub(STAKE_HUB_ADDR).distributeReward{value: value}(valAddr);
-            } else {
-                totalInComing = totalInComing.add(value);
-                validator.incoming = validator.incoming.add(value);
-            }
+          totalInComing = totalInComing.add(value);
+          validator.incoming = validator.incoming.add(value);
           emit finalityRewardDeposit(valAddr, value);
         }
       } else {
@@ -988,11 +998,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // the actually index
     index = index - 1;
 
-    // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
-    if (_isMigrated(index)) {
-      return index;
-    }
-
     uint256 income = currentValidatorSet[index].incoming;
     currentValidatorSet[index].incoming = 0;
     uint256 rest = currentValidatorSet.length - 1;
@@ -1036,11 +1041,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
     currentValidatorSet.pop();
     validatorExtraSet.pop();
-
-    // if the validator is migrated to BSC, no need to forfeiture the incoming as it's always zero
-    if (_isMigrated(index)) {
-      return true;
-    }
 
     // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     uint256 averageDistribute = income / rest;

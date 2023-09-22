@@ -18,7 +18,7 @@ interface IBSCValidatorSet {
 
 interface IStakePool {
     function initialize(address validator, uint256 minSelfDelegationBNB) external payable;
-    function claim(address delegator, uint256 requestNumber) external;
+    function claim(address delegator, uint256 requestNumber) external returns (uint256);
     function getPooledBNBByShares(uint256 sharesAmount) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function delegate(address delegator) external payable returns (uint256);
@@ -44,6 +44,7 @@ contract StakeHub is System {
     uint256 public constant INIT_DOUBLE_SIGN_SLASH_AMOUNT = 10_000 ether;
     uint256 public constant INIT_DOWNTIME_JAIL_TIME = 2 days;
     uint256 public constant INIT_DOUBLE_SIGN_JAIL_TIME = 730 days; // 200 years
+    uint256 public constant INIT_MAX_EVIDENCE_AGE = 21 days;
 
     uint256 public constant BLS_PUBKEY_LENGTH = 48;
     uint256 public constant BLS_SIG_LENGTH = 96;
@@ -67,6 +68,7 @@ contract StakeHub is System {
     uint256 public doubleSignSlashAmount;
     uint256 public downtimeJailTime;
     uint256 public doubleSignJailTime;
+    uint256 public maxEvidenceAge;
 
     // validator address => validator info
     mapping(address => Validator) public validators;
@@ -120,6 +122,22 @@ contract StakeHub is System {
         SlashType slashType;
     }
 
+    /*----------------- events -----------------*/
+    event ValidatorCreated(address indexed validator, address indexed operator, address indexed poolModule, bytes voteAddress);
+    event CommissionRateEdited(address indexed validator, uint256 commissionRate);
+    event OperatorEdited(address indexed validator, address indexed newOperator);
+    event VoteAddressEdited(address indexed validator, bytes newVoteAddress);
+    event DescriptionEdited(address indexed validator);
+    event Delegated(address indexed validator, address indexed delegator, uint256 bnbAmount);
+    event Undelegated(address indexed validator, address indexed delegator, uint256 bnbAmount);
+    event Redelegated(address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount);
+    event ValidatorSlashed(address indexed validator, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, SlashType slashType);
+    event ValidatorJailed(address indexed validator);
+    event ValidatorUnjailed(address indexed validator);
+    event Claimed(address indexed validator, address indexed delegator, uint256 bnbAmount);
+    event SecurityDepositClaimed(address indexed validator, uint256 sharesAmount);
+    event StakingPaused();
+    event StakingResumed();
     event paramChange(string key, bytes value);
 
     /*----------------- modifiers -----------------*/
@@ -163,6 +181,7 @@ contract StakeHub is System {
         doubleSignSlashAmount = INIT_DOUBLE_SIGN_SLASH_AMOUNT;
         downtimeJailTime = INIT_DOWNTIME_JAIL_TIME;
         doubleSignJailTime = INIT_DOUBLE_SIGN_JAIL_TIME;
+        maxEvidenceAge = INIT_MAX_EVIDENCE_AGE;
 
         _initialized = 1;
     }
@@ -192,6 +211,8 @@ contract StakeHub is System {
         valInfo.commission = commission;
         valInfo.updateTime = block.timestamp;
 
+        emit ValidatorCreated(consensusAddress, msg.sender, poolModule, voteAddress);
+
         // update eligible validators
         _updateEligibleValidators(consensusAddress, voteAddress);
     }
@@ -202,6 +223,8 @@ contract StakeHub is System {
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
         valInfo.operatorAddress = newOperator;
         valInfo.updateTime = block.timestamp;
+
+        emit OperatorEdited(validator, newOperator);
     }
 
     function editDescription(address validator, Description calldata description) external onlyInitialized onlyOperator(validator) {
@@ -209,16 +232,20 @@ contract StakeHub is System {
 
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
+
+        emit DescriptionEdited(validator);
     }
 
-    function editVoteAddress(address validator, bytes calldata voteAddress, bytes calldata blsProof) external onlyInitialized onlyOperator(validator) {
+    function editVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external onlyInitialized onlyOperator(validator) {
         Validator storage valInfo = validators[msg.sender];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
-        require(voteAddressToValidator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
-        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        voteAddressToValidator[voteAddress] = msg.sender;
-        valInfo.voteAddress = voteAddress;
+        require(voteAddressToValidator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
+        voteAddressToValidator[newVoteAddress] = msg.sender;
+        valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
+
+        emit VoteAddressEdited(validator, newVoteAddress);
     }
 
     function editCommissionRate(address validator, uint256 commissionRate) external onlyInitialized validatorExist(validator) {
@@ -234,6 +261,8 @@ contract StakeHub is System {
 
         valInfo.commission.rate = commissionRate;
         valInfo.updateTime = block.timestamp;
+
+        emit CommissionRateEdited(validator, commissionRate);
     }
 
     function unjail(address validator) public onlyInitialized validatorExist(validator) {
@@ -245,6 +274,8 @@ contract StakeHub is System {
         require(valInfo.jailUntil <= block.timestamp, "STILL_JAILED");
 
         valInfo.jailed = false;
+
+        emit ValidatorUnjailed(validator);
     }
 
     function delegate(address validator) external payable onlyInitialized validatorExist(validator) validatorNotJailed(validator) whenNotPaused {
@@ -257,6 +288,8 @@ contract StakeHub is System {
             require(delegator == validator, "ONLY_SELF_DELEGATION");
         }
 
+        emit Delegated(validator, delegator, _bnbAmount);
+
         _updateEligibleValidators(validator, valInfo.voteAddress);
     }
 
@@ -265,8 +298,9 @@ contract StakeHub is System {
 
         address delegator = msg.sender;
         Validator memory valInfo = validators[validator];
+        uint256 _bnbAmount = IStakePool(valInfo.poolModule).undelegate(delegator, _sharesAmount);
 
-        IStakePool(valInfo.poolModule).undelegate(delegator, _sharesAmount);
+        emit Undelegated(validator, delegator, _bnbAmount);
 
         _updateEligibleValidators(validator, valInfo.voteAddress);
     }
@@ -281,6 +315,8 @@ contract StakeHub is System {
         uint256 _bnbAmount = IStakePool(srcValInfo.poolModule).redelegate(delegator, _sharesAmount);
         IStakePool(dstValInfo.poolModule).delegate{value: _bnbAmount}(delegator);
 
+        emit Redelegated(srcValidator, dstValidator, delegator, _bnbAmount);
+
         bytes memory srcValVoteAddr = srcValInfo.voteAddress;
         bytes memory dstValVoteAddr = dstValInfo.voteAddress;
         _updateEligibleValidators(srcValidator, srcValVoteAddr);
@@ -288,18 +324,23 @@ contract StakeHub is System {
     }
 
     function claimSecurityDeposit(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
-        Validator memory valInfo = validators[validator];
+        Validator memory valInfo = validators[msg.sender];
         address pool = valInfo.poolModule;
         require(IStakePool(pool).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
+
+        emit SecurityDepositClaimed(msg.sender, _sharesAmount);
 
         IStakePool(pool).transfer(msg.sender, _sharesAmount);
         if (IStakePool(pool).getSecurityDepositBNB() < minSelfDelegationBNB) {
             valInfo.jailed = true;
+            emit ValidatorJailed(msg.sender);
         }
     }
 
     function claim(address validator, uint256 requestNumber) external onlyInitialized validatorExist(validator) {
-        IStakePool(validators[validator].poolModule).claim(msg.sender, requestNumber);
+        uint256 _bnbAmount = IStakePool(validators[validator].poolModule).claim(msg.sender, requestNumber);
+
+        emit Claimed(validator, msg.sender, _bnbAmount);
     }
 
     /*----------------- system functions -----------------*/
@@ -322,6 +363,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(downtimeSlashAmount);
         valInfo.jailed = true;
+        emit ValidatorJailed(validator);
 
         // record
         record.slashAmount = slashAmount;
@@ -332,6 +374,8 @@ contract StakeHub is System {
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
+
+        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.DownTime);
     }
 
     function maliciousVoteSlash(bytes calldata voteAddr, uint256 height) external onlyInitialized onlySlash {
@@ -346,6 +390,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
+        emit ValidatorJailed(validator);
 
         // record
         record.slashAmount = slashAmount;
@@ -356,10 +401,13 @@ contract StakeHub is System {
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
+
+        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.MaliciousVote);
     }
 
-    function doubleSignSlash(address validator, uint256 height) external onlyInitialized onlySlash {
+    function doubleSignSlash(address validator, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
         Validator storage valInfo = validators[validator];
+        require(evidenceTime + maxEvidenceAge >= block.timestamp, "EVIDENCE_TOO_OLD");
 
         // check slash record
         bytes32 slashKey = _getSlashKey(validator, height, SlashType.DoubleSign);
@@ -369,6 +417,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
+        emit ValidatorJailed(validator);
 
         // record
         record.slashAmount = slashAmount;
@@ -379,6 +428,8 @@ contract StakeHub is System {
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
+
+        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.DoubleSign);
     }
 
     function lockToGovernance(address validator, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(validator) validatorNotJailed(validator) returns (uint256) {
@@ -390,10 +441,14 @@ contract StakeHub is System {
     /*----------------- gov -----------------*/
     function pauseStaking() external onlyInitialized onlyGov {
         _stakingPaused = true;
+
+        emit StakingPaused();
     }
 
     function resumeStaking() external onlyInitialized onlyGov {
         _stakingPaused = false;
+
+        emit StakingResumed();
     }
 
     function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
@@ -486,7 +541,7 @@ contract StakeHub is System {
     }
 
     function _updateEligibleValidators(address validator, bytes memory voteAddress) internal {
-        uint256 delegation = IStakePool(pool).totalSupply();
+        uint256 delegation = IStakePool(validators[validator].poolModule).totalSupply();
         if (eligibleValidators.length > maxElectedValidators) {
             for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
                 delete eligibleValidators[i];

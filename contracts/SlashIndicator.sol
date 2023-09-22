@@ -18,7 +18,7 @@ import "./lib/RLPEncode.sol";
 interface IStakeHub {
   function downtimeSlash(address valAddr, uint256 height) external;
   function maliciousVoteSlash(bytes calldata voteAddr, uint256 height) external;
-  function doubleSignSlash(address valAddr, uint256 height) external;
+  function doubleSignSlash(address valAddr, uint256 height, uint256 evidenceTime) external;
   function getValidatorByVoteAddr(bytes calldata voteAddr) external view returns (address);
 }
 
@@ -264,7 +264,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       } catch (bytes memory reason) {
         emit failedMaliciousVoteSlash(voteAddrSlice, reason);
       }
-    } else{
+    } else {
       // send slash msg to bc if the validator not migrated
       try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
         emit maliciousVoteSlashed(voteAddrSlice);
@@ -294,15 +294,17 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     address signer;
     uint256 height;
+    uint256 evidenceTime;
     assembly {
       signer := mload(add(output, 0x14))
       height := mload(add(output, 0x34))
+      evidenceTime := mload(add(output, 0x54))
     }
     require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer), "validator not migrated");
 
     // slash validator
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
-    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height);
+    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height, evidenceTime);
   }
 
   /**
