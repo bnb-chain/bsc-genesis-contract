@@ -80,7 +80,8 @@ contract StakeHub is System {
     uint256 public totalPooledBNB;
 
     IBSCValidatorSet.Validator[] public eligibleValidators;
-    uint256[] public eligibleValidatorDelegatedAmounts;
+    mapping(address => uint256) public eligibleValidatorIndices; // validator address => index+1 in eligibleValidators
+    uint256[] public eligibleValidatorVotingPowers;
     bytes[] public eligibleValidatorVoteAddrs;
 
     struct Validator {
@@ -109,17 +110,22 @@ contract StakeHub is System {
         uint256 maxChangeRate; // maximum daily increase of the validator commission
     }
 
+    struct SlashRecord {
+        uint256 slashAmount;
+        uint256 slashHeight;
+        uint256 jailUntil;
+        SlashType slashType;
+    }
+
     enum SlashType {
         DoubleSign,
         DownTime,
         MaliciousVote
     }
 
-    struct SlashRecord {
-        uint256 slashAmount;
-        uint256 slashHeight;
-        uint256 jailUntil;
-        SlashType slashType;
+    enum UpdateDirection {
+        Up,
+        Down
     }
 
     /*----------------- events -----------------*/
@@ -214,7 +220,7 @@ contract StakeHub is System {
         emit ValidatorCreated(consensusAddress, msg.sender, poolModule, voteAddress);
 
         // update eligible validators
-        _updateEligibleValidators(consensusAddress, voteAddress);
+        _updateEligibleValidators(UpdateDirection.Up, consensusAddress, voteAddress);
     }
 
     function editOperator(address validator, address newOperator) external onlyInitialized onlyOperator(validator) {
@@ -290,7 +296,7 @@ contract StakeHub is System {
 
         emit Delegated(validator, delegator, _bnbAmount);
 
-        _updateEligibleValidators(validator, valInfo.voteAddress);
+        _updateEligibleValidators(UpdateDirection.Up, validator, valInfo.voteAddress);
     }
 
     function undelegate(address validator, uint256 _sharesAmount) public onlyInitialized validatorExist(validator) whenNotPaused {
@@ -302,7 +308,7 @@ contract StakeHub is System {
 
         emit Undelegated(validator, delegator, _bnbAmount);
 
-        _updateEligibleValidators(validator, valInfo.voteAddress);
+        _updateEligibleValidators(UpdateDirection.Down, validator, valInfo.voteAddress);
     }
 
     function redelegate(address srcValidator, address dstValidator, uint256 _sharesAmount) public onlyInitialized validatorExist(srcValidator) validatorExist(dstValidator) validatorNotJailed(dstValidator) whenNotPaused {
@@ -319,8 +325,8 @@ contract StakeHub is System {
 
         bytes memory srcValVoteAddr = srcValInfo.voteAddress;
         bytes memory dstValVoteAddr = dstValInfo.voteAddress;
-        _updateEligibleValidators(srcValidator, srcValVoteAddr);
-        _updateEligibleValidators(dstValidator, dstValVoteAddr);
+        _updateEligibleValidators(UpdateDirection.Down, srcValidator, srcValVoteAddr);
+        _updateEligibleValidators(UpdateDirection.Up, dstValidator, dstValVoteAddr);
     }
 
     function claimSecurityDeposit(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
@@ -540,38 +546,126 @@ contract StakeHub is System {
         return poolProxy;
     }
 
-    function _updateEligibleValidators(address validator, bytes memory voteAddress) internal {
-        uint256 delegation = IStakePool(validators[validator].poolModule).totalSupply();
+    function _updateEligibleValidators(UpdateDirection direction, address validator, bytes memory voteAddress) internal {
+        address pool = validators[validator].poolModule;
+        uint256 _votingPower = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).totalSupply());
+
+        // remove extra validators
         if (eligibleValidators.length > maxElectedValidators) {
             for (uint256 i = maxElectedValidators; i < eligibleValidators.length; ++i) {
+                delete eligibleValidatorIndices[eligibleValidators[i].consensusAddress];
                 delete eligibleValidators[i];
-                delete eligibleValidatorDelegatedAmounts[i];
+                delete eligibleValidatorVotingPowers[i];
                 delete eligibleValidatorVoteAddrs[i];
             }
-        } else if (eligibleValidators.length < maxElectedValidators) {
-            eligibleValidators.push(IBSCValidatorSet.Validator({consensusAddress: address(0), feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: 0, jailed: false, incoming: 0}));
-            eligibleValidatorDelegatedAmounts.push(0);
-            eligibleValidatorVoteAddrs.push(bytes(""));
         }
 
-        for (uint256 i; i < eligibleValidators.length; ++i) {
-            if (delegation > eligibleValidatorDelegatedAmounts[i]) {
-                uint256 endIdx = eligibleValidators.length - 1;
-                for (uint256 j = i; j < eligibleValidators.length; ++j) {
-                    if (eligibleValidators[j].consensusAddress == validator) {
-                        endIdx = j;
+        uint256 index = eligibleValidatorIndices[validator];
+        // move existing eligible validator
+        if (index != 0) {
+            if (direction == UpdateDirection.Up && index > 1) {
+                uint256 newIndex = index;
+                // find the new index
+                for (uint256 i = index - 2; i >= 0; --i) {
+                    if (eligibleValidatorVotingPowers[i] > _votingPower) {
                         break;
+                    } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
+                        if (eligibleValidators[i].consensusAddress < validator) {
+                            newIndex = i + 2;
+                        } else {
+                            newIndex = i + 1;
+                        }
+                        break;
+                    } else {
+                        newIndex = i + 1;
                     }
                 }
-                for (uint256 k = endIdx; k > i; --k) {
-                    eligibleValidators[k] = eligibleValidators[k - 1];
-                    eligibleValidatorDelegatedAmounts[k] = eligibleValidatorDelegatedAmounts[k - 1];
-                    eligibleValidatorVoteAddrs[k] = eligibleValidatorVoteAddrs[k - 1];
+
+                if (newIndex < index) {
+                    // move to the new index
+                    for (uint256 i = index - 1; i >= newIndex; --i) {
+                        eligibleValidators[i] = eligibleValidators[i - 1];
+                        eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i - 1];
+                        eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i - 1];
+                        eligibleValidatorIndices[eligibleValidators[i - 1].consensusAddress] = i + 1;
+                    }
+                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                    eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
+                    eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
+                    eligibleValidatorIndices[validator] = newIndex;
                 }
-                eligibleValidators[i] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(delegation), jailed: false, incoming: 0});
-                eligibleValidatorDelegatedAmounts[i] = delegation;
-                eligibleValidatorVoteAddrs[i] = voteAddress;
-                break;
+            } else if (direction == UpdateDirection.Down && index < eligibleValidators.length) {
+                uint256 newIndex = index;
+                // find the new index
+                for (uint256 i = index; i < eligibleValidators.length; ++i) {
+                    if (eligibleValidatorVotingPowers[i] < _votingPower) {
+                        break;
+                    } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
+                        if (eligibleValidators[i].consensusAddress > validator) {
+                            newIndex = i;
+                        } else {
+                            newIndex = i + 1;
+                        }
+                        break;
+                    } else {
+                        newIndex = i + 1;
+                    }
+                }
+
+                if (newIndex > index) {
+                    // move to the new index
+                    for (uint256 i = index - 1; i < newIndex - 1; ++i) {
+                        eligibleValidators[i] = eligibleValidators[i + 1];
+                        eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i + 1];
+                        eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i + 1];
+                        eligibleValidatorIndices[eligibleValidators[i + 1].consensusAddress] = i;
+                    }
+                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                    eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
+                    eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
+                    eligibleValidatorIndices[validator] = newIndex;
+                }
+            }
+            return;
+        }
+
+        // add new eligible validator
+        if (direction == UpdateDirection.Up) {
+            if (eligibleValidators.length < maxElectedValidators) {
+                eligibleValidators.push(IBSCValidatorSet.Validator({consensusAddress: address(0), feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: 0, jailed: false, incoming: 0}));
+                eligibleValidatorVotingPowers.push(0);
+                eligibleValidatorVoteAddrs.push(bytes(""));
+            }
+
+            uint256 newIndex = eligibleValidators.length + 1;
+            for (uint256 i = eligibleValidators.length - 1; i >= 0; --i) {
+                if (eligibleValidatorVotingPowers[i] > _votingPower) {
+                    break;
+                } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
+                    if (eligibleValidators[i].consensusAddress < validator) {
+                        newIndex = i + 2;
+                    } else {
+                        newIndex = i + 1;
+                    }
+                    break;
+                } else {
+                    newIndex = i + 1;
+                }
+            }
+
+            if (newIndex <= eligibleValidators.length) {
+                // move to the new index
+                for (uint256 i = eligibleValidators.length - 1; i >= newIndex; --i) {
+                    delete eligibleValidatorIndices[eligibleValidators[i].consensusAddress];
+                    eligibleValidators[i] = eligibleValidators[i - 1];
+                    eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i - 1];
+                    eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i - 1];
+                    eligibleValidatorIndices[eligibleValidators[i - 1].consensusAddress] = i + 1;
+                }
+                eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
+                eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
+                eligibleValidatorIndices[validator] = newIndex;
             }
         }
     }
