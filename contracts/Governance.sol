@@ -100,12 +100,12 @@ contract Governance is System {
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
   uint256 public minExecutableSupportRate;
-  uint256 public executableProposalSubmitThreshold;
+  uint256 public executableProposalThreshold;
 
   // for poll
   TextProposal[] public textProposals;
   uint256 public textProposalVotingPeriod;
-  uint256 public textProposalSubmitThreshold;
+  uint256 public textProposalThreshold;
 
   enum ProposalState { Pending, Active, Defeated, Canceled, Timelocked, AwaitingExecution, Executed, Expired }
   struct ProposalTransaction {
@@ -192,8 +192,11 @@ contract Governance is System {
     _;
   }
 
-  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, uint256 _voteAt) public {
+  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, uint256 _voteAt, address shareContract) public {
     _paramInit();
+    address proposer = msg.sender;
+    ShareLock memory lock = lockShareMap[proposer][shareContract];
+    require(lock.votingPower >= executableProposalThreshold, "locked voting power not enough");
 
     require(_voteAt == 0 || _voteAt >= block.timestamp, "invalid voteAt");
     if (_voteAt == 0) {
@@ -214,14 +217,14 @@ contract Governance is System {
     }
 
     proposal.txIds = txIds;
-    proposal.proposer = msg.sender;
+    proposal.proposer = proposer;
     proposal.description = _description;
     proposal.startAt = _voteAt;
     proposal.endAt = endAt;
 
     executableProposals.push(proposal);
 
-    emit ProposalCreated(executableProposals.length - 1, msg.sender, _description, _voteAt, endAt);
+    emit ProposalCreated(executableProposals.length - 1, proposer, _description, _voteAt, endAt);
   }
 
   function cancelProposal(uint256 proposalId) external {
@@ -262,7 +265,7 @@ contract Governance is System {
     _paramInit();
     address proposer = msg.sender;
     ShareLock memory lock = lockShareMap[proposer][shareContract];
-    require(lock.votingPower >= textProposalSubmitThreshold, "locked voting power not enough");
+    require(lock.votingPower >= textProposalThreshold, "locked voting power not enough");
 
     require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
     if (voteAt == 0) {
@@ -351,14 +354,14 @@ contract Governance is System {
       uint256 newQuorumVotingPower = _bytesToUint256(32, value);
       require(newQuorumVotingPower >= 10000 ether && newQuorumVotingPower <= 2e8 ether, "invalid new quorumVotingPower");
       quorumVotingPower = newQuorumVotingPower;
-    } else if (_compareStrings(key, "executableProposalSubmitThreshold")) {
-      uint256 newExecutableProposalSubmitThreshold = _bytesToUint256(32, value);
-      require(newExecutableProposalSubmitThreshold >= 10 ether && newExecutableProposalSubmitThreshold <= 2e8 ether, "invalid new executableProposalSubmitThreshold");
-      executableProposalSubmitThreshold = newExecutableProposalSubmitThreshold;
-    } else if (_compareStrings(key, "textProposalSubmitThreshold")) {
-      uint256 newTextProposalSubmitThreshold = _bytesToUint256(32, value);
-      require(newTextProposalSubmitThreshold >= 10 ether && newTextProposalSubmitThreshold <= 2e8 ether, "invalid new textProposalSubmitThreshold");
-      textProposalSubmitThreshold = newTextProposalSubmitThreshold;
+    } else if (_compareStrings(key, "executableProposalThreshold")) {
+      uint256 newExecutableProposalThreshold = _bytesToUint256(32, value);
+      require(newExecutableProposalThreshold >= 10 ether && newExecutableProposalThreshold <= 2e8 ether, "invalid new executableProposalThreshold");
+      executableProposalThreshold = newExecutableProposalThreshold;
+    } else if (_compareStrings(key, "textProposalThreshold")) {
+      uint256 newTextProposalThreshold = _bytesToUint256(32, value);
+      require(newTextProposalThreshold >= 10 ether && newTextProposalThreshold <= 2e8 ether, "invalid new textProposalThreshold");
+      textProposalThreshold = newTextProposalThreshold;
     } else if (_compareStrings(key, "minExecutableSupportRate")) {
       uint256 newMinExecutableSupportRate = _bytesToUint256(32, value);
       require(newMinExecutableSupportRate >= 50 && newMinExecutableSupportRate <= 100, "invalid new minExecutableSupportRate");
@@ -434,8 +437,8 @@ contract Governance is System {
       executionDelay = INIT_EXECUTION_DELAY;
       executionExpiration = INIT_EXECUTION_EXPIRATION;
       quorumVotingPower = INIT_QUORUM_VOTING_POWER;
-      executableProposalSubmitThreshold = INIT_EXECUTABLE_PROPOSAL_SUBMIT_THRESHOLD;
-      textProposalSubmitThreshold = INIT_TEXT_PROPOSAL_SUBMIT_THRESHOLD;
+      executableProposalThreshold = INIT_EXECUTABLE_PROPOSAL_SUBMIT_THRESHOLD;
+      textProposalThreshold = INIT_TEXT_PROPOSAL_SUBMIT_THRESHOLD;
       minExecutableSupportRate = INIT_MIN_EXECUTE_SUPPORT_RATE;
     }
   }
