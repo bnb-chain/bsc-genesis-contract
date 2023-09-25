@@ -192,17 +192,13 @@ contract Governance is System {
     _;
   }
 
-  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, uint256 _voteAt, address shareContract) public {
+  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, address shareContract) public {
     _paramInit();
     address proposer = msg.sender;
     ShareLock memory lock = lockShareMap[proposer][shareContract];
     require(lock.votingPower >= executableProposalThreshold, "locked voting power not enough");
 
-    require(_voteAt == 0 || _voteAt >= block.timestamp, "invalid voteAt");
-    if (_voteAt == 0) {
-      _voteAt = block.timestamp;
-    }
-
+    uint256 _voteAt = block.timestamp;
     uint256 totalRequests = _txs.length;
     require(totalRequests > 0, "empty param change request");
     uint256 endAt = _voteAt + votingPeriod;
@@ -261,27 +257,23 @@ contract Governance is System {
     emit ProposalExecuted(proposalId, msg.sender);
   }
 
-  function submitTextProposal(string calldata description, uint256 voteAt, address shareContract) external {
+  function submitTextProposal(string calldata description, address shareContract) external {
     _paramInit();
     address proposer = msg.sender;
     ShareLock memory lock = lockShareMap[proposer][shareContract];
     require(lock.votingPower >= textProposalThreshold, "locked voting power not enough");
 
-    require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
-    if (voteAt == 0) {
-      voteAt = block.timestamp;
-    }
-
-    uint256 endAt = voteAt + textProposalVotingPeriod;
+    uint256 _voteAt = block.timestamp;
+    uint256 endAt = _voteAt + textProposalVotingPeriod;
     TextProposal memory poll;
     poll.proposer = proposer;
     poll.description = description;
-    poll.startAt = voteAt;
+    poll.startAt = _voteAt;
     poll.endAt = endAt;
 
     textProposals.push(poll);
 
-    emit PollCreated(textProposals.length - 1, msg.sender, description, voteAt, endAt);
+    emit PollCreated(textProposals.length - 1, msg.sender, description, _voteAt, endAt);
   }
 
   function lockShare(address shareContract, uint256 shareAmount) external {
