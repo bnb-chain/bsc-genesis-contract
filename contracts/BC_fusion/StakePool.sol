@@ -16,8 +16,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     /*----------------- constant -----------------*/
-    uint256 public constant MAX_CLAIM_NUMBER = 20;
-
     string public constant EIP712_NAME = "BSC validator pool";
     string public constant EIP712_VERSION = "1.0.0";
     string public constant ERC20_NAME = "BSC staked BNB";
@@ -49,9 +47,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
 
     /*----------------- events -----------------*/
     event Delegated(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
-    event RewardReceived(uint256 bnbAmount);
+    event Unbonded(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
     event UnbondRequested(address indexed sender, uint256 sharesAmount, uint256 bnbAmount, uint256 unlockTime);
     event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
+    event RewardReceived(uint256 bnbAmount);
+    event PayFine(uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
 
@@ -98,7 +98,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         return _bnbAmount;
     }
 
-    function redelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
+    /**
+     * @dev Unbond immediately without adding to the queue.
+     * Only for redelegate process.
+     */
+    function unbond(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
         require(_sharesAmount <= balanceOf(_delegator), "INSUFFICIENT_BALANCE");
 
         // calculate the BNB amount and update state
@@ -106,8 +110,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _burn(_delegator, _sharesAmount);
         _totalPooledBNB -= _bnbAmount;
 
-        (bool success,) = STAKE_HUB_ADDR.call{value: _bnbAmount}("");
+        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
+        (bool success,) = STAKE_HUB_ADDR.call{value: _bnbAmount, gas: _gasLimit}("");
         require(success, "TRANSFER_FAILED");
+
+        emit Unbonded(_delegator, _sharesAmount, _bnbAmount);
         return _bnbAmount;
     }
 
@@ -124,7 +131,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         if (number > _unbondRequestsQueue[_delegator].length()) {
             number = _unbondRequestsQueue[_delegator].length();
         }
-        require(number <= MAX_CLAIM_NUMBER, "TOO_MANY_REQUESTS"); // prevent too many loop in one transaction
 
         uint256 _totalShares;
         uint256 _totalBnbAmount;
@@ -193,7 +199,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
 
     function payFine() external payable {
         require(_freeze, "NOT_FROZEN");
-        require(msg.sender == validator, "NOT_VALIDATOR");
         require(msg.value == _remainingSlashBnbAmount, "INVALID_AMOUNT");
 
         _freeze = false;
@@ -201,6 +206,8 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
 
         (bool success,) = SYSTEM_REWARD_ADDR.call{value: msg.value}("");
         require(success, "TRANSFER_FAILED");
+
+        emit PayFine(msg.value);
     }
 
     /*----------------- view functions -----------------*/

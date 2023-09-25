@@ -23,7 +23,7 @@ interface IStakePool {
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function delegate(address delegator) external payable returns (uint256);
     function undelegate(address delegator, uint256 sharesAmount) external returns (uint256);
-    function redelegate(address delegator, uint256 sharesAmount) external returns (uint256);
+    function unbond(address delegator, uint256 sharesAmount) external returns (uint256);
     function distributeReward() external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
     function getSecurityDepositBNB() external view returns (uint256);
@@ -70,14 +70,16 @@ contract StakeHub is System {
     uint256 public doubleSignJailTime;
     uint256 public maxEvidenceAge;
 
-    // validator address => validator info
+    // validator operator address => validator info
     mapping(address => Validator) public validators;
-    // validator vote address => validator address
-    mapping(bytes => address) public voteAddressToValidator;
+    // validator vote address => validator operator address
+    mapping(bytes => address) public voteToOperator;
+    // validator consensus address => validator operator address
+    mapping(address => address) public consensusToOperator;
+    // validator operator address => withdraw security fund request
+    mapping(address => WithdrawRequest) private _withdrawRequests;
     // slash key => slash record
-    mapping(bytes32 => SlashRecord) public slashRecords;
-
-    uint256 public totalPooledBNB;
+    mapping(bytes32 => SlashRecord) private _slashRecords;
 
     IBSCValidatorSet.Validator[] public eligibleValidators;
     mapping(address => uint256) public eligibleValidatorIndices; // validator address => index+1 in eligibleValidators
@@ -110,6 +112,11 @@ contract StakeHub is System {
         uint256 maxChangeRate; // maximum daily increase of the validator commission
     }
 
+    struct WithdrawRequest {
+        uint256 sharesAmount;
+        uint256 unlockTime;
+    }
+
     struct SlashRecord {
         uint256 slashAmount;
         uint256 slashHeight;
@@ -129,19 +136,20 @@ contract StakeHub is System {
     }
 
     /*----------------- events -----------------*/
-    event ValidatorCreated(address indexed validator, address indexed operator, address indexed poolModule, bytes voteAddress);
-    event CommissionRateEdited(address indexed validator, uint256 commissionRate);
-    event OperatorEdited(address indexed validator, address indexed newOperator);
-    event VoteAddressEdited(address indexed validator, bytes newVoteAddress);
-    event DescriptionEdited(address indexed validator);
-    event Delegated(address indexed validator, address indexed delegator, uint256 bnbAmount);
-    event Undelegated(address indexed validator, address indexed delegator, uint256 bnbAmount);
+    event ValidatorCreated(address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress);
+    event CommissionRateEdited(address indexed operatorAddress, uint256 commissionRate);
+    event ConsensusAddressEdited(address indexed oldAddress, address indexed newAddress);
+    event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
+    event DescriptionEdited(address indexed operatorAddress);
+    event Delegated(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
+    event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event Redelegated(address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount);
-    event ValidatorSlashed(address indexed validator, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, SlashType slashType);
-    event ValidatorJailed(address indexed validator);
-    event ValidatorUnjailed(address indexed validator);
-    event Claimed(address indexed validator, address indexed delegator, uint256 bnbAmount);
-    event SecurityDepositClaimed(address indexed validator, uint256 sharesAmount);
+    event ValidatorSlashed(address indexed operatorAddress, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, SlashType slashType);
+    event ValidatorJailed(address indexed operatorAddress);
+    event ValidatorUnjailed(address indexed operatorAddress);
+    event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
+    event SecurityFundWithdrawRequested(address indexed operatorAddress, uint256 sharesAmount);
+    event SecurityFundClaimed(address indexed operatorAddress, uint256 sharesAmount);
     event StakingPaused();
     event StakingResumed();
     event paramChange(string key, bytes value);
@@ -152,21 +160,13 @@ contract StakeHub is System {
         _;
     }
 
-    modifier validatorExist(address validator) {
-        require(validators[validator].poolModule != address(0), "VALIDATOR_NOT_EXIST");
+    modifier validatorExist(address operatorAddress) {
+        require(validators[operatorAddress].poolModule != address(0), "VALIDATOR_NOT_EXIST");
         _;
     }
 
     modifier validatorNotJailed(address validator) {
         require(!validators[validator].jailed, "VALIDATOR_JAILED");
-        _;
-    }
-
-    modifier onlyOperator(address validator) {
-        require(validators[validator].poolModule != address(0), "VALIDATOR_NOT_EXIST");
-        if (msg.sender != validator) {
-            require(msg.sender == validators[validator].operatorAddress, "NOT_OPERATOR");
-        }
         _;
     }
 
@@ -177,6 +177,7 @@ contract StakeHub is System {
 
     /*----------------- init -----------------*/
     function initialize() public {
+        require(_initialized == 0, "ALREADY_INITIALIZED");
         transferGasLimit = INIT_TRANSFER_GAS_LIMIT;
 
         minSelfDelegationBNB = INIT_MIN_SELF_DELEGATION_BNB;
@@ -196,66 +197,80 @@ contract StakeHub is System {
     function createValidator(address consensusAddress, bytes calldata voteAddress, bytes calldata blsProof, Commission calldata commission, Description calldata description) external payable onlyInitialized {
         uint256 delegation = msg.value;
         require(delegation >= minSelfDelegationBNB, "INVALID_SELF_DELEGATION");
-        require(validators[consensusAddress].poolModule == address(0), "ALREADY_VALIDATOR");
-        require(voteAddressToValidator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        address operatorAddress = msg.sender;
+        require(validators[operatorAddress].poolModule == address(0), "ALREADY_VALIDATOR");
+        require(voteToOperator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
         require(commission.rate <= commission.maxRate, "INVALID_COMMISSION_RATE");
         require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
 
         // check vote address
         require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        voteAddressToValidator[voteAddress] = consensusAddress;
+        voteToOperator[voteAddress] = operatorAddress;
 
         // deploy stake pool
-        address poolModule = _deployStakePool(consensusAddress);
+        address poolModule = _deployStakePool(operatorAddress);
 
-        Validator storage valInfo = validators[consensusAddress];
+        Validator storage valInfo = validators[operatorAddress];
         valInfo.consensusAddress = consensusAddress;
-        valInfo.operatorAddress = msg.sender;
+        valInfo.operatorAddress = operatorAddress;
         valInfo.poolModule = poolModule;
         valInfo.voteAddress = voteAddress;
         valInfo.description = description;
         valInfo.commission = commission;
         valInfo.updateTime = block.timestamp;
+        consensusToOperator[consensusAddress] = operatorAddress;
 
-        emit ValidatorCreated(consensusAddress, msg.sender, poolModule, voteAddress);
+        emit ValidatorCreated(consensusAddress, operatorAddress, poolModule, voteAddress);
 
         // update eligible validators
-        _updateEligibleValidators(UpdateDirection.Up, consensusAddress, voteAddress);
+        _updateEligibleValidators(UpdateDirection.Up, operatorAddress, voteAddress);
     }
 
-    function editOperator(address validator, address newOperator) external onlyInitialized onlyOperator(validator) {
-        require(newOperator != address(0), "INVALID_OPERATOR");
-        Validator storage valInfo = validators[validator];
+    function editConsensusAddress(address newConsensus) external onlyInitialized validatorExist(msg.sender) {
+        require(newConsensus != address(0), "INVALID_CONSENSUS_ADDRESS");
+        address operatorAddress = msg.sender;
+        Validator storage valInfo = validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
-        valInfo.operatorAddress = newOperator;
+
+        address oldConsensus = valInfo.consensusAddress;
+        delete consensusToOperator[oldConsensus];
+
+        valInfo.operatorAddress = newConsensus;
         valInfo.updateTime = block.timestamp;
 
-        emit OperatorEdited(validator, newOperator);
+        emit ConsensusAddressEdited(oldConsensus, newConsensus);
     }
 
-    function editDescription(address validator, Description calldata description) external onlyInitialized onlyOperator(validator) {
-        Validator storage valInfo = validators[msg.sender];
+    function editDescription(Description calldata description) external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        Validator storage valInfo = validators[operatorAddress];
 
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
 
-        emit DescriptionEdited(validator);
+        emit DescriptionEdited(operatorAddress);
     }
 
-    function editVoteAddress(address validator, bytes calldata newVoteAddress, bytes calldata blsProof) external onlyInitialized onlyOperator(validator) {
-        Validator storage valInfo = validators[msg.sender];
+    function editVoteAddress(bytes calldata newVoteAddress, bytes calldata blsProof) external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        Validator storage valInfo = validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
-        require(voteAddressToValidator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(voteToOperator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
         require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        voteAddressToValidator[newVoteAddress] = msg.sender;
+
+        bytes memory oldVoteAddress = valInfo.voteAddress;
+        delete voteToOperator[oldVoteAddress];
+
+        voteToOperator[newVoteAddress] = operatorAddress;
         valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
 
-        emit VoteAddressEdited(validator, newVoteAddress);
+        emit VoteAddressEdited(operatorAddress, newVoteAddress);
     }
 
-    function editCommissionRate(address validator, uint256 commissionRate) external onlyInitialized validatorExist(validator) {
-        Validator storage valInfo = validators[msg.sender];
+    function editCommissionRate(address validator, uint256 commissionRate) external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        Validator storage valInfo = validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
         require(commissionRate <= valInfo.commission.maxRate, "INVALID_COMMISSION_RATE");
 
@@ -268,9 +283,12 @@ contract StakeHub is System {
         valInfo.commission.rate = commissionRate;
         valInfo.updateTime = block.timestamp;
 
-        emit CommissionRateEdited(validator, commissionRate);
+        emit CommissionRateEdited(operatorAddress, commissionRate);
     }
 
+    /**
+     * @dev `validator` is the validator's operator address
+     */
     function unjail(address validator) public onlyInitialized validatorExist(validator) {
         Validator storage valInfo = validators[validator];
         require(valInfo.jailed, "NOT_JAILED");
@@ -282,14 +300,17 @@ contract StakeHub is System {
         valInfo.jailed = false;
 
         emit ValidatorUnjailed(validator);
+
+        _updateEligibleValidators(UpdateDirection.Up, validator, valInfo.voteAddress);
     }
 
-    function delegate(address validator) external payable onlyInitialized validatorExist(validator) validatorNotJailed(validator) whenNotPaused {
+    function delegate(address validator) external payable onlyInitialized validatorExist(validator) whenNotPaused {
         uint256 _bnbAmount = msg.value;
         require(_bnbAmount >= minDelegationBNBChange, "INVALID_DELEGATION_AMOUNT");
         address delegator = msg.sender;
         Validator memory valInfo = validators[validator];
-        if (IStakePool(valInfo.poolModule).getSecurityDepositBNB() < minSelfDelegationBNB) {
+
+        if (valInfo.jailed || IStakePool(valInfo.poolModule).getSecurityDepositBNB() < minSelfDelegationBNB) {
             // only self delegation
             require(delegator == validator, "ONLY_SELF_DELEGATION");
         }
@@ -318,7 +339,7 @@ contract StakeHub is System {
         Validator memory srcValInfo = validators[srcValidator];
         Validator memory dstValInfo = validators[dstValidator];
 
-        uint256 _bnbAmount = IStakePool(srcValInfo.poolModule).redelegate(delegator, _sharesAmount);
+        uint256 _bnbAmount = IStakePool(srcValInfo.poolModule).unbond(delegator, _sharesAmount);
         IStakePool(dstValInfo.poolModule).delegate{value: _bnbAmount}(delegator);
 
         emit Redelegated(srcValidator, dstValidator, delegator, _bnbAmount);
@@ -329,20 +350,41 @@ contract StakeHub is System {
         _updateEligibleValidators(UpdateDirection.Up, dstValidator, dstValVoteAddr);
     }
 
-    function claimSecurityDeposit(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
-        Validator memory valInfo = validators[msg.sender];
-        address pool = valInfo.poolModule;
-        require(IStakePool(pool).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
+    function submitSecurityFundWithdrawRequest(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        Validator memory valInfo = validators[operatorAddress];
+        require(_withdrawRequests[operatorAddress].sharesAmount == 0, "REQUEST_EXIST");
+        require(IStakePool(valInfo.poolModule).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
 
-        emit SecurityDepositClaimed(msg.sender, _sharesAmount);
+        _withdrawRequests[operatorAddress] = WithdrawRequest({sharesAmount: _sharesAmount, unlockTime: block.timestamp + 1 days});
+        emit SecurityFundWithdrawRequested(operatorAddress, _sharesAmount);
 
-        IStakePool(pool).transfer(msg.sender, _sharesAmount);
-        if (IStakePool(pool).getSecurityDepositBNB() < minSelfDelegationBNB) {
+        uint256 afterBalance = IStakePool(valInfo.poolModule).getSecurityDepositBNB() - _sharesAmount;
+        if (afterBalance < minSelfDelegationBNB) {
             valInfo.jailed = true;
-            emit ValidatorJailed(msg.sender);
+            _removeEligibleValidator(operatorAddress);
+            emit ValidatorJailed(operatorAddress);
         }
     }
 
+    function claimSecurityFund() external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        WithdrawRequest memory request = _withdrawRequests[operatorAddress];
+        require(request.unlockTime <= block.timestamp, "NOT_UNLOCKED");
+
+        uint256 _sharesAmount = request.sharesAmount;
+        require(_sharesAmount > 0, "REQUEST_NOT_EXIST");
+
+        emit SecurityFundClaimed(msg.sender, _sharesAmount);
+        delete _withdrawRequests[operatorAddress];
+
+        IStakePool(validators[operatorAddress].poolModule).transfer(msg.sender, _sharesAmount);
+    }
+
+    /**
+     * @dev Claim the undelegated BNB from the pool after unbondPeriod
+     * `validator` is the validator's operator address
+     */
     function claim(address validator, uint256 requestNumber) external onlyInitialized validatorExist(validator) {
         uint256 _bnbAmount = IStakePool(validators[validator].poolModule).claim(msg.sender, requestNumber);
 
@@ -350,26 +392,36 @@ contract StakeHub is System {
     }
 
     /*----------------- system functions -----------------*/
-    function distributeReward(address validator) external payable onlyInitialized onlyValidatorContract validatorNotJailed(validator) {
-        IStakePool(validators[validator].poolModule).distributeReward{value: msg.value}();
+    function distributeReward(address _consensusAddress) external payable onlyInitialized onlyValidatorContract {
+        address validator = consensusToOperator[_consensusAddress];
+        require(validator != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        Validator memory valInfo = validators[validator];
+        require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
+        require(!valInfo.jailed, "VALIDATOR_JAILED");
+
+        IStakePool(valInfo.poolModule).distributeReward{value: msg.value}();
     }
 
     function getEligibleValidators() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
         return (eligibleValidators, eligibleValidatorVoteAddrs);
     }
 
-    function downtimeSlash(address validator, uint256 height) external onlyInitialized onlySlash {
-        Validator storage valInfo = validators[validator];
+    function downtimeSlash(address _consensusAddress, uint256 height) external onlyInitialized onlySlash {
+        address operatorAddress = consensusToOperator[_consensusAddress];
+        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        Validator storage valInfo = validators[operatorAddress];
+        require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
 
         // check slash record
-        bytes32 slashKey = _getSlashKey(validator, height, SlashType.DownTime);
-        SlashRecord storage record = slashRecords[slashKey];
+        bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.DownTime);
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(downtimeSlashAmount);
         valInfo.jailed = true;
-        emit ValidatorJailed(validator);
+        _removeEligibleValidator(operatorAddress);
+        emit ValidatorJailed(operatorAddress);
 
         // record
         record.slashAmount = slashAmount;
@@ -381,22 +433,25 @@ contract StakeHub is System {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.DownTime);
+        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.DownTime);
     }
 
-    function maliciousVoteSlash(bytes calldata voteAddr, uint256 height) external onlyInitialized onlySlash {
-        address validator = _getValidatorByVoteAddr(voteAddr);
-        Validator storage valInfo = validators[validator];
+    function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlyInitialized onlySlash {
+        address operatorAddress = _getValidatorByVoteAddr(_voteAddr);
+        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        Validator storage valInfo = validators[operatorAddress];
+        require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
 
         // check slash record
-        bytes32 slashKey = _getSlashKey(validator, height, SlashType.MaliciousVote);
-        SlashRecord storage record = slashRecords[slashKey];
+        bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.MaliciousVote);
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
-        emit ValidatorJailed(validator);
+        _removeEligibleValidator(operatorAddress);
+        emit ValidatorJailed(operatorAddress);
 
         // record
         record.slashAmount = slashAmount;
@@ -408,22 +463,27 @@ contract StakeHub is System {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.MaliciousVote);
+        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.MaliciousVote);
     }
 
-    function doubleSignSlash(address validator, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
-        Validator storage valInfo = validators[validator];
+    function doubleSignSlash(address _consensusAddress, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
+        address operatorAddress = consensusToOperator[_consensusAddress];
+        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        Validator storage valInfo = validators[operatorAddress];
+        require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
+
         require(evidenceTime + maxEvidenceAge >= block.timestamp, "EVIDENCE_TOO_OLD");
 
         // check slash record
-        bytes32 slashKey = _getSlashKey(validator, height, SlashType.DoubleSign);
-        SlashRecord storage record = slashRecords[slashKey];
+        bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.DoubleSign);
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
-        emit ValidatorJailed(validator);
+        _removeEligibleValidator(operatorAddress);
+        emit ValidatorJailed(operatorAddress);
 
         // record
         record.slashAmount = slashAmount;
@@ -435,11 +495,11 @@ contract StakeHub is System {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(validator, slashAmount, height, record.jailUntil, SlashType.DoubleSign);
+        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.DoubleSign);
     }
 
-    function lockToGovernance(address validator, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(validator) validatorNotJailed(validator) returns (uint256) {
-        address pool = validators[validator].poolModule;
+    function lockToGovernance(address operatorAddress, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(operatorAddress) validatorNotJailed(operatorAddress) returns (uint256) {
+        address pool = validators[operatorAddress].poolModule;
 
         return IStakePool(pool).lockToGovernance(from, _sharesAmount);
     }
@@ -479,8 +539,8 @@ contract StakeHub is System {
         return _stakingPaused;
     }
 
-    function isValidatorActive(address validator) external view validatorExist(validator) returns (bool) {
-        return !validators[validator].jailed;
+    function isValidatorActive(address operatorAddress) external view validatorExist(operatorAddress) returns (bool) {
+        return !validators[operatorAddress].jailed;
     }
 
     /*----------------- internal functions -----------------*/
@@ -495,7 +555,7 @@ contract StakeHub is System {
     }
 
     function _getValidatorByVoteAddr(bytes calldata voteAddr) internal view returns (address) {
-        return voteAddressToValidator[voteAddr];
+        return voteToOperator[voteAddr];
     }
 
     function _getSlashKey(address valAddr, uint256 height, SlashType slashType) internal pure returns (bytes32) {
@@ -546,8 +606,9 @@ contract StakeHub is System {
         return poolProxy;
     }
 
-    function _updateEligibleValidators(UpdateDirection direction, address validator, bytes memory voteAddress) internal {
-        address pool = validators[validator].poolModule;
+    function _updateEligibleValidators(UpdateDirection direction, address operatorAddress, bytes memory voteAddress) internal {
+        address pool = validators[operatorAddress].poolModule;
+        address consensusAddress = validators[operatorAddress].consensusAddress;
         uint256 _votingPower = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).totalSupply());
 
         // remove extra validators
@@ -560,7 +621,7 @@ contract StakeHub is System {
             }
         }
 
-        uint256 index = eligibleValidatorIndices[validator];
+        uint256 index = eligibleValidatorIndices[consensusAddress];
         // move existing eligible validator
         if (index != 0) {
             if (direction == UpdateDirection.Up && index > 1) {
@@ -570,7 +631,7 @@ contract StakeHub is System {
                     if (eligibleValidatorVotingPowers[i] > _votingPower) {
                         break;
                     } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
-                        if (eligibleValidators[i].consensusAddress < validator) {
+                        if (eligibleValidators[i].consensusAddress < consensusAddress) {
                             newIndex = i + 2;
                         } else {
                             newIndex = i + 1;
@@ -587,12 +648,12 @@ contract StakeHub is System {
                         eligibleValidators[i] = eligibleValidators[i - 1];
                         eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i - 1];
                         eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i - 1];
-                        eligibleValidatorIndices[eligibleValidators[i - 1].consensusAddress] = i + 1;
+                        eligibleValidatorIndices[eligibleValidators[i].consensusAddress] = i + 1;
                     }
-                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: consensusAddress, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
                     eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
                     eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
-                    eligibleValidatorIndices[validator] = newIndex;
+                    eligibleValidatorIndices[consensusAddress] = newIndex;
                 }
             } else if (direction == UpdateDirection.Down && index < eligibleValidators.length) {
                 uint256 newIndex = index;
@@ -601,7 +662,7 @@ contract StakeHub is System {
                     if (eligibleValidatorVotingPowers[i] < _votingPower) {
                         break;
                     } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
-                        if (eligibleValidators[i].consensusAddress > validator) {
+                        if (eligibleValidators[i].consensusAddress > consensusAddress) {
                             newIndex = i;
                         } else {
                             newIndex = i + 1;
@@ -618,12 +679,12 @@ contract StakeHub is System {
                         eligibleValidators[i] = eligibleValidators[i + 1];
                         eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i + 1];
                         eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i + 1];
-                        eligibleValidatorIndices[eligibleValidators[i + 1].consensusAddress] = i;
+                        eligibleValidatorIndices[eligibleValidators[i].consensusAddress] = i + 1;
                     }
-                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                    eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: consensusAddress, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
                     eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
                     eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
-                    eligibleValidatorIndices[validator] = newIndex;
+                    eligibleValidatorIndices[consensusAddress] = newIndex;
                 }
             }
             return;
@@ -642,7 +703,7 @@ contract StakeHub is System {
                 if (eligibleValidatorVotingPowers[i] > _votingPower) {
                     break;
                 } else if (eligibleValidatorVotingPowers[i] == _votingPower) {
-                    if (eligibleValidators[i].consensusAddress < validator) {
+                    if (eligibleValidators[i].consensusAddress < consensusAddress) {
                         newIndex = i + 2;
                     } else {
                         newIndex = i + 1;
@@ -660,13 +721,28 @@ contract StakeHub is System {
                     eligibleValidators[i] = eligibleValidators[i - 1];
                     eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i - 1];
                     eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i - 1];
-                    eligibleValidatorIndices[eligibleValidators[i - 1].consensusAddress] = i + 1;
+                    eligibleValidatorIndices[eligibleValidators[i].consensusAddress] = i + 1;
                 }
-                eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: validator, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
+                eligibleValidators[newIndex - 1] = IBSCValidatorSet.Validator({consensusAddress: consensusAddress, feeAddress: payable(0), BBCFeeAddress: payable(0), votingPower: uint64(_votingPower), jailed: false, incoming: 0});
                 eligibleValidatorVotingPowers[newIndex - 1] = _votingPower;
                 eligibleValidatorVoteAddrs[newIndex - 1] = voteAddress;
-                eligibleValidatorIndices[validator] = newIndex;
+                eligibleValidatorIndices[consensusAddress] = newIndex;
             }
+        }
+    }
+
+    function _removeEligibleValidator(address operatorAddress) internal {
+        address consensusAddress = validators[operatorAddress].consensusAddress;
+        if (eligibleValidatorIndices[consensusAddress] != 0) {
+            uint256 index = eligibleValidatorIndices[consensusAddress] - 1;
+            for (uint256 i = index; i < eligibleValidators.length - 1; ++i) {
+                delete eligibleValidatorIndices[eligibleValidators[i].consensusAddress];
+                eligibleValidators[i] = eligibleValidators[i + 1];
+                eligibleValidatorVotingPowers[i] = eligibleValidatorVotingPowers[i + 1];
+                eligibleValidatorVoteAddrs[i] = eligibleValidatorVoteAddrs[i + 1];
+                eligibleValidatorIndices[eligibleValidators[i].consensusAddress] = i + 1;
+            }
+            delete eligibleValidatorIndices[consensusAddress];
         }
     }
 }
