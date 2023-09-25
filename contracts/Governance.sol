@@ -79,12 +79,16 @@ contract Governance is System {
   uint256 public constant INIT_EXECUTION_DELAY = 1 days;
   uint256 public constant INIT_EXECUTION_EXPIRATION = 3 days;
   uint256 public constant INIT_QUORUM_VOTING_POWER = 1e7 ether;
-  uint256 public constant INIT_POLL_SUBMIT_THRESHOLD = 50 ether;
+  uint256 public constant INIT_EXECUTABLE_PROPOSAL_SUBMIT_THRESHOLD = 1000 ether;
+  uint256 public constant INIT_TEXT_PROPOSAL_SUBMIT_THRESHOLD = 50 ether;
   uint256 public constant INIT_MIN_EXECUTE_SUPPORT_RATE = 50;
   uint256 public constant PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE = 100;
 
   // locker => share contract => LockShare
   mapping(address => mapping(address => ShareLock)) private lockShareMap;
+
+  // whitelist contract for governance
+  mapping(address => bool) public whitelist;
 
   Vote[] public votes;
   // for proposal
@@ -96,6 +100,7 @@ contract Governance is System {
   uint256 public executionExpiration;
   uint256 public quorumVotingPower;
   uint256 public minExecutableSupportRate;
+  uint256 public executableProposalSubmitThreshold;
 
   // for poll
   TextProposal[] public textProposals;
@@ -116,7 +121,7 @@ contract Governance is System {
   }
 
   struct ExecutableProposal {
-    uint256[] requestIds;
+    uint256[] txIds;
     uint256[] voteIds;
 
     address proposer;
@@ -150,11 +155,11 @@ contract Governance is System {
     uint256 amount;
     uint256 votingPower;
 
-    uint256[] votedProposalIds;
-    uint256[] votedPollIds;
+    uint256[] votedExecutableProposalIds;
+    uint256[] votedTextProposalIds;
   }
 
-  event paramChange(string key, bytes value);
+  event ParamChange(string key, bytes value);
   event ProposalCreated(
     uint256 indexed id,
 
@@ -187,37 +192,36 @@ contract Governance is System {
     _;
   }
 
-  function submitProposal(ProposalTransaction[] memory requests, string memory _description, uint256 voteAt) public onlyCabinet {
+  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, uint256 _voteAt) public {
     _paramInit();
 
-    require(voteAt == 0 || voteAt >= block.timestamp, "invalid voteAt");
-    if (voteAt == 0) {
-      voteAt = block.timestamp;
+    require(_voteAt == 0 || _voteAt >= block.timestamp, "invalid voteAt");
+    if (_voteAt == 0) {
+      _voteAt = block.timestamp;
     }
 
-    uint256 totalRequests = requests.length;
+    uint256 totalRequests = _txs.length;
     require(totalRequests > 0, "empty param change request");
-    uint256 endAt = voteAt + votingPeriod;
+    uint256 endAt = _voteAt + votingPeriod;
 
     ExecutableProposal memory proposal;
-    uint256[] memory requestIds = new uint256[](totalRequests);
-    uint256[] memory voteIds = new uint256[](totalRequests);
+    uint256[] memory txIds = new uint256[](totalRequests);
 
     for (uint256 i = 0; i < totalRequests; i++) {
-      proposalTxs.push(requests[i]);
-      requestIds[i] = requests.length - 1;
+      require(whitelist[_txs[i].target], "invalid target from proposal transactions");
+      proposalTxs.push(_txs[i]);
+      txIds[i] = _txs.length - 1;
     }
 
-    proposal.requestIds = requestIds;
-    proposal.voteIds = voteIds;
+    proposal.txIds = txIds;
     proposal.proposer = msg.sender;
     proposal.description = _description;
-    proposal.startAt = voteAt;
+    proposal.startAt = _voteAt;
     proposal.endAt = endAt;
 
     executableProposals.push(proposal);
 
-    emit ProposalCreated(executableProposals.length - 1, msg.sender, _description, voteAt, endAt);
+    emit ProposalCreated(executableProposals.length - 1, msg.sender, _description, _voteAt, endAt);
   }
 
   function cancelProposal(uint256 proposalId) external {
@@ -245,16 +249,16 @@ contract Governance is System {
     ExecutableProposal storage proposal = executableProposals[proposalId];
     proposal.executed = true;
 
-    ProposalTransaction memory request;
-    for (uint256 i = 0; i < proposal.requestIds.length; i++) {
-      request = proposalTxs[proposal.requestIds[i]];
-      IGovHub(GOV_HUB_ADDR).updateParam(request.key, request.value, request.target);
+    ProposalTransaction memory _tx;
+    for (uint256 i = 0; i < proposal.txIds.length; i++) {
+      _tx = proposalTxs[proposal.txIds[i]];
+      IGovHub(GOV_HUB_ADDR).updateParam(_tx.key, _tx.value, _tx.target);
     }
 
     emit ProposalExecuted(proposalId, msg.sender);
   }
 
-  function submitPoll(string calldata description, uint256 voteAt, address shareContract) external {
+  function submitTextProposal(string calldata description, uint256 voteAt, address shareContract) external {
     _paramInit();
     address proposer = msg.sender;
     ShareLock memory lock = lockShareMap[proposer][shareContract];
@@ -283,7 +287,7 @@ contract Governance is System {
 
     address voter = msg.sender;
     ShareLock storage lock = lockShareMap[voter][shareContract];
-    require(lock.votedProposalIds.length == 0, "still voting");
+    require(lock.votedExecutableProposalIds.length == 0, "still voting");
 
     IShare(shareContract).lockToGovernance(voter, shareAmount);
     lock.amount = lock.amount + shareAmount;
@@ -295,13 +299,13 @@ contract Governance is System {
     ShareLock storage lock = lockShareMap[voter][shareContract];
     require(shareAmount > 0 && shareAmount <= lock.amount, "invalid share amount");
 
-    if (lock.votedProposalIds.length > 0) {
+    if (lock.votedExecutableProposalIds.length > 0) {
       ProposalState _state;
-      for (uint256 i = 0; i < lock.votedProposalIds.length; i++) {
-        _state = proposalState(lock.votedProposalIds[i]);
+      for (uint256 i = 0; i < lock.votedExecutableProposalIds.length; i++) {
+        _state = proposalState(lock.votedExecutableProposalIds[i]);
         require(_state != ProposalState.Pending && _state != ProposalState.Active, "vote not ended");
       }
-      delete lock.votedProposalIds;
+      delete lock.votedExecutableProposalIds;
     }
 
     lock.amount = lock.amount - shareAmount;
@@ -347,6 +351,10 @@ contract Governance is System {
       uint256 newQuorumVotingPower = _bytesToUint256(32, value);
       require(newQuorumVotingPower >= 10000 ether && newQuorumVotingPower <= 2e8 ether, "invalid new quorumVotingPower");
       quorumVotingPower = newQuorumVotingPower;
+    } else if (_compareStrings(key, "executableProposalSubmitThreshold")) {
+      uint256 newExecutableProposalSubmitThreshold = _bytesToUint256(32, value);
+      require(newExecutableProposalSubmitThreshold >= 10 ether && newExecutableProposalSubmitThreshold <= 2e8 ether, "invalid new executableProposalSubmitThreshold");
+      executableProposalSubmitThreshold = newExecutableProposalSubmitThreshold;
     } else if (_compareStrings(key, "textProposalSubmitThreshold")) {
       uint256 newTextProposalSubmitThreshold = _bytesToUint256(32, value);
       require(newTextProposalSubmitThreshold >= 10 ether && newTextProposalSubmitThreshold <= 2e8 ether, "invalid new textProposalSubmitThreshold");
@@ -358,7 +366,7 @@ contract Governance is System {
     } else {
       require(false, "unknown param");
     }
-    emit paramChange(key, value);
+    emit ParamChange(key, value);
   }
 
   function _voteForExecutableProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
@@ -367,11 +375,11 @@ contract Governance is System {
     ShareLock storage lock = lockShareMap[voter][shareContract];
     ExecutableProposal storage proposal = executableProposals[proposalId];
 
-    for (uint256 i = 0; i < lock.votedProposalIds.length; i++) {
-      require(lock.votedProposalIds[i] != proposalId, "already voted");
+    for (uint256 i = 0; i < lock.votedExecutableProposalIds.length; i++) {
+      require(lock.votedExecutableProposalIds[i] != proposalId, "already voted");
     }
 
-    lock.votedProposalIds.push(proposalId);
+    lock.votedExecutableProposalIds.push(proposalId);
 
     proposal.voteIds.push(votes.length - 1);
     if (support) {
@@ -383,17 +391,17 @@ contract Governance is System {
     emit ProposalVoted(proposalId, voter, support, shareContract, lock.amount, lock.votingPower);
   }
 
-  function _voteForTextProposal(address voter, uint256 pollId, bool support, address shareContract) internal {
-    require(pollState(pollId) == ProposalState.Active, "vote not active");
+  function _voteForTextProposal(address voter, uint256 textId, bool support, address shareContract) internal {
+    require(pollState(textId) == ProposalState.Active, "vote not active");
 
     ShareLock storage lock = lockShareMap[voter][shareContract];
-    TextProposal storage proposal = textProposals[pollId];
+    TextProposal storage proposal = textProposals[textId];
 
-    for (uint256 i = 0; i < lock.votedPollIds.length; i++) {
-      require(lock.votedPollIds[i] != pollId, "already voted");
+    for (uint256 i = 0; i < lock.votedTextProposalIds.length; i++) {
+      require(lock.votedTextProposalIds[i] != textId, "already voted");
     }
 
-    lock.votedPollIds.push(pollId);
+    lock.votedTextProposalIds.push(textId);
 
     proposal.voteIds.push(votes.length - 1);
     if (support) {
@@ -402,29 +410,32 @@ contract Governance is System {
       proposal.againstVotingPower = proposal.againstVotingPower + lock.votingPower;
     }
 
-    emit PollVoted(pollId, voter, support, shareContract, lock.amount, lock.votingPower);
+    emit PollVoted(textId, voter, support, shareContract, lock.amount, lock.votingPower);
   }
 
   function _paramInit() internal {
-    if (votingPeriod == 0) {
-      votingPeriod = INIT_VOTING_PERIOD;
-    }
-    if (textProposalVotingPeriod == 0) {
-      textProposalVotingPeriod = INIT_POLL_VOTING_PERIOD;
-    }
-    if (executionDelay == 0) {
-      executionDelay = INIT_EXECUTION_DELAY;
-    }
-    if (executionExpiration == 0) {
-      executionExpiration = INIT_EXECUTION_EXPIRATION;
-    }
     if (quorumVotingPower == 0) {
+      whitelist[VALIDATOR_CONTRACT_ADDR] = true;
+      whitelist[SLASH_CONTRACT_ADDR] = true;
+      whitelist[SYSTEM_REWARD_ADDR] = true;
+      whitelist[LIGHT_CLIENT_ADDR] = true;
+      whitelist[TOKEN_HUB_ADDR] = true;
+      whitelist[INCENTIVIZE_ADDR] = true;
+      whitelist[RELAYERHUB_CONTRACT_ADDR] = true;
+      whitelist[GOV_HUB_ADDR] = true;
+      whitelist[TOKEN_MANAGER_ADDR] = true;
+      whitelist[CROSS_CHAIN_CONTRACT_ADDR] = true;
+      whitelist[STAKING_CONTRACT_ADDR] = true;
+      whitelist[STAKE_HUB_ADDR] = true;
+      whitelist[GOVERNANCE_ADDR] = true;
+
+      votingPeriod = INIT_VOTING_PERIOD;
+      textProposalVotingPeriod = INIT_POLL_VOTING_PERIOD;
+      executionDelay = INIT_EXECUTION_DELAY;
+      executionExpiration = INIT_EXECUTION_EXPIRATION;
       quorumVotingPower = INIT_QUORUM_VOTING_POWER;
-    }
-    if (textProposalSubmitThreshold == 0) {
-      textProposalSubmitThreshold = INIT_POLL_SUBMIT_THRESHOLD;
-    }
-    if (minExecutableSupportRate == 0) {
+      executableProposalSubmitThreshold = INIT_EXECUTABLE_PROPOSAL_SUBMIT_THRESHOLD;
+      textProposalSubmitThreshold = INIT_TEXT_PROPOSAL_SUBMIT_THRESHOLD;
       minExecutableSupportRate = INIT_MIN_EXECUTE_SUPPORT_RATE;
     }
   }
