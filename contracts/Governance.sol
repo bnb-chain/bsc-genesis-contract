@@ -209,7 +209,7 @@ contract Governance is System {
     for (uint256 i = 0; i < totalRequests; i++) {
       require(whitelist[_txs[i].target], "invalid target from proposal transactions");
       proposalTxs.push(_txs[i]);
-      txIds[i] = _txs.length - 1;
+      txIds[i] = proposalTxs.length - 1;
     }
 
     proposal.txIds = txIds;
