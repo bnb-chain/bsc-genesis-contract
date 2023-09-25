@@ -5,12 +5,12 @@ interface IGovHub {
 }
 
 interface IShare {
-  function lockToGovernance(address from, uint256 shareAmount) external;
-  function unlockFromGovernance(address to, uint256 shareAmount) external;
+  function lockToGovernance(address from, uint256 stBNBAmount) external;
+  function unlockFromGovernance(address to, uint256 stBNBAmount) external;
 }
 
 interface IStakeHub {
-  function getVotingPower(address shareContract, uint256 shareAmount) external returns (uint256 votingPower);
+  function getVotingPower(address stBNBContract, uint256 stBNBAmount) external returns (uint256 votingPower);
 }
 
 interface IBSCValidatorSet {
@@ -84,7 +84,7 @@ contract Governance is System {
   uint256 public constant INIT_MIN_EXECUTE_SUPPORT_RATE = 50;
   uint256 public constant PROPOSAL_EXECUTE_SUPPORT_RATE_SCALE = 100;
 
-  // locker => share contract => LockShare
+  // locker => stBNB contract => LockShare
   mapping(address => mapping(address => ShareLock)) private lockShareMap;
 
   // whitelist contract for governance
@@ -169,7 +169,7 @@ contract Governance is System {
     uint256 endAt
   );
   event ProposalExecuted(uint256 indexed proposalId, address indexed executor);
-  event ProposalVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address shareContract, uint256 shareAmount, uint256 votingPower);
+  event ProposalVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address stBNBContract, uint256 stBNBAmount, uint256 votingPower);
 
   event PollCreated(
     uint256 indexed id,
@@ -179,7 +179,7 @@ contract Governance is System {
     uint256 startAt,
     uint256 endAt
   );
-  event PollVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address shareContract, uint256 shareAmount, uint256 votingPower);
+  event PollVoted(uint256 indexed proposalId, address indexed voter, bool indexed support, address stBNBContract, uint256 stBNBAmount, uint256 votingPower);
 
   modifier onlyCabinet() {
     uint256 indexPlus = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).currentValidatorSetMap(msg.sender);
@@ -192,10 +192,10 @@ contract Governance is System {
     _;
   }
 
-  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, address shareContract) public {
+  function submitExecutableProposal(ProposalTransaction[] memory _txs, string memory _description, address stBNBContract) public {
     _paramInit();
     address proposer = msg.sender;
-    ShareLock memory lock = lockShareMap[proposer][shareContract];
+    ShareLock memory lock = lockShareMap[proposer][stBNBContract];
     require(lock.votingPower >= executableProposalThreshold, "locked voting power not enough");
 
     uint256 _voteAt = block.timestamp;
@@ -257,10 +257,10 @@ contract Governance is System {
     emit ProposalExecuted(proposalId, msg.sender);
   }
 
-  function submitTextProposal(string calldata description, address shareContract) external {
+  function submitTextProposal(string calldata description, address stBNBContract) external {
     _paramInit();
     address proposer = msg.sender;
-    ShareLock memory lock = lockShareMap[proposer][shareContract];
+    ShareLock memory lock = lockShareMap[proposer][stBNBContract];
     require(lock.votingPower >= textProposalThreshold, "locked voting power not enough");
 
     uint256 _voteAt = block.timestamp;
@@ -276,23 +276,23 @@ contract Governance is System {
     emit PollCreated(textProposals.length - 1, msg.sender, description, _voteAt, endAt);
   }
 
-  function lockShare(address shareContract, uint256 shareAmount) external {
-    uint256 votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, shareAmount);
+  function lockShare(address stBNBContract, uint256 stBNBAmount) external {
+    uint256 votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(stBNBContract, stBNBAmount);
     require(votingPower > 0, "no votingPower");
 
     address voter = msg.sender;
-    ShareLock storage lock = lockShareMap[voter][shareContract];
+    ShareLock storage lock = lockShareMap[voter][stBNBContract];
     require(lock.votedExecutableProposalIds.length == 0, "still voting");
 
-    IShare(shareContract).lockToGovernance(voter, shareAmount);
-    lock.amount = lock.amount + shareAmount;
-    lock.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, lock.amount);
+    IShare(stBNBContract).lockToGovernance(voter, stBNBAmount);
+    lock.amount = lock.amount + stBNBAmount;
+    lock.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(stBNBContract, lock.amount);
   }
 
-  function unlockShare(address shareContract, uint256 shareAmount) external {
+  function unlockShare(address stBNBContract, uint256 stBNBAmount) external {
     address voter = msg.sender;
-    ShareLock storage lock = lockShareMap[voter][shareContract];
-    require(shareAmount > 0 && shareAmount <= lock.amount, "invalid share amount");
+    ShareLock storage lock = lockShareMap[voter][stBNBContract];
+    require(stBNBAmount > 0 && stBNBAmount <= lock.amount, "invalid stBNB amount");
 
     if (lock.votedExecutableProposalIds.length > 0) {
       ProposalState _state;
@@ -303,23 +303,23 @@ contract Governance is System {
       delete lock.votedExecutableProposalIds;
     }
 
-    lock.amount = lock.amount - shareAmount;
-    lock.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(shareContract, lock.amount);
+    lock.amount = lock.amount - stBNBAmount;
+    lock.votingPower = IStakeHub(STAKE_HUB_ADDR).getVotingPower(stBNBContract, lock.amount);
 
-    IShare(shareContract).unlockFromGovernance(voter, shareAmount);
+    IShare(stBNBContract).unlockFromGovernance(voter, stBNBAmount);
   }
 
-  function castVote(bool isProposal, uint256 id, bool support, address shareContract) external {
+  function castVote(bool isProposal, uint256 id, bool support, address stBNBContract) external {
     address voter = msg.sender;
-    uint256 votingPower = lockShareMap[voter][shareContract].votingPower;
+    uint256 votingPower = lockShareMap[voter][stBNBContract].votingPower;
     require(votingPower > 0, "zero votingPower");
     Vote memory v = Vote(voter, votingPower, support);
     votes.push(v);
 
     if (isProposal) {
-      _voteForExecutableProposal(voter, id, support, shareContract);
+      _voteForExecutableProposal(voter, id, support, stBNBContract);
     } else {
-      _voteForTextProposal(voter, id, support, shareContract);
+      _voteForTextProposal(voter, id, support, stBNBContract);
     }
   }
 
@@ -364,10 +364,10 @@ contract Governance is System {
     emit ParamChange(key, value);
   }
 
-  function _voteForExecutableProposal(address voter, uint256 proposalId, bool support, address shareContract) internal {
+  function _voteForExecutableProposal(address voter, uint256 proposalId, bool support, address stBNBContract) internal {
     require(proposalState(proposalId) == ProposalState.Active, "vote not active");
 
-    ShareLock storage lock = lockShareMap[voter][shareContract];
+    ShareLock storage lock = lockShareMap[voter][stBNBContract];
     ExecutableProposal storage proposal = executableProposals[proposalId];
 
     for (uint256 i = 0; i < lock.votedExecutableProposalIds.length; i++) {
@@ -383,13 +383,13 @@ contract Governance is System {
       proposal.againstVotingPower = proposal.againstVotingPower + lock.votingPower;
     }
 
-    emit ProposalVoted(proposalId, voter, support, shareContract, lock.amount, lock.votingPower);
+    emit ProposalVoted(proposalId, voter, support, stBNBContract, lock.amount, lock.votingPower);
   }
 
-  function _voteForTextProposal(address voter, uint256 textId, bool support, address shareContract) internal {
+  function _voteForTextProposal(address voter, uint256 textId, bool support, address stBNBContract) internal {
     require(pollState(textId) == ProposalState.Active, "vote not active");
 
-    ShareLock storage lock = lockShareMap[voter][shareContract];
+    ShareLock storage lock = lockShareMap[voter][stBNBContract];
     TextProposal storage proposal = textProposals[textId];
 
     for (uint256 i = 0; i < lock.votedTextProposalIds.length; i++) {
@@ -405,7 +405,7 @@ contract Governance is System {
       proposal.againstVotingPower = proposal.againstVotingPower + lock.votingPower;
     }
 
-    emit PollVoted(textId, voter, support, shareContract, lock.amount, lock.votingPower);
+    emit PollVoted(textId, voter, support, stBNBContract, lock.amount, lock.votingPower);
   }
 
   function _paramInit() internal {
