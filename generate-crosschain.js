@@ -1,6 +1,7 @@
 const program = require("commander");
 const fs = require("fs");
 const nunjucks = require("nunjucks");
+const formatChainID = require("./utils");
 
 
 program.version("0.0.1");
@@ -16,10 +17,6 @@ program.option(
     "./contracts/CrossChain.sol"
 )
 
-program.option("--bscChainId <bscChainId>",
-    "bsc chain id",
-    "0060");
-
 program.option("--initBatchSizeForOracle <initBatchSizeForOracle>",
     "init batch size for oracle",
     "50");
@@ -30,8 +27,10 @@ program.option("--mock <mock>",
 
 program.parse(process.argv);
 
+const bscChainId = formatChainID(program.chainid);
+
 const data = {
-  bscChainId: program.bscChainId,
+  bscChainId: bscChainId,
   initBatchSizeForOracle: program.initBatchSizeForOracle,
   mock: program.mock,
 };

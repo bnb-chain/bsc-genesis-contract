@@ -1,6 +1,7 @@
 const program = require("commander");
 const fs = require("fs");
 const nunjucks = require("nunjucks");
+const formatChainID = require("./utils");
 
 program.version("0.0.1");
 program.option(
@@ -22,15 +23,15 @@ program.option("--mock <mock>",
     "if use mock",
     false);
 
-program.option("--bscChainId <bscChainId>",
-    "bscChainId",
-    "0060");
 
 program.parse(process.argv);
 
+
+const bscChainId = formatChainID(program.chainid);
+
 const data = {
   fromChainId: program.fromChainId,
-  bscChainId: program.bscChainId,
+  bscChainId: bscChainId,
   mock: program.mock,
 };
 const templateString = fs.readFileSync(program.template).toString();

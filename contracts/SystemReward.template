@@ -15,7 +15,13 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     if (!alreadyInit) {
       operators[LIGHT_CLIENT_ADDR] = true;
       operators[INCENTIVIZE_ADDR] = true;
+      {% if network == 'local' %}
+      operators[VALIDATOR_CONTRACT_ADDR] = true;
+      operators[SLASH_CONTRACT_ADDR] = true;
+      numOperator = 4;
+      {% else %}
       numOperator = 2;
+      {% endif %}
       alreadyInit = true;
     }
     _;

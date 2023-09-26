@@ -20,7 +20,7 @@ async function processValidatorConf() {
       feeAddr: vs[1],
       bscFeeAddr: vs[2],
       votingPower: vs[3],
-      bLSPublicKey: "0x" + publicKey.pop()
+      bLSPublicKey: vs[4],
     });
   }
   return validators

@@ -204,8 +204,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
 
     // Basic check
-    require(_evidence.voteA.srcNum+256 > block.number &&
-      _evidence.voteB.srcNum+256 > block.number, "too old block involved");
+    require(_evidence.voteA.tarNum+256 > block.number &&
+      _evidence.voteB.tarNum+256 > block.number, "target block too old");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
       _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
@@ -215,6 +215,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require((_evidence.voteA.srcNum<_evidence.voteB.srcNum && _evidence.voteB.tarNum<_evidence.voteA.tarNum) ||
       (_evidence.voteB.srcNum<_evidence.voteA.srcNum && _evidence.voteA.tarNum<_evidence.voteB.tarNum) ||
       _evidence.voteA.tarNum == _evidence.voteB.tarNum, "no violation of vote rules");
+
+    // check voteAddr to protect validators from being slashed for old voteAddr
+    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMonitoredForMaliciousVote(_evidence.voteAddr),"voteAddr is not found");
 
     // BLS verification
     require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
