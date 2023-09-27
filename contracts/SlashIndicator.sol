@@ -20,6 +20,7 @@ interface IStakeHub {
   function maliciousVoteSlash(bytes calldata voteAddr, uint256 height) external;
   function doubleSignSlash(address valAddr, uint256 height, uint256 evidenceTime) external;
   function getValidatorByVoteAddr(bytes calldata voteAddr) external view returns (address);
+  function isValidatorExistByConsensusAddress(address validator) external view returns (bool);
 }
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
@@ -140,7 +141,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (indicator.count % felonyThreshold == 0) {
       indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      if (IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(validator)) {
+      if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(validator)) {
         downtimeSlash(validator, indicator.count);
       } else {
         // send slash msg to bc if validator is not migrated
@@ -300,7 +301,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       height := mload(add(output, 0x34))
       evidenceTime := mload(add(output, 0x54))
     }
-    require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMigrated(signer), "validator not migrated");
+    require(IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(signer), "validator not migrated");
 
     // slash validator
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);

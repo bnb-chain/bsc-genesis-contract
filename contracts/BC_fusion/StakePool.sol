@@ -21,6 +21,8 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     string public constant ERC20_NAME = "BSC staked BNB";
     string public constant ERC20_SYMBOL = "stBNB";
 
+    uint256 public constant COMMISSION_RATE_BASE = 10000; // 100%
+
     /*----------------- storage -----------------*/
     address public validator;
 
@@ -50,7 +52,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     event Unbonded(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
     event UnbondRequested(address indexed sender, uint256 sharesAmount, uint256 bnbAmount, uint256 unlockTime);
     event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
-    event RewardReceived(uint256 bnbAmount);
+    event RewardReceived(uint256 reward, uint256 commission);
     event PayFine(uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
@@ -160,10 +162,18 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         return _totalBnbAmount;
     }
 
-    function distributeReward() external payable onlyStakeHub {
+    function distributeReward(uint256 commissionRate) external payable onlyStakeHub {
         uint256 _bnbAmount = msg.value;
-        _totalPooledBNB += _bnbAmount;
-        emit RewardReceived(_bnbAmount);
+        uint256 _commission = (_bnbAmount * commissionRate) / COMMISSION_RATE_BASE;
+        uint256 _reward = _bnbAmount - _commission;
+        _totalPooledBNB += _reward;
+
+        // mint reward to the validator
+        uint256 _sharesAmount = getSharesByPooledBNB(_commission);
+        _totalPooledBNB += _commission;
+        _mint(validator, _sharesAmount);
+
+        emit RewardReceived(_reward, _commission);
     }
 
     function slash(uint256 _slashBnbAmount) external onlyStakeHub returns (uint256) {

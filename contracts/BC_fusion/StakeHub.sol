@@ -24,7 +24,7 @@ interface IStakePool {
     function delegate(address delegator) external payable returns (uint256);
     function undelegate(address delegator, uint256 sharesAmount) external returns (uint256);
     function unbond(address delegator, uint256 sharesAmount) external returns (uint256);
-    function distributeReward() external payable;
+    function distributeReward(uint256 commissionRate) external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
     function getSecurityDepositBNB() external view returns (uint256);
     function lockToGovernance(address from, uint256 sharesAmount) external returns (uint256);
@@ -107,7 +107,7 @@ contract StakeHub is System {
     }
 
     struct Commission {
-        uint256 rate; // the commission rate charged to delegators
+        uint256 rate; // the commission rate charged to delegators(10000 is 100%)
         uint256 maxRate; // maximum commission rate which validator can ever charge
         uint256 maxChangeRate; // maximum daily increase of the validator commission
     }
@@ -392,22 +392,22 @@ contract StakeHub is System {
     }
 
     /*----------------- system functions -----------------*/
-    function distributeReward(address _consensusAddress) external payable onlyInitialized onlyValidatorContract {
-        address validator = consensusToOperator[_consensusAddress];
-        require(validator != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
-        Validator memory valInfo = validators[validator];
+    function distributeReward(address consensusAddress) external payable onlyInitialized onlyValidatorContract {
+        address operatorAddress = consensusToOperator[consensusAddress];
+        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        Validator memory valInfo = validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
         require(!valInfo.jailed, "VALIDATOR_JAILED");
 
-        IStakePool(valInfo.poolModule).distributeReward{value: msg.value}();
+        IStakePool(valInfo.poolModule).distributeReward{value: msg.value}(valInfo.commission.rate);
     }
 
     function getEligibleValidators() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
         return (eligibleValidators, eligibleValidatorVoteAddrs);
     }
 
-    function downtimeSlash(address _consensusAddress, uint256 height) external onlyInitialized onlySlash {
-        address operatorAddress = consensusToOperator[_consensusAddress];
+    function downtimeSlash(address consensusAddress, uint256 height) external onlyInitialized onlySlash {
+        address operatorAddress = consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
@@ -466,8 +466,8 @@ contract StakeHub is System {
         emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.MaliciousVote);
     }
 
-    function doubleSignSlash(address _consensusAddress, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
-        address operatorAddress = consensusToOperator[_consensusAddress];
+    function doubleSignSlash(address consensusAddress, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
+        address operatorAddress = consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
@@ -539,8 +539,8 @@ contract StakeHub is System {
         return _stakingPaused;
     }
 
-    function isValidatorActive(address operatorAddress) external view validatorExist(operatorAddress) returns (bool) {
-        return !validators[operatorAddress].jailed;
+    function isValidatorExistByConsensusAddress(address consensusAddress) external view returns (bool) {
+        return consensusToOperator[consensusAddress] != address(0);
     }
 
     /*----------------- internal functions -----------------*/

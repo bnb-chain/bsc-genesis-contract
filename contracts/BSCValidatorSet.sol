@@ -21,6 +21,7 @@ interface ICrossChain {
 }
 
 interface IStakeHub {
+  function isValidatorExistByConsensusAddress(address validator) external view returns (bool);
   function distributeReward(address validator) external payable;
   function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
 }
@@ -121,11 +122,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bytes voteAddress;
 
     // BC-fusion
-    uint256 votingPowerMultiplier;
-    bool isMigrated;
+    // uint256 votingPowerMultiplier;
 
     // reserve for future use
-    uint256[17] slots;
+    uint256[19] slots;
   }
 
   /*********************** cross chain package **************************/
@@ -390,7 +390,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         return ERROR_RELAYFEE_TOO_LARGE;
       }
       for (uint i; i < validatorsNum; ++i) {
-        if (_isMigrated(i)) {
+        if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(currentValidatorSet[i].consensusAddress)) {
           directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
           directAmounts[directSize] = currentValidatorSet[i].incoming;
           ++directSize;
@@ -442,7 +442,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // step 3: direct transfer
       if (directAddrs.length > 0) {
         for (uint i; i < directAddrs.length; ++i) {
-          if (isMigrated(directAddrs[i])) {
+          if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(directAddrs[i])) {
             IStakeHub(STAKE_HUB_ADDR).distributeReward{value : directAmounts[i]}(directAddrs[i]);
           } else {
             bool success = directAddrs[i].send(directAmounts[i]);
@@ -680,14 +680,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (workingValidatorCount == 0) {
       workingValidatorCount = 1;
     }
-  }
-
-  function isMigrated(address validator) public view override returns (bool) {
-    uint256 index = currentValidatorSetMap[validator];
-    if (index > 0) {
-      return _isMigrated(index - 1);
-    }
-    return false;
   }
 
   /*********************** For slash **************************/
@@ -1136,7 +1128,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
-      if (_isMigrated(index)) {
+      if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(validator)) {
         ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
       } else {
         ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
@@ -1147,10 +1139,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     emit validatorExitMaintenance(validator);
-  }
-
-  function _isMigrated(uint256 index) internal view returns (bool) {
-    return validatorExtraSet[index].isMigrated;
   }
 
   function _mergeValidatorSet(Validator[] memory validatorSet1, bytes[] memory voteAddrSet1, Validator[] memory validatorSet2, bytes[] memory voteAddrSet2) internal view returns (Validator[] memory, bytes[] memory) {
