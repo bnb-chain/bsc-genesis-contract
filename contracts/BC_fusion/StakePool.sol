@@ -21,7 +21,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     string public constant ERC20_NAME = "BSC staked BNB";
     string public constant ERC20_SYMBOL = "stBNB";
 
-    uint256 public constant COMMISSION_RATE_BASE = 10000; // 100%
+    uint256 public constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- storage -----------------*/
     address public validator;
