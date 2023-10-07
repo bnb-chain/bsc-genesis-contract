@@ -581,13 +581,13 @@ contract StakeHub is System {
         return _validators[operatorAddress].commission;
     }
 
-    function getValidatorWithVotingPower(uint256 offset, uint256 limit) external view returns (address[] memory consensusAddrs, uint256[] memory votingPowers) {
-        uint256 length = _validatorSet.length();
-        if (offset >= length) {
-            return (consensusAddrs, votingPowers);
+    function getValidatorWithVotingPower(uint256 offset, uint256 limit) external view returns (address[] memory consensusAddrs, uint256[] memory votingPowers, uint256 totalLength) {
+        totalLength = _validatorSet.length();
+        if (offset >= totalLength) {
+            return (consensusAddrs, votingPowers, totalLength);
         }
 
-        uint256 count = length - offset;
+        uint256 count = totalLength - offset;
         if (count > limit) {
             count = limit;
         }
