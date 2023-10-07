@@ -11,6 +11,11 @@ contract System {
     address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
     address public constant GOVERNANCE_ADDR = 0x0000000000000000000000000000000000002003;
 
+    modifier onlyCoinbase() {
+        require(msg.sender == block.coinbase, "the message sender must be the block producer");
+        _;
+    }
+
     modifier onlyValidatorContract() {
         require(msg.sender == VALIDATOR_CONTRACT_ADDR, "the message sender must be validatorSet contract");
         _;
