@@ -3,11 +3,16 @@ pragma solidity ^0.8.10;
 import "./utils/Deployer.sol";
 
 contract StakeHubTest is Deployer {
+    address public poolImpl = 0xd2C6bAeDB1f32579c5b29f6FE34E0060FA9081b1;
+
     receive() external payable {}
 
     function setUp() public {
         bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
         vm.etch(STAKEHUB_CONTRACT_ADDR, stakeHubCode);
+
+        bytes memory poolCode = vm.getDeployedCode("StakePool.sol");
+        vm.etch(poolImpl, poolCode);
 
         stakeHub.initialize();
     }

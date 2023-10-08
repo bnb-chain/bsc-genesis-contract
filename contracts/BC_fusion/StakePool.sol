@@ -10,9 +10,11 @@ import "./System.sol";
 interface IStakeHub {
     function unbondPeriod() external view returns (uint256);
     function transferGasLimit() external view returns (uint256);
+    function poolImplementation() external view returns (address);
 }
 
 contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgradeable {
+    using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     /*----------------- constant -----------------*/
@@ -24,12 +26,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     uint256 public constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- storage -----------------*/
-    address public validator;
-
-    // for slash
-    bool private _freeze;
-    uint256 private _remainingSlashBnbAmount;
-
+    address public validator; // validator operator address
     uint256 private _totalPooledBNB; // total reward plus total BNB staked in the pool
 
     // hash of the unbond request => unbond request
@@ -39,7 +36,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     // user => locked shares
     mapping(address => uint256) private _lockedShares;
     // user => personal unbond sequence
-    mapping(address => uint256) private _unbondSequence;
+    mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
+
+    // for slash
+    bool private _freeze;
+    uint256 private _remainingSlashBnbAmount;
 
     struct UnbondRequest {
         uint256 sharesAmount;
@@ -56,6 +57,10 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     event PayFine(uint256 bnbAmount);
 
     /*----------------- modifiers -----------------*/
+    modifier checkImplementation() {
+        require(address(this) == IStakeHub(STAKE_HUB_ADDR).poolImplementation(), "NOT_LATEST_IMPLEMENTATION");
+        _;
+    }
 
     /*----------------- external functions -----------------*/
     function initialize(address _validator, uint256 minSelfDelegationBNB) public payable initializer {
@@ -71,7 +76,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _transfer(validator, STAKE_HUB_ADDR, minSelfDelegationBNB);
     }
 
-    function delegate(address _delegator) external payable onlyStakeHub returns (uint256) {
+    function delegate(address _delegator) external payable onlyStakeHub checkImplementation returns (uint256) {
         require(msg.value != 0, "ZERO_DEPOSIT");
         return _stake(_delegator, msg.value);
     }
@@ -88,8 +93,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _totalPooledBNB -= _bnbAmount;
 
         // add to the queue
-        _unbondSequence[_delegator] += 1; // increase the sequence first to avoid zero sequence
-        bytes32 hash = keccak256(abi.encodePacked(_delegator, _unbondSequence[_delegator]));
+        bytes32 hash = keccak256(abi.encodePacked(_delegator, _useSequence(_delegator)));
 
         uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
         UnbondRequest memory request = UnbondRequest({sharesAmount: _sharesAmount, bnbAmount: _bnbAmount, unlockTime: unlockTime});
@@ -222,15 +226,6 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
 
     /*----------------- view functions -----------------*/
     /**
-     * @return the entire amount of BNB controlled by the protocol.
-     *
-     * @dev The sum of all BNB balances in the protocol.
-     */
-    function getTotalPooledBNB() external view returns (uint256) {
-        return _totalPooledBNB;
-    }
-
-    /**
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
     function getSharesByPooledBNB(uint256 _bnbAmount) public view returns (uint256) {
@@ -244,11 +239,32 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         return (_sharesAmount * _totalPooledBNB) / totalSupply();
     }
 
-    function getLockedShares(address _delegator) external view returns (uint256) {
+    function totalPooledBNB() public view returns (uint256) {
+        return _totalPooledBNB;
+    }
+
+    function unbondRequest(address _delegator, uint256 _index) public view returns (UnbondRequest memory, uint256) {
+        bytes32 hash = _unbondRequestsQueue[_delegator].at(_index);
+        return (_unbondRequests[hash], _unbondRequestsQueue[_delegator].length());
+    }
+
+    function lockedShares(address _delegator) public view returns (uint256) {
         return _lockedShares[_delegator];
     }
 
-    function getSecurityDepositBNB() external view returns (uint256) {
+    function unbondSequence(address _delegator) public view returns (uint256) {
+        return _unbondSequence[_delegator].current();
+    }
+
+    function isFreeze() public view returns (bool) {
+        return _freeze;
+    }
+
+    function remainingSlashBnbAmount() public view returns (uint256) {
+        return _remainingSlashBnbAmount;
+    }
+
+    function getSecurityDepositBNB() public view returns (uint256) {
         return getPooledBNBByShares(balanceOf(STAKE_HUB_ADDR));
     }
 
@@ -279,5 +295,11 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _totalPooledBNB = _initAmount;
         emit Delegated(validator, _initAmount, _initAmount);
         _mint(validator, _initAmount);
+    }
+
+    function _useSequence(address delegator) internal returns (uint256 current) {
+        CountersUpgradeable.Counter storage sequence = _unbondSequence[delegator];
+        current = sequence.current();
+        sequence.increment();
     }
 }

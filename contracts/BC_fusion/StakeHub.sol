@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./System.sol";
@@ -20,7 +21,7 @@ interface IBSCValidatorSet {
 interface IStakePool {
     function initialize(address validator, uint256 minSelfDelegationBNB) external payable;
     function claim(address delegator, uint256 requestNumber) external returns (uint256);
-    function getTotalPooledBNB() external view returns (uint256);
+    function totalPooledBNB() external view returns (uint256);
     function getPooledBNBByShares(uint256 sharesAmount) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function delegate(address delegator) external payable returns (uint256);
@@ -57,9 +58,9 @@ contract StakeHub is System {
     /*----------------- storage -----------------*/
     uint8 private _initialized;
     bool private _stakingPaused;
+    address private _proxyAdmin;
 
     address public poolImplementation;
-
     uint256 public transferGasLimit;
 
     // stake params
@@ -80,16 +81,16 @@ contract StakeHub is System {
     // validator operator address => validator info
     mapping(address => Validator) private _validators;
     // validator vote address => validator operator address
-    mapping(bytes => address) public voteToOperator;
+    mapping(bytes => address) private _voteToOperator;
     // validator consensus address => validator operator address
-    mapping(address => address) public consensusToOperator;
+    mapping(address => address) private _consensusToOperator;
     // validator operator address => withdraw security fund request
-    mapping(address => WithdrawRequest) public withdrawRequests;
+    mapping(address => WithdrawSecurityFundRequest) private _withdrawSecurityFundRequest;
     // slash key => slash record
-    mapping(bytes32 => SlashRecord) public slashRecords;
+    mapping(bytes32 => SlashRecord) private _slashRecords;
 
-    IBSCValidatorSet.Validator[] public eligibleValidators;
-    bytes[] public eligibleValidatorVoteAddrs;
+    IBSCValidatorSet.Validator[] private _eligibleValidators;
+    bytes[] private _eligibleValidatorVoteAddrs;
 
     struct Validator {
         address consensusAddress;
@@ -117,7 +118,7 @@ contract StakeHub is System {
         uint256 maxChangeRate; // maximum daily increase of the validator commission
     }
 
-    struct WithdrawRequest {
+    struct WithdrawSecurityFundRequest {
         uint256 sharesAmount;
         uint256 unlockTime;
     }
@@ -188,7 +189,9 @@ contract StakeHub is System {
     /*----------------- init -----------------*/
     function initialize() public {
         require(_initialized == 0, "ALREADY_INITIALIZED");
+        poolImplementation = INIT_POOL_IMPLEMENTATION;
         transferGasLimit = INIT_TRANSFER_GAS_LIMIT;
+        _proxyAdmin = address(new ProxyAdmin());
 
         minSelfDelegationBNB = INIT_MIN_SELF_DELEGATION_BNB;
         minDelegationBNBChange = INIT_MIN_DELEGATION_BNB_CHANGE;
@@ -209,13 +212,13 @@ contract StakeHub is System {
         require(delegation >= minSelfDelegationBNB, "INVALID_SELF_DELEGATION");
         address operatorAddress = msg.sender;
         require(_validators[operatorAddress].poolModule == address(0), "ALREADY_VALIDATOR");
-        require(voteToOperator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(_voteToOperator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
         require(commission.rate <= commission.maxRate, "INVALID_COMMISSION_RATE");
         require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
 
         // check vote address
-        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        voteToOperator[voteAddress] = operatorAddress;
+        //        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
+        _voteToOperator[voteAddress] = operatorAddress;
 
         // deploy stake pool
         address poolModule = _deployStakePool(operatorAddress);
@@ -229,7 +232,7 @@ contract StakeHub is System {
         valInfo.description = description;
         valInfo.commission = commission;
         valInfo.updateTime = block.timestamp;
-        consensusToOperator[consensusAddress] = operatorAddress;
+        _consensusToOperator[consensusAddress] = operatorAddress;
 
         emit ValidatorCreated(consensusAddress, operatorAddress, poolModule, voteAddress);
     }
@@ -241,7 +244,7 @@ contract StakeHub is System {
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
 
         address oldConsensus = valInfo.consensusAddress;
-        delete consensusToOperator[oldConsensus];
+        delete _consensusToOperator[oldConsensus];
 
         valInfo.operatorAddress = newConsensus;
         valInfo.updateTime = block.timestamp;
@@ -263,13 +266,13 @@ contract StakeHub is System {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
-        require(voteToOperator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(_voteToOperator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
         require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
 
         bytes memory oldVoteAddress = valInfo.voteAddress;
-        delete voteToOperator[oldVoteAddress];
+        delete _voteToOperator[oldVoteAddress];
 
-        voteToOperator[newVoteAddress] = operatorAddress;
+        _voteToOperator[newVoteAddress] = operatorAddress;
         valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
 
@@ -350,10 +353,10 @@ contract StakeHub is System {
     function submitSecurityFundWithdrawRequest(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
         address operatorAddress = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-        require(withdrawRequests[operatorAddress].sharesAmount == 0, "REQUEST_EXIST");
+        require(_withdrawSecurityFundRequest[operatorAddress].sharesAmount == 0, "REQUEST_EXIST");
         require(IStakePool(valInfo.poolModule).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
 
-        withdrawRequests[operatorAddress] = WithdrawRequest({sharesAmount: _sharesAmount, unlockTime: block.timestamp + 1 days});
+        _withdrawSecurityFundRequest[operatorAddress] = WithdrawSecurityFundRequest({sharesAmount: _sharesAmount, unlockTime: block.timestamp + 1 days});
         emit SecurityFundWithdrawRequested(operatorAddress, _sharesAmount);
 
         uint256 afterBalance = IStakePool(valInfo.poolModule).getSecurityDepositBNB() - _sharesAmount;
@@ -366,14 +369,14 @@ contract StakeHub is System {
 
     function claimSecurityFund() external onlyInitialized validatorExist(msg.sender) {
         address operatorAddress = msg.sender;
-        WithdrawRequest memory request = withdrawRequests[operatorAddress];
+        WithdrawSecurityFundRequest memory request = _withdrawSecurityFundRequest[operatorAddress];
         require(request.unlockTime <= block.timestamp, "NOT_UNLOCKED");
 
         uint256 _sharesAmount = request.sharesAmount;
         require(_sharesAmount > 0, "REQUEST_NOT_EXIST");
 
         emit SecurityFundClaimed(msg.sender, _sharesAmount);
-        delete withdrawRequests[operatorAddress];
+        delete _withdrawSecurityFundRequest[operatorAddress];
 
         IStakePool(_validators[operatorAddress].poolModule).transfer(msg.sender, _sharesAmount);
     }
@@ -388,9 +391,19 @@ contract StakeHub is System {
         emit Claimed(validator, msg.sender, _bnbAmount);
     }
 
+    function upgradePoolImplementation() external onlyInitialized validatorExist(msg.sender) {
+        address operatorAddress = msg.sender;
+        Validator memory valInfo = _validators[operatorAddress];
+        address poolModule = valInfo.poolModule;
+        if (ITransparentUpgradeableProxy(poolModule).implementation() == poolImplementation) {
+            return;
+        }
+        ProxyAdmin(_proxyAdmin).upgrade(ITransparentUpgradeableProxy(poolModule), poolImplementation);
+    }
+
     /*----------------- system functions -----------------*/
     function distributeReward(address consensusAddress) external payable onlyInitialized onlyValidatorContract {
-        address operatorAddress = consensusToOperator[consensusAddress];
+        address operatorAddress = _consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator memory valInfo = _validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
@@ -407,44 +420,44 @@ contract StakeHub is System {
         if (newLength == 0) {
             return;
         }
-        uint256 oldLength = eligibleValidators.length;
+        uint256 oldLength = _eligibleValidators.length;
         if (oldLength > newLength) {
             for (uint256 i = newLength; i < oldLength; ++i) {
-                eligibleValidators.pop();
-                eligibleValidatorVoteAddrs.pop();
+                _eligibleValidators.pop();
+                _eligibleValidatorVoteAddrs.pop();
             }
         }
 
         uint256 j;
         for (uint256 i; i < newLength; ++i) {
             address consensusAddress = validators[i];
-            address operatorAddress = consensusToOperator[consensusAddress];
+            address operatorAddress = _consensusToOperator[consensusAddress];
             if (operatorAddress == address(0)) {
                 continue;
             }
 
             if (j >= oldLength) {
-                eligibleValidators.push(IBSCValidatorSet.Validator({consensusAddress: consensusAddress, feeAddress: payable(0), BBCFeeAddress: address(0), votingPower: votingPowers[i], jailed: false, incoming: 0}));
-                eligibleValidatorVoteAddrs.push(_validators[operatorAddress].voteAddress);
+                _eligibleValidators.push(IBSCValidatorSet.Validator({consensusAddress: consensusAddress, feeAddress: payable(0), BBCFeeAddress: address(0), votingPower: votingPowers[i], jailed: false, incoming: 0}));
+                _eligibleValidatorVoteAddrs.push(_validators[operatorAddress].voteAddress);
             } else {
-                IBSCValidatorSet.Validator storage eVal = eligibleValidators[j];
+                IBSCValidatorSet.Validator storage eVal = _eligibleValidators[j];
                 eVal.consensusAddress = consensusAddress;
                 eVal.votingPower = votingPowers[i];
-                eligibleValidatorVoteAddrs[j] = _validators[operatorAddress].voteAddress;
+                _eligibleValidatorVoteAddrs[j] = _validators[operatorAddress].voteAddress;
             }
             ++j;
         }
     }
 
     function downtimeSlash(address consensusAddress, uint256 height) external onlyInitialized onlySlash {
-        address operatorAddress = consensusToOperator[consensusAddress];
+        address operatorAddress = _consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
 
         // check slash record
         bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.DownTime);
-        SlashRecord storage record = slashRecords[slashKey];
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
@@ -467,14 +480,14 @@ contract StakeHub is System {
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlyInitialized onlySlash {
-        address operatorAddress = voteToOperator[_voteAddr];
+        address operatorAddress = _voteToOperator[_voteAddr];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
 
         // check slash record
         bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.MaliciousVote);
-        SlashRecord storage record = slashRecords[slashKey];
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
@@ -497,7 +510,7 @@ contract StakeHub is System {
     }
 
     function doubleSignSlash(address consensusAddress, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
-        address operatorAddress = consensusToOperator[consensusAddress];
+        address operatorAddress = _consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
@@ -506,7 +519,7 @@ contract StakeHub is System {
 
         // check slash record
         bytes32 slashKey = _getSlashKey(operatorAddress, height, SlashType.DoubleSign);
-        SlashRecord storage record = slashRecords[slashKey];
+        SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
 
         // slash
@@ -615,7 +628,7 @@ contract StakeHub is System {
     }
 
     function getEligibleValidators() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
-        return (eligibleValidators, eligibleValidatorVoteAddrs);
+        return (_eligibleValidators, _eligibleValidatorVoteAddrs);
     }
 
     function getValidatorBasicInfo(address operatorAddress) external view returns (address consensusAddress, address poolModule, bytes memory voteAddress, bool jailed, uint256 jailUntil) {
@@ -653,8 +666,30 @@ contract StakeHub is System {
             Validator memory valInfo = _validators[operatorAddress];
             consensusAddrs[i] = valInfo.consensusAddress;
             address pool = valInfo.poolModule;
-            votingPowers[i] = IStakePool(pool).getTotalPooledBNB();
+            votingPowers[i] = IStakePool(pool).totalPooledBNB();
         }
+    }
+
+    function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address) {
+        return _voteToOperator[voteAddress];
+    }
+
+    function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address) {
+        return _consensusToOperator[consensusAddress];
+    }
+
+    function withdrawSecurityFundRequest(address operatorAddress) external view returns (uint256 sharesAmount, uint256 unlockTime) {
+        WithdrawSecurityFundRequest memory request = _withdrawSecurityFundRequest[operatorAddress];
+        sharesAmount = request.sharesAmount;
+        unlockTime = request.unlockTime;
+    }
+
+    function getSlashRecord(address operatorAddress, uint256 height, SlashType slashType) external view returns (uint256 slashAmount, uint256 slashHeight, uint256 jailUntil) {
+        bytes32 slashKey = _getSlashKey(operatorAddress, height, slashType);
+        SlashRecord memory record = _slashRecords[slashKey];
+        slashAmount = record.slashAmount;
+        slashHeight = record.slashHeight;
+        jailUntil = record.jailUntil;
     }
 
     /*----------------- internal functions -----------------*/
@@ -674,8 +709,8 @@ contract StakeHub is System {
         }
     }
 
-    function _getSlashKey(address valAddr, uint256 height, SlashType slashType) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(valAddr, height, slashType));
+    function _getSlashKey(address operatorAddress, uint256 height, SlashType slashType) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(operatorAddress, height, slashType));
     }
 
     function _bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
@@ -716,22 +751,22 @@ contract StakeHub is System {
     }
 
     function _deployStakePool(address validator) internal returns (address) {
-        address poolProxy = address(new TransparentUpgradeableProxy(poolImplementation, STAKE_HUB_ADDR, ""));
+        address poolProxy = address(new TransparentUpgradeableProxy(poolImplementation, _proxyAdmin, ""));
         IStakePool(poolProxy).initialize{value: msg.value}(validator, minSelfDelegationBNB);
 
         return poolProxy;
     }
 
     function _removeEligibleValidator(address consensusAddress) internal {
-        uint256 length = eligibleValidators.length;
+        uint256 length = _eligibleValidators.length;
         for (uint256 i; i < length; ++i) {
-            if (eligibleValidators[i].consensusAddress == consensusAddress) {
+            if (_eligibleValidators[i].consensusAddress == consensusAddress) {
                 for (uint256 j = i + 1; j < length; ++j) {
-                    eligibleValidators[j - 1] = eligibleValidators[j];
-                    eligibleValidatorVoteAddrs[j - 1] = eligibleValidatorVoteAddrs[j];
+                    _eligibleValidators[j - 1] = _eligibleValidators[j];
+                    _eligibleValidatorVoteAddrs[j - 1] = _eligibleValidatorVoteAddrs[j];
                 }
-                eligibleValidators.pop();
-                eligibleValidatorVoteAddrs.pop();
+                _eligibleValidators.pop();
+                _eligibleValidatorVoteAddrs.pop();
                 break;
             }
         }

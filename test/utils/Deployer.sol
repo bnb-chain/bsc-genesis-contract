@@ -67,7 +67,7 @@ contract Deployer is Test {
   constructor() {
     // create fork
     // you should modify this for your own test, which generally should be the bsc mainnet latest number
-    vm.createSelectFork("bsc", 23839447);
+//    vm.createSelectFork("bsc", 23839447);
 
     validator = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
     vm.label(address(validator), "Validator");

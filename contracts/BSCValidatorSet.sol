@@ -21,9 +21,9 @@ interface ICrossChain {
 }
 
 interface IStakeHub {
-  function isValidatorExistByConsensusAddress(address validator) external view returns (bool);
   function distributeReward(address validator) external payable;
   function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
+  function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
 }
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
@@ -390,7 +390,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         return ERROR_RELAYFEE_TOO_LARGE;
       }
       for (uint i; i < validatorsNum; ++i) {
-        if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(currentValidatorSet[i].consensusAddress)) {
+        if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(currentValidatorSet[i].consensusAddress) != address(0)) {
           directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
           directAmounts[directSize] = currentValidatorSet[i].incoming;
           ++directSize;
@@ -442,7 +442,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // step 3: direct transfer
       if (directAddrs.length > 0) {
         for (uint i; i < directAddrs.length; ++i) {
-          if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(directAddrs[i])) {
+          if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(directAddrs[i]) != address(0)) {
             IStakeHub(STAKE_HUB_ADDR).distributeReward{value : directAmounts[i]}(directAddrs[i]);
           } else {
             bool success = directAddrs[i].send(directAmounts[i]);
@@ -1128,7 +1128,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
-      if (IStakeHub(STAKE_HUB_ADDR).isValidatorExistByConsensusAddress(validator)) {
+      if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(validator) != address(0)) {
         ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
       } else {
         ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
