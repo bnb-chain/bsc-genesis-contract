@@ -234,7 +234,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
-  function updateValidatorSetV2() external onlyInit onlyCoinbase {
+  function updateValidatorSetV2() external onlyInit onlyCoinbase onlyZeroGasPrice {
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).channelHandlerContractMap(STAKING_CHANNELID) != address(0)) {
       return;
     }

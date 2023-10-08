@@ -86,13 +86,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     previousHeight = block.number;
   }
 
-  modifier onlyZeroGasPrice() {
-    
-    require(tx.gasprice == 0 , "gasprice is not zero");
-    
-    _;
-  }
-
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
