@@ -358,6 +358,7 @@ contract StakeHub is System {
         uint256 afterBalance = IStakePool(valInfo.poolModule).getSecurityDepositBNB() - _sharesAmount;
         if (afterBalance < minSelfDelegationBNB) {
             valInfo.jailed = true;
+            _removeEligibleValidator(valInfo.consensusAddress);
             emit ValidatorJailed(operatorAddress);
         }
     }
@@ -448,6 +449,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(downtimeSlashAmount);
         valInfo.jailed = true;
+        _removeEligibleValidator(consensusAddress);
         emit ValidatorJailed(operatorAddress);
 
         // record
@@ -477,6 +479,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
+        _removeEligibleValidator(valInfo.consensusAddress);
         emit ValidatorJailed(operatorAddress);
 
         // record
@@ -508,6 +511,7 @@ contract StakeHub is System {
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
         valInfo.jailed = true;
+        _removeEligibleValidator(consensusAddress);
         emit ValidatorJailed(operatorAddress);
 
         // record
@@ -543,12 +547,61 @@ contract StakeHub is System {
     }
 
     function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
-        // TODO: add all params
-        if (_compareStrings(key, "minSelfDelegationBNB")) {
+        if (_compareStrings(key, "poolImplementation")) {
+            require(value.length == 20, "length of poolImplementation mismatch");
+            uint256 newImpl = _bytesToAddress(20, value);
+            require(newImpl != address(0), "wrong pool implementation");
+            poolImplementation = newImpl;
+        } else if (_compareStrings(key, "transferGasLimit")) {
+            require(value.length == 32, "length of transferGasLimit mismatch");
+            uint256 newTransferGasLimit = _bytesToUint256(32, value);
+            require(newTransferGasLimit >= 2300, "the transferGasLimit is out of range");
+            transferGasLimit = newTransferGasLimit;
+        } else if (_compareStrings(key, "minSelfDelegationBNB")) {
             require(value.length == 32, "length of minSelfDelegationBNB mismatch");
             uint256 newMinSelfDelegationBNB = _bytesToUint256(32, value);
             require(newMinSelfDelegationBNB >= 1000 ether, "the minSelfDelegationBNB is out of range");
             newMinSelfDelegationBNB = newMinSelfDelegationBNB;
+        } else if (_compareStrings(key, "minDelegationBNBChange")) {
+            require(value.length == 32, "length of minDelegationBNBChange mismatch");
+            uint256 newMinDelegationBNBChange = _bytesToUint256(32, value);
+            require(newMinDelegationBNBChange >= 1 ether, "the minDelegationBNBChange is out of range");
+            minDelegationBNBChange = newMinDelegationBNBChange;
+        } else if (_compareStrings(key, "maxElectedValidators")) {
+            require(value.length == 32, "length of maxElectedValidators mismatch");
+            uint256 newMaxElectedValidators = _bytesToUint256(32, value);
+            require(newMaxElectedValidators >= 1, "the maxElectedValidators is out of range");
+            maxElectedValidators = newMaxElectedValidators;
+        } else if (_compareStrings(key, "unbondPeriod")) {
+            require(value.length == 32, "length of unbondPeriod mismatch");
+            uint256 newUnbondPeriod = _bytesToUint256(32, value);
+            require(newUnbondPeriod >= 3 days, "the unbondPeriod is out of range");
+            unbondPeriod = newUnbondPeriod;
+        } else if (_compareStrings(key, "downtimeSlashAmount")) {
+            require(value.length == 32, "length of downtimeSlashAmount mismatch");
+            uint256 newDowntimeSlashAmount = _bytesToUint256(32, value);
+            require(newDowntimeSlashAmount >= 5 ether & newDowntimeSlashAmount < doubleSignSlashAmount, "the downtimeSlashAmount is out of range");
+            downtimeSlashAmount = newDowntimeSlashAmount;
+        } else if (_compareStrings(key, "doubleSignSlashAmount")) {
+            require(value.length == 32, "length of doubleSignSlashAmount mismatch");
+            uint256 newDoubleSignSlashAmount = _bytesToUint256(32, value);
+            require(newDoubleSignSlashAmount >= 1000 ether & newDoubleSignSlashAmount > downtimeSlashAmount, "the doubleSignSlashAmount is out of range");
+            doubleSignSlashAmount = newDoubleSignSlashAmount;
+        } else if (_compareStrings(key, "downtimeJailTime")) {
+            require(value.length == 32, "length of downtimeJailTime mismatch");
+            uint256 newDowntimeJailTime = _bytesToUint256(32, value);
+            require(newDowntimeJailTime >= 2 days & newDowntimeJailTime < doubleSignJailTime, "the downtimeJailTime is out of range");
+            downtimeJailTime = newDowntimeJailTime;
+        } else if (_compareStrings(key, "doubleSignJailTime")) {
+            require(value.length == 32, "length of doubleSignJailTime mismatch");
+            uint256 newDoubleSignJailTime = _bytesToUint256(32, value);
+            require(newDoubleSignJailTime >= 100 days & newDoubleSignJailTime > downtimeJailTime, "the doubleSignJailTime is out of range");
+            doubleSignJailTime = newDoubleSignJailTime;
+        } else if (_compareStrings(key, "maxEvidenceAge")) {
+            require(value.length == 32, "length of maxEvidenceAge mismatch");
+            uint256 newMaxEvidenceAge = _bytesToUint256(32, value);
+            require(newMaxEvidenceAge >= 7 days, "the maxEvidenceAge is out of range");
+            maxEvidenceAge = newMaxEvidenceAge;
         } else {
             require(false, "unknown param");
         }
@@ -614,6 +667,12 @@ contract StakeHub is System {
         }
     }
 
+    function _bytesToAddress(uint256 _offset, bytes memory _input) internal pure returns (address _output) {
+        assembly {
+            _output := mload(add(_input, _offset))
+        }
+    }
+
     function _getSlashKey(address valAddr, uint256 height, SlashType slashType) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(valAddr, height, slashType));
     }
@@ -660,5 +719,20 @@ contract StakeHub is System {
         IStakePool(poolProxy).initialize{value: msg.value}(validator, minSelfDelegationBNB);
 
         return poolProxy;
+    }
+
+    function _removeEligibleValidator(address consensusAddress) internal {
+        uint256 length = eligibleValidators.length;
+        for (uint256 i; i < length; ++i) {
+            if (eligibleValidators[i].consensusAddress == consensusAddress) {
+                for (uint256 j = i + 1; j < length; ++j) {
+                    eligibleValidators[j - 1] = eligibleValidators[j];
+                    eligibleValidatorVoteAddrs[j - 1] = eligibleValidatorVoteAddrs[j];
+                }
+                eligibleValidators.pop();
+                eligibleValidatorVoteAddrs.pop();
+                break;
+            }
+        }
     }
 }
