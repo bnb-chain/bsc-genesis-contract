@@ -93,7 +93,7 @@ Check the `genesis.json` file and you can get the exact compiled bytecode for di
 forge build
 
 // generate interface
-cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/lib/interface/I${contract_name}.sol
+cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/test/utils/interface/I${contract_name}.sol
 ```
 
 ## License

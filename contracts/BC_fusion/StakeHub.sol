@@ -39,6 +39,7 @@ contract StakeHub is System {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*----------------- constant -----------------*/
+    address public constant INIT_POOL_IMPLEMENTATION = 0xd2C6bAeDB1f32579c5b29f6FE34E0060FA9081b1; // TODO
     uint256 public constant INIT_TRANSFER_GAS_LIMIT = 2300;
     uint256 public constant INIT_MIN_SELF_DELEGATION_BNB = 2000 ether;
     uint256 public constant INIT_MIN_DELEGATION_BNB_CHANGE = 1 ether;
@@ -549,7 +550,7 @@ contract StakeHub is System {
     function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
         if (_compareStrings(key, "poolImplementation")) {
             require(value.length == 20, "length of poolImplementation mismatch");
-            uint256 newImpl = _bytesToAddress(20, value);
+            address newImpl = _bytesToAddress(20, value);
             require(newImpl != address(0), "wrong pool implementation");
             poolImplementation = newImpl;
         } else if (_compareStrings(key, "transferGasLimit")) {
@@ -580,22 +581,22 @@ contract StakeHub is System {
         } else if (_compareStrings(key, "downtimeSlashAmount")) {
             require(value.length == 32, "length of downtimeSlashAmount mismatch");
             uint256 newDowntimeSlashAmount = _bytesToUint256(32, value);
-            require(newDowntimeSlashAmount >= 5 ether & newDowntimeSlashAmount < doubleSignSlashAmount, "the downtimeSlashAmount is out of range");
+            require(newDowntimeSlashAmount >= 5 ether && newDowntimeSlashAmount < doubleSignSlashAmount, "the downtimeSlashAmount is out of range");
             downtimeSlashAmount = newDowntimeSlashAmount;
         } else if (_compareStrings(key, "doubleSignSlashAmount")) {
             require(value.length == 32, "length of doubleSignSlashAmount mismatch");
             uint256 newDoubleSignSlashAmount = _bytesToUint256(32, value);
-            require(newDoubleSignSlashAmount >= 1000 ether & newDoubleSignSlashAmount > downtimeSlashAmount, "the doubleSignSlashAmount is out of range");
+            require(newDoubleSignSlashAmount >= 1000 ether && newDoubleSignSlashAmount > downtimeSlashAmount, "the doubleSignSlashAmount is out of range");
             doubleSignSlashAmount = newDoubleSignSlashAmount;
         } else if (_compareStrings(key, "downtimeJailTime")) {
             require(value.length == 32, "length of downtimeJailTime mismatch");
             uint256 newDowntimeJailTime = _bytesToUint256(32, value);
-            require(newDowntimeJailTime >= 2 days & newDowntimeJailTime < doubleSignJailTime, "the downtimeJailTime is out of range");
+            require(newDowntimeJailTime >= 2 days && newDowntimeJailTime < doubleSignJailTime, "the downtimeJailTime is out of range");
             downtimeJailTime = newDowntimeJailTime;
         } else if (_compareStrings(key, "doubleSignJailTime")) {
             require(value.length == 32, "length of doubleSignJailTime mismatch");
             uint256 newDoubleSignJailTime = _bytesToUint256(32, value);
-            require(newDoubleSignJailTime >= 100 days & newDoubleSignJailTime > downtimeJailTime, "the doubleSignJailTime is out of range");
+            require(newDoubleSignJailTime >= 100 days && newDoubleSignJailTime > downtimeJailTime, "the doubleSignJailTime is out of range");
             doubleSignJailTime = newDoubleSignJailTime;
         } else if (_compareStrings(key, "maxEvidenceAge")) {
             require(value.length == 32, "length of maxEvidenceAge mismatch");
