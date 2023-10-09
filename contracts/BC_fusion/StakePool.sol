@@ -2,8 +2,9 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import "./System.sol";
 
@@ -13,13 +14,11 @@ interface IStakeHub {
     function poolImplementation() external view returns (address);
 }
 
-contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgradeable {
+contract StakePool is Initializable, ReentrancyGuard, System, ERC20Upgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     /*----------------- constant -----------------*/
-    string public constant EIP712_NAME = "BSC validator pool";
-    string public constant EIP712_VERSION = "1.0.0";
     string public constant ERC20_NAME = "BSC staked BNB";
     string public constant ERC20_SYMBOL = "stBNB";
 
@@ -64,16 +63,12 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
 
     /*----------------- external functions -----------------*/
     function initialize(address _validator, uint256 minSelfDelegationBNB) public payable initializer {
-        __EIP712_init_unchained(EIP712_NAME, EIP712_VERSION);
         __ERC20_init_unchained(ERC20_NAME, ERC20_SYMBOL);
 
         validator = _validator;
 
         assert(msg.value != 0);
         _bootstrapInitialHolder(msg.value);
-
-        // transfer to stakeHub
-        _transfer(validator, STAKE_HUB_ADDR, minSelfDelegationBNB);
     }
 
     function delegate(address _delegator) external payable onlyStakeHub checkImplementation returns (uint256) {
@@ -117,7 +112,7 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _totalPooledBNB -= _bnbAmount;
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = STAKE_HUB_ADDR.call{value: _bnbAmount, gas: _gasLimit}("");
+        (bool success,) = STAKE_HUB_ADDR.call{gas: _gasLimit, value: _bnbAmount}("");
         require(success, "TRANSFER_FAILED");
 
         emit Unbonded(_delegator, _sharesAmount, _bnbAmount);
@@ -158,8 +153,8 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         }
 
         _lockedShares[_delegator] -= _totalShares;
-        uint256 gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = _delegator.call{value: _totalBnbAmount, gas: gasLimit}("");
+        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
+        (bool success,) = _delegator.call{gas: _gasLimit, value: _totalBnbAmount}("");
         require(success, "CLAIM_FAILED");
 
         emit UnbondClaimed(_delegator, _totalShares, _totalBnbAmount);
@@ -181,34 +176,29 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
     }
 
     function slash(uint256 _slashBnbAmount) external onlyStakeHub returns (uint256) {
-        uint256 _securityDeposit = balanceOf(STAKE_HUB_ADDR);
+        uint256 _selfDelegation = balanceOf(validator);
         uint256 _slashShares = getSharesByPooledBNB(_slashBnbAmount);
 
-        uint256 _remain;
-        if (_slashShares <= _securityDeposit) {
+        uint256 remainingSlashBnbAmount_;
+        if (_slashShares <= _selfDelegation) {
             _totalPooledBNB -= _slashBnbAmount;
-            _burn(STAKE_HUB_ADDR, _slashShares);
-            _remain = 0;
+            _burn(validator, _slashShares);
         } else {
-            uint256 _securityDepositBNB = getPooledBNBByShares(_securityDeposit);
-            _totalPooledBNB -= _securityDepositBNB;
-            _burn(STAKE_HUB_ADDR, _securityDeposit);
+            uint256 _selfDelegationBNB = getPooledBNBByShares(_selfDelegation);
+            _totalPooledBNB -= _selfDelegationBNB;
+            _burn(validator, _selfDelegation);
 
-            _remain = _slashBnbAmount - _securityDepositBNB;
+            remainingSlashBnbAmount_ = _slashBnbAmount - _selfDelegationBNB;
 
             _freeze = true;
-            _remainingSlashBnbAmount += _remain;
+            _remainingSlashBnbAmount += remainingSlashBnbAmount_;
         }
 
-        uint256 _realSlashBnbAmount = _slashBnbAmount - _remain;
-        (bool success,) = SYSTEM_REWARD_ADDR.call{value: _realSlashBnbAmount}("");
+        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
+        uint256 _realSlashBnbAmount = _slashBnbAmount - remainingSlashBnbAmount_;
+        (bool success,) = SYSTEM_REWARD_ADDR.call{gas: _gasLimit, value: _realSlashBnbAmount}("");
         require(success, "TRANSFER_FAILED");
         return _realSlashBnbAmount;
-    }
-
-    function lockToGovernance(address from, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
-        _transfer(from, GOVERNANCE_ADDR, _sharesAmount);
-        return getPooledBNBByShares(_sharesAmount);
     }
 
     function payFine() external payable {
@@ -218,7 +208,8 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         _freeze = false;
         _remainingSlashBnbAmount = 0;
 
-        (bool success,) = SYSTEM_REWARD_ADDR.call{value: msg.value}("");
+        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
+        (bool success,) = SYSTEM_REWARD_ADDR.call{gas: _gasLimit, value: msg.value}("");
         require(success, "TRANSFER_FAILED");
 
         emit PayFine(msg.value);
@@ -301,5 +292,13 @@ contract StakePool is Initializable, ReentrancyGuard, System, ERC20PermitUpgrade
         CountersUpgradeable.Counter storage sequence = _unbondSequence[delegator];
         current = sequence.current();
         sequence.increment();
+    }
+
+    function _transfer(address from, address to, uint256 amount) internal pure override {
+        revert("stBNB transfer is not supported");
+    }
+
+    function _approve(address owner, address spender, uint256 amount) internal pure override {
+        revert("stBNB approve is not supported");
     }
 }

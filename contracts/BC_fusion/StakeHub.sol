@@ -30,10 +30,8 @@ interface IStakePool {
     function distributeReward(uint256 commissionRate) external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
     function getSecurityDepositBNB() external view returns (uint256);
-    function lockToGovernance(address from, uint256 sharesAmount) external returns (uint256);
     function balanceOf(address delegator) external view returns (uint256);
     function totalSupply() external view returns (uint256);
-    function transfer(address to, uint256 amount) external returns (bool);
 }
 
 contract StakeHub is System {
@@ -154,8 +152,6 @@ contract StakeHub is System {
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event SecurityFundWithdrawRequested(address indexed operatorAddress, uint256 sharesAmount);
-    event SecurityFundClaimed(address indexed operatorAddress, uint256 sharesAmount);
     event StakingPaused();
     event StakingResumed();
     event paramChange(string key, bytes value);
@@ -350,37 +346,6 @@ contract StakeHub is System {
         emit Redelegated(srcValidator, dstValidator, delegator, _bnbAmount);
     }
 
-    function submitSecurityFundWithdrawRequest(uint256 _sharesAmount) external onlyInitialized validatorExist(msg.sender) {
-        address operatorAddress = msg.sender;
-        Validator memory valInfo = _validators[operatorAddress];
-        require(_withdrawSecurityFundRequest[operatorAddress].sharesAmount == 0, "REQUEST_EXIST");
-        require(IStakePool(valInfo.poolModule).balanceOf(address(this)) >= _sharesAmount, "NOT_ENOUGH_SHARES");
-
-        _withdrawSecurityFundRequest[operatorAddress] = WithdrawSecurityFundRequest({sharesAmount: _sharesAmount, unlockTime: block.timestamp + 1 days});
-        emit SecurityFundWithdrawRequested(operatorAddress, _sharesAmount);
-
-        uint256 afterBalance = IStakePool(valInfo.poolModule).getSecurityDepositBNB() - _sharesAmount;
-        if (afterBalance < minSelfDelegationBNB) {
-            valInfo.jailed = true;
-            _removeEligibleValidator(valInfo.consensusAddress);
-            emit ValidatorJailed(operatorAddress);
-        }
-    }
-
-    function claimSecurityFund() external onlyInitialized validatorExist(msg.sender) {
-        address operatorAddress = msg.sender;
-        WithdrawSecurityFundRequest memory request = _withdrawSecurityFundRequest[operatorAddress];
-        require(request.unlockTime <= block.timestamp, "NOT_UNLOCKED");
-
-        uint256 _sharesAmount = request.sharesAmount;
-        require(_sharesAmount > 0, "REQUEST_NOT_EXIST");
-
-        emit SecurityFundClaimed(msg.sender, _sharesAmount);
-        delete _withdrawSecurityFundRequest[operatorAddress];
-
-        IStakePool(_validators[operatorAddress].poolModule).transfer(msg.sender, _sharesAmount);
-    }
-
     /**
      * @dev Claim the undelegated BNB from the pool after unbondPeriod
      * `validator` is the validator's operator address
@@ -539,12 +504,6 @@ contract StakeHub is System {
         }
 
         emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.DoubleSign);
-    }
-
-    function lockToGovernance(address operatorAddress, address from, uint256 _sharesAmount) external onlyInitialized onlyGovernance validatorExist(operatorAddress) validatorNotJailed(operatorAddress) returns (uint256) {
-        address pool = _validators[operatorAddress].poolModule;
-
-        return IStakePool(pool).lockToGovernance(from, _sharesAmount);
     }
 
     /*----------------- gov -----------------*/
