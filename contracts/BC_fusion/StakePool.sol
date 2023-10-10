@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
 import "./System.sol";
 
@@ -14,7 +14,7 @@ interface IStakeHub {
     function poolImplementation() external view returns (address);
 }
 
-contract StakePool is Initializable, ReentrancyGuard, System, ERC20Upgradeable {
+contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 

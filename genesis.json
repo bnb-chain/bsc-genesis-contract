@@ -21,6 +21,7 @@
     "planckBlock": 5,
     "lubanBlock": 6,
     "platoBlock": 7,
+    "fusionBlock": 8,
     "parlia": {
       "period": 3,
       "epoch": 200
