@@ -19,8 +19,7 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     /*----------------- constant -----------------*/
-    string public constant ERC20_NAME = "BSC staked BNB";
-    string public constant ERC20_SYMBOL = "stBNB";
+    string public constant ERC20_NAME_PREFIX = "staking shares of ";
 
     uint256 public constant COMMISSION_RATE_BASE = 10_000; // 100%
 
@@ -36,34 +35,30 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     mapping(address => uint256) private _lockedShares;
     // user => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
+    // user => claimed govBNB balance
+    mapping(address => uint256) private _govBNBBalance;
 
     // for slash
     bool private _freeze;
     uint256 private _remainingSlashBnbAmount;
 
     struct UnbondRequest {
-        uint256 sharesAmount;
+        uint256 shares;
         uint256 bnbAmount;
         uint256 unlockTime;
     }
 
     /*----------------- events -----------------*/
-    event Delegated(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
-    event Unbonded(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
-    event UnbondRequested(address indexed sender, uint256 sharesAmount, uint256 bnbAmount, uint256 unlockTime);
-    event UnbondClaimed(address indexed sender, uint256 sharesAmount, uint256 bnbAmount);
+    event Delegated(address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event Unbonded(address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event UnbondRequested(address indexed delegator, uint256 shares, uint256 bnbAmount, uint256 unlockTime);
+    event UnbondClaimed(address indexed delegator, uint256 shares, uint256 bnbAmount);
     event RewardReceived(uint256 reward, uint256 commission);
     event PayFine(uint256 bnbAmount);
 
-    /*----------------- modifiers -----------------*/
-    modifier checkImplementation() {
-        require(address(this) == IStakeHub(STAKE_HUB_ADDR).poolImplementation(), "NOT_LATEST_IMPLEMENTATION");
-        _;
-    }
-
     /*----------------- external functions -----------------*/
-    function initialize(address _validator, uint256 minSelfDelegationBNB) public payable initializer {
-        __ERC20_init_unchained(ERC20_NAME, ERC20_SYMBOL);
+    function initialize(address _validator, string memory _moniker, string memory symbol_) public payable initializer {
+        __ERC20_init_unchained(string.concat(ERC20_NAME_PREFIX, _moniker), symbol_);
 
         validator = _validator;
 
@@ -71,134 +66,163 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         _bootstrapInitialHolder(msg.value);
     }
 
-    function delegate(address _delegator) external payable onlyStakeHub checkImplementation returns (uint256) {
+    function delegate(address delegator) external payable onlyStakeHub returns (uint256) {
         require(msg.value != 0, "ZERO_DEPOSIT");
-        return _stake(_delegator, msg.value);
+        _govBNBBalance[delegator] += msg.value;
+        return _stake(delegator, msg.value);
     }
 
-    function undelegate(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
-        require(_sharesAmount != 0, "ZERO_AMOUNT");
-        require(_sharesAmount <= balanceOf(_delegator), "INSUFFICIENT_BALANCE");
+    function undelegate(address delegator, uint256 shares) external onlyStakeHub returns (uint256, uint256) {
+        require(shares != 0, "ZERO_AMOUNT");
+        require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
-        _lockedShares[_delegator] += _sharesAmount;
+        _lockedShares[delegator] += shares;
 
         // calculate the BNB amount and update state
-        uint256 _bnbAmount = getPooledBNBByShares(_sharesAmount);
-        _burn(_delegator, _sharesAmount);
-        _totalPooledBNB -= _bnbAmount;
+        uint256 bnbAmount = getPooledBNBByShares(shares);
+        _burn(delegator, shares);
+        _totalPooledBNB -= bnbAmount;
+        uint256 govBNBAmount;
+        if (bnbAmount > _govBNBBalance[delegator]) {
+            govBNBAmount = _govBNBBalance[delegator];
+            _govBNBBalance[delegator] = 0;
+        } else {
+            govBNBAmount = bnbAmount;
+            _govBNBBalance[delegator] -= bnbAmount;
+        }
 
         // add to the queue
-        bytes32 hash = keccak256(abi.encodePacked(_delegator, _useSequence(_delegator)));
+        bytes32 hash = keccak256(abi.encodePacked(delegator, _useSequence(delegator)));
 
         uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
-        UnbondRequest memory request = UnbondRequest({sharesAmount: _sharesAmount, bnbAmount: _bnbAmount, unlockTime: unlockTime});
+        UnbondRequest memory request = UnbondRequest({shares: shares, bnbAmount: bnbAmount, unlockTime: unlockTime});
         _unbondRequests[hash] = request;
-        _unbondRequestsQueue[_delegator].pushBack(hash);
+        _unbondRequestsQueue[delegator].pushBack(hash);
 
-        emit UnbondRequested(_delegator, _sharesAmount, _bnbAmount, request.unlockTime);
-        return _bnbAmount;
+        emit UnbondRequested(delegator, shares, bnbAmount, request.unlockTime);
+        return bnbAmount;
     }
 
     /**
      * @dev Unbond immediately without adding to the queue.
      * Only for redelegate process.
      */
-    function unbond(address _delegator, uint256 _sharesAmount) external onlyStakeHub returns (uint256) {
-        require(_sharesAmount <= balanceOf(_delegator), "INSUFFICIENT_BALANCE");
+    function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256, uint256) {
+        require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
         // calculate the BNB amount and update state
-        uint256 _bnbAmount = getPooledBNBByShares(_sharesAmount);
-        _burn(_delegator, _sharesAmount);
-        _totalPooledBNB -= _bnbAmount;
+        uint256 bnbAmount = getPooledBNBByShares(shares);
+        _burn(delegator, shares);
+        _totalPooledBNB -= bnbAmount;
+        uint256 govBNBAmount;
+        if (bnbAmount > _govBNBBalance[delegator]) {
+            govBNBAmount = _govBNBBalance[delegator];
+            _govBNBBalance[delegator] = 0;
+        } else {
+            govBNBAmount = bnbAmount;
+            _govBNBBalance[delegator] -= bnbAmount;
+        }
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = STAKE_HUB_ADDR.call{gas: _gasLimit, value: _bnbAmount}("");
+        (bool success,) = STAKE_HUB_ADDR.call{gas: _gasLimit, value: bnbAmount}("");
         require(success, "TRANSFER_FAILED");
 
-        emit Unbonded(_delegator, _sharesAmount, _bnbAmount);
-        return _bnbAmount;
+        emit Unbonded(delegator, shares, bnbAmount);
+        return bnbAmount;
     }
 
-    function claim(address payable _delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
-        if (_delegator == validator) {
+    function claim(address payable delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
+        if (delegator == validator) {
             require(!_freeze, "FROZEN");
         }
 
-        require(_unbondRequestsQueue[_delegator].length() != 0, "NO_UNBOND_REQUEST");
+        require(_unbondRequestsQueue[delegator].length() != 0, "NO_UNBOND_REQUEST");
         // number == 0 means claim all
         if (number == 0) {
-            number = _unbondRequestsQueue[_delegator].length();
+            number = _unbondRequestsQueue[delegator].length();
         }
-        if (number > _unbondRequestsQueue[_delegator].length()) {
-            number = _unbondRequestsQueue[_delegator].length();
+        if (number > _unbondRequestsQueue[delegator].length()) {
+            number = _unbondRequestsQueue[delegator].length();
         }
 
         uint256 _totalShares;
         uint256 _totalBnbAmount;
         while (number != 0) {
-            bytes32 hash = _unbondRequestsQueue[_delegator].front();
+            bytes32 hash = _unbondRequestsQueue[delegator].front();
             UnbondRequest memory request = _unbondRequests[hash];
             if (block.timestamp < request.unlockTime) {
                 break;
             }
 
-            _totalShares += request.sharesAmount;
+            _totalShares += request.shares;
             _totalBnbAmount += request.bnbAmount;
 
             // remove from the queue
-            _unbondRequestsQueue[_delegator].popFront();
+            _unbondRequestsQueue[delegator].popFront();
             delete _unbondRequests[hash];
 
             number -= 1;
         }
 
-        _lockedShares[_delegator] -= _totalShares;
+        _lockedShares[delegator] -= _totalShares;
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = _delegator.call{gas: _gasLimit, value: _totalBnbAmount}("");
+        (bool success,) = delegator.call{gas: _gasLimit, value: _totalBnbAmount}("");
         require(success, "CLAIM_FAILED");
 
-        emit UnbondClaimed(_delegator, _totalShares, _totalBnbAmount);
+        emit UnbondClaimed(delegator, _totalShares, _totalBnbAmount);
         return _totalBnbAmount;
     }
 
+    function claimGovBnb(address delegator) external onlyStakeHub returns (uint256) {
+        uint256 claimedGovBnbAmount = _govBNBBalance[delegator];
+        uint256 dueGovBnbAmount = getPooledBNBByShares(balanceOf(delegator));
+
+        if (dueGovBnbAmount > claimedGovBnbAmount) {
+            _govBNBBalance[delegator] = dueGovBnbAmount;
+            return dueGovBnbAmount - claimedGovBnbAmount;
+        } else {
+            return 0;
+        }
+    }
+
     function distributeReward(uint256 commissionRate) external payable onlyStakeHub {
-        uint256 _bnbAmount = msg.value;
-        uint256 _commission = (_bnbAmount * commissionRate) / COMMISSION_RATE_BASE;
-        uint256 _reward = _bnbAmount - _commission;
+        uint256 bnbAmount = msg.value;
+        uint256 _commission = (bnbAmount * commissionRate) / COMMISSION_RATE_BASE;
+        uint256 _reward = bnbAmount - _commission;
         _totalPooledBNB += _reward;
 
         // mint reward to the validator
-        uint256 _sharesAmount = getSharesByPooledBNB(_commission);
+        uint256 shares = getSharesByPooledBNB(_commission);
         _totalPooledBNB += _commission;
-        _mint(validator, _sharesAmount);
+        _mint(validator, shares);
 
         emit RewardReceived(_reward, _commission);
     }
 
-    function slash(uint256 _slashBnbAmount) external onlyStakeHub returns (uint256) {
-        uint256 _selfDelegation = balanceOf(validator);
-        uint256 _slashShares = getSharesByPooledBNB(_slashBnbAmount);
+    function slash(uint256 slashBnbAmount) external onlyStakeHub returns (uint256) {
+        uint256 selfDelegation = balanceOf(validator);
+        uint256 slashShares = getSharesByPooledBNB(slashBnbAmount);
 
         uint256 remainingSlashBnbAmount_;
-        if (_slashShares <= _selfDelegation) {
-            _totalPooledBNB -= _slashBnbAmount;
-            _burn(validator, _slashShares);
+        if (slashShares <= selfDelegation) {
+            _totalPooledBNB -= slashBnbAmount;
+            _burn(validator, slashShares);
         } else {
-            uint256 _selfDelegationBNB = getPooledBNBByShares(_selfDelegation);
-            _totalPooledBNB -= _selfDelegationBNB;
-            _burn(validator, _selfDelegation);
+            uint256 selfDelegationBNB = getPooledBNBByShares(selfDelegation);
+            _totalPooledBNB -= selfDelegationBNB;
+            _burn(validator, selfDelegation);
 
-            remainingSlashBnbAmount_ = _slashBnbAmount - _selfDelegationBNB;
+            remainingSlashBnbAmount_ = slashBnbAmount - selfDelegationBNB;
 
             _freeze = true;
             _remainingSlashBnbAmount += remainingSlashBnbAmount_;
         }
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        uint256 _realSlashBnbAmount = _slashBnbAmount - remainingSlashBnbAmount_;
-        (bool success,) = SYSTEM_REWARD_ADDR.call{gas: _gasLimit, value: _realSlashBnbAmount}("");
+        uint256 realSlashBnbAmount = slashBnbAmount - remainingSlashBnbAmount_;
+        (bool success,) = SYSTEM_REWARD_ADDR.call{gas: _gasLimit, value: realSlashBnbAmount}("");
         require(success, "TRANSFER_FAILED");
-        return _realSlashBnbAmount;
+        return realSlashBnbAmount;
     }
 
     function payFine() external payable {
@@ -219,32 +243,32 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     /**
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
-    function getSharesByPooledBNB(uint256 _bnbAmount) public view returns (uint256) {
-        return (_bnbAmount * totalSupply()) / _totalPooledBNB;
+    function getSharesByPooledBNB(uint256 bnbAmount) public view returns (uint256) {
+        return (bnbAmount * totalSupply()) / _totalPooledBNB;
     }
 
     /**
      * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
      */
-    function getPooledBNBByShares(uint256 _sharesAmount) public view returns (uint256) {
-        return (_sharesAmount * _totalPooledBNB) / totalSupply();
+    function getPooledBNBByShares(uint256 shares) public view returns (uint256) {
+        return (shares * _totalPooledBNB) / totalSupply();
     }
 
     function totalPooledBNB() public view returns (uint256) {
         return _totalPooledBNB;
     }
 
-    function unbondRequest(address _delegator, uint256 _index) public view returns (UnbondRequest memory, uint256) {
-        bytes32 hash = _unbondRequestsQueue[_delegator].at(_index);
-        return (_unbondRequests[hash], _unbondRequestsQueue[_delegator].length());
+    function unbondRequest(address delegator, uint256 _index) public view returns (UnbondRequest memory, uint256) {
+        bytes32 hash = _unbondRequestsQueue[delegator].at(_index);
+        return (_unbondRequests[hash], _unbondRequestsQueue[delegator].length());
     }
 
-    function lockedShares(address _delegator) public view returns (uint256) {
-        return _lockedShares[_delegator];
+    function lockedShares(address delegator) public view returns (uint256) {
+        return _lockedShares[delegator];
     }
 
-    function unbondSequence(address _delegator) public view returns (uint256) {
-        return _unbondSequence[_delegator].current();
+    function unbondSequence(address delegator) public view returns (uint256) {
+        return _unbondSequence[delegator].current();
     }
 
     function isFreeze() public view returns (bool) {
@@ -255,37 +279,35 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         return _remainingSlashBnbAmount;
     }
 
-    function getSecurityDepositBNB() public view returns (uint256) {
-        return getPooledBNBByShares(balanceOf(STAKE_HUB_ADDR));
+    function getSelfDelegationBNB() public view returns (uint256) {
+        return getPooledBNBByShares(balanceOf(validator));
     }
 
     /*----------------- internal functions -----------------*/
-    /**
-     * @dev Process user deposit, mints liquid tokens and increase the pool staked BNB
-     * @param _delegator address of the delegator.
-     * @param _bnbAmount amount of BNB to stake.
-     * @return amount of StBNB generated
-     */
-    function _stake(address _delegator, uint256 _bnbAmount) internal returns (uint256) {
-        require(_bnbAmount != 0, "ZERO_DEPOSIT");
-
-        uint256 _sharesAmount = getSharesByPooledBNB(_bnbAmount);
-        _totalPooledBNB += _bnbAmount;
-        emit Delegated(_delegator, _sharesAmount, _bnbAmount);
-
-        _mint(_delegator, _sharesAmount);
-        return _sharesAmount;
-    }
-
-    function _bootstrapInitialHolder(uint256 _initAmount) internal {
+    function _bootstrapInitialHolder(uint256 initAmount) internal {
         assert(validator != address(0));
         assert(totalSupply() == 0);
 
         // mint initial tokens to the validator
         // shares is equal to the amount of BNB staked
-        _totalPooledBNB = _initAmount;
-        emit Delegated(validator, _initAmount, _initAmount);
-        _mint(validator, _initAmount);
+        _totalPooledBNB = initAmount;
+        emit Delegated(validator, initAmount, initAmount);
+        _mint(validator, initAmount);
+    }
+
+    /**
+     * @dev Process user deposit, mints liquid tokens and increase the pool staked BNB
+     * @param delegator address of the delegator.
+     * @param bnbAmount amount of BNB to stake.
+     * @return amount of StBNB generated
+     */
+    function _stake(address delegator, uint256 bnbAmount) internal returns (uint256) {
+        uint256 shares = getSharesByPooledBNB(bnbAmount);
+        _totalPooledBNB += bnbAmount;
+        emit Delegated(delegator, shares, bnbAmount);
+
+        _mint(delegator, shares);
+        return shares;
     }
 
     function _useSequence(address delegator) internal returns (uint256 current) {
@@ -294,11 +316,11 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         sequence.increment();
     }
 
-    function _transfer(address from, address to, uint256 amount) internal pure override {
+    function _transfer(address, address, uint256) internal pure override {
         revert("stBNB transfer is not supported");
     }
 
-    function _approve(address owner, address spender, uint256 amount) internal pure override {
+    function _approve(address, address, uint256) internal pure override {
         revert("stBNB approve is not supported");
     }
 }
