@@ -44,8 +44,8 @@ contract StakeHub is System {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*----------------- constant -----------------*/
-    address public constant INIT_GOV_BNB = address(0x01); // TODO
-    address public constant INIT_POOL_IMPLEMENTATION = address(0x02); // TODO
+    address public constant INIT_GOV_BNB = address(0xdead01); // TODO
+    address public constant INIT_POOL_IMPLEMENTATION = address(0xdead02); // TODO
     uint256 public constant INIT_TRANSFER_GAS_LIMIT = 2300;
     uint256 public constant INIT_MIN_SELF_DELEGATION_BNB = 2000 ether;
     uint256 public constant INIT_MIN_DELEGATION_BNB_CHANGE = 1 ether;
@@ -144,13 +144,14 @@ contract StakeHub is System {
 
     /*----------------- events -----------------*/
     event ValidatorCreated(address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress);
-    event ConsensusAddressEdited(address indexed oldAddress, address indexed newAddress);
+    event ConsensusAddressEdited(address indexed operatorAddress, address indexed oldAddress, address indexed newAddress);
     event CommissionRateEdited(address indexed operatorAddress, uint256 commissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Redelegated(address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 oldShares, uint256 newShares, uint256 bnbAmount);
+    event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event ValidatorSlashed(address indexed operatorAddress, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, SlashType slashType);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
@@ -185,6 +186,8 @@ contract StakeHub is System {
         _;
     }
 
+    receive() external payable {}
+
     /*----------------- init -----------------*/
     function initialize() public {
         require(_initialized == 0, "ALREADY_INITIALIZED");
@@ -213,6 +216,8 @@ contract StakeHub is System {
         address operatorAddress = msg.sender;
         require(_validators[operatorAddress].poolModule == address(0), "ALREADY_VALIDATOR");
         require(_voteToOperator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+
+        require(_checkMoniker(description.moniker), "INVALID_MONIKER");
         require(commission.rate <= commission.maxRate, "INVALID_COMMISSION_RATE");
         require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
 
@@ -251,7 +256,7 @@ contract StakeHub is System {
         valInfo.consensusAddress = newConsensus;
         valInfo.updateTime = block.timestamp;
 
-        emit ConsensusAddressEdited(oldConsensus, newConsensus);
+        emit ConsensusAddressEdited(operatorAddress, oldConsensus, newConsensus);
     }
 
     function editCommissionRate(uint256 commissionRate) external onlyInitialized validatorExist(msg.sender) {
@@ -339,6 +344,7 @@ contract StakeHub is System {
         if (delegator == operatorAddress && IStakePool(valInfo.poolModule).getSelfDelegationBNB() < minSelfDelegationBNB) {
             _validators[operatorAddress].jailed = true;
             _removeEligibleValidator(valInfo.consensusAddress);
+            emit ValidatorJailed(operatorAddress);
         }
 
         IGovBNB(govBNB).transferFrom(delegator, DEAD_ADDRESS, govBnbAmount);
@@ -372,7 +378,6 @@ contract StakeHub is System {
     function claimGovBnb(address operatorAddress) external onlyInitialized validatorExist(operatorAddress) {
         address delegator = msg.sender;
         uint256 govBnbAmount = IStakePool(_validators[operatorAddress].poolModule).claimGovBnb(delegator);
-        require(govBnbAmount > 0, "NO_GOV_BNB_TO_CLAIM");
         IGovBNB(govBNB).mint(delegator, govBnbAmount);
     }
 
@@ -395,6 +400,7 @@ contract StakeHub is System {
         require(!valInfo.jailed, "VALIDATOR_JAILED");
 
         IStakePool(valInfo.poolModule).distributeReward{value: msg.value}(valInfo.commission.rate);
+        emit RewardDistributed(operatorAddress, msg.value);
     }
 
     /**
@@ -688,6 +694,36 @@ contract StakeHub is System {
         for (uint256 i; i < len; ++i) {
             data[index++] = _bytes[i];
         }
+    }
+
+    function _checkMoniker(string memory moniker) internal pure returns (bool) {
+        bytes memory bz = bytes(moniker);
+
+        // 1. moniker length should be between 1 and 9
+        if (bz.length == 0 || bz.length > 9) {
+            return false;
+        }
+
+        // 2. first character should be uppercase
+        if (uint8(bz[0]) < 65 || uint8(bz[0]) > 90) {
+            return false;
+        }
+
+        // 3. only alphanumeric characters are allowed
+        for (uint256 i = 1; i < bz.length; ++i) {
+            // Check if the ASCII value of the character falls outside the range of alphanumeric characters
+            if (
+                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) &&
+                (uint8(bz[i]) < 65 || uint8(bz[i]) > 90) &&
+                (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
+            ) {
+                // Character is a special character
+                return false;
+            }
+        }
+
+        // No special characters found
+        return true;
     }
 
     function _checkVoteAddress(bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {

@@ -67,6 +67,7 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     }
 
     function delegate(address delegator) external payable onlyStakeHub returns (uint256) {
+        require(!_freeze, "VALIDATOR_FROZEN");
         require(msg.value != 0, "ZERO_DEPOSIT");
         _govBNBBalance[delegator] += msg.value;
         return _stake(delegator, msg.value);
@@ -100,7 +101,7 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         _unbondRequestsQueue[delegator].pushBack(hash);
 
         emit UnbondRequested(delegator, shares, bnbAmount, request.unlockTime);
-        return bnbAmount;
+        return (bnbAmount, govBNBAmount);
     }
 
     /**
@@ -128,12 +129,12 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         require(success, "TRANSFER_FAILED");
 
         emit Unbonded(delegator, shares, bnbAmount);
-        return bnbAmount;
+        return (bnbAmount, govBNBAmount);
     }
 
     function claim(address payable delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
         if (delegator == validator) {
-            require(!_freeze, "FROZEN");
+            require(!_freeze, "VALIDATOR_FROZEN");
         }
 
         require(_unbondRequestsQueue[delegator].length() != 0, "NO_UNBOND_REQUEST");
@@ -163,6 +164,7 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
 
             number -= 1;
         }
+        require(_totalShares != 0, "NO_CLAIMABLE_UNBOND_REQUEST");
 
         _lockedShares[delegator] -= _totalShares;
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
@@ -176,13 +178,10 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     function claimGovBnb(address delegator) external onlyStakeHub returns (uint256) {
         uint256 claimedGovBnbAmount = _govBNBBalance[delegator];
         uint256 dueGovBnbAmount = getPooledBNBByShares(balanceOf(delegator));
+        require(dueGovBnbAmount > claimedGovBnbAmount, "NO_CLAIMABLE_GOV_BNB");
 
-        if (dueGovBnbAmount > claimedGovBnbAmount) {
-            _govBNBBalance[delegator] = dueGovBnbAmount;
-            return dueGovBnbAmount - claimedGovBnbAmount;
-        } else {
-            return 0;
-        }
+        _govBNBBalance[delegator] = dueGovBnbAmount;
+        return dueGovBnbAmount - claimedGovBnbAmount;
     }
 
     function distributeReward(uint256 commissionRate) external payable onlyStakeHub {
