@@ -33,7 +33,7 @@ interface IStakePool {
     function delegate(address delegator) external payable returns (uint256);
     function undelegate(address delegator, uint256 shares) external returns (uint256, uint256);
     function unbond(address delegator, uint256 shares) external returns (uint256, uint256);
-    function distributeReward(uint256 commissionRate) external payable;
+    function distributeReward(uint64 commissionRate) external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
     function getSelfDelegationBNB() external view returns (uint256);
     function balanceOf(address delegator) external view returns (uint256);
@@ -105,10 +105,10 @@ contract StakeHub is System {
         bytes voteAddress;
         Description description;
         Commission commission;
-        uint256 updateTime;
         bool jailed;
         uint256 jailUntil;
-        uint256[20] slots;
+        uint256 updateTime;
+        uint256[20] __reservedSlots;
     }
 
     struct Description {
@@ -119,15 +119,15 @@ contract StakeHub is System {
     }
 
     struct Commission {
-        uint256 rate; // the commission rate charged to delegators(10000 is 100%)
-        uint256 maxRate; // maximum commission rate which validator can ever charge
-        uint256 maxChangeRate; // maximum daily increase of the validator commission
+        uint64 rate; // the commission rate charged to delegators(10000 is 100%)
+        uint64 maxRate; // maximum commission rate which validator can ever charge
+        uint64 maxChangeRate; // maximum daily increase of the validator commission
     }
 
     struct SlashRecord {
-        uint256 slashAmount;
-        uint256 slashHeight;
         uint256 jailUntil;
+        uint256 slashAmount;
+        uint248 slashHeight;
         SlashType slashType;
     }
 
@@ -137,22 +137,17 @@ contract StakeHub is System {
         MaliciousVote
     }
 
-    enum UpdateDirection {
-        Up,
-        Down
-    }
-
     /*----------------- events -----------------*/
     event ValidatorCreated(address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed oldAddress, address indexed newAddress);
-    event CommissionRateEdited(address indexed operatorAddress, uint256 commissionRate);
+    event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Redelegated(address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 oldShares, uint256 newShares, uint256 bnbAmount);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
-    event ValidatorSlashed(address indexed operatorAddress, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, SlashType slashType);
+    event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint248 slashHeight, SlashType slashType);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
@@ -259,7 +254,7 @@ contract StakeHub is System {
         emit ConsensusAddressEdited(operatorAddress, oldConsensus, newConsensus);
     }
 
-    function editCommissionRate(uint256 commissionRate) external onlyInitialized validatorExist(msg.sender) {
+    function editCommissionRate(uint64 commissionRate) external onlyInitialized validatorExist(msg.sender) {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
@@ -458,16 +453,16 @@ contract StakeHub is System {
         emit ValidatorJailed(operatorAddress);
 
         // record
-        record.slashAmount = slashAmount;
-        record.slashHeight = height;
         record.jailUntil = block.timestamp + downtimeJailTime;
+        record.slashAmount = slashAmount;
+        record.slashHeight = uint248(height);
         record.slashType = SlashType.DownTime;
 
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.DownTime);
+        emit ValidatorSlashed(operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DownTime);
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlyInitialized onlySlash {
@@ -488,16 +483,16 @@ contract StakeHub is System {
         emit ValidatorJailed(operatorAddress);
 
         // record
-        record.slashAmount = slashAmount;
-        record.slashHeight = height;
         record.jailUntil = block.timestamp + doubleSignJailTime;
+        record.slashAmount = slashAmount;
+        record.slashHeight = uint248(height);
         record.slashType = SlashType.MaliciousVote;
 
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.MaliciousVote);
+        emit ValidatorSlashed(operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.MaliciousVote);
     }
 
     function doubleSignSlash(address consensusAddress, uint256 height, uint256 evidenceTime) external onlyInitialized onlySlash {
@@ -520,16 +515,16 @@ contract StakeHub is System {
         emit ValidatorJailed(operatorAddress);
 
         // record
-        record.slashAmount = slashAmount;
-        record.slashHeight = height;
         record.jailUntil = block.timestamp + doubleSignJailTime;
+        record.slashAmount = slashAmount;
+        record.slashHeight = uint248(height);
         record.slashType = SlashType.MaliciousVote;
 
         if (valInfo.jailUntil < record.jailUntil) {
             valInfo.jailUntil = record.jailUntil;
         }
 
-        emit ValidatorSlashed(operatorAddress, slashAmount, height, record.jailUntil, SlashType.DoubleSign);
+        emit ValidatorSlashed(operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DoubleSign);
     }
 
     /*----------------- gov -----------------*/
@@ -712,11 +707,7 @@ contract StakeHub is System {
         // 3. only alphanumeric characters are allowed
         for (uint256 i = 1; i < bz.length; ++i) {
             // Check if the ASCII value of the character falls outside the range of alphanumeric characters
-            if (
-                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) &&
-                (uint8(bz[i]) < 65 || uint8(bz[i]) > 90) &&
-                (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
-            ) {
+            if ((uint8(bz[i]) < 48 || uint8(bz[i]) > 57) && (uint8(bz[i]) < 65 || uint8(bz[i]) > 90) && (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)) {
                 // Character is a special character
                 return false;
             }

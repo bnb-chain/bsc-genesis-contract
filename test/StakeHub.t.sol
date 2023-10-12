@@ -40,7 +40,7 @@ contract StakeHubTest is Deployer {
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Redelegated(address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 oldShares, uint256 newShares, uint256 bnbAmount);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
-    event ValidatorSlashed(address indexed operatorAddress, uint256 slashAmount, uint256 slashHeight, uint256 jailUntil, uint8 slashType);
+    event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint248 slashHeight, uint8 slashType);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
@@ -277,7 +277,7 @@ contract StakeHubTest is Deployer {
         uint256 slashAmt = stakeHub.downtimeSlashAmount();
         uint256 slashTime = stakeHub.downtimeJailTime();
         vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, slashAmt, block.number, block.timestamp + slashTime, 1);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 1);
         stakeHub.downtimeSlash(consensusAddress, block.number);
         uint256 curValidatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
         assertEq(preValidatorBnbAmount, curValidatorBnbAmount + slashAmt);
@@ -329,7 +329,7 @@ contract StakeHubTest is Deployer {
         uint256 slashTime = stakeHub.doubleSignJailTime();
         uint256 validatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
         vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, validatorBnbAmount, block.number, block.timestamp + slashTime, 0);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, validatorBnbAmount, uint248(block.number), 0);
         stakeHub.doubleSignSlash(consensusAddress, block.number, block.timestamp - 1);
 
         // check delegator's share
@@ -365,7 +365,7 @@ contract StakeHubTest is Deployer {
         uint256 slashTime = stakeHub.doubleSignJailTime();
         uint256 validatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
         vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, validatorBnbAmount, block.number, block.timestamp + slashTime, 2);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, validatorBnbAmount, uint248(block.number), 2);
         stakeHub.maliciousVoteSlash(voteAddr, block.number);
 
         // check delegator's share

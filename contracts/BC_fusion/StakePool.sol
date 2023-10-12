@@ -184,9 +184,9 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         return dueGovBnbAmount - claimedGovBnbAmount;
     }
 
-    function distributeReward(uint256 commissionRate) external payable onlyStakeHub {
+    function distributeReward(uint64 commissionRate) external payable onlyStakeHub {
         uint256 bnbAmount = msg.value;
-        uint256 _commission = (bnbAmount * commissionRate) / COMMISSION_RATE_BASE;
+        uint256 _commission = (bnbAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 _reward = bnbAmount - _commission;
         _totalPooledBNB += _reward;
 
