@@ -20,16 +20,9 @@ Please make sure your dependency version is as follows:
 
 Node: v12.18.3 
 
-Truffle: v5.1.31 
 
-Solc: 0.6.4+commit.1dca32f3
-
-Tips: You can manage multi version of Solc and Node:
+Tips: You can manage multi version of Node:
 ```Shell
-## Install solc-select and solc
-pip3 install solc-select
-solc-select install 0.6.4 && solc-select use 0.6.4
-
 ## Install nvm and node
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
 nvm install  12.18.3 && nvm use 12.18.3
@@ -53,7 +46,17 @@ forge test
 ## Flatten all system contracts
 
 ```shell script
-npm run flatten
+forge flatten contracts/BSCValidatorSet.sol > contracts/flattened/BSCValidatorSet.sol \
+&& forge flatten contracts/GovHub.sol > contracts/flattened/GovHub.sol \
+&& forge flatten contracts/RelayerHub.sol > contracts/flattened/RelayerHub.sol \
+&& forge flatten contracts/RelayerIncentivize.sol > contracts/flattened/RelayerIncentivize.sol \
+&& forge flatten contracts/SlashIndicator.sol > contracts/flattened/SlashIndicator.sol \
+&& forge flatten contracts/SystemReward.sol > contracts/flattened/SystemReward.sol \
+&& forge flatten contracts/TendermintLightClient.sol > contracts/flattened/TendermintLightClient.sol \
+&& forge flatten contracts/TokenHub.sol > contracts/flattened/TokenHub.sol \
+&& forge flatten contracts/CrossChain.sol > contracts/flattened/CrossChain.sol \
+&& forge flatten contracts/TokenManager.sol > contracts/flattened/TokenManager.sol \
+&& forge flatten contracts/Staking.sol > contracts/flattened/Staking.sol
 ```
 
 All system contracts will be flattened and output into `${workspace}/contracts/flattened/`.
@@ -62,19 +65,17 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
 2. Edit `validators.js` file to alloc the initial validator set.
-3. Edit `generate-validatorset.js` file to change `fromChainId` and `toChainId`,
-4. Edit `generate-tokenhub.js` file to change `refundRelayReward`, `minimumRelayFee` and `maxGasForCallingBEP20`.
-5. Edit `generate-tendermintlightclient.js` file to change `chainID` and `initConsensusStateBytes`.
-6. run ` node generate-genesis.js` will generate genesis.json
+3. Run `bash scripts/generate-*.sh` to change system contracts setting.
+4. Run `node scripts/generate-genesis.js` will generate genesis.json
 
 ## How to generate mainnet/testnet/QA genesis file
 
 ```shell 
-npm run generate-mainnet
-npm run generate-testnet
-npm run generate-QA
+bash scripts/generate.sh mainnet
+bash scripts/generate.sh testnet
+bash scripts/generate.sh QA
 ```
-Check the `genesis.json` file and you can get the exact compiled bytecode for different network.
+Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
 
 ## How to update contract interface for test
 
@@ -83,7 +84,7 @@ Check the `genesis.json` file and you can get the exact compiled bytecode for di
 forge build
 
 // generate interface
-cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.10 -n ${contract_name} > ${workspace}/lib/interface/I${contract_name}.sol
+cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.0 -n ${contract_name} > ${workspace}/test/utils/interface/I${contract_name}.sol
 ```
 
 ## BEP-171 unlock bot
