@@ -46,17 +46,7 @@ forge test
 ## Flatten all system contracts
 
 ```shell script
-forge flatten contracts/BSCValidatorSet.sol > contracts/flattened/BSCValidatorSet.sol \
-&& forge flatten contracts/GovHub.sol > contracts/flattened/GovHub.sol \
-&& forge flatten contracts/RelayerHub.sol > contracts/flattened/RelayerHub.sol \
-&& forge flatten contracts/RelayerIncentivize.sol > contracts/flattened/RelayerIncentivize.sol \
-&& forge flatten contracts/SlashIndicator.sol > contracts/flattened/SlashIndicator.sol \
-&& forge flatten contracts/SystemReward.sol > contracts/flattened/SystemReward.sol \
-&& forge flatten contracts/TendermintLightClient.sol > contracts/flattened/TendermintLightClient.sol \
-&& forge flatten contracts/TokenHub.sol > contracts/flattened/TokenHub.sol \
-&& forge flatten contracts/CrossChain.sol > contracts/flattened/CrossChain.sol \
-&& forge flatten contracts/TokenManager.sol > contracts/flattened/TokenManager.sol \
-&& forge flatten contracts/Staking.sol > contracts/flattened/Staking.sol
+bash flatten.sh
 ```
 
 All system contracts will be flattened and output into `${workspace}/contracts/flattened/`.
@@ -74,6 +64,7 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 bash scripts/generate.sh mainnet
 bash scripts/generate.sh testnet
 bash scripts/generate.sh QA
+bash scripts/generate.sh local
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
 
