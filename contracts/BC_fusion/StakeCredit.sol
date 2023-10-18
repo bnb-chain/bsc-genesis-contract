@@ -204,6 +204,9 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         return getPooledBNBByShares(balanceOf(validator));
     }
 
+    function getPooledBNB(address account) external view returns(uint256) {
+        return getPooledBNBByShares(balanceOf(account));
+    }
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
         assert(validator != address(0));
