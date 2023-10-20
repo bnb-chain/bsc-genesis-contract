@@ -11,7 +11,6 @@ interface IStakePool {
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function remainingSlashBnbAmount() external view returns (uint256);
-    function payFine() external payable;
 }
 
 contract MockGovBNB is ERC20 {
@@ -41,7 +40,6 @@ contract StakeHubTest is Deployer {
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event PayFine(uint256 fine);
 
     receive() external payable {}
 
@@ -55,6 +53,8 @@ contract StakeHubTest is Deployer {
         address mockGovBNB = address(new MockGovBNB());
         vm.etch(GOV_BNB_ADDR, mockGovBNB.code);
 
+        vm.prank(block.coinbase);
+        vm.txGasPrice(0);
         stakeHub.initialize();
     }
 
@@ -77,7 +77,7 @@ contract StakeHubTest is Deployer {
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert(bytes("INVALID_COMMISSION_RATE"));
         stakeHub.editCommissionRate(110);
-        vm.expectRevert(bytes("INVALID_COMMISSION_CHANGE_RATE"));
+        vm.expectRevert(bytes("INVALID_COMMISSION_RATE"));
         stakeHub.editCommissionRate(16);
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit CommissionRateEdited(validator, 15);
@@ -88,12 +88,30 @@ contract StakeHubTest is Deployer {
         // 4. edit description
         vm.warp(block.timestamp + 1 days);
         StakeHub.Description memory description = stakeHub.getValidatorDescription(validator);
+        // invalid moniker
         description.moniker = "test";
+        vm.expectRevert(bytes("INVALID_MONIKER"));
+        stakeHub.editDescription(description);
+
+        description.moniker = "T";
+        vm.expectRevert(bytes("INVALID_MONIKER"));
+        stakeHub.editDescription(description);
+
+        description.moniker = "Test;";
+        vm.expectRevert(bytes("INVALID_MONIKER"));
+        stakeHub.editDescription(description);
+
+        description.moniker = "Test ";
+        vm.expectRevert(bytes("INVALID_MONIKER"));
+        stakeHub.editDescription(description);
+
+        // valid moniker
+        description.moniker = "Test";
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit DescriptionEdited(validator);
         stakeHub.editDescription(description);
         StakeHub.Description memory realDesc = stakeHub.getValidatorDescription(validator);
-        assertEq(realDesc.moniker, "test");
+        assertEq(realDesc.moniker, "Test");
 
         // 5. edit vote address
         vm.warp(block.timestamp + 1 days);
@@ -243,8 +261,8 @@ contract StakeHubTest is Deployer {
     }
 
     function testDowntimeSlash() public {
-        // totalShares: 2000095242630601457212
-        // totalPooledBNB: 2100 ether
+        // totalShares: 2100095458884494749761
+        // totalPooledBNB: 2200 ether
         uint256 selfDelegation = 2000 ether;
         uint256 reward = 100 ether;
         (address validator, address pool)= _createValidator(selfDelegation);
@@ -269,7 +287,7 @@ contract StakeHubTest is Deployer {
         emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 1);
         stakeHub.downtimeSlash(consensusAddress, block.number);
         uint256 curValidatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
-        assertEq(preValidatorBnbAmount, curValidatorBnbAmount + slashAmt);
+        assertApproxEqAbs(preValidatorBnbAmount, curValidatorBnbAmount + slashAmt, 1); // there may be 1 delta due to the precision
 
         // check delegator's share
         uint256 curDelegatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(delegator));
@@ -295,8 +313,8 @@ contract StakeHubTest is Deployer {
     }
 
     function testDoubleSignSlash() public {
-        // totalShares: 2000095242630601457212
-        // totalPooledBNB: 2100 ether
+        // totalShares: 2100095458884494749761
+        // totalPooledBNB: 2200 ether
         uint256 selfDelegation = 2000 ether;
         uint256 reward = 100 ether;
         (address validator, address pool)= _createValidator(selfDelegation);
@@ -314,25 +332,20 @@ contract StakeHubTest is Deployer {
         vm.startPrank(SLASH_CONTRACT_ADDR);
 
         // double sign slash type: 0
-        uint256 slashAmt = stakeHub.doubleSignSlashAmount(); // 10_000 ether is more than selfDelegation
+        uint256 slashAmt = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator)); // 10_000 ether is more than selfDelegation
         uint256 slashTime = stakeHub.doubleSignJailTime();
-        uint256 validatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
         vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, block.timestamp + slashTime, validatorBnbAmount, uint248(block.number), 0);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 0);
         stakeHub.doubleSignSlash(consensusAddress, block.number, block.timestamp - 1);
 
         // check delegator's share
         uint256 curDelegatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(delegator));
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
-
-        // check remaining fine
-        uint256 expectedRemainingFine = slashAmt - validatorBnbAmount;
-        assertEq(IStakePool(pool).remainingSlashBnbAmount(), expectedRemainingFine);
     }
 
     function testMaliciousVoteSlash() public {
-        // totalShares: 2000095242630601457212
-        // totalPooledBNB: 2100 ether
+        // totalShares: 2100095458884494749761
+        // totalPooledBNB: 2200 ether
         uint256 selfDelegation = 2000 ether;
         uint256 reward = 100 ether;
         (address validator, address pool)= _createValidator(selfDelegation);
@@ -350,69 +363,15 @@ contract StakeHubTest is Deployer {
         vm.startPrank(SLASH_CONTRACT_ADDR);
 
         // malicious vote slash type: 2
-        uint256 slashAmt = stakeHub.doubleSignSlashAmount(); // 10_000 ether is more than selfDelegation
+        uint256 slashAmt = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator)); // 10_000 ether is more than selfDelegation
         uint256 slashTime = stakeHub.doubleSignJailTime();
-        uint256 validatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(validator));
         vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, block.timestamp + slashTime, validatorBnbAmount, uint248(block.number), 2);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 2);
         stakeHub.maliciousVoteSlash(voteAddr, block.number);
 
         // check delegator's share
         uint256 curDelegatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(delegator));
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
-
-        // check remaining fine
-        uint256 expectedRemainingFine = slashAmt - validatorBnbAmount;
-        assertEq(IStakePool(pool).remainingSlashBnbAmount(), expectedRemainingFine);
-    }
-
-    function testPayFine() public {
-        // totalShares: 2000095242630601457212
-        // totalPooledBNB: 2100 ether
-        uint256 selfDelegation = 2000 ether;
-        uint256 reward = 100 ether;
-        (address validator, address pool)= _createValidator(selfDelegation);
-
-        address delegator = addrSet[addrIdx++];
-        vm.prank(delegator);
-        stakeHub.delegate{value: 100 ether}(validator);
-
-        (address consensusAddress, , , , ) = stakeHub.getValidatorBasicInfo(validator);
-        vm.prank(VALIDATOR_CONTRACT_ADDR);
-        stakeHub.distributeReward{value: reward}(consensusAddress);
-
-        uint256 preDelegatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(delegator));
-
-        // undelegate all and slash
-        uint256 shares = IStakePool(pool).balanceOf(validator);
-        vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorJailed(validator);
-        vm.prank(validator);
-        stakeHub.undelegate(validator, shares - 1);
-        vm.roll(block.number + 1);
-        vm.prank(SLASH_CONTRACT_ADDR);
-        stakeHub.downtimeSlash(consensusAddress, block.number);
-
-        // check delegator's share
-        uint256 curDelegatorBnbAmount = IStakePool(pool).getPooledBNBByShares(IStakePool(pool).balanceOf(delegator));
-        assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
-
-        // claim undelegate fund failed
-        vm.warp(block.timestamp + 7 days);
-        vm.expectRevert(bytes("VALIDATOR_FROZEN"));
-        vm.startPrank(validator);
-        stakeHub.claim(validator, 0);
-
-        // pay fine and claim success
-        uint256 fine = IStakePool(pool).remainingSlashBnbAmount();
-        vm.expectEmit(true, false, false, true, pool);
-        emit PayFine(fine);
-        IStakePool(pool).payFine{value: fine}();
-        vm.expectEmit(true, true, false, false, address(stakeHub)); // no check for amount
-        emit Claimed(validator, validator, 0);
-        stakeHub.claim(validator, 0);
-
-        vm.stopPrank();
     }
 
     function _createValidator(uint256 delegation) internal returns (address operatorAddress, address pool) {
