@@ -11,7 +11,6 @@ import "./System.sol";
 interface IStakeHub {
     function unbondPeriod() external view returns (uint256);
     function transferGasLimit() external view returns (uint256);
-    function poolImplementation() external view returns (address);
 }
 
 contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
@@ -34,10 +33,6 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     // user => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
 
-    // for slash
-    bool private _freeze;
-    uint256 public remainingSlashBnbAmount;
-
     struct UnbondRequest {
         uint256 shares;
         uint256 bnbAmount;
@@ -50,14 +45,10 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     event UnbondRequested(address indexed delegator, uint256 shares, uint256 bnbAmount, uint256 unlockTime);
     event UnbondClaimed(address indexed delegator, uint256 shares, uint256 bnbAmount);
     event RewardReceived(uint256 rewardToAll, uint256 commission);
-    event PayFine(uint256 bnbAmount);
-
-    constructor() {
-        _disableInitializers();
-    }
+    event Slashed(uint256 slashBnbAmount);
 
     /*----------------- external functions -----------------*/
-    function initialize(address _validator, string memory _moniker) public payable initializer {
+    function initialize(address _validator, string memory _moniker) public payable initializer onlyStakeHub {
         string memory name_ = string.concat("stake ", _moniker, " credit");
         string memory symbol_ = string.concat("st", _moniker);
         __ERC20_init_unchained(name_, symbol_);
@@ -69,7 +60,6 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     }
 
     function delegate(address delegator) external payable onlyStakeHub returns (uint256) {
-        require(!_freeze, "VALIDATOR_FROZEN");
         require(msg.value != 0, "ZERO_DEPOSIT");
         return _stake(delegator, msg.value);
     }
@@ -114,10 +104,6 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     }
 
     function claim(address payable delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
-        if (delegator == validator) {
-            require(!_freeze, "VALIDATOR_FROZEN");
-        }
-
         // number == 0 means claim all
         // number should not exceed the length of the queue
         require(_unbondRequestsQueue[delegator].length() != 0, "NO_UNBOND_REQUEST");
@@ -179,31 +165,15 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
                 // slashShares > selfDelegation
                 _remainingSlashBnbAmount = slashBnbAmount - selfDelegationBNB;
             }
-
-            // freeze the validator
-            _freeze = true;
-            remainingSlashBnbAmount += _remainingSlashBnbAmount;
         }
 
-        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         uint256 realSlashBnbAmount = slashBnbAmount - _remainingSlashBnbAmount;
+        emit Slashed(realSlashBnbAmount);
+
+        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         (bool success,) = SYSTEM_REWARD_ADDR.call{ gas: _gasLimit, value: realSlashBnbAmount }("");
         require(success, "TRANSFER_FAILED");
         return realSlashBnbAmount;
-    }
-
-    function payFine() external payable {
-        require(_freeze, "NOT_FROZEN");
-        require(msg.value == remainingSlashBnbAmount, "INVALID_AMOUNT"); // the fine should be paid in one time
-
-        _freeze = false;
-        remainingSlashBnbAmount = 0;
-
-        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = SYSTEM_REWARD_ADDR.call{ gas: _gasLimit, value: msg.value }("");
-        require(success, "TRANSFER_FAILED");
-
-        emit PayFine(msg.value);
     }
 
     /*----------------- view functions -----------------*/
@@ -232,10 +202,6 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
 
     function unbondSequence(address delegator) public view returns (uint256) {
         return _unbondSequence[delegator].current();
-    }
-
-    function isFreeze() public view returns (bool) {
-        return _freeze;
     }
 
     function getSelfDelegationBNB() public view returns (uint256) {

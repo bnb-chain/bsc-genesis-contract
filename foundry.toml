@@ -30,7 +30,7 @@ runs = 1024
 [fmt]
 line_length = 120
 tab_width = 4
-bracket_spacing = false
+bracket_spacing = true
 int_types = 'long'
 func_attrs_with_params_multiline = true
 quote_style = 'double'

@@ -9,7 +9,9 @@ contract System {
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
     address public constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
     address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
-    address public constant GOVERNANCE_ADDR = 0x0000000000000000000000000000000000002003;
+    address public constant STAKE_POOL_ADDR = 0x0000000000000000000000000000000000002003;
+    address public constant GOVERNANCE_ADDR = 0x0000000000000000000000000000000000002004;
+    address public constant GOV_BNB_ADDR = 0x0000000000000000000000000000000000002005;
 
     modifier onlyCoinbase() {
         require(msg.sender == block.coinbase, "the message sender must be the block producer");

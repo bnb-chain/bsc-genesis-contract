@@ -28,9 +28,6 @@ contract MockGovBNB is ERC20 {
 }
 
 contract StakeHubTest is Deployer {
-    address public govBNB = address(0xdead01);
-    address public poolImpl = address(0xdead02);
-
     event ValidatorCreated(address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed oldAddress, address indexed newAddress);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
@@ -53,10 +50,10 @@ contract StakeHubTest is Deployer {
         vm.etch(STAKEHUB_CONTRACT_ADDR, stakeHubCode);
 
         bytes memory poolCode = vm.getDeployedCode("StakePool.sol");
-        vm.etch(poolImpl, poolCode);
+        vm.etch(STAKE_POOL_ADDR, poolCode);
 
         address mockGovBNB = address(new MockGovBNB());
-        vm.etch(govBNB, mockGovBNB.code);
+        vm.etch(GOV_BNB_ADDR, mockGovBNB.code);
 
         stakeHub.initialize();
     }
@@ -416,52 +413,6 @@ contract StakeHubTest is Deployer {
         stakeHub.claim(validator, 0);
 
         vm.stopPrank();
-    }
-
-    function testMoniker() public {
-        string memory moniker = "test";
-        assertFalse(_checkMoniker(moniker));
-        moniker = "test12345";
-        assertFalse(_checkMoniker(moniker));
-        moniker = "test:";
-        assertFalse(_checkMoniker(moniker));
-        moniker = "test ";
-        assertFalse(_checkMoniker(moniker));
-
-        moniker = "Test";
-        assertTrue(_checkMoniker(moniker));
-        moniker = "Test123";
-        assertTrue(_checkMoniker(moniker));
-    }
-
-    function _checkMoniker(string memory moniker) internal pure returns (bool) {
-        bytes memory bz = bytes(moniker);
-
-        // 1. moniker length should be between 1 and 9
-        if (bz.length == 0 || bz.length > 9) {
-            return false;
-        }
-
-        // 2. first character should be uppercase
-        if (uint8(bz[0]) < 65 || uint8(bz[0]) > 90) {
-            return false;
-        }
-
-        // 3. only alphanumeric characters are allowed
-        for (uint256 i = 1; i < bz.length; ++i) {
-            // Check if the ASCII value of the character falls outside the range of alphanumeric characters
-            if (
-                (uint8(bz[i]) < 48 || uint8(bz[i]) > 57) &&
-                (uint8(bz[i]) < 65 || uint8(bz[i]) > 90) &&
-                (uint8(bz[i]) < 97 || uint8(bz[i]) > 122)
-            ) {
-                // Character is a special character
-                return false;
-            }
-        }
-
-        // No special characters found
-        return true;
     }
 
     function _createValidator(uint256 delegation) internal returns (address operatorAddress, address pool) {

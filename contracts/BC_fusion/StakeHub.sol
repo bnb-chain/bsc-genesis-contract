@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./System.sol";
@@ -43,8 +42,6 @@ contract StakeHub is System {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*----------------- constant -----------------*/
-    address public constant INIT_GOV_BNB = address(0xdead01); // TODO
-    address public constant INIT_POOL_IMPLEMENTATION = address(0xdead02); // TODO
     uint256 public constant INIT_TRANSFER_GAS_LIMIT = 2300;
     uint256 public constant INIT_MIN_SELF_DELEGATION_BNB = 2000 ether;
     uint256 public constant INIT_MIN_DELEGATION_BNB_CHANGE = 1 ether;
@@ -64,10 +61,7 @@ contract StakeHub is System {
     /*----------------- storage -----------------*/
     uint8 private _initialized;
     bool private _stakingPaused;
-    address private _proxyAdmin;
 
-    address public govBNB;
-    address public poolImplementation;
     uint256 public transferGasLimit;
 
     // stake params
@@ -157,6 +151,7 @@ contract StakeHub is System {
         uint256 bnbAmount
     );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
+    event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event ValidatorSlashed(
         address indexed operatorAddress,
         uint256 jailUntil,
@@ -202,11 +197,8 @@ contract StakeHub is System {
     /*----------------- init -----------------*/
     function initialize() public onlyCoinbase onlyZeroGasPrice {
         require(_initialized == 0, "ALREADY_INITIALIZED");
-        govBNB = INIT_GOV_BNB;
-        poolImplementation = INIT_POOL_IMPLEMENTATION;
-        transferGasLimit = INIT_TRANSFER_GAS_LIMIT;
-        _proxyAdmin = address(new ProxyAdmin());
 
+        transferGasLimit = INIT_TRANSFER_GAS_LIMIT;
         minSelfDelegationBNB = INIT_MIN_SELF_DELEGATION_BNB;
         minDelegationBNBChange = INIT_MIN_DELEGATION_BNB_CHANGE;
         maxElectedValidators = INIT_MAX_ELECTED_VALIDATORS;
@@ -348,18 +340,16 @@ contract StakeHub is System {
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-        address pool = valInfo.poolModule;
-        require(_checkPoolImplementation(pool), "IMPLEMENTATION_NOT_MATCH");
 
-        if (valInfo.jailed || IStakePool(pool).getSelfDelegationBNB() < minSelfDelegationBNB) {
+        if (valInfo.jailed) {
             // only self delegation
             require(delegator == operatorAddress, "ONLY_SELF_DELEGATION");
         }
 
-        uint256 shares = IStakePool(pool).delegate{ value: bnbAmount }(delegator);
+        uint256 shares = IStakePool(valInfo.poolModule).delegate{ value: bnbAmount }(delegator);
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
-        IGovBNB(govBNB).mint(operatorAddress, delegator, bnbAmount);
+        IGovBNB(GOV_BNB_ADDR).mint(operatorAddress, delegator, bnbAmount);
     }
 
     function undelegate(
@@ -386,7 +376,7 @@ contract StakeHub is System {
             emit ValidatorJailed(operatorAddress);
         }
 
-        IGovBNB(govBNB).burn(operatorAddress, delegator, bnbAmount);
+        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, delegator, bnbAmount);
     }
 
     function redelegate(
@@ -411,12 +401,25 @@ contract StakeHub is System {
             "INVALID_REDELEGATION_AMOUNT"
         );
 
+        if (dstValInfo.jailed) {
+            // only self delegation
+            require(delegator == dstValidator, "ONLY_SELF_DELEGATION");
+        }
+
         uint256 bnbAmount = IStakePool(srcValInfo.poolModule).unbond(delegator, shares);
         uint256 newShares = IStakePool(dstValInfo.poolModule).delegate{ value: bnbAmount }(delegator);
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
-        IGovBNB(govBNB).burn(srcValidator, delegator, bnbAmount);
-        IGovBNB(govBNB).mint(dstValidator, delegator, bnbAmount);
+        if (
+            delegator == srcValidator && IStakePool(srcValInfo.poolModule).getSelfDelegationBNB() < minSelfDelegationBNB
+        ) {
+            _validators[srcValidator].jailed = true;
+            _removeEligibleValidator(srcValInfo.consensusAddress);
+            emit ValidatorJailed(srcValidator);
+        }
+
+        IGovBNB(GOV_BNB_ADDR).burn(srcValidator, delegator, bnbAmount);
+        IGovBNB(GOV_BNB_ADDR).mint(dstValidator, delegator, bnbAmount);
     }
 
     /**
@@ -430,24 +433,22 @@ contract StakeHub is System {
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
-    function upgradePoolImplementation() external onlyInitialized validatorExist(msg.sender) {
-        address operatorAddress = msg.sender;
-        Validator memory valInfo = _validators[operatorAddress];
-        address poolProxy = valInfo.poolModule;
-        require(!_checkPoolImplementation(poolProxy), "NO_NEED_TO_UPGRADE");
-        ProxyAdmin(_proxyAdmin).upgrade(ITransparentUpgradeableProxy(poolProxy), poolImplementation);
-    }
-
     /*----------------- system functions -----------------*/
     function distributeReward(address consensusAddress) external payable onlyInitialized onlyValidatorContract {
         address operatorAddress = _consensusToOperator[consensusAddress];
-        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator memory valInfo = _validators[operatorAddress];
-        require(valInfo.poolModule != address(0), "VALIDATOR_NOT_EXIST");
-        require(!valInfo.jailed, "VALIDATOR_JAILED");
+        if (valInfo.poolModule == address(0) || valInfo.jailed) {
+            emit RewardDistributeFailed(operatorAddress, "INVALID_VALIDATOR");
+            return;
+        }
 
-        IStakePool(valInfo.poolModule).distributeReward{ value: msg.value }(valInfo.commission.rate);
-        emit RewardDistributed(operatorAddress, msg.value);
+        try IStakePool(valInfo.poolModule).distributeReward{ value: msg.value }(valInfo.commission.rate) {
+            emit RewardDistributed(operatorAddress, msg.value);
+        } catch Error(string memory reason) {
+            emit RewardDistributeFailed(operatorAddress, bytes(reason));
+        } catch (bytes memory lowLevelData) {
+            emit RewardDistributeFailed(operatorAddress, lowLevelData);
+        }
     }
 
     /**
@@ -529,6 +530,7 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DownTime
         );
+        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlyInitialized onlySlash {
@@ -561,6 +563,7 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.MaliciousVote
         );
+        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
     }
 
     function doubleSignSlash(
@@ -599,6 +602,7 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DoubleSign
         );
+        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
     }
 
     /*----------------- gov -----------------*/
@@ -613,12 +617,7 @@ contract StakeHub is System {
     }
 
     function updateParam(string calldata key, bytes calldata value) external onlyInitialized onlyGov {
-        if (_compareStrings(key, "poolImplementation")) {
-            require(value.length == 20, "length of poolImplementation mismatch");
-            address newImpl = _bytesToAddress(20, value);
-            require(newImpl != address(0), "wrong pool implementation");
-            poolImplementation = newImpl;
-        } else if (_compareStrings(key, "transferGasLimit")) {
+        if (_compareStrings(key, "transferGasLimit")) {
             require(value.length == 32, "length of transferGasLimit mismatch");
             uint256 newTransferGasLimit = _bytesToUint256(32, value);
             require(newTransferGasLimit >= 2300, "the transferGasLimit is out of range");
@@ -720,7 +719,6 @@ contract StakeHub is System {
         uint256 offset,
         uint256 limit
     ) external view returns (address[] memory consensusAddrs, uint256[] memory votingPowers, uint256 totalLength) {
-        limit = limit > 100 ? 100 : limit;
         totalLength = _validatorSet.length();
         if (offset >= totalLength) {
             return (consensusAddrs, votingPowers, totalLength);
@@ -769,12 +767,6 @@ contract StakeHub is System {
         }
     }
 
-    function _bytesToAddress(uint256 _offset, bytes memory _input) internal pure returns (address _output) {
-        assembly {
-            _output := mload(add(_input, _offset))
-        }
-    }
-
     function _getSlashKey(
         address operatorAddress,
         uint256 height,
@@ -786,8 +778,8 @@ contract StakeHub is System {
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
-        // 1. moniker length should be between 1 and 9
-        if (bz.length == 0 || bz.length > 9) {
+        // 1. moniker length should be between 3 and 9
+        if (bz.length < 3 || bz.length > 9) {
             return false;
         }
 
@@ -839,14 +831,10 @@ contract StakeHub is System {
     }
 
     function _deployStakePool(address operatorAddress, string memory moniker) internal returns (address) {
-        address poolProxy = address(new TransparentUpgradeableProxy(poolImplementation, _proxyAdmin, ""));
+        address poolProxy = address(new TransparentUpgradeableProxy(STAKE_POOL_ADDR, DEAD_ADDRESS, ""));
         IStakePool(poolProxy).initialize{ value: msg.value }(operatorAddress, moniker);
 
         return poolProxy;
-    }
-
-    function _checkPoolImplementation(address poolProxy) internal view returns (bool) {
-        return ITransparentUpgradeableProxy(poolProxy).implementation() == poolImplementation;
     }
 
     function _removeEligibleValidator(address consensusAddress) internal {

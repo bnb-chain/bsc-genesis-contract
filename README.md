@@ -13,7 +13,7 @@ Install foundry:
 ```shell script
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
-forge install --no-git --no-commit foundry-rs/forge-std@v1.1.1
+forge install --no-git --no-commit foundry-rs/forge-std@v1.7.1
 ```
 
 Please make sure your dependency version is as follows:
