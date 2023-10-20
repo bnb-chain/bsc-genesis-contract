@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract SystemRewardTest is Deployer {
   event paramChange(string key, bytes value);

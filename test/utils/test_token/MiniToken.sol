@@ -1,13 +1,11 @@
-pragma solidity 0.6.4;
+pragma solidity ^0.8.0;
 
-import "../interface/IBEP20.sol";
-import "openzeppelin-solidity/contracts/GSN/Context.sol";
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
-import "openzeppelin-solidity/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Context.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract DEFToken is Context, IBEP20, Ownable {
-  using SafeMath for uint256;
+import "../interface/ITestToken.sol";
 
+contract MiniToken is Context, ITestToken, Ownable {
   mapping (address => uint256) private _balances;
 
   mapping (address => mapping (address => uint256)) private _allowances;
@@ -17,11 +15,11 @@ contract DEFToken is Context, IBEP20, Ownable {
   string public _symbol;
   string public _name;
 
-  constructor() public {
-    _name = "DEF token";
-    _symbol = "DEF";
+  constructor() {
+    _name = "XYZ token";
+    _symbol = "XYZ";
     _decimals = 18;
-    _totalSupply = 100000000000000000000000000;
+    _totalSupply = 10000000000000000000000;
     _balances[msg.sender] = _totalSupply;
 
     emit Transfer(address(0), msg.sender, _totalSupply);
@@ -30,42 +28,42 @@ contract DEFToken is Context, IBEP20, Ownable {
   /**
    * @dev Returns the bep token owner.
    */
-  function getOwner() external override view returns (address) {
+  function getOwner() external view returns (address) {
     return owner();
   }
 
   /**
    * @dev Returns the token decimals.
    */
-  function decimals() external override view returns (uint8) {
+  function decimals() external view returns (uint8) {
     return _decimals;
   }
 
   /**
    * @dev Returns the token symbol.
    */
-  function symbol() external override view returns (string memory) {
+  function symbol() external view returns (string memory) {
     return _symbol;
   }
 
   /**
   * @dev Returns the token name.
   */
-  function name() external override view returns (string memory) {
+  function name() external view returns (string memory) {
     return _name;
   }
 
   /**
    * @dev See {BEP20-totalSupply}.
    */
-  function totalSupply() external override view returns (uint256) {
+  function totalSupply() external view returns (uint256) {
     return _totalSupply;
   }
 
   /**
    * @dev See {BEP20-balanceOf}.
    */
-  function balanceOf(address account) external override view returns (uint256) {
+  function balanceOf(address account) external view returns (uint256) {
     return _balances[account];
   }
 
@@ -77,7 +75,7 @@ contract DEFToken is Context, IBEP20, Ownable {
    * - `recipient` cannot be the zero address.
    * - the caller must have a balance of at least `amount`.
    */
-  function transfer(address recipient, uint256 amount) external override returns (bool) {
+  function transfer(address recipient, uint256 amount) external returns (bool) {
     _transfer(_msgSender(), recipient, amount);
     return true;
   }
@@ -85,7 +83,7 @@ contract DEFToken is Context, IBEP20, Ownable {
   /**
    * @dev See {BEP20-allowance}.
    */
-  function allowance(address owner, address spender) external override view returns (uint256) {
+  function allowance(address owner, address spender) external view returns (uint256) {
     return _allowances[owner][spender];
   }
 
@@ -96,7 +94,7 @@ contract DEFToken is Context, IBEP20, Ownable {
    *
    * - `spender` cannot be the zero address.
    */
-  function approve(address spender, uint256 amount) external override returns (bool) {
+  function approve(address spender, uint256 amount) external returns (bool) {
     _approve(_msgSender(), spender, amount);
     return true;
   }
@@ -113,9 +111,10 @@ contract DEFToken is Context, IBEP20, Ownable {
    * - the caller must have allowance for `sender`'s tokens of at least
    * `amount`.
    */
-  function transferFrom(address sender, address recipient, uint256 amount) external override returns (bool) {
+  function transferFrom(address sender, address recipient, uint256 amount) external returns (bool) {
+    require(_allowances[sender][_msgSender()] >= amount, "BEP20: transfer amount exceeds allowance");
     _transfer(sender, recipient, amount);
-    _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "BEP20: transfer amount exceeds allowance"));
+    _approve(sender, _msgSender(), _allowances[sender][_msgSender()] - amount);
     return true;
   }
 
@@ -132,7 +131,7 @@ contract DEFToken is Context, IBEP20, Ownable {
    * - `spender` cannot be the zero address.
    */
   function increaseAllowance(address spender, uint256 addedValue) public returns (bool) {
-    _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
+    _approve(_msgSender(), spender, _allowances[_msgSender()][spender] + addedValue);
     return true;
   }
 
@@ -151,7 +150,7 @@ contract DEFToken is Context, IBEP20, Ownable {
    * `subtractedValue`.
    */
   function decreaseAllowance(address spender, uint256 subtractedValue) public returns (bool) {
-    _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "BEP20: decreased allowance below zero"));
+    _approve(_msgSender(), spender, _allowances[_msgSender()][spender] - subtractedValue);
     return true;
   }
 
@@ -173,8 +172,8 @@ contract DEFToken is Context, IBEP20, Ownable {
     require(sender != address(0), "BEP20: transfer from the zero address");
     require(recipient != address(0), "BEP20: transfer to the zero address");
 
-    _balances[sender] = _balances[sender].sub(amount, "BEP20: transfer amount exceeds balance");
-    _balances[recipient] = _balances[recipient].add(amount);
+    _balances[sender] = _balances[sender] - amount;
+    _balances[recipient] = _balances[recipient] + amount;
     emit Transfer(sender, recipient, amount);
   }
 
@@ -190,8 +189,8 @@ contract DEFToken is Context, IBEP20, Ownable {
   function _mint(address account, uint256 amount) internal {
     require(account != address(0), "BEP20: mint to the zero address");
 
-    _totalSupply = _totalSupply.add(amount);
-    _balances[account] = _balances[account].add(amount);
+    _totalSupply = _totalSupply + amount;
+    _balances[account] = _balances[account] + amount;
     emit Transfer(address(0), account, amount);
   }
 
@@ -209,8 +208,8 @@ contract DEFToken is Context, IBEP20, Ownable {
   function _burn(address account, uint256 amount) internal {
     require(account != address(0), "BEP20: burn from the zero address");
 
-    _balances[account] = _balances[account].sub(amount, "BEP20: burn amount exceeds balance");
-    _totalSupply = _totalSupply.sub(amount);
+    _balances[account] = _balances[account] - amount;
+    _totalSupply = _totalSupply - amount;
     emit Transfer(account, address(0), amount);
   }
 
@@ -243,6 +242,6 @@ contract DEFToken is Context, IBEP20, Ownable {
    */
   function _burnFrom(address account, uint256 amount) internal {
     _burn(account, amount);
-    _approve(account, _msgSender(), _allowances[account][_msgSender()].sub(amount, "BEP20: burn amount exceeds allowance"));
+    _approve(account, _msgSender(), _allowances[account][_msgSender()] - amount);
   }
 }

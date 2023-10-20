@@ -1,6 +1,7 @@
-pragma solidity 0.8.16;
+pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
+
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IGovHub.sol";
@@ -8,12 +9,13 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IStaking.sol";
+import "./interface/IStakeHub.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/ITokenManager.sol";
 import "./interface/ITendermintLightClient.sol";
-import "../lib/RLPEncode.sol";
-import "../lib/RLPDecode.sol";
+import "./RLPEncode.sol";
+import "./RLPDecode.sol";
 
 contract Deployer is Test {
   using RLPEncode for *;
@@ -30,6 +32,8 @@ contract Deployer is Test {
   address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
+  address public constant STAKEHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000002002;
+  address public constant GOVERNANCE_CONTRACT_ADDR = 0x0000000000000000000000000000000000002003;
 
   uint8 public constant BIND_CHANNELID = 0x01;
   uint8 public constant TRANSFER_IN_CHANNELID = 0x02;
@@ -52,6 +56,7 @@ contract Deployer is Test {
   TokenManager public tokenManager;
   CrossChain public crossChain;
   Staking public staking;
+  StakeHub public stakeHub;
 
   address payable public relayer;
   address payable[] public addrSet;
@@ -62,7 +67,8 @@ contract Deployer is Test {
   constructor() {
     // create fork
     // you should modify this for your own test, which generally should be the bsc mainnet latest number
-    vm.createSelectFork("bsc", 23839447);
+    // TODO: wait for foundry to fix this
+    // vm.createSelectFork("bsc", 23839447);
 
     validator = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
     vm.label(address(validator), "Validator");
@@ -86,6 +92,8 @@ contract Deployer is Test {
     vm.label(address(crossChain), "CrossChain");
     staking = Staking(STAKING_CONTRACT_ADDR);
     vm.label(address(staking), "Staking");
+    stakeHub = StakeHub(STAKEHUB_CONTRACT_ADDR);
+    vm.label(address(stakeHub), "StakeHub");
 
     addrSet = createUsers(100);
 

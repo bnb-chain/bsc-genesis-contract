@@ -49,10 +49,12 @@ interface BSCValidatorSet {
     function JAIL_MESSAGE_TYPE() external view returns (uint8);
     function LIGHT_CLIENT_ADDR() external view returns (address);
     function MAX_NUM_OF_VALIDATORS() external view returns (uint256);
+    function MAX_SYSTEM_REWARD_BALANCE() external view returns (uint256);
     function PRECISION() external view returns (uint256);
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_HUB_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
@@ -79,6 +81,7 @@ interface BSCValidatorSet {
             uint256 incoming
         );
     function currentValidatorSetMap(address) external view returns (uint256);
+    function currentVoteAddrFullSet(uint256) external view returns (bytes memory);
     function deposit(address valAddr) external payable;
     function distributeFinalityReward(address[] memory valAddrs, uint256[] memory weights) external;
     function enterMaintenance() external;
@@ -97,6 +100,7 @@ interface BSCValidatorSet {
     function handleSynPackage(uint8, bytes memory msgBytes) external returns (bytes memory responsePayload);
     function init() external;
     function isCurrentValidator(address validator) external view returns (bool);
+    function isMonitoredForMaliciousVote(bytes memory voteAddr) external view returns (bool);
     function isWorkingValidator(uint256 index) external view returns (bool);
     function maintainSlashScale() external view returns (uint256);
     function maxNumOfCandidates() external view returns (uint256);
@@ -106,9 +110,12 @@ interface BSCValidatorSet {
     function numOfCabinets() external view returns (uint256);
     function numOfJailed() external view returns (uint256);
     function numOfMaintaining() external view returns (uint256);
+    function previousBalanceOfSystemReward() external view returns (uint256);
     function previousHeight() external view returns (uint256);
+    function previousVoteAddrFullSet(uint256) external view returns (bytes memory);
     function totalInComing() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
+    function updateValidatorSetV2() external;
     function validatorExtraSet(uint256)
         external
         view

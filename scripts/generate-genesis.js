@@ -17,7 +17,7 @@ program.option(
 );
 program.parse(process.argv);
 
-// compile contract
+// get byte code from compiled contract
 function readByteCode(key, contractFile) {
   return new Promise((resolve, reject) => {
     fs.readFile(`${contractFile}`, 'utf8', (err, data) => {
@@ -54,6 +54,7 @@ Promise.all([
   readByteCode('tokenManager', 'out/TokenManager.sol/TokenManager.json'),
   readByteCode('crossChain', 'out/CrossChain.sol/CrossChain.json'),
   readByteCode('staking', 'out/Staking.sol/Staking.json'),
+  readByteCode('stakeHub', 'out/StakeHub.sol/StakeHub.json'),
 ]).then((result) => {
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,

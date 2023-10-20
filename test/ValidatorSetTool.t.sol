@@ -1,7 +1,8 @@
 pragma solidity ^0.8.10;
 
 import "forge-std/Test.sol";
-import "../lib/interface/IBSCValidatorSetTool.sol";
+
+import "./utils/interface/IBSCValidatorSetTool.sol";
 
 contract ToolTest is Test {
   BSCValidatorSetTool public tool;

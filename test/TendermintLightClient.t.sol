@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract TendermintLightClientTest is Deployer {
   event relayerRegister(address _relayer);

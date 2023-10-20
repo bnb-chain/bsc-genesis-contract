@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract RelayerIncentivizeTest is Deployer {
   event distributeCollectedReward(uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer);

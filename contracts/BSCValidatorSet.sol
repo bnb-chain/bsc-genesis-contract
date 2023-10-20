@@ -16,6 +16,16 @@ import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
 
+interface ICrossChain {
+  function channelHandlerContractMap(uint8 channelId) external view returns (address);
+}
+
+interface IStakeHub {
+  function maxElectedValidators() external view returns (uint256);
+  function distributeReward(address validator) external payable;
+  function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
+  function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
+}
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
 
@@ -215,6 +225,42 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
+  function updateValidatorSetV2() external onlyInit onlyCoinbase onlyZeroGasPrice {
+    if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).channelHandlerContractMap(STAKING_CHANNELID) != address(0)) {
+      return;
+    }
+
+    // step 0: force all maintaining validators to exit `Temporary Maintenance`
+    // - 1. validators exit maintenance
+    // - 2. clear all maintainInfo
+    // - 3. get unjailed validators from validatorSet
+    (Validator[] memory validatorSet, bytes[] memory voteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+
+    // step 1: distribute incoming
+    for (uint i; i < currentValidatorSet.length; ++i) {
+      if (currentValidatorSet[i].incoming > 0) {
+        IStakeHub(STAKE_HUB_ADDR).distributeReward{value : currentValidatorSet[i].incoming}(currentValidatorSet[i].consensusAddress);
+      }
+    }
+
+    // step 2: do dusk transfer
+    if (address(this).balance>0) {
+      emit systemTransfer(address(this).balance);
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
+    }
+
+    // step 3: do update validator set state
+    totalInComing = 0;
+    numOfJailed = 0;
+    if (validatorSetTemp.length > 0) {
+      doUpdateState(validatorSetTemp, voteAddrsTemp);
+    }
+
+    // step 3: clean slash contract
+    ISlashIndicator(SLASH_CONTRACT_ADDR).clean();
+    emit validatorSetUpdated();
+  }
 
   /**
    * @dev Collect all fee of transactions from the current block and deposit it to the contract
@@ -295,7 +341,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // - 1. validators exit maintenance
     // - 2. clear all maintainInfo
     // - 3. get unjailed validators from validatorSet
-    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+    Validator[] memory validatorSetTemp;
+    bytes[] memory voteAddrsTemp;
+    {
+      // get migrated validators
+      (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+      (Validator[] memory mergedValidators, bytes[] memory mergedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
+
+      (validatorSetTemp, voteAddrsTemp) = _forceMaintainingValidatorsExit(mergedValidators, mergedVoteAddrs);
+    }
 
     {
       //step 1: do calculate distribution, do not make it as an internal function for saving gas.
@@ -326,8 +380,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("fee is larger than DUSTY_INCOMING");
         return ERROR_RELAYFEE_TOO_LARGE;
       }
-      for (uint i; i<validatorsNum; ++i) {
-        if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
+      for (uint i; i < validatorsNum; ++i) {
+        if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(currentValidatorSet[i].consensusAddress) != address(0)) {
+          directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
+          directAmounts[directSize] = currentValidatorSet[i].incoming;
+          ++directSize;
+        } else if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
           crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
           crossAmounts[crossSize] = value.sub(relayFee);
@@ -373,13 +431,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
 
       // step 3: direct transfer
-      if (directAddrs.length>0) {
-        for (uint i; i<directAddrs.length; ++i) {
-          bool success = directAddrs[i].send(directAmounts[i]);
-          if (success) {
-            emit directTransfer(directAddrs[i], directAmounts[i]);
+      if (directAddrs.length > 0) {
+        for (uint i; i < directAddrs.length; ++i) {
+          if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(directAddrs[i]) != address(0)) {
+            IStakeHub(STAKE_HUB_ADDR).distributeReward{value : directAmounts[i]}(directAddrs[i]);
           } else {
-            emit directTransferFail(directAddrs[i], directAmounts[i]);
+            bool success = directAddrs[i].send(directAmounts[i]);
+            if (success) {
+              emit directTransfer(directAddrs[i], directAmounts[i]);
+            } else {
+              emit directTransferFail(directAddrs[i], directAmounts[i]);
+            }
           }
         }
       }
@@ -390,10 +452,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       emit systemTransfer(address(this).balance);
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(address(this).balance);
     }
+
     // step 5: do update validator set state
     totalInComing = 0;
     numOfJailed = 0;
-    if (validatorSetTemp.length>0) {
+    if (validatorSetTemp.length > 0) {
       doUpdateState(validatorSetTemp, voteAddrsTemp);
     }
 
@@ -609,6 +672,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       workingValidatorCount = 1;
     }
   }
+
   /*********************** For slash **************************/
   function misdemeanor(address validator) external onlySlash initValidatorExtraSet override {
     uint256 validatorIndex = _misdemeanor(validator);
@@ -659,7 +723,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     return true;
   }
-
 
   /**
    * @dev Enter maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
@@ -961,6 +1024,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     currentValidatorSet.pop();
     validatorExtraSet.pop();
 
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     uint256 averageDistribute = income / rest;
     if (averageDistribute != 0) {
       uint n = currentValidatorSet.length;
@@ -968,7 +1032,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     return true;
   }
 
@@ -1055,13 +1118,70 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
-      ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
+      if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(validator) != address(0)) {
+        ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
+      } else {
+        ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
+      }
       isFelony = true;
     } else if (slashCount >= misdemeanorThreshold) {
       _misdemeanor(validator);
     }
 
     emit validatorExitMaintenance(validator);
+  }
+
+  function _mergeValidatorSet(Validator[] memory validatorSet1, bytes[] memory voteAddrSet1, Validator[] memory validatorSet2, bytes[] memory voteAddrSet2) internal view returns (Validator[] memory, bytes[] memory) {
+    uint256 _length = IStakeHub(STAKE_HUB_ADDR).maxElectedValidators();
+    if (validatorSet1.length + validatorSet2.length < _length) {
+      _length = validatorSet1.length + validatorSet2.length;
+    }
+    Validator[] memory mergedValidatorSet = new Validator[](_length);
+    bytes[] memory mergedVoteAddrSet = new bytes[](_length);
+
+    uint256 i;
+    uint256 j;
+    uint256 k;
+    while ((i < validatorSet1.length || j < validatorSet2.length) && k < _length) {
+      if (i == validatorSet1.length) {
+        mergedValidatorSet[k] = validatorSet2[j];
+        mergedVoteAddrSet[k] = voteAddrSet2[j];
+        ++j;
+        ++k;
+        continue;
+      }
+
+      if (j == validatorSet2.length) {
+        mergedValidatorSet[k] = validatorSet1[i];
+        mergedVoteAddrSet[k] = voteAddrSet1[i];
+        ++i;
+        ++k;
+        continue;
+      }
+
+      if (validatorSet1[i].votingPower > validatorSet2[j].votingPower) {
+        mergedValidatorSet[k] = validatorSet1[i];
+        mergedVoteAddrSet[k] = voteAddrSet1[i];
+        ++i;
+      } else if (validatorSet1[i].votingPower < validatorSet2[j].votingPower) {
+        mergedValidatorSet[k] = validatorSet2[j];
+        mergedVoteAddrSet[k] = voteAddrSet2[j];
+        ++j;
+      } else {
+        if (validatorSet1[i].consensusAddress < validatorSet2[j].consensusAddress) {
+          mergedValidatorSet[k] = validatorSet1[i];
+          mergedVoteAddrSet[k] = voteAddrSet1[i];
+          ++i;
+        } else {
+          mergedValidatorSet[k] = validatorSet2[j];
+          mergedVoteAddrSet[k] = voteAddrSet2[j];
+          ++j;
+        }
+      }
+      ++k;
+    }
+
+    return (mergedValidatorSet, mergedVoteAddrSet);
   }
 
   //rlp encode & decode function
