@@ -55,6 +55,7 @@ Promise.all([
   readByteCode('crossChain', 'out/CrossChain.sol/CrossChain.json'),
   readByteCode('staking', 'out/Staking.sol/Staking.json'),
   readByteCode('stakeHub', 'out/StakeHub.sol/StakeHub.json'),
+  readByteCode('stakePool', 'out/StakePool.sol/StakePool.json'),
 ]).then((result) => {
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,

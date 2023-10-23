@@ -51,8 +51,6 @@ function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
 extraValidatorBytes = generateExtraData(validators);
 validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
 
-process.stdout.write(validatorSetBytes);
-
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,
   validatorSetBytes: validatorSetBytes,

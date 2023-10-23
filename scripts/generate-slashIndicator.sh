@@ -24,8 +24,7 @@ case $NETWORK in
 local)
     sed -i -e "s/alreadyInit = true;/enableMaliciousVoteSlash = true;\nalreadyInit = true;/g" "$OUTPUT"
     ;;
-*)
-    ;;
+*) ;;
 esac
 
 echo "SlashIndicator file updated."
