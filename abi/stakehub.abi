@@ -166,6 +166,25 @@
       },
       {
         "indexed": false,
+        "internalType": "bytes",
+        "name": "failReason",
+        "type": "bytes"
+      }
+    ],
+    "name": "RewardDistributeFailed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operatorAddress",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
         "name": "reward",
         "type": "uint256"
@@ -403,6 +422,19 @@
   },
   {
     "inputs": [],
+    "name": "GOV_BNB_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "GOV_HUB_ADDR",
     "outputs": [
       {
@@ -468,19 +500,6 @@
   },
   {
     "inputs": [],
-    "name": "INIT_GOV_BNB",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "INIT_MAX_ELECTED_VALIDATORS",
     "outputs": [
       {
@@ -533,19 +552,6 @@
   },
   {
     "inputs": [],
-    "name": "INIT_POOL_IMPLEMENTATION",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "INIT_TRANSFER_GAS_LIMIT",
     "outputs": [
       {
@@ -586,6 +592,19 @@
   {
     "inputs": [],
     "name": "STAKE_HUB_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STAKE_POOL_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -861,7 +880,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "newConsensus",
+        "name": "newConsensusAddress",
         "type": "address"
       }
     ],
@@ -1202,19 +1221,6 @@
   },
   {
     "inputs": [],
-    "name": "govBNB",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "initialize",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1308,19 +1314,6 @@
     "name": "pauseStaking",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "poolImplementation",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1442,13 +1435,6 @@
       }
     ],
     "name": "updateParam",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "upgradePoolImplementation",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

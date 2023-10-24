@@ -7,8 +7,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./System.sol";
 
 interface IGovBNB {
-    function mint(address validator, address delegator, uint256 amount) external;
-    function burn(address validator, address delegator, uint256 amount) external;
+    function sync(address[] calldata validatorPools, address account) external;
 }
 
 interface IBSCValidatorSet {
@@ -164,7 +163,6 @@ contract StakeHub is System {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event StakingPaused();
     event StakingResumed();
-    event paramChange(string key, bytes value);
 
     /*----------------- modifiers -----------------*/
     modifier onlyInitialized() {
@@ -184,11 +182,6 @@ contract StakeHub is System {
 
     modifier whenNotPaused() {
         require(!_stakingPaused, "STAKE_STOPPED");
-        _;
-    }
-
-    modifier onlyZeroGasPrice() {
-        require(tx.gasprice == 0, "gasprice is not zero");
         _;
     }
 
@@ -349,7 +342,7 @@ contract StakeHub is System {
         uint256 shares = IStakePool(valInfo.poolModule).delegate{ value: bnbAmount }(delegator);
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
-        IGovBNB(GOV_BNB_ADDR).mint(operatorAddress, delegator, bnbAmount);
+        _sync(valInfo.poolModule, delegator);
     }
 
     function undelegate(
@@ -376,7 +369,7 @@ contract StakeHub is System {
             emit ValidatorJailed(operatorAddress);
         }
 
-        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, delegator, bnbAmount);
+        _sync(valInfo.poolModule, delegator);
     }
 
     function redelegate(
@@ -418,8 +411,10 @@ contract StakeHub is System {
             emit ValidatorJailed(srcValidator);
         }
 
-        IGovBNB(GOV_BNB_ADDR).burn(srcValidator, delegator, bnbAmount);
-        IGovBNB(GOV_BNB_ADDR).mint(dstValidator, delegator, bnbAmount);
+        address[] memory _pools = new address[](2);
+        _pools[0] = srcValInfo.poolModule;
+        _pools[1] = dstValInfo.poolModule;
+        IGovBNB(GOV_TOKEN_ADDR).sync(_pools, delegator);
     }
 
     /**
@@ -431,6 +426,19 @@ contract StakeHub is System {
     ) external onlyInitialized validatorExist(operatorAddress) {
         uint256 bnbAmount = IStakePool(_validators[operatorAddress].poolModule).claim(msg.sender, requestNumber);
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
+    }
+
+    function sync(address[] calldata operatorAddresses, address account) external {
+        uint256 _length = operatorAddresses.length;
+        address[] memory validatorPools = new address[](_length);
+        address _pool;
+        for (uint256 i = 0; i < _length; ++i) {
+            _pool = _validators[operatorAddresses[i]].poolModule;
+            require(_pool != address(0), "validator not exist");
+            validatorPools[i] = _pool;
+        }
+
+        IGovBNB(GOV_TOKEN_ADDR).sync(validatorPools, account);
     }
 
     /*----------------- system functions -----------------*/
@@ -530,7 +538,8 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DownTime
         );
-        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
+
+        _sync(valInfo.poolModule, operatorAddress);
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlyInitialized onlySlash {
@@ -563,7 +572,8 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.MaliciousVote
         );
-        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
+
+        _sync(valInfo.poolModule, operatorAddress);
     }
 
     function doubleSignSlash(
@@ -602,7 +612,8 @@ contract StakeHub is System {
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DoubleSign
         );
-        IGovBNB(GOV_BNB_ADDR).burn(operatorAddress, operatorAddress, slashAmount);
+
+        _sync(valInfo.poolModule, operatorAddress);
     }
 
     /*----------------- gov -----------------*/
@@ -682,7 +693,7 @@ contract StakeHub is System {
         } else {
             require(false, "unknown param");
         }
-        emit paramChange(key, value);
+        emit ParamChange(key, value);
     }
 
     /*----------------- view functions -----------------*/
@@ -757,22 +768,18 @@ contract StakeHub is System {
     }
 
     /*----------------- internal functions -----------------*/
-    function _compareStrings(string memory a, string memory b) internal pure returns (bool) {
-        return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
-    }
-
-    function _bytesToUint256(uint256 _offset, bytes memory _input) internal pure returns (uint256 _output) {
-        assembly {
-            _output := mload(add(_input, _offset))
-        }
-    }
-
     function _getSlashKey(
         address operatorAddress,
         uint256 height,
         SlashType slashType
     ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(operatorAddress, height, slashType));
+    }
+
+    function _sync(address validatorPool, address account) private {
+        address[] memory _pools = new address[](1);
+        _pools[0] = validatorPool;
+        IGovBNB(GOV_TOKEN_ADDR).sync(_pools, account);
     }
 
     function _checkMoniker(string memory moniker) internal pure returns (bool) {

@@ -56,6 +56,9 @@ Promise.all([
   readByteCode('staking', 'out/Staking.sol/Staking.json'),
   readByteCode('stakeHub', 'out/StakeHub.sol/StakeHub.json'),
   readByteCode('stakePool', 'out/StakePool.sol/StakePool.json'),
+  readByteCode('governor', 'out/BSCGovernor.sol/BSCGovernor.json'),
+  readByteCode('govToken', 'out/GovToken.sol/GovToken.json'),
+  readByteCode('timelock', 'out/BSCTimelock.sol/BSCTimelock.json'),
 ]).then((result) => {
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
