@@ -202,7 +202,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("length of jail validators must be one");
         resCode = ERROR_LEN_OF_VAL_MISMATCH;
       } else {
-        resCode = jailValidator(validatorSetPackage.validatorSet[0]);
+        resCode = _jailValidator(validatorSetPackage.validatorSet[0]);
       }
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
@@ -301,7 +301,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function jailValidator(Validator memory v) internal returns (uint32) {
+  function jailValidator(address consensusAddress) external onlyStakeHub {
+    uint256 index = currentValidatorSetMap[consensusAddress];
+    if (index==0 || currentValidatorSet[index-1].jailed) {
+      return ;
+    }
+    _jailValidator(currentValidatorSet[index-1]);
+  }
+
+  function _jailValidator(Validator memory v) internal returns (uint32) {
     uint256 index = currentValidatorSetMap[v.consensusAddress];
     if (index==0 || currentValidatorSet[index-1].jailed) {
       emit validatorEmptyJailed(v.consensusAddress);

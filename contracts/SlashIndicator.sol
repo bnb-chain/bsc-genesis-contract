@@ -204,9 +204,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function downtimeSlash(address validator, uint256 count) public override {
-    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator, block.number) {}
-    catch (bytes memory reason) {
-      emit failedFelony(validator, count, reason);
+    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator, block.number) {
+    } catch Error(string memory reason) {
+      emit failedFelony(validator, count, bytes(reason));
+    } catch (bytes memory lowLevelData) {
+      emit failedFelony(validator, count, lowLevelData);
     }
   }
 

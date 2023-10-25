@@ -181,6 +181,9 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
     function getSharesByPooledBNB(uint256 bnbAmount) public view returns (uint256) {
+        if (totalPooledBNB == 0) {
+            return 0;
+        }
         return (bnbAmount * totalSupply()) / totalPooledBNB;
     }
 
@@ -188,6 +191,9 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
      * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
      */
     function getPooledBNBByShares(uint256 shares) public view returns (uint256) {
+        if (totalSupply() == 0) {
+            return 0;
+        }
         return (shares * totalPooledBNB) / totalSupply();
     }
 

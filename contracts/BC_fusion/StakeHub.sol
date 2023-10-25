@@ -19,6 +19,8 @@ interface IBSCValidatorSet {
         bool jailed;
         uint256 incoming;
     }
+
+    function jailValidator(address consensusAddress) external;
 }
 
 interface IStakePool {
@@ -86,6 +88,8 @@ contract StakeHub is System {
     mapping(address => address) private _consensusToOperator;
     // slash key => slash record
     mapping(bytes32 => SlashRecord) private _slashRecords;
+
+    uint256 public numOfJailed;
 
     IBSCValidatorSet.Validator[] private _eligibleValidators;
     bytes[] private _eligibleValidatorVoteAddrs;
@@ -159,6 +163,7 @@ contract StakeHub is System {
         SlashType slashType
     );
     event ValidatorJailed(address indexed operatorAddress);
+    event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event StakingPaused();
@@ -318,6 +323,7 @@ contract StakeHub is System {
         require(valInfo.jailUntil <= block.timestamp, "STILL_JAILED");
 
         valInfo.jailed = false;
+        numOfJailed -= 1;
         emit ValidatorUnjailed(operatorAddress);
     }
 
@@ -361,12 +367,8 @@ contract StakeHub is System {
         uint256 bnbAmount = IStakePool(valInfo.poolModule).undelegate(delegator, shares);
         emit Undelegated(operatorAddress, delegator, shares, bnbAmount);
 
-        if (
-            delegator == operatorAddress && IStakePool(valInfo.poolModule).getSelfDelegationBNB() < minSelfDelegationBNB
-        ) {
-            _validators[operatorAddress].jailed = true;
-            _removeEligibleValidator(valInfo.consensusAddress);
-            emit ValidatorJailed(operatorAddress);
+        if (delegator == operatorAddress) {
+            _checkValidatorSelfDelegation(operatorAddress);
         }
 
         _sync(valInfo.poolModule, delegator);
@@ -403,12 +405,8 @@ contract StakeHub is System {
         uint256 newShares = IStakePool(dstValInfo.poolModule).delegate{ value: bnbAmount }(delegator);
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
-        if (
-            delegator == srcValidator && IStakePool(srcValInfo.poolModule).getSelfDelegationBNB() < minSelfDelegationBNB
-        ) {
-            _validators[srcValidator].jailed = true;
-            _removeEligibleValidator(srcValInfo.consensusAddress);
-            emit ValidatorJailed(srcValidator);
+        if (delegator == srcValidator) {
+            _checkValidatorSelfDelegation(srcValidator);
         }
 
         address[] memory _pools = new address[](2);
@@ -521,9 +519,7 @@ contract StakeHub is System {
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(downtimeSlashAmount);
-        valInfo.jailed = true;
-        _removeEligibleValidator(consensusAddress);
-        emit ValidatorJailed(operatorAddress);
+        _jailValidator(valInfo);
 
         // record
         record.jailUntil = block.timestamp + downtimeJailTime;
@@ -555,9 +551,7 @@ contract StakeHub is System {
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
-        valInfo.jailed = true;
-        _removeEligibleValidator(valInfo.consensusAddress);
-        emit ValidatorJailed(operatorAddress);
+        _jailValidator(valInfo);
 
         // record
         record.jailUntil = block.timestamp + doubleSignJailTime;
@@ -595,9 +589,7 @@ contract StakeHub is System {
 
         // slash
         uint256 slashAmount = IStakePool(valInfo.poolModule).slash(doubleSignSlashAmount);
-        valInfo.jailed = true;
-        _removeEligibleValidator(consensusAddress);
-        emit ValidatorJailed(operatorAddress);
+        _jailValidator(valInfo);
 
         // record
         record.jailUntil = block.timestamp + doubleSignJailTime;
@@ -743,7 +735,7 @@ contract StakeHub is System {
             Validator memory valInfo = _validators[operatorAddress];
             consensusAddrs[i] = valInfo.consensusAddress;
             address pool = valInfo.poolModule;
-            votingPowers[i] = IStakePool(pool).totalPooledBNB();
+            votingPowers[i] = valInfo.jailed ? 0 : IStakePool(pool).totalPooledBNB();
         }
     }
 
@@ -844,10 +836,33 @@ contract StakeHub is System {
         return poolProxy;
     }
 
-    function _removeEligibleValidator(address consensusAddress) internal {
+    function _checkValidatorSelfDelegation(address operatorAddress) internal {
+        Validator storage valInfo = _validators[operatorAddress];
+        if (valInfo.jailed) {
+            return;
+        }
+        if (IStakePool(valInfo.poolModule).getSelfDelegationBNB() < minSelfDelegationBNB) {
+            _jailValidator(valInfo);
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
+        }
+    }
+
+    function _jailValidator(Validator storage valInfo) internal {
+        // keep the last eligible validator
+        bool isLast = (numOfJailed >= _validatorSet.length() - 1);
+        if (isLast) {
+            emit ValidatorEmptyJailed(valInfo.operatorAddress);
+            return;
+        }
+
+        valInfo.jailed = true;
+        numOfJailed += 1;
+        emit ValidatorJailed(valInfo.operatorAddress);
+
+        // remove the jailed validator from eligible validators
         uint256 length = _eligibleValidators.length;
         for (uint256 i; i < length; ++i) {
-            if (_eligibleValidators[i].consensusAddress == consensusAddress) {
+            if (_eligibleValidators[i].consensusAddress == valInfo.consensusAddress) {
                 for (uint256 j = i + 1; j < length; ++j) {
                     _eligibleValidators[j - 1] = _eligibleValidators[j];
                     _eligibleValidatorVoteAddrs[j - 1] = _eligibleValidatorVoteAddrs[j];

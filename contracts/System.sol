@@ -93,6 +93,11 @@ contract System {
     _;
   }
 
+  modifier onlyStakeHub() {
+    require(msg.sender == STAKE_HUB_ADDR, "the msg sender must be stakeHub");
+    _;
+  }
+
   // Not reliable, do not use when need strong verify
   function isContract(address addr) internal view returns (bool) {
     uint size;
