@@ -364,11 +364,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint crossSize;
       uint directSize;
       uint validatorsNum = currentValidatorSet.length;
+      uint8[] memory isMigrated = new uint8[](validatorsNum);
       for (uint i; i<validatorsNum; ++i) {
-        if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
-          ++crossSize;
-        } else if (currentValidatorSet[i].incoming > 0) {
-          ++directSize;
+        if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(currentValidatorSet[i].consensusAddress) != address(0)) {
+          isMigrated[i] = 1;
+          if (currentValidatorSet[i].incoming != 0) {
+            ++ directSize;
+          }
+        } else if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
+          ++ crossSize;
+        } else if (currentValidatorSet[i].incoming != 0) {
+          ++ directSize;
         }
       }
 
@@ -389,10 +395,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         return ERROR_RELAYFEE_TOO_LARGE;
       }
       for (uint i; i < validatorsNum; ++i) {
-        if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(currentValidatorSet[i].consensusAddress) != address(0)) {
-          directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
-          directAmounts[directSize] = currentValidatorSet[i].incoming;
-          ++directSize;
+        if (isMigrated[i] == 1) {
+          if (currentValidatorSet[i].incoming != 0) {
+            directAddrs[directSize] = payable(currentValidatorSet[i].consensusAddress);
+            directAmounts[directSize] = currentValidatorSet[i].incoming;
+            isMigrated[directSize] = 1; // directSize must be less than i. so we can use directSize as index
+            ++directSize;
+          }
         } else if (currentValidatorSet[i].incoming >= DUSTY_INCOMING) {
           crossAddrs[crossSize] = currentValidatorSet[i].BBCFeeAddress;
           uint256 value = currentValidatorSet[i].incoming - currentValidatorSet[i].incoming % PRECISION;
@@ -401,9 +410,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           crossIndexes[crossSize] = i;
           crossTotal = crossTotal.add(value);
           ++crossSize;
-        } else if (currentValidatorSet[i].incoming > 0) {
+        } else if (currentValidatorSet[i].incoming != 0) {
           directAddrs[directSize] = currentValidatorSet[i].feeAddress;
           directAmounts[directSize] = currentValidatorSet[i].incoming;
+          isMigrated[directSize] = 0;
           ++directSize;
         }
       }
@@ -441,7 +451,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // step 3: direct transfer
       if (directAddrs.length > 0) {
         for (uint i; i < directAddrs.length; ++i) {
-          if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(directAddrs[i]) != address(0)) {
+          if (isMigrated[i] == 1) {
             IStakeHub(STAKE_HUB_ADDR).distributeReward{value : directAmounts[i]}(directAddrs[i]);
           } else {
             bool success = directAddrs[i].send(directAmounts[i]);
