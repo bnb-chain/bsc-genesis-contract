@@ -70,6 +70,26 @@ contract BSCGovernor is
             uint256 newVotingDelay = _bytesToUint256(valueLength, value);
             require(newVotingDelay > 0, "invalid votingDelay");
             _setVotingDelay(newVotingDelay);
+        } else if (_compareStrings(key, "votingPeriod")) {
+            require(valueLength == 32, "invalid votingPeriod value length");
+            uint256 newVotingPeriod = _bytesToUint256(valueLength, value);
+            require(newVotingPeriod > 0, "invalid votingPeriod");
+            _setVotingPeriod(newVotingPeriod);
+        } else if (_compareStrings(key, "proposalThreshold")) {
+            require(valueLength == 32, "invalid proposalThreshold value length");
+            uint256 newProposalThreshold = _bytesToUint256(valueLength, value);
+            require(newProposalThreshold > 0, "invalid proposalThreshold");
+            _setProposalThreshold(newProposalThreshold);
+        } else if (_compareStrings(key, "quorumDenominator")) {
+            require(valueLength == 32, "invalid quorumDenominator value length");
+            uint256 newQuorumDenominator = _bytesToUint256(valueLength, value);
+            require(newQuorumDenominator >= 1, "invalid quorumDenominator");
+            _updateQuorumNumerator(newQuorumDenominator);
+        } else if (_compareStrings(key, "minPeriodAfterQuorum")) {
+            require(valueLength == 8, "invalid minPeriodAfterQuorum value length");
+            uint64 newMinPeriodAfterQuorum = _bytesToUint64(valueLength, value);
+            require(newMinPeriodAfterQuorum >= 1, "invalid minPeriodAfterQuorum");
+            _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
         } else {
             revert("unknown param");
         }
