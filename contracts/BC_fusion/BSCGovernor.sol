@@ -22,20 +22,21 @@ contract BSCGovernor is
     GovernorVotesQuorumFractionUpgradeable,
     GovernorPreventLateQuorumUpgradeable
 {
-    function initialize(
-        uint256 _votingDelay,
-        uint256 _votingPeriod,
-        uint256 _quorumNumerator,
-        uint256 _proposalThreshold,
-        uint64 _minPeriodAfterQuorum
-    ) external initializer onlyCoinbase onlyZeroGasPrice {
+    uint256 public constant INIT_VOTING_DELAY = 6 hours;
+    uint256 public constant INIT_VOTING_PERIOD = 7 days;
+    uint256 public constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
+    uint256 public constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
+    // ensures there is a minimum voting period (1 days) after quorum is reached
+    uint64 public constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
+
+    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         __Governor_init("BSCGovernor");
-        __GovernorSettings_init(_votingDelay, _votingPeriod, _proposalThreshold);
+        __GovernorSettings_init(INIT_VOTING_DELAY, INIT_VOTING_PERIOD, INIT_PROPOSAL_THRESHOLD);
         __GovernorCompatibilityBravo_init();
         __GovernorVotes_init(IVotesUpgradeable(GOV_TOKEN_ADDR));
         __GovernorTimelockControl_init(TimelockControllerUpgradeable(payable(TIMELOCK_ADDR)));
-        __GovernorVotesQuorumFraction_init(_quorumNumerator);
-        __GovernorPreventLateQuorum_init(_minPeriodAfterQuorum);
+        __GovernorVotesQuorumFraction_init(INIT_QUORUM_NUMERATOR);
+        __GovernorPreventLateQuorum_init(INIT_MIN_PERIOD_AFTER_QUORUM);
     }
 
     function state(

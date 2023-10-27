@@ -5,11 +5,24 @@ import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgrade
 import "./System.sol";
 
 contract BSCTimelock is System, TimelockControllerUpgradeable {
-    uint256 public constant MINIMAL_DELAY = 6 hours;
+    uint256 public constant INIT_MINIMAL_DELAY = 6 hours;
 
-    function initialize(address _admin) external initializer onlyCoinbase onlyZeroGasPrice {
+    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         address[] memory _governor = new address[](1);
         _governor[0] = GOVERNOR_ADDR;
-        __TimelockController_init(MINIMAL_DELAY, _governor, _governor, _admin);
+        __TimelockController_init(INIT_MINIMAL_DELAY, _governor, _governor, GOVERNOR_ADDR);
+    }
+
+    function updateParam(string calldata key, bytes calldata value) external onlyGov {
+        uint256 valueLength = value.length;
+        if (_compareStrings(key, "minDelay")) {
+            require(valueLength == 32, "invalid minDelay value length");
+            uint256 newMinDelay = _bytesToUint256(valueLength, value);
+            require(newMinDelay > 0, "invalid minDelay");
+            this.updateDelay(newMinDelay);
+        } else {
+            revert("unknown param");
+        }
+        emit ParamChange(key, value);
     }
 }
