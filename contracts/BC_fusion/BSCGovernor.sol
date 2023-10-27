@@ -29,6 +29,9 @@ contract BSCGovernor is
     // ensures there is a minimum voting period (1 days) after quorum is reached
     uint64 public constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
 
+    // target contract => is whitelisted for governance
+    mapping(address => bool) public whitelistTargets;
+
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         __Governor_init("BSCGovernor");
         __GovernorSettings_init(INIT_VOTING_DELAY, INIT_VOTING_PERIOD, INIT_PROPOSAL_THRESHOLD);
@@ -37,8 +40,29 @@ contract BSCGovernor is
         __GovernorTimelockControl_init(TimelockControllerUpgradeable(payable(TIMELOCK_ADDR)));
         __GovernorVotesQuorumFraction_init(INIT_QUORUM_NUMERATOR);
         __GovernorPreventLateQuorum_init(INIT_MIN_PERIOD_AFTER_QUORUM);
+
+        whitelistTargets[VALIDATOR_CONTRACT_ADDR] = true;
+        whitelistTargets[SLASH_CONTRACT_ADDR] = true;
+        whitelistTargets[SYSTEM_REWARD_ADDR] = true;
+        whitelistTargets[LIGHT_CLIENT_ADDR] = true;
+        whitelistTargets[TOKEN_HUB_ADDR] = true;
+        whitelistTargets[INCENTIVIZE_ADDR] = true;
+        whitelistTargets[RELAYERHUB_CONTRACT_ADDR] = true;
+        whitelistTargets[GOV_HUB_ADDR] = true;
+        whitelistTargets[TOKEN_MANAGER_ADDR] = true;
+        whitelistTargets[CROSS_CHAIN_CONTRACT_ADDR] = true;
+        whitelistTargets[STAKING_CONTRACT_ADDR] = true;
+        whitelistTargets[STAKE_HUB_ADDR] = true;
+        whitelistTargets[STAKE_POOL_ADDR] = true;
+        whitelistTargets[GOVERNOR_ADDR] = true;
+        whitelistTargets[GOV_TOKEN_ADDR] = true;
+        whitelistTargets[TIMELOCK_ADDR] = true;
     }
 
+    modifier onlyWhitelist(address _target) {
+        require(whitelistTargets[_target], "only whitelist");
+        _;
+    }
     function state(
         uint256 proposalId
     ) public view override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (ProposalState) {
