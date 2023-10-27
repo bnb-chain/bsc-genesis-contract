@@ -10,19 +10,13 @@ interface IStakePool {
     function totalSupply() external view returns (uint256);
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
-    function remainingSlashBnbAmount() external view returns (uint256);
 }
 
 contract MockGovBNB is ERC20 {
     constructor() ERC20("MockGovBNB", "MockGovBNB") {}
 
-    function mint(address validator, address delegator, uint256 amount) external {
-        _mint(delegator, amount);
-    }
-
-    function burn(address validator, address delegator, uint256 amount) external {
-        amount = amount < balanceOf(delegator) ? amount : balanceOf(delegator);
-        _burn(delegator, amount);
+    function sync(address[] calldata validatorPools, address account) external {
+        return;
     }
 }
 
@@ -45,23 +39,28 @@ contract StakeHubTest is Deployer {
 
     function setUp() public {
         bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
-        vm.etch(STAKEHUB_CONTRACT_ADDR, stakeHubCode);
+        vm.etch(STAKE_HUB_ADDR, stakeHubCode);
 
         bytes memory poolCode = vm.getDeployedCode("StakePool.sol");
         vm.etch(STAKE_POOL_ADDR, poolCode);
 
         address mockGovBNB = address(new MockGovBNB());
-        vm.etch(GOV_BNB_ADDR, mockGovBNB.code);
+        vm.etch(GOV_TOKEN_ADDR, mockGovBNB.code);
 
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
         stakeHub.initialize();
+
+        vm.mockCall(address(0x66), "", hex"01");
     }
 
     function testCreateAndEditValidator() public {
         // 1. create validator
         (address validator, ) = _createValidator(2000 ether);
         vm.startPrank(validator);
+
+        vm.expectRevert(bytes("UPDATE_TOO_FREQUENTLY"));
+        stakeHub.editConsensusAddress(address(0));
 
         // 2. edit consensus address
         vm.warp(block.timestamp + 1 days);
@@ -115,10 +114,11 @@ contract StakeHubTest is Deployer {
 
         // 5. edit vote address
         vm.warp(block.timestamp + 1 days);
-        bytes memory newVoteAddress = hex"1234";
+        bytes memory newVoteAddress = hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001234";
+        bytes memory blsProof = new bytes(96);
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit VoteAddressEdited(validator, newVoteAddress);
-        stakeHub.editVoteAddress(newVoteAddress, bytes(""));
+        stakeHub.editVoteAddress(newVoteAddress, blsProof);
         (, , bytes memory realVoteAddr, , ) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(realVoteAddr, newVoteAddress);
 
@@ -266,6 +266,7 @@ contract StakeHubTest is Deployer {
         uint256 selfDelegation = 2000 ether;
         uint256 reward = 100 ether;
         (address validator, address pool)= _createValidator(selfDelegation);
+        _createValidator(selfDelegation); // create 2 validator to avoid empty jail
 
         address delegator = addrSet[addrIdx++];
         vm.prank(delegator);
@@ -387,11 +388,12 @@ contract StakeHubTest is Deployer {
             website: vm.toString(operatorAddress),
             details: vm.toString(operatorAddress)
         });
-        bytes memory blsPubKey = abi.encodePacked(operatorAddress);
+        bytes memory blsPubKey = bytes.concat(hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress));
+        bytes memory blsProof = new bytes(96);
         address consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
 
         vm.prank(operatorAddress);
-        stakeHub.createValidator{value: delegation}(consensusAddress, blsPubKey, bytes(""), commission, description);
+        stakeHub.createValidator{value: delegation}(consensusAddress, blsPubKey, blsProof, commission, description);
 
         (, pool, , , ) = stakeHub.getValidatorBasicInfo(operatorAddress);
     }

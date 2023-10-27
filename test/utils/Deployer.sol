@@ -32,10 +32,11 @@ contract Deployer is Test {
   address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
-  address public constant STAKEHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000002002;
+  address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
   address public constant STAKE_POOL_ADDR = 0x0000000000000000000000000000000000002003;
-  address public constant GOVERNANCE_ADDR = 0x0000000000000000000000000000000000002004;
-  address public constant GOV_BNB_ADDR = 0x0000000000000000000000000000000000002005;
+  address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
+  address public constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
+  address public constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
 
   uint8 public constant BIND_CHANNELID = 0x01;
   uint8 public constant TRANSFER_IN_CHANNELID = 0x02;
@@ -94,7 +95,7 @@ contract Deployer is Test {
     vm.label(address(crossChain), "CrossChain");
     staking = Staking(STAKING_CONTRACT_ADDR);
     vm.label(address(staking), "Staking");
-    stakeHub = StakeHub(STAKEHUB_CONTRACT_ADDR);
+    stakeHub = StakeHub(STAKE_HUB_ADDR);
     vm.label(address(stakeHub), "StakeHub");
 
     addrSet = createUsers(100);

@@ -26,6 +26,7 @@ contract ValidatorSetTest is Deployer {
   event validatorExitMaintenance(address indexed validator);
   event finalityRewardDeposit(address indexed validator, uint256 amount);
   event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
+  event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
 
   uint256 public totalInComing;
   uint256 public burnRatio;
@@ -44,6 +45,8 @@ contract ValidatorSetTest is Deployer {
     vm.etch(address(slash), slashCode);
     bytes memory validatorCode = vm.getDeployedCode("BSCValidatorSet.sol");
     vm.etch(address(validator), validatorCode);
+    bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
+    vm.etch(address(stakeHub), stakeHubCode);
 
     // add operator
     bytes memory key = "addOperator";
@@ -341,16 +344,20 @@ contract ValidatorSetTest is Deployer {
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValSet[3]));
     vm.stopPrank();
 
-    uint256 height = block.number;
-    vm.warp(height + 1);
-
+    uint64 _height = crossChain.channelSyncedHeaderMap(STAKING_CHANNELID);
     uint64 _sequence = crossChain.channelReceiveSequenceMap(STAKING_CHANNELID);
     vm.expectRevert(bytes("the msg sender is not a relayer"));
-    crossChain.handlePackage(bytes("1"), bytes("2"), uint64(height + 1), _sequence, STAKING_CHANNELID);
+    crossChain.handlePackage(bytes("1"), bytes("2"), _height, _sequence, STAKING_CHANNELID);
 
-    vm.startPrank(address(relayer));
     vm.expectRevert(bytes("light client not sync the block yet"));
-    crossChain.handlePackage(bytes("1"), bytes("2"), uint64(height + 1), _sequence, STAKING_CHANNELID);
+    vm.startPrank(address(relayer));
+    crossChain.handlePackage(bytes("1"), bytes("2"), _height+1, _sequence, STAKING_CHANNELID);
+
+    vm.expectEmit(true, false, false, true, address(crossChain));
+    emit unsupportedPackage(_sequence, STAKING_CHANNELID, bytes("1"));
+    vm.mockCall(address(0x65), "", hex"0000000000000000000000000000000000000000000000000000000000000001");
+    crossChain.handlePackage(bytes("1"), bytes("2"), _height, _sequence, STAKING_CHANNELID);
+
     vm.stopPrank();
   }
 
