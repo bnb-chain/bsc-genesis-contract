@@ -59,10 +59,6 @@ contract BSCGovernor is
         whitelistTargets[TIMELOCK_ADDR] = true;
     }
 
-    modifier onlyWhitelist(address _target) {
-        require(whitelistTargets[_target], "only whitelist");
-        _;
-    }
     function state(
         uint256 proposalId
     ) public view override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (ProposalState) {
@@ -75,6 +71,10 @@ contract BSCGovernor is
         bytes[] memory calldatas,
         string memory description
     ) public override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable) returns (uint256) {
+        for (uint256 i = 0; i < targets.length; i++) {
+            require(whitelistTargets[targets[i]], "only whitelist");
+        }
+
         return super.propose(targets, values, calldatas, description);
     }
 
@@ -127,6 +127,10 @@ contract BSCGovernor is
         bytes[] memory calldatas,
         bytes32 descriptionHash
     ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) {
+        for (uint256 i = 0; i < targets.length; i++) {
+            require(whitelistTargets[targets[i]], "only whitelist");
+        }
+
         super._execute(proposalId, targets, values, calldatas, descriptionHash);
     }
 
