@@ -509,10 +509,25 @@ contract ValidatorSetTest is Deployer {
     vm.stopPrank();
   }
 
-  function testUpdateValidatorSet() public {
-    bytes memory package = hex"f9016f80f9016bf87794c381f64466e0cc2ddbb58093e3f544dc989ebcc694f2f9a74459c4b1f29680cfd82cf57ea9d46c7879941dd85b410564628919463a3b37323dbf731f8dc18601d1a94a2000b092534f10f7be05af52a1863df96687a047a54fdbe60ec26889b745a274ad42bff2340e092aaed7a8e6f9917545fb1f80f87794e8a207350cfd16e965c06d53af34edb6060e2bd494de8c63784cb4b7f00f461437d01670aed1c0a1a394605aea1711ebccfa77c021ce612ea83493cc560e8601d1a94a2000b090c071c4666aecda30689a56f91b6b6ec194d20eca86485fb502659792f194ef7460da009e8af4a4b8b7e289230b1437f87794ed48309ced6fdaf28def90b084db95ebf1f23b6d94be95bf51782b24538ea5fe0dabdac9a1a84f9e9e94fd279279c7ebc4aae7d93c1069a84330f02d06588601d1a94a2000b0b5abd325c81e7c7a7f190e81bd9ea48dde7f87e036e15a4b2e0bdca09e142a0d3cfd71089c39ec82cc6898e5ea89613f";
-    vm.prank(address(crossChain));
-    validator.handleSynPackage(STAKING_CHANNELID, package);
+  function testUpdateValidatorSetV2() public {
+    // close staking channel
+    if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
+      bytes memory key = "enableOrDisableChannel";
+      bytes memory value = bytes(hex"0800");
+      updateParamByGovHub(key, value, address(crossChain));
+      assertFalse(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
+    }
+
+    address[] memory preValSet = validator.getValidators();
+    console.log("preValSet length: %d", preValSet.length);
+
+    vm.prank(block.coinbase);
+    vm.txGasPrice(0);
+    validator.updateValidatorSetV2();
+
+    address[] memory valSet = validator.getValidators();
+    console.log("valSet length: %d", valSet.length);
+    assertNotEq(keccak256(abi.encode(preValSet)), keccak256(abi.encode(valSet)));
   }
 
   function testDecodeNewCrossChainPack() public {

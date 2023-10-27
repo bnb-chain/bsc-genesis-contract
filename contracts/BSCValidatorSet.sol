@@ -17,7 +17,7 @@ import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
 
 interface ICrossChain {
-  function channelHandlerContractMap(uint8 channelId) external view returns (address);
+  function registeredContractChannelMap(address, uint8) external view returns (bool);
 }
 
 interface IStakeHub {
@@ -226,7 +226,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /*********************** External Functions **************************/
   function updateValidatorSetV2() external onlyInit onlyCoinbase onlyZeroGasPrice {
-    if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).channelHandlerContractMap(STAKING_CHANNELID) != address(0)) {
+    // if staking channel is not closed, return
+    if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
       return;
     }
 
@@ -239,7 +240,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // step 1: distribute incoming
     for (uint i; i < currentValidatorSet.length; ++i) {
-      if (currentValidatorSet[i].incoming > 0) {
+      if (currentValidatorSet[i].incoming != 0) {
         IStakeHub(STAKE_HUB_ADDR).distributeReward{value : currentValidatorSet[i].incoming}(currentValidatorSet[i].consensusAddress);
       }
     }
@@ -253,7 +254,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // step 3: do update validator set state
     totalInComing = 0;
     numOfJailed = 0;
-    if (validatorSetTemp.length > 0) {
+    if (validatorSetTemp.length != 0) {
       doUpdateState(validatorSetTemp, voteAddrsTemp);
     }
 
