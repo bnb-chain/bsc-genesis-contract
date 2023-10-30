@@ -13,11 +13,20 @@ contract SlashIndicatorTest is Deployer {
   function setUp() public {
     bytes memory slashCode = vm.getDeployedCode("SlashIndicator.sol");
     vm.etch(address(slash), slashCode);
+    bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
+    vm.etch(STAKE_HUB_ADDR, stakeHubCode);
 
     validators = validator.getValidators();
 
     coinbase = block.coinbase;
     vm.deal(coinbase, 100 ether);
+
+    vm.txGasPrice(0);
+
+    // remove this after fusion fork launched
+    vm.prank(block.coinbase);
+    vm.txGasPrice(0);
+    stakeHub.initialize();
   }
 
   function testGov() public {
@@ -44,6 +53,7 @@ contract SlashIndicatorTest is Deployer {
     slash.slash(validator);
 
     vm.startPrank(coinbase);
+    vm.txGasPrice(0);
     (, uint256 origin) = slash.getSlashIndicator(validator);
     for (uint256 i = 1; i < 10; ++i) {
       vm.expectEmit(true, false, false, true, address(slash));

@@ -177,7 +177,7 @@ contract GovHubTest is Deployer {
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
-    emit failReasonWithBytes(bytes(""));
+    emit failReasonWithStr("unknown param");
     updateParamByGovHub(key, valueBytes, address(systemReward));
   }
 }

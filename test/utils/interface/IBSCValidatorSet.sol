@@ -102,6 +102,7 @@ interface BSCValidatorSet {
     function isCurrentValidator(address validator) external view returns (bool);
     function isMonitoredForMaliciousVote(bytes memory voteAddr) external view returns (bool);
     function isWorkingValidator(uint256 index) external view returns (bool);
+    function jailValidator(address consensusAddress) external;
     function maintainSlashScale() external view returns (uint256);
     function maxNumOfCandidates() external view returns (uint256);
     function maxNumOfMaintaining() external view returns (uint256);

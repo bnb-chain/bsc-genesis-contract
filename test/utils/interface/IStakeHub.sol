@@ -8,6 +8,7 @@ interface StakeHub {
     );
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event DescriptionEdited(address indexed operatorAddress);
+    event ParamChange(string key, bytes value);
     event Redelegated(
         address indexed srcValidator,
         address indexed dstValidator,
@@ -16,6 +17,7 @@ interface StakeHub {
         uint256 newShares,
         uint256 bnbAmount
     );
+    event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event StakingPaused();
     event StakingResumed();
@@ -23,13 +25,13 @@ interface StakeHub {
     event ValidatorCreated(
         address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress
     );
+    event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorSlashed(
         address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint248 slashHeight, uint8 slashType
     );
     event ValidatorUnjailed(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
-    event paramChange(string key, bytes value);
 
     struct Validator {
         address consensusAddress;
@@ -56,23 +58,24 @@ interface StakeHub {
     function BLS_PUBKEY_LENGTH() external view returns (uint256);
     function BLS_SIG_LENGTH() external view returns (uint256);
     function DEAD_ADDRESS() external view returns (address);
-    function GOVERNANCE_ADDR() external view returns (address);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_HUB_ADDR() external view returns (address);
+    function GOV_TOKEN_ADDR() external view returns (address);
     function INIT_DOUBLE_SIGN_JAIL_TIME() external view returns (uint256);
     function INIT_DOUBLE_SIGN_SLASH_AMOUNT() external view returns (uint256);
     function INIT_DOWNTIME_JAIL_TIME() external view returns (uint256);
     function INIT_DOWNTIME_SLASH_AMOUNT() external view returns (uint256);
-    function INIT_GOV_BNB() external view returns (address);
     function INIT_MAX_ELECTED_VALIDATORS() external view returns (uint256);
     function INIT_MAX_EVIDENCE_AGE() external view returns (uint256);
     function INIT_MIN_DELEGATION_BNB_CHANGE() external view returns (uint256);
     function INIT_MIN_SELF_DELEGATION_BNB() external view returns (uint256);
-    function INIT_POOL_IMPLEMENTATION() external view returns (address);
     function INIT_TRANSFER_GAS_LIMIT() external view returns (uint256);
     function INIT_UNBOND_PERIOD() external view returns (uint256);
     function SLASH_CONTRACT_ADDR() external view returns (address);
     function STAKE_HUB_ADDR() external view returns (address);
+    function STAKE_POOL_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
+    function TIMELOCK_ADDR() external view returns (address);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function bscChainID() external view returns (uint16);
     function claim(address operatorAddress, uint256 requestNumber) external;
@@ -92,7 +95,7 @@ interface StakeHub {
     function downtimeSlash(address consensusAddress, uint256 height) external;
     function downtimeSlashAmount() external view returns (uint256);
     function editCommissionRate(uint64 commissionRate) external;
-    function editConsensusAddress(address newConsensus) external;
+    function editConsensusAddress(address newConsensusAddress) external;
     function editDescription(Description memory description) external;
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
     function getEligibleValidators() external view returns (Validator[] memory, bytes[] memory);
@@ -112,7 +115,6 @@ interface StakeHub {
         external
         view
         returns (address[] memory consensusAddrs, uint256[] memory votingPowers, uint256 totalLength);
-    function govBNB() external view returns (address);
     function initialize() external;
     function isPaused() external view returns (bool);
     function maliciousVoteSlash(bytes memory _voteAddr, uint256 height) external;
@@ -120,15 +122,15 @@ interface StakeHub {
     function maxEvidenceAge() external view returns (uint256);
     function minDelegationBNBChange() external view returns (uint256);
     function minSelfDelegationBNB() external view returns (uint256);
+    function numOfJailed() external view returns (uint256);
     function pauseStaking() external;
-    function poolImplementation() external view returns (address);
     function redelegate(address srcValidator, address dstValidator, uint256 shares) external;
     function resumeStaking() external;
+    function sync(address[] memory operatorAddresses, address account) external;
     function transferGasLimit() external view returns (uint256);
     function unbondPeriod() external view returns (uint256);
     function undelegate(address operatorAddress, uint256 shares) external;
     function unjail(address operatorAddress) external;
     function updateEligibleValidators(address[] memory validators, uint64[] memory votingPowers) external;
     function updateParam(string memory key, bytes memory value) external;
-    function upgradePoolImplementation() external;
 }

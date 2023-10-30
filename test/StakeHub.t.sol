@@ -12,6 +12,7 @@ interface IStakePool {
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
 }
 
+// remove this after fusion fork launched
 contract MockGovBNB is ERC20 {
     constructor() ERC20("MockGovBNB", "MockGovBNB") {}
 
@@ -44,14 +45,14 @@ contract StakeHubTest is Deployer {
         bytes memory poolCode = vm.getDeployedCode("StakePool.sol");
         vm.etch(STAKE_POOL_ADDR, poolCode);
 
+        vm.mockCall(address(0x66), "", hex"01");
+
+        // remove this after fusion fork launched
         address mockGovBNB = address(new MockGovBNB());
         vm.etch(GOV_TOKEN_ADDR, mockGovBNB.code);
-
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
         stakeHub.initialize();
-
-        vm.mockCall(address(0x66), "", hex"01");
     }
 
     function testCreateAndEditValidator() public {

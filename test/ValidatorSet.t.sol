@@ -36,7 +36,7 @@ contract ValidatorSetTest is Deployer {
   address public coinbase;
   address[] public validators;
 
-  mapping(address => bool) cabinets;
+  mapping(address => bool) public cabinets;
 
   function setUp() public {
     bytes memory rewardCode = vm.getDeployedCode("SystemReward.sol");
@@ -56,7 +56,7 @@ contract ValidatorSetTest is Deployer {
     updateParamByGovHub(key, valueBytes, address(systemReward));
     assertTrue(systemReward.isOperator(address(validator)));
 
-    burnRatio = validator.INIT_BURN_RATIO();
+    burnRatio = validator.burnRatioInitialized() ? validator.burnRatio() : validator.INIT_BURN_RATIO();
     burnRatioScale = validator.BURN_RATIO_SCALE();
     validators = validator.getValidators();
     totalInComing = validator.totalInComing();
@@ -65,6 +65,11 @@ contract ValidatorSetTest is Deployer {
 
     coinbase = block.coinbase;
     vm.deal(coinbase, 100 ether);
+
+    // remove this after fusion fork launched
+    vm.prank(coinbase);
+    vm.txGasPrice(0);
+    stakeHub.initialize();
   }
 
   function testDeposit(uint256 amount) public {
@@ -106,13 +111,12 @@ contract ValidatorSetTest is Deployer {
     burnRatio = validator.burnRatio();
     assertEq(burnRatio, coefficient);
 
-    vm.startPrank(coinbase);
     uint256 amount = 1 ether;
     uint256 realAmount = amount - amount * burnRatio / burnRatioScale;
     vm.expectEmit(true, false, false, true, address(validator));
     emit validatorDeposit(validators[0], realAmount);
+    vm.prank(coinbase);
     validator.deposit{value: amount}(validators[0]);
-    vm.stopPrank();
   }
 
   function testGov() public {
@@ -139,9 +143,8 @@ contract ValidatorSetTest is Deployer {
     for (uint256 i; i < 41; ++i) {
       newValidators[i] = addrSet[addrIdx++];
     }
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidators));
-    vm.stopPrank();
 
     address[] memory vals = validator.getValidators();
     (address[] memory miningVals,) = validator.getMiningValidators();
@@ -175,9 +178,8 @@ contract ValidatorSetTest is Deployer {
     newValidator[0] = addrSet[addrIdx++];
 
     // To reset the incoming
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidator));
-    vm.stopPrank();
 
     address val = newValidator[0];
     address tmp = addrSet[addrIdx++];
@@ -192,22 +194,23 @@ contract ValidatorSetTest is Deployer {
     }
     vm.stopPrank();
 
+    uint256 expectedBalance = 11 ether - 11 ether * burnRatio / burnRatioScale;
+    uint256 expectedIncoming = 5.5 ether - 5.5 ether * burnRatio / burnRatioScale;
     uint256 balance = address(validator).balance;
     uint256 incoming = validator.totalInComing();
-    assertEq(balance, 9.9 ether);
-    assertEq(incoming, 4.95 ether);
+    assertEq(balance, expectedBalance);
+    assertEq(incoming, expectedIncoming);
 
     newValidator[0] = addrSet[addrIdx++];
 
     vm.expectEmit(false, false, false, true, address(validator));
-    emit batchTransfer(4.95 ether);
+    emit batchTransfer(expectedIncoming);
     vm.expectEmit(false, false, false, true, address(validator));
-    emit systemTransfer((9.9 ether - 4.95 ether));
+    emit systemTransfer(expectedBalance - expectedIncoming);
     vm.expectEmit(false, false, false, false, address(validator));
     emit validatorSetUpdated();
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidator));
-    vm.stopPrank();
   }
 
   function testMassiveDistribute() public {
@@ -217,9 +220,8 @@ contract ValidatorSetTest is Deployer {
     }
 
     // To reset the incoming
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidators));
-    vm.stopPrank();
 
     vm.startPrank(coinbase);
     for (uint256 i; i < 41; ++i) {
@@ -230,9 +232,8 @@ contract ValidatorSetTest is Deployer {
     for (uint256 i; i < 41; ++i) {
       newValidators[i] = addrSet[addrIdx++];
     }
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidators));
-    vm.stopPrank();
   }
 
   function testDistribute41Plus() public {
@@ -242,11 +243,10 @@ contract ValidatorSetTest is Deployer {
     }
 
     // To reset the incoming
-    vm.startPrank(address(crossChain));
     vm.expectEmit(false, false, false, true, address(validator));
     emit failReasonWithStr("the number of validators exceed the limit");
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, newValidators));
-    vm.stopPrank();
   }
 
   function testComplicateDistribute1() public {
@@ -257,40 +257,53 @@ contract ValidatorSetTest is Deployer {
       newValidators[i] = addrSet[addrIdx++];
     }
     bytes memory pack = encodeOldValidatorSetUpdatePack(0x00, newValidators);
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
     vm.startPrank(coinbase);
     validator.deposit{value: 1e16}(newValidators[0]);
     validator.deposit{value: 1e16}(newValidators[1]);
-    validator.deposit{value: 1e17}(newValidators[2]);
+    validator.deposit{value: 1e17}(newValidators[2]); // middle case
     validator.deposit{value: 1e18}(newValidators[3]);
     validator.deposit{value: 1e18}(newValidators[4]);
-    validator.deposit{value: 1e18}(deprecated);
-    validator.deposit{value: 1e5}(newValidators[4]);
+    validator.deposit{value: 1e18}(deprecated); // deprecated case
+    validator.deposit{value: 1e5}(newValidators[4]); // dust case
     vm.stopPrank();
 
+    uint256 directTransferAmount = 1e16 - 1e16 * burnRatio / burnRatioScale;
+    uint256 crossTransferAmount = 1e18 - 1e18 * burnRatio / burnRatioScale;
+    uint256 middleCase = 1e17 - 1e17 * burnRatio / burnRatioScale;
+    uint256 batchTransferAmount = 2 * crossTransferAmount;
+    if (middleCase >= 1e17) {
+      batchTransferAmount += middleCase;
+    }
+    uint256 systemTransferAmount = crossTransferAmount + (1e5 - 1e5 * burnRatio / burnRatioScale);
+
     vm.expectEmit(false, false, false, true, address(validator));
-    emit batchTransfer(1.8 ether);
+    emit batchTransfer(batchTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[0]), 9e15);
+    emit directTransfer(payable(newValidators[0]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[1]), 9e15);
+    emit directTransfer(payable(newValidators[1]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[2]), 9e16);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit systemTransfer(9e17 + 9e4);
+    if (middleCase < 1e17) {
+      vm.expectEmit(true, false, false, true, address(validator));
+      emit directTransfer(payable(newValidators[2]), middleCase);
+    }
+    emit systemTransfer(systemTransferAmount);
     vm.expectEmit(false, false, false, false, address(validator));
     emit validatorSetUpdated();
 
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
-    assertEq(newValidators[0].balance, balance + 9e15);
-    assertEq(newValidators[1].balance, balance + 9e15);
-    assertEq(newValidators[2].balance, balance + 9e16);
+    assertEq(newValidators[0].balance, balance + directTransferAmount);
+    assertEq(newValidators[1].balance, balance + directTransferAmount);
+    if (middleCase < 1e17) {
+      assertEq(newValidators[2].balance, balance + middleCase);
+    } else {
+      assertEq(newValidators[2].balance, balance);
+    }
     assertEq(newValidators[3].balance, balance);
     assertEq(newValidators[4].balance, balance);
     assertEq(deprecated.balance, balance);
@@ -366,45 +379,59 @@ contract ValidatorSetTest is Deployer {
     address[] memory newValidators = new address[](5);
     address deprecated = addrSet[addrIdx++];
     uint256 balance = deprecated.balance;
-    newValidators[0] = address(slash);
+    newValidators[0] = address(slash); // set fee addr to a contract
+    vm.deal(newValidators[0], 0);
     for (uint256 i = 1; i < 5; ++i) {
       newValidators[i] = addrSet[addrIdx++];
     }
     bytes memory pack = encodeOldValidatorSetUpdatePack(0x00, newValidators);
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
     vm.startPrank(coinbase);
-    validator.deposit{value: 1e16}(newValidators[0]);
+    validator.deposit{value: 1e16}(newValidators[0]); // fee addr is a contract
     validator.deposit{value: 1e16}(newValidators[1]);
-    validator.deposit{value: 1e17}(newValidators[2]);
+    validator.deposit{value: 1e17}(newValidators[2]); // middle case
     validator.deposit{value: 1e18}(newValidators[3]);
     validator.deposit{value: 1e18}(newValidators[4]);
-    validator.deposit{value: 1e18}(deprecated);
-    validator.deposit{value: 1e5}(newValidators[4]);
+    validator.deposit{value: 1e18}(deprecated); // deprecated case
+    validator.deposit{value: 1e5}(newValidators[4]); // dust case
     vm.stopPrank();
 
+    uint256 directTransferAmount = 1e16 - 1e16 * burnRatio / burnRatioScale;
+    uint256 crossTransferAmount = 1e18 - 1e18 * burnRatio / burnRatioScale;
+    uint256 middleCase = 1e17 - 1e17 * burnRatio / burnRatioScale;
+    uint256 batchTransferAmount = 2 * crossTransferAmount;
+    if (middleCase >= 1e17) {
+      batchTransferAmount += middleCase;
+    }
+    uint256 systemTransferAmount = directTransferAmount + crossTransferAmount + (1e5 - 1e5 * burnRatio / burnRatioScale);
+
     vm.expectEmit(false, false, false, true, address(validator));
-    emit batchTransfer(1.8 ether);
+    emit batchTransfer(batchTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransferFail(payable(newValidators[0]), 9e15);
+    emit directTransferFail(payable(newValidators[0]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[1]), 9e15);
+    emit directTransfer(payable(newValidators[1]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[2]), 9e16);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit systemTransfer(9e17 + 9e15 + 9e4);
+    if (middleCase < 1e17) {
+      vm.expectEmit(true, false, false, true, address(validator));
+      emit directTransfer(payable(newValidators[2]), middleCase);
+    }
+    emit systemTransfer(systemTransferAmount);
     vm.expectEmit(false, false, false, false, address(validator));
     emit validatorSetUpdated();
 
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
     assertEq(newValidators[0].balance, 0);
-    assertEq(newValidators[1].balance, balance + 9e15);
-    assertEq(newValidators[2].balance, balance + 9e16);
+    assertEq(newValidators[1].balance, balance + directTransferAmount);
+    if (middleCase < 1e17) {
+      assertEq(newValidators[2].balance, balance + middleCase);
+    } else {
+      assertEq(newValidators[2].balance, balance);
+    }
     assertEq(newValidators[3].balance, balance);
     assertEq(newValidators[4].balance, balance);
     assertEq(deprecated.balance, balance);
@@ -415,62 +442,68 @@ contract ValidatorSetTest is Deployer {
     address[] memory newValidators = new address[](5);
     address deprecated = addrSet[addrIdx++];
     uint256 balance = deprecated.balance;
-    newValidators[0] = address(slash);
+    newValidators[0] = address(slash);  // set fee addr to a contract
+    vm.deal(newValidators[0], 0);
     for (uint256 i = 1; i < 5; ++i) {
       newValidators[i] = addrSet[addrIdx++];
     }
-    // mock tokenHub
+    // set mock tokenHub
     address mockTokenHub = deployCode("MockTokenHub.sol");
-    bytes memory tokenHubCode = address(tokenHub).code;
     vm.etch(address(tokenHub), mockTokenHub.code);
     (bool success,) = address(tokenHub).call(abi.encodeWithSignature("setPanicBatchTransferOut(bool)", true));
     require(success);
 
     bytes memory pack = encodeOldValidatorSetUpdatePack(0x00, newValidators);
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
     vm.startPrank(coinbase);
-    validator.deposit{value: 1e16}(newValidators[0]);
+    validator.deposit{value: 1e16}(newValidators[0]); // fee addr is a contract
     validator.deposit{value: 1e16}(newValidators[1]);
-    validator.deposit{value: 1e17}(newValidators[2]);
+    validator.deposit{value: 1e17}(newValidators[2]); // middle case
     validator.deposit{value: 1e18}(newValidators[3]);
     validator.deposit{value: 1e18}(newValidators[4]);
-    validator.deposit{value: 1e18}(deprecated);
-    validator.deposit{value: 1e5}(newValidators[4]);
+    validator.deposit{value: 1e18}(deprecated); // deprecated case
+    validator.deposit{value: 1e5}(newValidators[4]); // dust case
     vm.stopPrank();
 
+    uint256 directTransferAmount = 1e16 - 1e16 * burnRatio / burnRatioScale;
+    uint256 crossTransferAmount = 1e18 - 1e18 * burnRatio / burnRatioScale;
+    uint256 middleCase = 1e17 - 1e17 * burnRatio / burnRatioScale;
+    uint256 batchTransferAmount = 2 * crossTransferAmount;
+    if (middleCase >= 1e17) {
+      batchTransferAmount += middleCase;
+    }
+    uint256 systemTransferAmount = directTransferAmount + crossTransferAmount;
+
     vm.expectEmit(false, false, false, true, address(validator));
-    emit batchTransferFailed(1.8 ether, "panic in batchTransferOut");
+    emit batchTransferFailed(batchTransferAmount, "panic in batchTransferOut");
+    vm.expectEmit(true, false, false, false, address(validator));
+    emit directTransfer(payable(newValidators[3]), crossTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[3]), 9e17);
+    emit directTransfer(payable(newValidators[4]), crossTransferAmount + 1e5 - 1e5 * burnRatio / burnRatioScale);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[4]), 9e17 + 9e4);
+    emit directTransferFail(payable(newValidators[0]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransferFail(payable(newValidators[0]), 9e15);
+    emit directTransfer(payable(newValidators[1]), directTransferAmount);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[1]), 9e15);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit directTransfer(payable(newValidators[2]), 9e16);
-    vm.expectEmit(true, false, false, true, address(validator));
-    emit systemTransfer(9e17 + 9e15);
+    if (middleCase < 1e17) {
+      vm.expectEmit(true, false, false, true, address(validator));
+      emit directTransfer(payable(newValidators[2]), middleCase);
+    }
+    emit systemTransfer(systemTransferAmount);
     vm.expectEmit(false, false, false, false, address(validator));
     emit validatorSetUpdated();
 
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, pack);
-    vm.stopPrank();
 
     assertEq(newValidators[0].balance, 0);
-    assertEq(newValidators[1].balance, balance + 9e15);
-    assertEq(newValidators[2].balance, balance + 9e16);
-    assertEq(newValidators[3].balance, balance + 9e17);
-    assertEq(newValidators[4].balance, balance + 9e17 + 9e4);
+    assertEq(newValidators[1].balance, balance + directTransferAmount);
+    assertEq(newValidators[2].balance, balance + middleCase);
+    assertEq(newValidators[3].balance, balance + crossTransferAmount);
+    assertEq(newValidators[4].balance, balance + crossTransferAmount + 1e5 - 1e5 * burnRatio / burnRatioScale);
     assertEq(deprecated.balance, balance);
-
-    // revert token hub
-    vm.etch(address(tokenHub), tokenHubCode);
   }
 
   function testJail() public {
@@ -525,44 +558,39 @@ contract ValidatorSetTest is Deployer {
       assertFalse(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
     }
 
-    address[] memory preValSet = validator.getValidators();
-    console.log("preValSet length: %d", preValSet.length);
-
-    vm.prank(block.coinbase);
+    vm.prank(coinbase);
     vm.txGasPrice(0);
+    vm.expectEmit(false, false, false, true, address(validator));
+    emit validatorSetUpdated();
     validator.updateValidatorSetV2();
-
-    address[] memory valSet = validator.getValidators();
-    console.log("valSet length: %d", valSet.length);
-    assertNotEq(keccak256(abi.encode(preValSet)), keccak256(abi.encode(valSet)));
   }
 
   function testDecodeNewCrossChainPack() public {
-    address[] memory newValidators = new address[](41);
-    bytes[] memory newVoteAddrs = new bytes[](41);
+    uint256 maxElectedValidators = stakeHub.maxElectedValidators();
+
+    address[] memory newValidators = new address[](maxElectedValidators);
+    bytes[] memory newVoteAddrs = new bytes[](maxElectedValidators);
     for (uint256 i; i < newValidators.length; ++i) {
       newValidators[i] = addrSet[addrIdx++];
       newVoteAddrs[i] = abi.encodePacked(newValidators[i]);
     }
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs));
-    vm.stopPrank();
 
     (address[] memory vals, bytes[] memory voteAddrs) = validator.getLivingValidators();
-    for (uint256 i; i < newValidators.length; ++i) {
+    for (uint256 i; i < maxElectedValidators; ++i) {
       assertEq(voteAddrs[i], abi.encodePacked(vals[i]));
     }
 
     // edit vote addr for existed validator
-    for (uint256 i; i < newValidators.length; ++i) {
+    for (uint256 i; i < maxElectedValidators; ++i) {
       newVoteAddrs[i] = abi.encodePacked(newValidators[i], "0x1234567890");
     }
-    vm.startPrank(address(crossChain));
+    vm.prank(address(crossChain));
     validator.handleSynPackage(STAKING_CHANNELID, encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs));
-    vm.stopPrank();
 
     (vals, voteAddrs) = validator.getLivingValidators();
-    for (uint256 i; i < newValidators.length; ++i) {
+    for (uint256 i; i < maxElectedValidators; ++i) {
       assertEq(voteAddrs[i], abi.encodePacked(newValidators[i], "0x1234567890"));
     }
   }
@@ -581,25 +609,61 @@ contract ValidatorSetTest is Deployer {
       weights[i] = 1;
     }
 
-    vm.deal(address(systemReward), 99 ether);
+    vm.deal(address(systemReward), 90 ether);
     vm.expectRevert(bytes("the message sender must be the block producer"));
     validator.distributeFinalityReward(addrs, weights);
 
-    // first time distribution will init the config and return
+    // distribute to set previousBalanceOfSystemReward(90 ether)
     vm.startPrank(address(coinbase));
     validator.distributeFinalityReward(addrs, weights);
+
+    // 0. distribute failed (twice in one height)
+    vm.expectRevert(bytes("can not do this twice in one block"));
+    validator.distributeFinalityReward(addrs, weights);
+
+    // 1. 100 ether >= balanceOfSystemReward > previousBalanceOfSystemReward(90 ether)
     vm.deal(address(systemReward), 100 ether);
     vm.roll(block.number + 1);
 
+    uint256 previousBalanceOfSystemReward = validator.previousBalanceOfSystemReward();
+    uint256 finalityRewardRatio = validator.finalityRewardRatio();
+    uint256 expectReward = ((100 ether - previousBalanceOfSystemReward) * finalityRewardRatio) / (100 * 20);
+
     vm.expectEmit(true, false, false, true, address(validator));
-    emit finalityRewardDeposit(addrs[0], 25e15);
+    emit finalityRewardDeposit(addrs[0], expectReward);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit finalityRewardDeposit(addrs[9], 25e15);
+    emit finalityRewardDeposit(addrs[9], expectReward);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit deprecatedFinalityRewardDeposit(addrs[10], 25e15);
+    emit deprecatedFinalityRewardDeposit(addrs[10], expectReward);
     vm.expectEmit(true, false, false, true, address(validator));
-    emit deprecatedFinalityRewardDeposit(addrs[19], 25e15);
+    emit deprecatedFinalityRewardDeposit(addrs[19], expectReward);
     validator.distributeFinalityReward(addrs, weights);
+
+    // 2. balanceOfSystemReward <= previousBalanceOfSystemReward
+    previousBalanceOfSystemReward = validator.previousBalanceOfSystemReward();
+    vm.roll(block.number + 1);
+
+    validator.distributeFinalityReward(addrs, weights);
+    assertEq(address(systemReward).balance, previousBalanceOfSystemReward);
+
+    // 3. balanceOfSystemReward > 100 ether
+    // total reward = 1 ether (balanceOfSystemReward / 100 > MAX_REWARDS
+    vm.deal(address(systemReward), 110 ether);
+    vm.roll(block.number + 1);
+
+    expectReward = 1 ether / 20;
+
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit finalityRewardDeposit(addrs[0], expectReward);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit finalityRewardDeposit(addrs[9], expectReward);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit deprecatedFinalityRewardDeposit(addrs[10], expectReward);
+    vm.expectEmit(true, false, false, true, address(validator));
+    emit deprecatedFinalityRewardDeposit(addrs[19], expectReward);
+    validator.distributeFinalityReward(addrs, weights);
+    assertEq(address(systemReward).balance, 109 ether);
+
     vm.stopPrank();
   }
 }
