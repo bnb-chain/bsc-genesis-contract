@@ -16,11 +16,11 @@ import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
 interface IStakeHub {
-  function downtimeSlash(address valAddr, uint256 height) external;
+  function downtimeSlash(address validator) external;
   function maliciousVoteSlash(bytes calldata voteAddress, uint256 height) external;
-  function doubleSignSlash(address valAddr, uint256 height, uint256 evidenceTime) external;
+  function doubleSignSlash(address validator, uint256 height, uint256 evidenceTime) external;
   function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address);
-  function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
+  function getOperatorAddressByConsensusAddress(address validator) external view returns (address);
 }
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
@@ -204,7 +204,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function downtimeSlash(address validator, uint256 count) public override {
-    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator, block.number) {
+    // slash may from validatorSet contract or block producer
+    require(msg.sender == block.coinbase || msg.sender == VALIDATOR_CONTRACT_ADDR, "the message sender must be the block producer or validatorSet contract");
+
+    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) {
     } catch Error(string memory reason) {
       emit failedFelony(validator, count, bytes(reason));
     } catch (bytes memory lowLevelData) {

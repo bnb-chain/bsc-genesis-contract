@@ -3,9 +3,7 @@ pragma solidity ^0.8.10;
 interface StakeHub {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
-    event ConsensusAddressEdited(
-        address indexed operatorAddress, address indexed oldAddress, address indexed newAddress
-    );
+    event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event DescriptionEdited(address indexed operatorAddress);
     event ParamChange(string key, bytes value);
@@ -23,7 +21,10 @@ interface StakeHub {
     event StakingResumed();
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ValidatorCreated(
-        address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress
+        address indexed consensusAddress,
+        address indexed operatorAddress,
+        address indexed creditContract,
+        bytes voteAddress
     );
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorJailed(address indexed operatorAddress);
@@ -69,15 +70,13 @@ interface StakeHub {
     function INIT_MAX_EVIDENCE_AGE() external view returns (uint256);
     function INIT_MIN_DELEGATION_BNB_CHANGE() external view returns (uint256);
     function INIT_MIN_SELF_DELEGATION_BNB() external view returns (uint256);
-    function INIT_TRANSFER_GAS_LIMIT() external view returns (uint256);
     function INIT_UNBOND_PERIOD() external view returns (uint256);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_CREDIT_ADDR() external view returns (address);
     function STAKE_HUB_ADDR() external view returns (address);
-    function STAKE_POOL_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
     function TIMELOCK_ADDR() external view returns (address);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
-    function bscChainID() external view returns (uint16);
     function claim(address operatorAddress, uint256 requestNumber) external;
     function createValidator(
         address consensusAddress,
@@ -92,7 +91,7 @@ interface StakeHub {
     function doubleSignSlash(address consensusAddress, uint256 height, uint256 evidenceTime) external;
     function doubleSignSlashAmount() external view returns (uint256);
     function downtimeJailTime() external view returns (uint256);
-    function downtimeSlash(address consensusAddress, uint256 height) external;
+    function downtimeSlash(address consensusAddress) external;
     function downtimeSlashAmount() external view returns (uint256);
     function editCommissionRate(uint64 commissionRate) external;
     function editConsensusAddress(address newConsensusAddress) external;
@@ -108,7 +107,13 @@ interface StakeHub {
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
-        returns (address consensusAddress, address poolModule, bytes memory voteAddress, bool jailed, uint256 jailUntil);
+        returns (
+            address consensusAddress,
+            address creditContract,
+            bytes memory voteAddress,
+            bool jailed,
+            uint256 jailUntil
+        );
     function getValidatorCommission(address operatorAddress) external view returns (Commission memory);
     function getValidatorDescription(address operatorAddress) external view returns (Description memory);
     function getValidatorWithVotingPower(uint256 offset, uint256 limit)

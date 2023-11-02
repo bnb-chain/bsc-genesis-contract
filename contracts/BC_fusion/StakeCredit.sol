@@ -13,7 +13,7 @@ interface IStakeHub {
     function transferGasLimit() external view returns (uint256);
 }
 
-contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
+contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
@@ -156,18 +156,8 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
         uint256 selfDelegation = balanceOf(validator);
         uint256 slashShares = getSharesByPooledBNB(slashBnbAmount);
 
-        uint256 _remainingSlashBnbAmount;
-        if (slashShares <= selfDelegation) {
-            _burnAndSync(validator, slashShares);
-        } else {
-            uint256 selfDelegationBNB = _burnAndSync(validator, selfDelegation);
-            unchecked {
-                // slashShares > selfDelegation
-                _remainingSlashBnbAmount = slashBnbAmount - selfDelegationBNB;
-            }
-        }
-
-        uint256 realSlashBnbAmount = slashBnbAmount - _remainingSlashBnbAmount;
+        slashShares = slashShares > selfDelegation ? selfDelegation : slashShares;
+        uint256 realSlashBnbAmount = _burnAndSync(validator, slashShares);
         emit Slashed(realSlashBnbAmount);
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
@@ -240,10 +230,7 @@ contract StakePool is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeabl
     function _burnAndSync(address account, uint256 shares) internal returns (uint256 bnbAmount) {
         bnbAmount = getPooledBNBByShares(shares);
         _burn(account, shares);
-        unchecked {
-            // underflow is not possible: totalPooledBNB >= bnbAmount
-            totalPooledBNB -= bnbAmount;
-        }
+        totalPooledBNB -= bnbAmount;
     }
 
     function _useSequence(address delegator) internal returns (uint256 current) {

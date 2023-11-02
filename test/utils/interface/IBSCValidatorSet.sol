@@ -23,6 +23,15 @@ interface BSCValidatorSet {
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorSetUpdated();
 
+    struct Validator {
+        address consensusAddress;
+        address feeAddress;
+        address BBCFeeAddress;
+        uint64 votingPower;
+        bool jailed;
+        uint256 incoming;
+    }
+
     function BIND_CHANNELID() external view returns (uint8);
     function BURN_ADDRESS() external view returns (address);
     function BURN_RATIO_SCALE() external view returns (uint256);
@@ -116,7 +125,7 @@ interface BSCValidatorSet {
     function previousVoteAddrFullSet(uint256) external view returns (bytes memory);
     function totalInComing() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
-    function updateValidatorSetV2() external;
+    function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) external;
     function validatorExtraSet(uint256)
         external
         view

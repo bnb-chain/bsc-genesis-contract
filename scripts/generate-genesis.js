@@ -55,7 +55,7 @@ Promise.all([
   readByteCode('crossChain', 'out/CrossChain.sol/CrossChain.json'),
   readByteCode('staking', 'out/Staking.sol/Staking.json'),
   readByteCode('stakeHub', 'out/StakeHub.sol/StakeHub.json'),
-  readByteCode('stakePool', 'out/StakePool.sol/StakePool.json'),
+  readByteCode('stakeCredit', 'out/StakeCredit.sol/StakeCredit.json'),
   readByteCode('governor', 'out/BSCGovernor.sol/BSCGovernor.json'),
   readByteCode('govToken', 'out/GovToken.sol/GovToken.json'),
   readByteCode('timelock', 'out/BSCTimelock.sol/BSCTimelock.json'),

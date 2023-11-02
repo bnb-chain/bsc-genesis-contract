@@ -10,4 +10,4 @@ forge flatten contracts/CrossChain.sol >contracts/flattened/CrossChain.sol
 forge flatten contracts/TokenManager.sol >contracts/flattened/TokenManager.sol
 forge flatten contracts/Staking.sol >contracts/flattened/Staking.sol
 forge flatten contracts/BC_fusion/StakeHub.sol >contracts/flattened/StakeHub.sol
-forge flatten contracts/BC_fusion/StakePool.sol >contracts/flattened/StakePool.sol
+forge flatten contracts/BC_fusion/StakeCredit.sol >contracts/flattened/StakeCredit.sol

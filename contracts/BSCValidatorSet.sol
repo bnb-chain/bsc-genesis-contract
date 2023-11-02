@@ -202,7 +202,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("length of jail validators must be one");
         resCode = ERROR_LEN_OF_VAL_MISMATCH;
       } else {
-        resCode = _jailValidator(validatorSetPackage.validatorSet[0]);
+        uint256 index = currentValidatorSetMap[validatorSetPackage.validatorSet[0].consensusAddress];
+        if (index==0 || currentValidatorSet[index-1].jailed) {
+          emit validatorEmptyJailed(validatorSetPackage.validatorSet[0].consensusAddress);
+          resCode = CODE_OK;
+        } else {
+          resCode = _jailValidator(index);
+        }
       }
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
@@ -225,7 +231,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** External Functions **************************/
-  function updateValidatorSetV2() external onlyInit onlyCoinbase onlyZeroGasPrice {
+  /**
+   * @dev Update validator set method after fusion fork.
+   */
+  function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) public onlyStakeHub {
     // if staking channel is not closed, return
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
       return;
@@ -235,8 +244,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // - 1. validators exit maintenance
     // - 2. clear all maintainInfo
     // - 3. get unjailed validators from validatorSet
-    (Validator[] memory validatorSet, bytes[] memory voteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
-    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(validatorSet, voteAddrs);
+    (Validator[] memory validatorSetTemp, bytes[] memory voteAddrsTemp) = _forceMaintainingValidatorsExit(_validatorSet, _voteAddrs);
 
     // step 1: distribute incoming
     for (uint i; i < currentValidatorSet.length; ++i) {
@@ -305,27 +313,23 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   function jailValidator(address consensusAddress) external onlyStakeHub {
     uint256 index = currentValidatorSetMap[consensusAddress];
     if (index==0 || currentValidatorSet[index-1].jailed) {
-      return ;
+      emit validatorEmptyJailed(consensusAddress);
+    } else {
+      _jailValidator(index);
     }
-    _jailValidator(currentValidatorSet[index-1]);
   }
 
-  function _jailValidator(Validator memory v) internal returns (uint32) {
-    uint256 index = currentValidatorSetMap[v.consensusAddress];
-    if (index==0 || currentValidatorSet[index-1].jailed) {
-      emit validatorEmptyJailed(v.consensusAddress);
-      return CODE_OK;
-    }
+  function _jailValidator(uint256 index) internal returns (uint32) {
     uint n = currentValidatorSet.length;
     bool shouldKeep = (numOfJailed >= n-1);
     // will not jail if it is the last valid validator
     if (shouldKeep) {
-      emit validatorEmptyJailed(v.consensusAddress);
+      emit validatorEmptyJailed(currentValidatorSet[index-1].consensusAddress);
       return CODE_OK;
     }
     ++numOfJailed;
     currentValidatorSet[index-1].jailed = true;
-    emit validatorJailed(v.consensusAddress);
+    emit validatorJailed(currentValidatorSet[index-1].consensusAddress);
     return CODE_OK;
   }
 

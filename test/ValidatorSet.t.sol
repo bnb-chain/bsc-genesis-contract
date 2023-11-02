@@ -549,22 +549,6 @@ contract ValidatorSetTest is Deployer {
     vm.stopPrank();
   }
 
-  function testUpdateValidatorSetV2() public {
-    // close staking channel
-    if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
-      bytes memory key = "enableOrDisableChannel";
-      bytes memory value = bytes(hex"0800");
-      updateParamByGovHub(key, value, address(crossChain));
-      assertFalse(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
-    }
-
-    vm.prank(coinbase);
-    vm.txGasPrice(0);
-    vm.expectEmit(false, false, false, true, address(validator));
-    emit validatorSetUpdated();
-    validator.updateValidatorSetV2();
-  }
-
   function testDecodeNewCrossChainPack() public {
     uint256 maxElectedValidators = stakeHub.maxElectedValidators();
 
