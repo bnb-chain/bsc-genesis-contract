@@ -11,4 +11,10 @@ library Utils {
             _output := mload(add(_input, _offset))
         }
     }
+
+    function bytesToUint64(bytes memory _input, uint256 _offset) internal pure returns (uint64 _output) {
+        assembly {
+            _output := mload(add(_input, _offset))
+        }
+    }
 }

@@ -10,7 +10,7 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelo
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 import "./System.sol";
-
+import "./lib/Utils.sol";
 
 contract BSCGovernor is
     System,
@@ -53,7 +53,7 @@ contract BSCGovernor is
         whitelistTargets[CROSS_CHAIN_CONTRACT_ADDR] = true;
         whitelistTargets[STAKING_CONTRACT_ADDR] = true;
         whitelistTargets[STAKE_HUB_ADDR] = true;
-        whitelistTargets[STAKE_POOL_ADDR] = true;
+        whitelistTargets[STAKE_CREDIT_ADDR] = true;
         whitelistTargets[GOVERNOR_ADDR] = true;
         whitelistTargets[GOV_TOKEN_ADDR] = true;
         whitelistTargets[TIMELOCK_ADDR] = true;
@@ -89,41 +89,35 @@ contract BSCGovernor is
 
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         uint256 valueLength = value.length;
-        if (_compareStrings(key, "votingDelay")) {
+        if (Utils.compareStrings(key, "votingDelay")) {
             require(valueLength == 32, "invalid votingDelay value length");
-            uint256 newVotingDelay = _bytesToUint256(valueLength, value);
+            uint256 newVotingDelay = Utils.bytesToUint256(value, valueLength);
             require(newVotingDelay > 0, "invalid votingDelay");
             _setVotingDelay(newVotingDelay);
-        } else if (_compareStrings(key, "votingPeriod")) {
+        } else if (Utils.compareStrings(key, "votingPeriod")) {
             require(valueLength == 32, "invalid votingPeriod value length");
-            uint256 newVotingPeriod = _bytesToUint256(valueLength, value);
+            uint256 newVotingPeriod = Utils.bytesToUint256(value, valueLength);
             require(newVotingPeriod > 0, "invalid votingPeriod");
             _setVotingPeriod(newVotingPeriod);
-        } else if (_compareStrings(key, "proposalThreshold")) {
+        } else if (Utils.compareStrings(key, "proposalThreshold")) {
             require(valueLength == 32, "invalid proposalThreshold value length");
-            uint256 newProposalThreshold = _bytesToUint256(valueLength, value);
+            uint256 newProposalThreshold = Utils.bytesToUint256(value, valueLength);
             require(newProposalThreshold > 0, "invalid proposalThreshold");
             _setProposalThreshold(newProposalThreshold);
-        } else if (_compareStrings(key, "quorumDenominator")) {
+        } else if (Utils.compareStrings(key, "quorumDenominator")) {
             require(valueLength == 32, "invalid quorumDenominator value length");
-            uint256 newQuorumDenominator = _bytesToUint256(valueLength, value);
+            uint256 newQuorumDenominator = Utils.bytesToUint256(value, valueLength);
             require(newQuorumDenominator >= 1, "invalid quorumDenominator");
             _updateQuorumNumerator(newQuorumDenominator);
-        } else if (_compareStrings(key, "minPeriodAfterQuorum")) {
+        } else if (Utils.compareStrings(key, "minPeriodAfterQuorum")) {
             require(valueLength == 8, "invalid minPeriodAfterQuorum value length");
-            uint64 newMinPeriodAfterQuorum = _bytesToUint64(valueLength, value);
+            uint64 newMinPeriodAfterQuorum = Utils.bytesToUint64(value, valueLength);
             require(newMinPeriodAfterQuorum >= 1, "invalid minPeriodAfterQuorum");
             _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
         } else {
             revert("unknown param");
         }
         emit ParamChange(key, value);
-    }
-
-    function _bytesToUint64(uint256 _offset, bytes memory _input) internal pure returns (uint64 _output) {
-        assembly {
-            _output := mload(add(_input, _offset))
-        }
     }
 
     function _execute(

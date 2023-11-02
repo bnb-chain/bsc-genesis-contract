@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgradeable.sol";
 import "./System.sol";
+import "./lib/Utils.sol";
 
 contract BSCTimelock is System, TimelockControllerUpgradeable {
     uint256 public constant INIT_MINIMAL_DELAY = 6 hours;
@@ -15,9 +16,9 @@ contract BSCTimelock is System, TimelockControllerUpgradeable {
 
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         uint256 valueLength = value.length;
-        if (_compareStrings(key, "minDelay")) {
+        if (Utils.compareStrings(key, "minDelay")) {
             require(valueLength == 32, "invalid minDelay value length");
-            uint256 newMinDelay = _bytesToUint256(valueLength, value);
+            uint256 newMinDelay = Utils.bytesToUint256(value, valueLength);
             require(newMinDelay > 0, "invalid minDelay");
             this.updateDelay(newMinDelay);
         } else {
