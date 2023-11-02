@@ -120,6 +120,12 @@ contract BSCGovernor is
         emit ParamChange(key, value);
     }
 
+    function _bytesToUint64(uint256 _offset, bytes memory _input) internal pure returns (uint64 _output) {
+        assembly {
+            _output := mload(add(_input, _offset))
+        }
+    }
+
     function _execute(
         uint256 proposalId,
         address[] memory targets,
