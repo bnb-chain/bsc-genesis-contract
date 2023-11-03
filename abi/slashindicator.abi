@@ -32,6 +32,25 @@
   },
   {
     "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "voteAddrSlice",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "failReason",
+        "type": "bytes"
+      }
+    ],
+    "name": "failedMaliciousVoteSlash",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [],
     "name": "indicatorCleaned",
     "type": "event"
@@ -47,6 +66,19 @@
       }
     ],
     "name": "knownResponse",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "voteAddrSlice",
+        "type": "bytes32"
+      }
+    ],
+    "name": "maliciousVoteSlashed",
     "type": "event"
   },
   {
@@ -317,6 +349,19 @@
   },
   {
     "inputs": [],
+    "name": "STAKE_HUB_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "STAKING_CHANNELID",
     "outputs": [
       {
@@ -450,6 +495,37 @@
     "name": "clean",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
+    "name": "downtimeSlash",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "enableMaliciousVoteSlash",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -664,6 +740,24 @@
       }
     ],
     "name": "slash",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "header1",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "header2",
+        "type": "bytes"
+      }
+    ],
+    "name": "submitDoubleSignEvidence",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

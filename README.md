@@ -13,7 +13,7 @@ Install foundry:
 ```shell script
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
-forge install --no-git --no-commit foundry-rs/forge-std@v1.1.1
+forge install --no-git --no-commit foundry-rs/forge-std@v1.7.1
 ```
 
 Please make sure your dependency version is as follows:
@@ -46,7 +46,7 @@ forge test
 ## Flatten all system contracts
 
 ```shell script
-bash flatten.sh
+bash scripts/flatten.sh
 ```
 
 All system contracts will be flattened and output into `${workspace}/contracts/flattened/`.
@@ -58,7 +58,7 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 3. Run `bash scripts/generate-*.sh` to change system contracts setting.
 4. Run `node scripts/generate-genesis.js` will generate genesis.json
 
-## How to generate mainnet/testnet/QA genesis file
+## How to generate mainnet/testnet/QA/local genesis file
 
 ```shell 
 bash scripts/generate.sh mainnet

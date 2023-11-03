@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract GovHubTest is Deployer {
   event failReasonWithStr(string message);
@@ -46,17 +46,18 @@ contract GovHubTest is Deployer {
     assertEq(value, lightClient.rewardForValidatorSetChange());
   }
 
-  function testGovRelayerHub(uint128 value) public {
-    uint256 dues = relayerHub.dues();
-    vm.assume(uint256(value) > dues);
-    vm.assume(value <= 1e21);
-
-    bytes memory key = "requiredDeposit";
-    bytes memory valueBytes = abi.encode(value);
-    vm.expectEmit(false, false, false, true, address(relayerHub));
-    emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(relayerHub));
-    assertEq(uint256(value), relayerHub.requiredDeposit());
+  function testGovRelayerHub() public {
+    // removed params
+    // uint256 dues = relayerHub.dues();
+    // vm.assume(uint256(value) > dues);
+    // vm.assume(value <= 1e21);
+    //
+    // bytes memory key = "requiredDeposit";
+    // bytes memory valueBytes = abi.encode(value);
+    // vm.expectEmit(false, false, false, true, address(relayerHub));
+    // emit paramChange(string(key), valueBytes);
+    // updateParamByGovHub(key, valueBytes, address(relayerHub));
+    // assertEq(uint256(value), relayerHub.requiredDeposit());
   }
 
   function testGovIncentivize(uint256 value1, uint256 value2, uint256 value3) public {
@@ -176,7 +177,7 @@ contract GovHubTest is Deployer {
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
-    emit failReasonWithBytes(bytes(""));
+    emit failReasonWithStr("unknown param");
     updateParamByGovHub(key, valueBytes, address(systemReward));
   }
 }

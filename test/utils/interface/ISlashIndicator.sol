@@ -2,8 +2,11 @@ pragma solidity ^0.8.10;
 
 interface SlashIndicator {
     event crashResponse();
+    event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
+    event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
     event indicatorCleaned();
     event knownResponse(uint32 code);
+    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
     event paramChange(string key, bytes value);
     event unKnownResponse(uint32 code);
     event validatorSlashed(address indexed validator);
@@ -39,6 +42,7 @@ interface SlashIndicator {
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_HUB_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
@@ -50,6 +54,8 @@ interface SlashIndicator {
     function alreadyInit() external view returns (bool);
     function bscChainID() external view returns (uint16);
     function clean() external;
+    function downtimeSlash(address validator, uint256 count) external;
+    function enableMaliciousVoteSlash() external view returns (bool);
     function felonyThreshold() external view returns (uint256);
     function finalitySlashRewardRatio() external view returns (uint256);
     function getSlashIndicator(address validator) external view returns (uint256, uint256);
@@ -63,6 +69,7 @@ interface SlashIndicator {
     function previousHeight() external view returns (uint256);
     function sendFelonyPackage(address validator) external;
     function slash(address validator) external;
+    function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) external;
     function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) external;
     function updateParam(string memory key, bytes memory value) external;
     function validators(uint256) external view returns (address);

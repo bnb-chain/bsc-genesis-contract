@@ -40,6 +40,7 @@ interface TokenManager {
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_HUB_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYNC_CHANNELID() external view returns (uint8);

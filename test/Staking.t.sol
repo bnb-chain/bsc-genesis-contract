@@ -1,6 +1,6 @@
 pragma solidity ^0.8.10;
 
-import "../lib/Deployer.sol";
+import "./utils/Deployer.sol";
 
 contract StakingTest is Deployer {
   using RLPEncode for *;
@@ -37,8 +37,6 @@ contract StakingTest is Deployer {
   function setUp() public {
     bytes memory stakingCode = vm.getDeployedCode("Staking.sol");
     vm.etch(STAKING_CONTRACT_ADDR, stakingCode);
-    staking = Staking(STAKING_CONTRACT_ADDR);
-    vm.label(address(staking), "Staking");
 
     bytes memory tokenHubCode = vm.getDeployedCode("TokenHub.sol");
     vm.etch(address(tokenHub), tokenHubCode);

@@ -298,6 +298,19 @@
   },
   {
     "inputs": [],
+    "name": "STAKE_HUB_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "STAKING_CHANNELID",
     "outputs": [
       {

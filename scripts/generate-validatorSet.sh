@@ -34,8 +34,8 @@ basedir=$(
     pwd
 )
 
-if [ "$INIT_VALIDATORSET_BYTES" = "" ]; then
-    INIT_VALIDATORSET_BYTES=$(node ${basedir}/validators.js)
+if [ "${INIT_VALIDATORSET_BYTES}" = "" ]; then
+    INIT_VALIDATORSET_BYTES=$(node -e "const exportsObj = require('./scripts/validators.js'); console.log(exportsObj.validatorSetBytes.toString('hex'));")
     INIT_VALIDATORSET_BYTES="${INIT_VALIDATORSET_BYTES:2}"
 fi
 
@@ -47,8 +47,7 @@ case $NETWORK in
 local)
     sed -i -e "s/for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {/ValidatorExtra memory validatorExtra;\nfor (uint i; i<validatorSetPkg.validatorSet.length; ++i) {\n validatorExtraSet.push(validatorExtra);\n validatorExtraSet[i].voteAddress=validatorSetPkg.voteAddrs[i];/g" "$OUTPUT"
     ;;
-*)
-    ;;
+*) ;;
 esac
 
 echo "BSCValidatorSet file updated."
