@@ -35,12 +35,6 @@ contract StakingTest is Deployer {
   receive() external payable {}
 
   function setUp() public {
-    bytes memory stakingCode = vm.getDeployedCode("Staking.sol");
-    vm.etch(STAKING_CONTRACT_ADDR, stakingCode);
-
-    bytes memory tokenHubCode = vm.getDeployedCode("TokenHub.sol");
-    vm.etch(address(tokenHub), tokenHubCode);
-
     bytes memory key = "addOrUpdateChannel";
     bytes memory value = abi.encodePacked(CROSS_STAKE_CHANNELID, uint8(1), address(staking));
     updateParamByGovHub(key, value, address(crossChain));

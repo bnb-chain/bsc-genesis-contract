@@ -9,11 +9,15 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IRelayerIncentivize.sol";
 import "./interface/ISlashIndicator.sol";
 import "./interface/IStaking.sol";
-import "./interface/IStakeHub.sol";
 import "./interface/ISystemReward.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/ITokenManager.sol";
 import "./interface/ITendermintLightClient.sol";
+import "./interface/IStakeHub.sol";
+import "./interface/IStakeCredit.sol";
+import "./interface/IBSCGovernor.sol";
+import "./interface/IGovToken.sol";
+import "./interface/IBSCTimelock.sol";
 import "./RLPEncode.sol";
 import "./RLPDecode.sol";
 
@@ -60,6 +64,10 @@ contract Deployer is Test {
   CrossChain public crossChain;
   Staking public staking;
   StakeHub public stakeHub;
+  StakeCredit public stakeCredit;
+  BSCGovernor public governor;
+  GovToken public govToken;
+  BSCTimelock public timelock;
 
   address payable public relayer;
   address payable[] public addrSet;
@@ -73,6 +81,7 @@ contract Deployer is Test {
     // TODO: wait for foundry to fix this
     // vm.createSelectFork("bsc", 23839447);
 
+    // setup system contracts
     validator = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
     vm.label(address(validator), "Validator");
     slash = SlashIndicator(SLASH_CONTRACT_ADDR);
@@ -97,6 +106,48 @@ contract Deployer is Test {
     vm.label(address(staking), "Staking");
     stakeHub = StakeHub(STAKE_HUB_ADDR);
     vm.label(address(stakeHub), "StakeHub");
+    stakeCredit = StakeCredit(STAKE_CREDIT_ADDR);
+    vm.label(address(stakeCredit), "StakeCredit");
+    governor = BSCGovernor(GOVERNOR_ADDR);
+    vm.label(address(governor), "BSCGovernor");
+    govToken = GovToken(GOV_TOKEN_ADDR);
+    vm.label(address(govToken), "GovToken");
+    timelock = BSCTimelock(TIMELOCK_ADDR);
+    vm.label(address(timelock), "BSCTimelock");
+
+    // set the latest code
+    bytes memory deployedCode = vm.getDeployedCode("BSCValidatorSet.sol");
+    vm.etch(VALIDATOR_CONTRACT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("SlashIndicator.sol");
+    vm.etch(SLASH_CONTRACT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("SystemReward.sol");
+    vm.etch(SYSTEM_REWARD_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("TendermintLightClient.sol");
+    vm.etch(LIGHT_CLIENT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("TokenHub.sol");
+    vm.etch(TOKEN_HUB_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("RelayerIncentivize.sol");
+    vm.etch(INCENTIVIZE_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("RelayerHub.sol");
+    vm.etch(RELAYERHUB_CONTRACT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("GovHub.sol");
+    vm.etch(GOV_HUB_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("TokenManager.sol");
+    vm.etch(TOKEN_MANAGER_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("CrossChain.sol");
+    vm.etch(CROSS_CHAIN_CONTRACT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("Staking.sol");
+    vm.etch(STAKING_CONTRACT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("StakeHub.sol");
+    vm.etch(STAKE_HUB_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("StakeCredit.sol");
+    vm.etch(STAKE_CREDIT_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("BSCGovernor.sol");
+    vm.etch(GOVERNOR_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("GovToken.sol");
+    vm.etch(GOV_TOKEN_ADDR, deployedCode);
+    deployedCode = vm.getDeployedCode("BSCTimelock.sol");
+    vm.etch(TIMELOCK_ADDR, deployedCode);
 
     addrSet = createUsers(100);
 

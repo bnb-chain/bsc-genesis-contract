@@ -1332,6 +1332,19 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "consensusAddress",
+        "type": "address"
+      }
+    ],
+    "name": "jailValidator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "maintainSlashScale",
     "outputs": [
@@ -1512,7 +1525,50 @@
     "type": "function"
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "consensusAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address payable",
+            "name": "feeAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "BBCFeeAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint64",
+            "name": "votingPower",
+            "type": "uint64"
+          },
+          {
+            "internalType": "bool",
+            "name": "jailed",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "incoming",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct BSCValidatorSet.Validator[]",
+        "name": "_validatorSet",
+        "type": "tuple[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "_voteAddrs",
+        "type": "bytes[]"
+      }
+    ],
     "name": "updateValidatorSetV2",
     "outputs": [],
     "stateMutability": "nonpayable",

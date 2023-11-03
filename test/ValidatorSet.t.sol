@@ -39,15 +39,6 @@ contract ValidatorSetTest is Deployer {
   mapping(address => bool) public cabinets;
 
   function setUp() public {
-    bytes memory rewardCode = vm.getDeployedCode("SystemReward.sol");
-    vm.etch(address(systemReward), rewardCode);
-    bytes memory slashCode = vm.getDeployedCode("SlashIndicator.sol");
-    vm.etch(address(slash), slashCode);
-    bytes memory validatorCode = vm.getDeployedCode("BSCValidatorSet.sol");
-    vm.etch(address(validator), validatorCode);
-    bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
-    vm.etch(address(stakeHub), stakeHubCode);
-
     // add operator
     bytes memory key = "addOperator";
     bytes memory valueBytes = abi.encodePacked(address(validator));

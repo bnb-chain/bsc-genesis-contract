@@ -11,3 +11,6 @@ forge flatten contracts/TokenManager.sol >contracts/flattened/TokenManager.sol
 forge flatten contracts/Staking.sol >contracts/flattened/Staking.sol
 forge flatten contracts/BC_fusion/StakeHub.sol >contracts/flattened/StakeHub.sol
 forge flatten contracts/BC_fusion/StakeCredit.sol >contracts/flattened/StakeCredit.sol
+forge flatten contracts/BC_fusion/BSCGovernor.sol >contracts/flattened/BSCGovernor.sol
+forge flatten contracts/BC_fusion/GovToken.sol >contracts/flattened/GovToken.sol
+forge flatten contracts/BC_fusion/BSCTimelock.sol >contracts/flattened/BSCTimelock.sol

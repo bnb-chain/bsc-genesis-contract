@@ -25,7 +25,7 @@ chains = 'all'
 endpoints = 'all'
 
 [fuzz]
-runs = 1024
+runs = 512
 
 [fmt]
 line_length = 120

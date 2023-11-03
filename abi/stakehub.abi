@@ -55,13 +55,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "oldAddress",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newAddress",
+        "name": "newConsensusAddress",
         "type": "address"
       }
     ],
@@ -110,6 +104,25 @@
       }
     ],
     "name": "DescriptionEdited",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "key",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "value",
+        "type": "bytes"
+      }
+    ],
+    "name": "ParamChange",
     "type": "event"
   },
   {
@@ -254,7 +267,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "poolModule",
+        "name": "creditContract",
         "type": "address"
       },
       {
@@ -265,6 +278,19 @@
       }
     ],
     "name": "ValidatorCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operatorAddress",
+        "type": "address"
+      }
+    ],
+    "name": "ValidatorEmptyJailed",
     "type": "event"
   },
   {
@@ -350,25 +376,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "key",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "value",
-        "type": "bytes"
-      }
-    ],
-    "name": "paramChange",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "BLS_PUBKEY_LENGTH",
     "outputs": [
@@ -396,6 +403,19 @@
   },
   {
     "inputs": [],
+    "name": "CROSS_CHAIN_CONTRACT_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "DEAD_ADDRESS",
     "outputs": [
       {
@@ -409,20 +429,7 @@
   },
   {
     "inputs": [],
-    "name": "GOVERNANCE_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "GOV_BNB_ADDR",
+    "name": "GOVERNOR_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -448,12 +455,12 @@
   },
   {
     "inputs": [],
-    "name": "INIT_DOUBLE_SIGN_JAIL_TIME",
+    "name": "GOV_TOKEN_ADDR",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -461,12 +468,12 @@
   },
   {
     "inputs": [],
-    "name": "INIT_DOUBLE_SIGN_SLASH_AMOUNT",
+    "name": "INCENTIVIZE_ADDR",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -474,12 +481,12 @@
   },
   {
     "inputs": [],
-    "name": "INIT_DOWNTIME_JAIL_TIME",
+    "name": "LIGHT_CLIENT_ADDR",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -487,90 +494,12 @@
   },
   {
     "inputs": [],
-    "name": "INIT_DOWNTIME_SLASH_AMOUNT",
+    "name": "RELAYERHUB_CONTRACT_ADDR",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_MAX_ELECTED_VALIDATORS",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_MAX_EVIDENCE_AGE",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_MIN_DELEGATION_BNB_CHANGE",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_MIN_SELF_DELEGATION_BNB",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_TRANSFER_GAS_LIMIT",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INIT_UNBOND_PERIOD",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -579,6 +508,19 @@
   {
     "inputs": [],
     "name": "SLASH_CONTRACT_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STAKE_CREDIT_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -604,7 +546,7 @@
   },
   {
     "inputs": [],
-    "name": "STAKE_POOL_ADDR",
+    "name": "STAKING_CONTRACT_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -630,7 +572,7 @@
   },
   {
     "inputs": [],
-    "name": "VALIDATOR_CONTRACT_ADDR",
+    "name": "TIMELOCK_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -643,12 +585,38 @@
   },
   {
     "inputs": [],
-    "name": "bscChainID",
+    "name": "TOKEN_HUB_ADDR",
     "outputs": [
       {
-        "internalType": "uint16",
+        "internalType": "address",
         "name": "",
-        "type": "uint16"
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "TOKEN_MANAGER_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "VALIDATOR_CONTRACT_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -838,11 +806,6 @@
         "internalType": "address",
         "name": "consensusAddress",
         "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "height",
-        "type": "uint256"
       }
     ],
     "name": "downtimeSlash",
@@ -1086,7 +1049,7 @@
       },
       {
         "internalType": "address",
-        "name": "poolModule",
+        "name": "creditContract",
         "type": "address"
       },
       {
@@ -1311,6 +1274,19 @@
   },
   {
     "inputs": [],
+    "name": "numOfJailed",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "pauseStaking",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -1342,6 +1318,24 @@
   {
     "inputs": [],
     "name": "resumeStaking",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "operatorAddresses",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "sync",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

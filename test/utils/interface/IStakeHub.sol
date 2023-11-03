@@ -58,24 +58,22 @@ interface StakeHub {
 
     function BLS_PUBKEY_LENGTH() external view returns (uint256);
     function BLS_SIG_LENGTH() external view returns (uint256);
+    function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function DEAD_ADDRESS() external view returns (address);
     function GOVERNOR_ADDR() external view returns (address);
     function GOV_HUB_ADDR() external view returns (address);
     function GOV_TOKEN_ADDR() external view returns (address);
-    function INIT_DOUBLE_SIGN_JAIL_TIME() external view returns (uint256);
-    function INIT_DOUBLE_SIGN_SLASH_AMOUNT() external view returns (uint256);
-    function INIT_DOWNTIME_JAIL_TIME() external view returns (uint256);
-    function INIT_DOWNTIME_SLASH_AMOUNT() external view returns (uint256);
-    function INIT_MAX_ELECTED_VALIDATORS() external view returns (uint256);
-    function INIT_MAX_EVIDENCE_AGE() external view returns (uint256);
-    function INIT_MIN_DELEGATION_BNB_CHANGE() external view returns (uint256);
-    function INIT_MIN_SELF_DELEGATION_BNB() external view returns (uint256);
-    function INIT_UNBOND_PERIOD() external view returns (uint256);
+    function INCENTIVIZE_ADDR() external view returns (address);
+    function LIGHT_CLIENT_ADDR() external view returns (address);
+    function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
     function SLASH_CONTRACT_ADDR() external view returns (address);
     function STAKE_CREDIT_ADDR() external view returns (address);
     function STAKE_HUB_ADDR() external view returns (address);
+    function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
     function TIMELOCK_ADDR() external view returns (address);
+    function TOKEN_HUB_ADDR() external view returns (address);
+    function TOKEN_MANAGER_ADDR() external view returns (address);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function claim(address operatorAddress, uint256 requestNumber) external;
     function createValidator(

@@ -12,15 +12,6 @@ interface IStakeCredit {
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
 }
 
-// remove this after fusion fork launched
-contract MockGovBNB is ERC20 {
-    constructor() ERC20("MockGovBNB", "MockGovBNB") {}
-
-    function sync(address[] calldata validatorPools, address account) external {
-        return;
-    }
-}
-
 contract StakeHubTest is Deployer {
     event ValidatorCreated(address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newAddress);
@@ -39,20 +30,9 @@ contract StakeHubTest is Deployer {
     receive() external payable {}
 
     function setUp() public {
-        bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
-        vm.etch(STAKE_HUB_ADDR, stakeHubCode);
-
-        bytes memory creditCode = vm.getDeployedCode("StakeCredit.sol");
-        vm.etch(STAKE_CREDIT_ADDR, creditCode);
-
-        bytes memory validatorCode = vm.getDeployedCode("BSCValidatorSet.sol");
-        vm.etch(VALIDATOR_CONTRACT_ADDR, validatorCode);
-
         vm.mockCall(address(0x66), "", hex"01");
 
         // remove this after fusion fork launched
-        address mockGovBNB = address(new MockGovBNB());
-        vm.etch(GOV_TOKEN_ADDR, mockGovBNB.code);
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
         stakeHub.initialize();
@@ -68,7 +48,6 @@ contract StakeHubTest is Deployer {
 
         // 2. edit consensus address
         vm.warp(block.timestamp + 1 days);
-        (address consensusAddress, , , , ) = stakeHub.getValidatorBasicInfo(validator);
         address newConsensusAddress = address(0x1234);
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit ConsensusAddressEdited(validator, newConsensusAddress);

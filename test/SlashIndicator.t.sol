@@ -7,14 +7,15 @@ contract SlashIndicatorTest is Deployer {
   event indicatorCleaned();
   event paramChange(string key, bytes value);
 
+  uint256 public burnRatio;
+  uint256 public burnRatioScale;
+
   address public coinbase;
   address[] public validators;
 
   function setUp() public {
-    bytes memory slashCode = vm.getDeployedCode("SlashIndicator.sol");
-    vm.etch(address(slash), slashCode);
-    bytes memory stakeHubCode = vm.getDeployedCode("StakeHub.sol");
-    vm.etch(STAKE_HUB_ADDR, stakeHubCode);
+    burnRatio = validator.burnRatioInitialized() ? validator.burnRatio() : validator.INIT_BURN_RATIO();
+    burnRatioScale = validator.BURN_RATIO_SCALE();
 
     validators = validator.getValidators();
 
@@ -25,7 +26,6 @@ contract SlashIndicatorTest is Deployer {
 
     // remove this after fusion fork launched
     vm.prank(block.coinbase);
-    vm.txGasPrice(0);
     stakeHub.initialize();
   }
 
@@ -103,8 +103,10 @@ contract SlashIndicatorTest is Deployer {
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, vals));
 
     vm.startPrank(coinbase);
-    validator.deposit{value: 1 ether}(vals[0]);
-    assertEq(9e17, validator.getIncoming(vals[0]));
+    uint256 _deposit = 1 ether;
+    uint256 _incoming = _deposit - _deposit * burnRatio / burnRatioScale;
+    validator.deposit{value: _deposit}(vals[0]);
+    assertEq(_incoming, validator.getIncoming(vals[0]));
 
     for (uint256 i; i < 50; ++i) {
       vm.roll(block.number + 1);
@@ -130,7 +132,7 @@ contract SlashIndicatorTest is Deployer {
 
     vm.startPrank(coinbase);
     validator.deposit{value: 2 ether}(newVals[0]);
-    assertEq(18e17, validator.getIncoming(newVals[0]));
+    assertEq(_incoming * 2, validator.getIncoming(newVals[0]));
 
     for (uint256 i; i < 37; ++i) {
       vm.roll(block.number + 1);
@@ -139,26 +141,26 @@ contract SlashIndicatorTest is Deployer {
     (, count) = slash.getSlashIndicator(newVals[0]);
     assertEq(50, count);
     assertEq(0, validator.getIncoming(newVals[0]));
-    assertEq(9e17, validator.getIncoming(newVals[1]));
-    assertEq(9e17, validator.getIncoming(newVals[2]));
+    assertEq(_incoming, validator.getIncoming(newVals[1]));
+    assertEq(_incoming, validator.getIncoming(newVals[2]));
 
-    validator.deposit{value: 1 ether}(newVals[1]);
-    assertEq(18e17, validator.getIncoming(newVals[1]));
+    validator.deposit{value: _deposit}(newVals[1]);
+    assertEq(_incoming * 2, validator.getIncoming(newVals[1]));
     for (uint256 i; i < 50; ++i) {
       vm.roll(block.number + 1);
       slash.slash(newVals[1]);
     }
-    assertEq(9e17, validator.getIncoming(newVals[0]));
+    assertEq(_incoming, validator.getIncoming(newVals[0]));
     assertEq(0, validator.getIncoming(newVals[1]));
-    assertEq(18e17, validator.getIncoming(newVals[2]));
+    assertEq(_incoming * 2, validator.getIncoming(newVals[2]));
 
-    assertEq(18e17, validator.getIncoming(newVals[2]));
+    assertEq(_incoming * 2, validator.getIncoming(newVals[2]));
     for (uint256 i; i < 50; ++i) {
       vm.roll(block.number + 1);
       slash.slash(newVals[2]);
     }
-    assertEq(18e17, validator.getIncoming(newVals[0]));
-    assertEq(9e17, validator.getIncoming(newVals[1]));
+    assertEq(_incoming * 2, validator.getIncoming(newVals[0]));
+    assertEq(_incoming, validator.getIncoming(newVals[1]));
     assertEq(0, validator.getIncoming(newVals[2]));
     vm.stopPrank();
   }
@@ -172,8 +174,10 @@ contract SlashIndicatorTest is Deployer {
     validator.handleSynPackage(STAKING_CHANNELID, encodeOldValidatorSetUpdatePack(0x00, vals));
 
     vm.startPrank(coinbase);
-    validator.deposit{value: 1 ether}(vals[0]);
-    assertEq(9e17, validator.getIncoming(vals[0]));
+    uint256 _deposit = 1 ether;
+    uint256 _incoming = _deposit - _deposit * burnRatio / burnRatioScale;
+    validator.deposit{value: _deposit}(vals[0]);
+    assertEq(_incoming, validator.getIncoming(vals[0]));
 
     for (uint256 i; i < 50; ++i) {
       vm.roll(block.number + 1);
@@ -188,7 +192,7 @@ contract SlashIndicatorTest is Deployer {
     validator.exitMaintenance();
 
     vm.startPrank(coinbase);
-    validator.deposit{value: 1 ether}(vals[0]);
+    validator.deposit{value: _deposit}(vals[0]);
     for (uint256 i; i < 100; ++i) {
       vm.roll(block.number + 1);
       slash.slash(vals[0]);
@@ -196,8 +200,8 @@ contract SlashIndicatorTest is Deployer {
     (, count) = slash.getSlashIndicator(vals[0]);
     assertEq(0, count);
     assertEq(0, validator.getIncoming(vals[0]));
-    assertEq(9e17, validator.getIncoming(vals[1]));
-    assertEq(9e17, validator.getIncoming(vals[2]));
+    assertEq(_incoming, validator.getIncoming(vals[1]));
+    assertEq(_incoming, validator.getIncoming(vals[2]));
 
     vals = validator.getValidators();
     assertEq(2, vals.length);

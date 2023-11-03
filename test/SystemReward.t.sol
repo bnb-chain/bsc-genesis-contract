@@ -7,10 +7,7 @@ contract SystemRewardTest is Deployer {
   event rewardTo(address indexed to, uint256 amount);
   event rewardEmpty();
 
-  function setUp() public {
-    bytes memory rewardCode = vm.getDeployedCode("SystemReward.sol");
-    vm.etch(address(systemReward), rewardCode);
-  }
+  function setUp() public {}
 
   function testReceive(uint256 amount) public {
     vm.assume(amount < 1e20);
