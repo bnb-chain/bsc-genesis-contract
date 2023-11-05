@@ -95,6 +95,7 @@ interface StakeHub {
     function editConsensusAddress(address newConsensusAddress) external;
     function editDescription(Description memory description) external;
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
+    function eligibleValidatorSet(uint256) external view returns (address);
     function getEligibleValidators() external view returns (Validator[] memory, bytes[] memory);
     function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
     function getOperatorAddressByVoteAddress(bytes memory voteAddress) external view returns (address);
@@ -134,6 +135,10 @@ interface StakeHub {
     function unbondPeriod() external view returns (uint256);
     function undelegate(address operatorAddress, uint256 shares) external;
     function unjail(address operatorAddress) external;
-    function updateEligibleValidators(address[] memory validators, uint64[] memory votingPowers) external;
+    function updateEligibleValidatorSet(
+        address[] memory validators,
+        uint64[] memory votingPowers,
+        bytes[] memory voteAddrs
+    ) external;
     function updateParam(string memory key, bytes memory value) external;
 }

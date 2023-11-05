@@ -83,9 +83,7 @@ contract StakeHub is System {
     mapping(bytes32 => SlashRecord) private _slashRecords;
 
     uint256 public numOfJailed;
-
-    IBSCValidatorSet.Validator[] private _eligibleValidators;
-    bytes[] private _eligibleValidatorVoteAddrs;
+    address[] private _eligibleValidatorSet;
 
     struct Validator {
         address consensusAddress;
@@ -429,53 +427,44 @@ contract StakeHub is System {
     /**
      * @dev Get new eligible validators from consensus engine
      */
-    function updateEligibleValidators(
+    function updateEligibleValidatorSet(
         address[] calldata validators,
-        uint64[] calldata votingPowers
+        uint64[] calldata votingPowers,
+        bytes[] calldata voteAddrs
     ) external onlyCoinbase onlyZeroGasPrice {
         uint256 newLength = validators.length;
         if (newLength == 0) {
             return;
         }
-        uint256 oldLength = _eligibleValidators.length;
+        uint256 oldLength = _eligibleValidatorSet.length;
         if (oldLength > newLength) {
             for (uint256 i = newLength; i < oldLength; ++i) {
-                _eligibleValidators.pop();
-                _eligibleValidatorVoteAddrs.pop();
+                _eligibleValidatorSet.pop();
             }
         }
 
         uint256 j;
+        IBSCValidatorSet.Validator[] memory bscValidatorSet = new IBSCValidatorSet.Validator[](newLength);
         for (uint256 i; i < newLength; ++i) {
-            address consensusAddress = validators[i];
-            address operatorAddress = _consensusToOperator[consensusAddress];
-            if (operatorAddress == address(0)) {
-                continue;
-            }
-
             if (j >= oldLength) {
-                _eligibleValidators.push(
-                    IBSCValidatorSet.Validator({
-                        consensusAddress: consensusAddress,
-                        feeAddress: payable(0),
-                        BBCFeeAddress: address(0),
-                        votingPower: votingPowers[i],
-                        jailed: false,
-                        incoming: 0
-                    })
-                );
-                _eligibleValidatorVoteAddrs.push(_validators[operatorAddress].voteAddress);
+                _eligibleValidatorSet.push(validators[i]);
             } else {
-                IBSCValidatorSet.Validator storage eVal = _eligibleValidators[j];
-                eVal.consensusAddress = consensusAddress;
-                eVal.votingPower = votingPowers[i];
-                _eligibleValidatorVoteAddrs[j] = _validators[operatorAddress].voteAddress;
+                _eligibleValidatorSet[j] = validators[i];
             }
             ++j;
+
+            bscValidatorSet[i] = IBSCValidatorSet.Validator({
+                consensusAddress: validators[i],
+                feeAddress: payable(address(0)),
+                BBCFeeAddress: address(0),
+                votingPower: votingPowers[i],
+                jailed: false,
+                incoming: 0
+            });
         }
 
-        // update validator set
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).updateValidatorSetV2(_eligibleValidators, _eligibleValidatorVoteAddrs);
+        // update validator set in BSCValidatorSet contract
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).updateValidatorSetV2(bscValidatorSet, voteAddrs);
     }
 
     function downtimeSlash(address consensusAddress) external onlySlash {
@@ -628,7 +617,23 @@ contract StakeHub is System {
         return _stakingPaused;
     }
 
-    function getEligibleValidators() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
+    function getEligibleValidatorSet() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
+        uint256 length = _eligibleValidatorSet.length;
+        IBSCValidatorSet.Validator[] memory _eligibleValidators = new IBSCValidatorSet.Validator[](length);
+        bytes[] memory _eligibleValidatorVoteAddrs = new bytes[](length);
+        for (uint256 i; i < length; ++i) {
+            address operatorAddress = _consensusToOperator[_eligibleValidatorSet[i]];
+            Validator memory valInfo = _validators[operatorAddress];
+            _eligibleValidators[i] = IBSCValidatorSet.Validator({
+                consensusAddress: valInfo.consensusAddress,
+                feeAddress: payable(address(0)),
+                BBCFeeAddress: address(0),
+                votingPower: uint64(IStakeCredit(valInfo.creditContract).totalPooledBNB() / 1e10),
+                jailed: false,
+                incoming: 0
+            });
+            _eligibleValidatorVoteAddrs[i] = valInfo.voteAddress;
+        }
         return (_eligibleValidators, _eligibleValidatorVoteAddrs);
     }
 
@@ -659,24 +664,35 @@ contract StakeHub is System {
         return _validators[operatorAddress].commission;
     }
 
-    function getValidatorWithVotingPower(
+    function getValidatorElectionInfo(
         uint256 offset,
         uint256 limit
-    ) external view returns (address[] memory consensusAddrs, uint256[] memory votingPowers, uint256 totalLength) {
+    )
+        external
+        view
+        returns (
+            address[] memory consensusAddrs,
+            uint256[] memory votingPowers,
+            bytes[] memory voteAddrs,
+            uint256 totalLength
+        )
+    {
         totalLength = _validatorSet.length();
         if (offset >= totalLength) {
-            return (consensusAddrs, votingPowers, totalLength);
+            return (consensusAddrs, votingPowers, voteAddrs, totalLength);
         }
 
         limit = limit == 0 ? totalLength : limit;
         uint256 count = (totalLength - offset) > limit ? limit : (totalLength - offset);
         consensusAddrs = new address[](count);
         votingPowers = new uint256[](count);
+        voteAddrs = new bytes[](count);
         for (uint256 i; i < count; ++i) {
             address operatorAddress = _validatorSet.at(offset + i);
             Validator memory valInfo = _validators[operatorAddress];
             consensusAddrs[i] = valInfo.consensusAddress;
             votingPowers[i] = valInfo.jailed ? 0 : IStakeCredit(valInfo.creditContract).totalPooledBNB();
+            voteAddrs[i] = valInfo.voteAddress;
         }
     }
 
@@ -819,7 +835,16 @@ contract StakeHub is System {
             valInfo.jailed = true;
             numOfJailed += 1;
         }
-
         emit ValidatorJailed(valInfo.operatorAddress);
+
+        // remove from the eligibleValidatorSet if exists
+        for (uint256 i; i < _eligibleValidatorSet.length; ++i) {
+            if (_eligibleValidatorSet[i] == valInfo.consensusAddress) {
+                for (uint256 j = i; j < _eligibleValidatorSet.length - 1; ++j) {
+                    _eligibleValidatorSet[j] = _eligibleValidatorSet[j + 1];
+                }
+                _eligibleValidatorSet.pop();
+            }
+        }
     }
 }

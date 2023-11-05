@@ -23,7 +23,7 @@ interface ICrossChain {
 interface IStakeHub {
   function maxElectedValidators() external view returns (uint256);
   function distributeReward(address validator) external payable;
-  function getEligibleValidators() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
+  function getEligibleValidatorSet() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
   function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
 }
 
@@ -358,7 +358,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bytes[] memory voteAddrsTemp;
     {
       // get migrated validators
-      (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidators();
+      (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidatorSet();
       for (uint256 i; i < bscValidatorSet.length; ++i) {
         bscValidatorSet[i].votingPower = bscValidatorSet[i].votingPower * 2; // double the voting power
       }

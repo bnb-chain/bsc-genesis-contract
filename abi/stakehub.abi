@@ -907,7 +907,7 @@
   },
   {
     "inputs": [],
-    "name": "getEligibleValidators",
+    "name": "getEligibleValidatorSet",
     "outputs": [
       {
         "components": [
@@ -1161,7 +1161,7 @@
         "type": "uint256"
       }
     ],
-    "name": "getValidatorWithVotingPower",
+    "name": "getValidatorElectionInfo",
     "outputs": [
       {
         "internalType": "address[]",
@@ -1172,6 +1172,11 @@
         "internalType": "uint256[]",
         "name": "votingPowers",
         "type": "uint256[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "voteAddrs",
+        "type": "bytes[]"
       },
       {
         "internalType": "uint256",
@@ -1408,9 +1413,14 @@
         "internalType": "uint64[]",
         "name": "votingPowers",
         "type": "uint64[]"
+      },
+      {
+        "internalType": "bytes[]",
+        "name": "voteAddrs",
+        "type": "bytes[]"
       }
     ],
-    "name": "updateEligibleValidators",
+    "name": "updateEligibleValidatorSet",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
