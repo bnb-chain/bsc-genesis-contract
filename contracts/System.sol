@@ -32,6 +32,7 @@ contract System {
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
   address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
+  address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
 
   modifier onlyCoinbase() {
     require(msg.sender == block.coinbase, "the message sender must be the block producer");
@@ -96,6 +97,11 @@ contract System {
   modifier onlyStakeHub() {
     require(msg.sender == STAKE_HUB_ADDR, "the msg sender must be stakeHub");
     _;
+  }
+
+  modifier onlyGovernor() {
+      require(msg.sender == GOVERNOR_ADDR, "the msg sender must be governor contract");
+      _;
   }
 
   // Not reliable, do not use when need strong verify
