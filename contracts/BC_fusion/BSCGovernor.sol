@@ -12,6 +12,7 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreven
 
 import "./System.sol";
 import "./lib/Utils.sol";
+import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
     System,
@@ -29,11 +30,16 @@ contract BSCGovernor is
     uint256 public constant INIT_VOTING_PERIOD = 7 days;
     uint256 public constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
     uint256 public constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
+
+    // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
+    uint256 public constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
     uint64 public constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
 
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;
+
+    bool public proposeStarted;
 
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         __Governor_init("BSCGovernor");
@@ -81,6 +87,8 @@ contract BSCGovernor is
         override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable)
         returns (uint256)
     {
+        _checkAndStartPropose();
+
         for (uint256 i = 0; i < targets.length; i++) {
             require(whitelistTargets[targets[i]], "only whitelist");
         }
@@ -132,6 +140,13 @@ contract BSCGovernor is
             revert("unknown param");
         }
         emit ParamChange(key, value);
+    }
+
+    function _checkAndStartPropose() internal {
+        if (!proposeStarted) {
+            require(IGovToken(GOV_TOKEN_ADDR).totalSupply() >= PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD, "totalSupply of govBNB not enough");
+            proposeStarted = true;
+        }
     }
 
     function _execute(
