@@ -7,11 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
 import "./System.sol";
-
-interface IStakeHub {
-    function unbondPeriod() external view returns (uint256);
-    function transferGasLimit() external view returns (uint256);
-}
+import "./interface/IStakeHub.sol";
 
 contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
     using CountersUpgradeable for CountersUpgradeable.Counter;
@@ -204,9 +200,10 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         return getPooledBNBByShares(balanceOf(validator));
     }
 
-    function getPooledBNB(address account) external view returns(uint256) {
+    function getPooledBNB(address account) external view returns (uint256) {
         return getPooledBNBByShares(balanceOf(account));
     }
+
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
         assert(validator != address(0));
@@ -243,10 +240,10 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     }
 
     function _transfer(address, address, uint256) internal pure override {
-        revert("stBNB transfer is not supported");
+        revert("transfer is not allowed");
     }
 
     function _approve(address, address, uint256) internal pure override {
-        revert("stBNB approve is not supported");
+        revert("approve is not allowed");
     }
 }

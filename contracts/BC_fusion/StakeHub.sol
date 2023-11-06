@@ -6,40 +6,9 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./System.sol";
 import "./lib/Utils.sol";
-
-interface IGovBNB {
-    function sync(address[] calldata validatorPools, address account) external;
-}
-
-interface IBSCValidatorSet {
-    struct Validator {
-        address consensusAddress;
-        address payable feeAddress;
-        address BBCFeeAddress;
-        uint64 votingPower;
-        bool jailed;
-        uint256 incoming;
-    }
-
-    function jailValidator(address consensusAddress) external;
-    function updateValidatorSetV2(Validator[] calldata validators, bytes[] calldata voteAddrs) external;
-}
-
-interface IStakeCredit {
-    function initialize(address operatorAddress, string memory moniker) external payable;
-    function claim(address delegator, uint256 requestNumber) external returns (uint256);
-    function totalPooledBNB() external view returns (uint256);
-    function getPooledBNBByShares(uint256 shares) external view returns (uint256);
-    function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
-    function delegate(address delegator) external payable returns (uint256);
-    function undelegate(address delegator, uint256 shares) external returns (uint256);
-    function unbond(address delegator, uint256 shares) external returns (uint256);
-    function distributeReward(uint64 commissionRate) external payable;
-    function slash(uint256 slashBnbAmount) external returns (uint256);
-    function getSelfDelegationBNB() external view returns (uint256);
-    function balanceOf(address delegator) external view returns (uint256);
-    function totalSupply() external view returns (uint256);
-}
+import "./interface/IBSCValidatorSet.sol";
+import "./interface/IGovToken.sol";
+import "./interface/IStakeCredit.sol";
 
 contract StakeHub is System {
     using Utils for string;
@@ -83,7 +52,8 @@ contract StakeHub is System {
     mapping(bytes32 => SlashRecord) private _slashRecords;
 
     uint256 public numOfJailed;
-    address[] private _eligibleValidatorSet;
+
+    address public emergencyOperator;
 
     struct Validator {
         address consensusAddress;
@@ -177,6 +147,11 @@ contract StakeHub is System {
         _;
     }
 
+    modifier onlyEmergencyOperator() {
+        require(msg.sender == emergencyOperator, "ONLY_EMERGENCY_OPERATOR");
+        _;
+    }
+
     receive() external payable { }
 
     /*----------------- init -----------------*/
@@ -193,6 +168,8 @@ contract StakeHub is System {
         downtimeJailTime = 2 days;
         doubleSignJailTime = 730 days;
         maxEvidenceAge = 21 days;
+
+        emergencyOperator = address(0); // TODO
 
         _initialized = 1;
     }
@@ -331,6 +308,7 @@ contract StakeHub is System {
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
         _sync(valInfo.creditContract, delegator);
+        IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, operatorAddress);
     }
 
     function undelegate(address operatorAddress, uint256 shares) public whenNotPaused validatorExist(operatorAddress) {
@@ -379,7 +357,8 @@ contract StakeHub is System {
         address[] memory _pools = new address[](2);
         _pools[0] = srcValInfo.creditContract;
         _pools[1] = dstValInfo.creditContract;
-        IGovBNB(GOV_TOKEN_ADDR).sync(_pools, delegator);
+        IGovToken(GOV_TOKEN_ADDR).sync(_pools, delegator);
+        IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
     }
 
     /**
@@ -403,7 +382,7 @@ contract StakeHub is System {
             validatorPools[i] = _pool;
         }
 
-        IGovBNB(GOV_TOKEN_ADDR).sync(validatorPools, account);
+        IGovToken(GOV_TOKEN_ADDR).sync(validatorPools, account);
     }
 
     /*----------------- system functions -----------------*/
@@ -432,27 +411,13 @@ contract StakeHub is System {
         uint64[] calldata votingPowers,
         bytes[] calldata voteAddrs
     ) external onlyCoinbase onlyZeroGasPrice {
-        uint256 newLength = validators.length;
-        if (newLength == 0) {
+        uint256 _length = validators.length;
+        if (_length == 0) {
             return;
         }
-        uint256 oldLength = _eligibleValidatorSet.length;
-        if (oldLength > newLength) {
-            for (uint256 i = newLength; i < oldLength; ++i) {
-                _eligibleValidatorSet.pop();
-            }
-        }
 
-        uint256 j;
-        IBSCValidatorSet.Validator[] memory bscValidatorSet = new IBSCValidatorSet.Validator[](newLength);
-        for (uint256 i; i < newLength; ++i) {
-            if (j >= oldLength) {
-                _eligibleValidatorSet.push(validators[i]);
-            } else {
-                _eligibleValidatorSet[j] = validators[i];
-            }
-            ++j;
-
+        IBSCValidatorSet.Validator[] memory bscValidatorSet = new IBSCValidatorSet.Validator[](_length);
+        for (uint256 i; i < _length; ++i) {
             bscValidatorSet[i] = IBSCValidatorSet.Validator({
                 consensusAddress: validators[i],
                 feeAddress: payable(address(0)),
@@ -533,12 +498,12 @@ contract StakeHub is System {
     }
 
     /*----------------- gov -----------------*/
-    function pauseStaking() external onlyGov {
+    function pauseStaking() external onlyEmergencyOperator {
         _stakingPaused = true;
         emit StakingPaused();
     }
 
-    function resumeStaking() external onlyGov {
+    function resumeStaking() external onlyEmergencyOperator {
         _stakingPaused = false;
         emit StakingResumed();
     }
@@ -606,6 +571,11 @@ contract StakeHub is System {
             uint256 newMaxEvidenceAge = value.bytesToUint256(32);
             require(newMaxEvidenceAge >= 7 days, "the maxEvidenceAge is out of range");
             maxEvidenceAge = newMaxEvidenceAge;
+        } else if (key.compareStrings("emergencyOperator")) {
+            require(value.length == 20, "length of emergencyOperator mismatch");
+            address newEmergencyOperator = value.bytesToAddress(20);
+            require(newEmergencyOperator != address(0), "the newEmergencyOperator is invalid");
+            emergencyOperator = newEmergencyOperator;
         } else {
             require(false, "unknown param");
         }
@@ -615,26 +585,6 @@ contract StakeHub is System {
     /*----------------- view functions -----------------*/
     function isPaused() external view returns (bool) {
         return _stakingPaused;
-    }
-
-    function getEligibleValidatorSet() external view returns (IBSCValidatorSet.Validator[] memory, bytes[] memory) {
-        uint256 length = _eligibleValidatorSet.length;
-        IBSCValidatorSet.Validator[] memory _eligibleValidators = new IBSCValidatorSet.Validator[](length);
-        bytes[] memory _eligibleValidatorVoteAddrs = new bytes[](length);
-        for (uint256 i; i < length; ++i) {
-            address operatorAddress = _consensusToOperator[_eligibleValidatorSet[i]];
-            Validator memory valInfo = _validators[operatorAddress];
-            _eligibleValidators[i] = IBSCValidatorSet.Validator({
-                consensusAddress: valInfo.consensusAddress,
-                feeAddress: payable(address(0)),
-                BBCFeeAddress: address(0),
-                votingPower: uint64(IStakeCredit(valInfo.creditContract).totalPooledBNB() / 1e10),
-                jailed: false,
-                incoming: 0
-            });
-            _eligibleValidatorVoteAddrs[i] = valInfo.voteAddress;
-        }
-        return (_eligibleValidators, _eligibleValidatorVoteAddrs);
     }
 
     function getValidatorBasicInfo(address operatorAddress)
@@ -728,7 +678,7 @@ contract StakeHub is System {
     function _sync(address validatorPool, address account) private {
         address[] memory _pools = new address[](1);
         _pools[0] = validatorPool;
-        IGovBNB(GOV_TOKEN_ADDR).sync(_pools, account);
+        IGovToken(GOV_TOKEN_ADDR).sync(_pools, account);
     }
 
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
@@ -836,15 +786,5 @@ contract StakeHub is System {
             numOfJailed += 1;
         }
         emit ValidatorJailed(valInfo.operatorAddress);
-
-        // remove from the eligibleValidatorSet if exists
-        for (uint256 i; i < _eligibleValidatorSet.length; ++i) {
-            if (_eligibleValidatorSet[i] == valInfo.consensusAddress) {
-                for (uint256 j = i; j < _eligibleValidatorSet.length - 1; ++j) {
-                    _eligibleValidatorSet[j] = _eligibleValidatorSet[j + 1];
-                }
-                _eligibleValidatorSet.pop();
-            }
-        }
     }
 }

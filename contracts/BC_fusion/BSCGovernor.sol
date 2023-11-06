@@ -9,6 +9,7 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesU
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelockControlUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
+
 import "./System.sol";
 import "./lib/Utils.sol";
 
@@ -22,6 +23,8 @@ contract BSCGovernor is
     GovernorVotesQuorumFractionUpgradeable,
     GovernorPreventLateQuorumUpgradeable
 {
+    using Utils for bytes;
+
     uint256 public constant INIT_VOTING_DELAY = 6 hours;
     uint256 public constant INIT_VOTING_PERIOD = 7 days;
     uint256 public constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
@@ -59,9 +62,12 @@ contract BSCGovernor is
         whitelistTargets[TIMELOCK_ADDR] = true;
     }
 
-    function state(
-        uint256 proposalId
-    ) public view override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (ProposalState) {
+    function state(uint256 proposalId)
+        public
+        view
+        override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable)
+        returns (ProposalState)
+    {
         return super.state(proposalId);
     }
 
@@ -70,7 +76,11 @@ contract BSCGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         string memory description
-    ) public override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable) returns (uint256) {
+    )
+        public
+        override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable)
+        returns (uint256)
+    {
         for (uint256 i = 0; i < targets.length; i++) {
             require(whitelistTargets[targets[i]], "only whitelist");
         }
@@ -83,7 +93,11 @@ contract BSCGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) public override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable) returns (uint256) {
+    )
+        public
+        override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable)
+        returns (uint256)
+    {
         return super.cancel(targets, values, calldatas, descriptionHash);
     }
 
@@ -91,27 +105,27 @@ contract BSCGovernor is
         uint256 valueLength = value.length;
         if (Utils.compareStrings(key, "votingDelay")) {
             require(valueLength == 32, "invalid votingDelay value length");
-            uint256 newVotingDelay = Utils.bytesToUint256(value, valueLength);
+            uint256 newVotingDelay = value.bytesToUint256(valueLength);
             require(newVotingDelay > 0, "invalid votingDelay");
             _setVotingDelay(newVotingDelay);
         } else if (Utils.compareStrings(key, "votingPeriod")) {
             require(valueLength == 32, "invalid votingPeriod value length");
-            uint256 newVotingPeriod = Utils.bytesToUint256(value, valueLength);
+            uint256 newVotingPeriod = value.bytesToUint256(valueLength);
             require(newVotingPeriod > 0, "invalid votingPeriod");
             _setVotingPeriod(newVotingPeriod);
         } else if (Utils.compareStrings(key, "proposalThreshold")) {
             require(valueLength == 32, "invalid proposalThreshold value length");
-            uint256 newProposalThreshold = Utils.bytesToUint256(value, valueLength);
+            uint256 newProposalThreshold = value.bytesToUint256(valueLength);
             require(newProposalThreshold > 0, "invalid proposalThreshold");
             _setProposalThreshold(newProposalThreshold);
         } else if (Utils.compareStrings(key, "quorumDenominator")) {
             require(valueLength == 32, "invalid quorumDenominator value length");
-            uint256 newQuorumDenominator = Utils.bytesToUint256(value, valueLength);
+            uint256 newQuorumDenominator = value.bytesToUint256(valueLength);
             require(newQuorumDenominator >= 1, "invalid quorumDenominator");
             _updateQuorumNumerator(newQuorumDenominator);
         } else if (Utils.compareStrings(key, "minPeriodAfterQuorum")) {
             require(valueLength == 8, "invalid minPeriodAfterQuorum value length");
-            uint64 newMinPeriodAfterQuorum = Utils.bytesToUint64(value, valueLength);
+            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(valueLength);
             require(newMinPeriodAfterQuorum >= 1, "invalid minPeriodAfterQuorum");
             _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
         } else {
@@ -149,41 +163,43 @@ contract BSCGovernor is
         uint8 support,
         string memory reason,
         bytes memory params
-    )
-    internal
-    override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
-    returns (uint256)
-    {
-        return GovernorPreventLateQuorumUpgradeable._castVote(
-            proposalId, account, support, reason, params
-        );
+    ) internal override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) returns (uint256) {
+        return GovernorPreventLateQuorumUpgradeable._castVote(proposalId, account, support, reason, params);
     }
 
-    function _executor() internal view override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) returns (address) {
+    function _executor()
+        internal
+        view
+        override(GovernorUpgradeable, GovernorTimelockControlUpgradeable)
+        returns (address)
+    {
         return super._executor();
     }
 
     function proposalThreshold()
-    public
-    view
-    override(GovernorSettingsUpgradeable, GovernorUpgradeable)
-    returns (uint256)
+        public
+        view
+        override(GovernorSettingsUpgradeable, GovernorUpgradeable)
+        returns (uint256)
     {
         return GovernorSettingsUpgradeable.proposalThreshold();
     }
 
     function proposalDeadline(uint256 proposalId)
-    public
-    view
-    override(IGovernorUpgradeable, GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
-    returns (uint256)
+        public
+        view
+        override(IGovernorUpgradeable, GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
+        returns (uint256)
     {
         return GovernorPreventLateQuorumUpgradeable.proposalDeadline(proposalId);
     }
 
-    function supportsInterface(
-        bytes4 interfaceId
-    ) public view override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable) returns (bool) {
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable)
+        returns (bool)
+    {
         return super.supportsInterface(interfaceId);
     }
 }

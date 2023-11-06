@@ -6,6 +6,12 @@ library Utils {
         return (keccak256(abi.encodePacked((a))) == keccak256(abi.encodePacked((b))));
     }
 
+    function bytesToAddress(bytes memory _input, uint256 _offset) internal pure returns (address _output) {
+        assembly {
+            _output := mload(add(_input, _offset))
+        }
+    }
+
     function bytesToUint256(bytes memory _input, uint256 _offset) internal pure returns (uint256 _output) {
         assembly {
             _output := mload(add(_input, _offset))

@@ -96,6 +96,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   bytes[] public previousVoteAddrFullSet;
   bytes[] public currentVoteAddrFullSet;
 
+  // BEP-294 BC-fusion
+  Validator[] private _tmpMigratedValidatorSet;
+  bytes[] private _tmpMigratedVoteAddrs;
+
   struct Validator {
     address consensusAddress;
     address payable feeAddress;
@@ -235,8 +239,29 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    * @dev Update validator set method after fusion fork.
    */
   function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) public onlyStakeHub {
-    // if staking channel is not closed, return
+    // if staking channel is not closed, store the migrated validator set and return
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
+      uint256 newLength = _validatorSet.length;
+      if (newLength == 0) {
+        return;
+      }
+      uint256 oldLength = _tmpMigratedValidatorSet.length;
+      if (oldLength > newLength) {
+        for (uint256 i = newLength; i < oldLength; ++i) {
+          _tmpMigratedValidatorSet.pop();
+          _tmpMigratedVoteAddrs.pop();
+        }
+      }
+
+      for (uint256 i; i < newLength; ++i) {
+        if (i >= oldLength) {
+          _tmpMigratedValidatorSet.push(_validatorSet[i]);
+          _tmpMigratedVoteAddrs.push(_voteAddrs[i]);
+        } else {
+          _tmpMigratedValidatorSet[i] = _validatorSet[i];
+          _tmpMigratedVoteAddrs[i] = _voteAddrs[i];
+        }
+      }
       return;
     }
 
@@ -358,7 +383,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bytes[] memory voteAddrsTemp;
     {
       // get migrated validators
-      (Validator[] memory bscValidatorSet, bytes[] memory bscVoteAddrs) = IStakeHub(STAKE_HUB_ADDR).getEligibleValidatorSet();
+      Validator[] memory bscValidatorSet = _tmpMigratedValidatorSet;
+      bytes[] memory bscVoteAddrs = _tmpMigratedVoteAddrs;
       for (uint256 i; i < bscValidatorSet.length; ++i) {
         bscValidatorSet[i].votingPower = bscValidatorSet[i].votingPower * 2; // double the voting power
       }

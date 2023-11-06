@@ -6,11 +6,9 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./System.sol";
 
-interface IStakePool {
-    function getPooledBNB(address account) external view returns(uint256);
-}
+import "./System.sol";
+import "./interface/IStakeCredit.sol";
 
 contract GovToken is
     System,
@@ -23,15 +21,10 @@ contract GovToken is
     string private constant NAME = "BSC Governance Token";
     string private constant SYMBOL = "govBNB";
 
-    // validator StakePool contract => user => amount
+    // validator StakeCredit contract => user => amount
     mapping(address => mapping(address => uint256)) public mintedMap;
 
-    function initialize()
-    public
-    initializer
-    onlyCoinbase
-    onlyZeroGasPrice
-    {
+    function initialize() public initializer onlyCoinbase onlyZeroGasPrice {
         __ERC20_init(NAME, SYMBOL);
         __ERC20Burnable_init();
         __ERC20Permit_init(NAME);
@@ -50,7 +43,7 @@ contract GovToken is
     }
 
     function _sync(address validatorPool, address account) private {
-        uint256 latestBNBAmount = IStakePool(validatorPool).getPooledBNB(account);
+        uint256 latestBNBAmount = IStakeCredit(validatorPool).getPooledBNB(account);
         uint256 _mintedAmount = mintedMap[validatorPool][account];
 
         if (_mintedAmount < latestBNBAmount) {
@@ -64,32 +57,23 @@ contract GovToken is
         }
     }
 
-    function _transfer(address, address, uint256)
-    internal
-    pure
-    override(ERC20Upgradeable)
-    {
+    function _transfer(address, address, uint256) internal pure override(ERC20Upgradeable) {
         revert("transfer not allowed");
     }
 
-    function _afterTokenTransfer(address from, address to, uint256 amount)
-    internal
-    override(ERC20Upgradeable, ERC20VotesUpgradeable)
-    {
+    function _afterTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._afterTokenTransfer(from, to, amount);
     }
 
-    function _mint(address to, uint256 amount)
-    internal
-    override(ERC20Upgradeable, ERC20VotesUpgradeable)
-    {
+    function _mint(address to, uint256 amount) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._mint(to, amount);
     }
 
-    function _burn(address account, uint256 amount)
-    internal
-    override(ERC20Upgradeable, ERC20VotesUpgradeable)
-    {
+    function _burn(address account, uint256 amount) internal override(ERC20Upgradeable, ERC20VotesUpgradeable) {
         super._burn(account, amount);
     }
 }

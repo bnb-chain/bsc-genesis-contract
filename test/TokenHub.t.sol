@@ -55,16 +55,6 @@ contract TokenHubTest is Deployer {
     address miniAddr = deployCode("MiniToken.sol");
     miniToken = ITestToken(miniAddr);
     vm.label(miniAddr, "MiniToken");
-
-    address deployAddr = deployCode("TokenHub.sol");
-    vm.etch(TOKEN_HUB_ADDR, deployAddr.code);
-    tokenHub = TokenHub(TOKEN_HUB_ADDR);
-    vm.label(address(tokenHub), "TokenHub");
-
-    deployAddr = deployCode("CrossChain.sol");
-    vm.etch(CROSS_CHAIN_CONTRACT_ADDR, deployAddr.code);
-    crossChain = CrossChain(CROSS_CHAIN_CONTRACT_ADDR);
-    vm.label(address(crossChain), "CrossChain");
   }
 
   function testBindFailed() public {
@@ -393,11 +383,12 @@ contract TokenHubTest is Deployer {
   }
 
   function testSuspend() public {
-    vm.prank(block.coinbase);
+    address[] memory _validators = validator.getValidators();
+    vm.prank(_validators[0]);
     crossChain.suspend();
     assert(crossChain.isSuspended());
 
-    vm.prank(block.coinbase);
+    vm.prank(_validators[0]);
     vm.expectRevert(bytes("suspended"));
     crossChain.suspend();
 
@@ -417,7 +408,6 @@ contract TokenHubTest is Deployer {
     crossChain.handlePackage("", "", height, seq, TRANSFER_IN_CHANNELID);
     vm.stopPrank();
 
-    address[] memory _validators = validator.getValidators();
     vm.prank(_validators[0]);
     crossChain.reopen();
     assert(crossChain.isSuspended());
@@ -455,7 +445,7 @@ contract TokenHubTest is Deployer {
     assertEq(amount, 10000 * 1e18, "wrong locked amount");
     assertEq(unlockAt, block.timestamp + INIT_LOCK_PERIOD, "wrong unlockAt");
 
-    vm.prank(block.coinbase);
+    vm.prank(_validators[1]);
     crossChain.cancelTransfer(address(0), _recipient);
     (amount, unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
     assertEq(amount, 0, "wrong locked amount after cancelTransfer");
