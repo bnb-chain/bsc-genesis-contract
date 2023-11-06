@@ -13,6 +13,8 @@ interface IStakeCredit {
 }
 
 contract StakeHubTest is Deployer {
+    using RLPEncode for *;
+
     event ValidatorCreated(
         address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress
     );
@@ -370,6 +372,53 @@ contract StakeHubTest is Deployer {
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
     }
 
+    function testUpdateValidatorSetTransitionStage() public {
+        // open staking channel
+        if (!crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
+            bytes memory key = "enableOrDisableChannel";
+            bytes memory value = bytes(hex"0801");
+            updateParamByGovHub(key, value, address(crossChain));
+            assertTrue(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
+        }
+
+        uint256 length = stakeHub.maxElectedValidators();
+        address[] memory newValSet = new address[](length);
+        uint64[] memory newVotingPower = new uint64[](length);
+        bytes[] memory newVoteAddrs = new bytes[](length);
+        address operatorAddress;
+        address consensusAddress;
+        uint64 votingPower;
+        bytes memory voteAddress;
+        for (uint256 i; i < length; ++i) {
+            votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
+            (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
+            (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+            newValSet[length - i -1] = consensusAddress;
+            newVotingPower[length - i -1] = votingPower;
+            newVoteAddrs[length - i -1] = voteAddress;
+        }
+        vm.prank(block.coinbase);
+        vm.txGasPrice(0);
+        stakeHub.updateEligibleValidatorSet(newValSet, newVotingPower, newVoteAddrs);
+
+        for (uint256 i; i < newValSet.length; ++i) {
+            votingPower = (2000 + uint64(i) * 2) * 1e8;
+            newValSet[length - i - 1] = addrSet[addrIdx++];
+            newVotingPower[length - i -1] = votingPower * 2;
+            newVoteAddrs[length - i -1] = bytes(vm.toString(newValSet[i]));
+        }
+        vm.prank(address(crossChain));
+        validator.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newValSet, newVotingPower, newVoteAddrs));
+
+        ( , , , uint64 preVotingPower, , ) = validator.currentValidatorSet(0);
+        uint64 curVotingPower;
+        for (uint256 i = 1; i < newValSet.length; ++i) {
+            ( , , , curVotingPower, , ) = validator.currentValidatorSet(i);
+            assert(curVotingPower <= preVotingPower);
+            preVotingPower = curVotingPower;
+        }
+    }
+
     function testUpdateValidatorSetV2() public {
         // close staking channel
         if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
@@ -391,9 +440,9 @@ contract StakeHubTest is Deployer {
             votingPower = (2000 + uint64(i)) * 1e8;
             (validator,) = _createValidator(uint256(votingPower) * 1e10);
             (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(validator);
-            newValSet[i] = consensusAddress;
-            newVotingPower[i] = votingPower;
-            newVoteAddr[i] = voteAddress;
+            newValSet[length - i - 1] = consensusAddress;
+            newVotingPower[length - i - 1] = votingPower;
+            newVoteAddr[length - i - 1] = voteAddress;
         }
 
         vm.prank(block.coinbase);
@@ -420,5 +469,24 @@ contract StakeHubTest is Deployer {
         stakeHub.createValidator{ value: delegation }(consensusAddress, blsPubKey, blsProof, commission, description);
 
         (, credit,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+    }
+
+    function _encodeValidatorSetUpdatePack(address[] memory valSet, uint64[] memory votingPowers, bytes[] memory voteAddrs) internal pure returns (bytes memory) {
+        bytes[] memory elements = new bytes[](2);
+        elements[0] = uint8(0).encodeUint();
+
+        bytes[] memory vals = new bytes[](valSet.length);
+        for (uint256 i; i < valSet.length; ++i) {
+            bytes[] memory tmp = new bytes[](5);
+            tmp[0] = valSet[i].encodeAddress();
+            tmp[1] = valSet[i].encodeAddress();
+            tmp[2] = valSet[i].encodeAddress();
+            tmp[3] = votingPowers[i].encodeUint();
+            tmp[4] = voteAddrs[i].encodeBytes();
+            vals[i] = tmp.encodeList();
+        }
+
+        elements[1] = vals.encodeList();
+        return elements.encodeList();
     }
 }
