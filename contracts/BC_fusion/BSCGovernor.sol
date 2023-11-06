@@ -12,10 +12,7 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreven
 
 import "./System.sol";
 import "./lib/Utils.sol";
-
-interface IGovToken {
-    function totalSupply() external view returns (uint256);
-}
+import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
     System,
