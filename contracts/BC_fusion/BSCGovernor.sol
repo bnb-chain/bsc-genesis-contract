@@ -126,11 +126,11 @@ contract BSCGovernor is
             uint256 newProposalThreshold = value.bytesToUint256(valueLength);
             require(newProposalThreshold > 0, "invalid proposalThreshold");
             _setProposalThreshold(newProposalThreshold);
-        } else if (Utils.compareStrings(key, "quorumDenominator")) {
-            require(valueLength == 32, "invalid quorumDenominator value length");
-            uint256 newQuorumDenominator = value.bytesToUint256(valueLength);
-            require(newQuorumDenominator >= 1, "invalid quorumDenominator");
-            _updateQuorumNumerator(newQuorumDenominator);
+        } else if (Utils.compareStrings(key, "quorumNumerator")) {
+            require(valueLength == 32, "invalid quorumNumerator value length");
+            uint256 newQuorumNumerator = value.bytesToUint256(valueLength);
+            require(newQuorumNumerator >= 1, "invalid quorumNumerator");
+            _updateQuorumNumerator(newQuorumNumerator);
         } else if (Utils.compareStrings(key, "minPeriodAfterQuorum")) {
             require(valueLength == 8, "invalid minPeriodAfterQuorum value length");
             uint64 newMinPeriodAfterQuorum = value.bytesToUint64(valueLength);
