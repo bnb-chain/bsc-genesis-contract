@@ -7,7 +7,7 @@ import "./System.sol";
 import "./lib/Utils.sol";
 
 contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
-    uint256 public constant INIT_MINIMAL_DELAY = 6 hours;
+    uint256 private constant INIT_MINIMAL_DELAY = 24 hours;
 
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         address[] memory _governor = new address[](1);

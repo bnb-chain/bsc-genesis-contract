@@ -30,10 +30,10 @@ contract GovToken is
         __ERC20Votes_init();
     }
 
-    function sync(address[] calldata validatorPools, address account) external onlyStakeHub {
-        uint256 _length = validatorPools.length;
+    function sync(address[] calldata stakeCredits, address account) external onlyStakeHub {
+        uint256 _length = stakeCredits.length;
         for (uint256 i = 0; i < _length; ++i) {
-            _sync(validatorPools[i], account);
+            _sync(stakeCredits[i], account);
         }
     }
 
@@ -41,17 +41,17 @@ contract GovToken is
         _delegate(delegator, delegatee);
     }
 
-    function _sync(address validatorPool, address account) private {
-        uint256 latestBNBAmount = IStakeCredit(validatorPool).getPooledBNB(account);
-        uint256 _mintedAmount = mintedMap[validatorPool][account];
+    function _sync(address stakeCredit, address account) internal {
+        uint256 latestBNBAmount = IStakeCredit(stakeCredit).getPooledBNB(account);
+        uint256 _mintedAmount = mintedMap[stakeCredit][account];
 
         if (_mintedAmount < latestBNBAmount) {
             uint256 _needMint = latestBNBAmount - _mintedAmount;
-            mintedMap[validatorPool][account] = latestBNBAmount;
+            mintedMap[stakeCredit][account] = latestBNBAmount;
             _mint(account, _needMint);
         } else if (_mintedAmount > latestBNBAmount) {
             uint256 _needBurn = _mintedAmount - latestBNBAmount;
-            mintedMap[validatorPool][account] = latestBNBAmount;
+            mintedMap[stakeCredit][account] = latestBNBAmount;
             _burn(account, _needBurn);
         }
     }

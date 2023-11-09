@@ -26,15 +26,15 @@ contract BSCGovernor is
 {
     using Utils for bytes;
 
-    uint256 public constant INIT_VOTING_DELAY = 6 hours;
-    uint256 public constant INIT_VOTING_PERIOD = 7 days;
-    uint256 public constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
-    uint256 public constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
+    uint256 private constant INIT_VOTING_DELAY = 6 hours;
+    uint256 private constant INIT_VOTING_PERIOD = 7 days;
+    uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
+    uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
     // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
-    uint256 public constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
+    uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
-    uint64 public constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
+    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
 
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;

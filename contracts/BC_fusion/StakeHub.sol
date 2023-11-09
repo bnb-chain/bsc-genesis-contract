@@ -370,15 +370,15 @@ contract StakeHub is System, Initializable {
 
     function sync(address[] calldata operatorAddresses, address account) external whenNotPaused {
         uint256 _length = operatorAddresses.length;
-        address[] memory validatorPools = new address[](_length);
+        address[] memory stakeCredits = new address[](_length);
         address _pool;
         for (uint256 i = 0; i < _length; ++i) {
             _pool = _validators[operatorAddresses[i]].creditContract;
             require(_pool != address(0), "validator not exist");
-            validatorPools[i] = _pool;
+            stakeCredits[i] = _pool;
         }
 
-        IGovToken(GOV_TOKEN_ADDR).sync(validatorPools, account);
+        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, account);
     }
 
     /*----------------- system functions -----------------*/
@@ -671,9 +671,9 @@ contract StakeHub is System, Initializable {
         return keccak256(abi.encodePacked(operatorAddress, height, slashType));
     }
 
-    function _sync(address validatorPool, address account) private {
+    function _sync(address stakeCredit, address account) private {
         address[] memory _pools = new address[](1);
-        _pools[0] = validatorPool;
+        _pools[0] = stakeCredit;
         IGovToken(GOV_TOKEN_ADDR).sync(_pools, account);
     }
 
