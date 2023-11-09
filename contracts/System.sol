@@ -37,6 +37,11 @@ contract System {
     _;
   }
 
+  modifier onlyZeroGasPrice() {
+    require(tx.gasprice == 0 , "gasprice is not zero");
+    _;
+  }
+
   modifier onlyNotInit() {
     require(!alreadyInit, "the contract already init");
     _;
