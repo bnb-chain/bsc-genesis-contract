@@ -32,7 +32,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // the precision of cross chain value transfer.
   uint256 public constant PRECISION = 1e10;
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
-  uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
+  uint256 public constant MAX_NUM_OF_VALIDATORS = 100;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"f87680f873f871949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164b085e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588";
 
@@ -221,7 +221,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    *
    * @param valAddr The validator address who produced the current block
    */
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit onlyZeroGasPrice {
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
@@ -540,7 +540,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
-  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
+  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyZeroGasPrice onlyInit {
     // first time to call this function
     if (finalityRewardRatio == 0) {
       finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
