@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./System.sol";
@@ -10,7 +11,7 @@ import "./interface/IBSCValidatorSet.sol";
 import "./interface/IGovToken.sol";
 import "./interface/IStakeCredit.sol";
 
-contract StakeHub is System {
+contract StakeHub is System, Initializable {
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -22,7 +23,6 @@ contract StakeHub is System {
     address public constant DEAD_ADDRESS = address(0xdead);
 
     /*----------------- storage -----------------*/
-    uint8 private _initialized;
     bool private _stakingPaused;
 
     uint256 public transferGasLimit;
@@ -155,9 +155,7 @@ contract StakeHub is System {
     receive() external payable { }
 
     /*----------------- init -----------------*/
-    function initialize() public onlyCoinbase onlyZeroGasPrice {
-        require(_initialized == 0, "ALREADY_INITIALIZED");
-
+    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 2300;
         minSelfDelegationBNB = 2000 ether;
         minDelegationBNBChange = 1 ether;
@@ -170,8 +168,6 @@ contract StakeHub is System {
         maxEvidenceAge = 21 days;
 
         emergencyOperator = address(0); // TODO
-
-        _initialized = 1;
     }
 
     /*----------------- external functions -----------------*/

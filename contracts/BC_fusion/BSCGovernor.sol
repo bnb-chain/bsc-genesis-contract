@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/compatibility/GovernorCompatibilityBravoUpgradeable.sol";
@@ -16,6 +15,7 @@ import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
     System,
+    Initializable,
     GovernorUpgradeable,
     GovernorSettingsUpgradeable,
     GovernorCompatibilityBravoUpgradeable,
@@ -144,7 +144,10 @@ contract BSCGovernor is
 
     function _checkAndStartPropose() internal {
         if (!proposeStarted) {
-            require(IGovToken(GOV_TOKEN_ADDR).totalSupply() >= PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD, "totalSupply of govBNB not enough");
+            require(
+                IGovToken(GOV_TOKEN_ADDR).totalSupply() >= PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD,
+                "totalSupply of govBNB not enough"
+            );
             proposeStarted = true;
         }
     }

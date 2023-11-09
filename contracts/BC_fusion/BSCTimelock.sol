@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgrade
 import "./System.sol";
 import "./lib/Utils.sol";
 
-contract BSCTimelock is System, TimelockControllerUpgradeable {
+contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
     uint256 public constant INIT_MINIMAL_DELAY = 6 hours;
 
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
