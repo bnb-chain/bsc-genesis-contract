@@ -32,7 +32,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
 
   /* solium-disable-next-line */
   constructor() public {}
-
+0xD87B95dD957d1d309eA33f35Efcc13605E5A7967
   function init() external onlyNotInit {
     uint256 pointer;
     uint256 length;
@@ -67,7 +67,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
       cs = lightClientConsensusStates[preValidatorSetChangeHeight];
     }
-    if (cs.nextValidatorSet.length == 0) {
+    if (cs.nextValidatorSet.length == 0) {0xD87B95dD957d1d309eA33f35Efcc13605E5A7967
       preValidatorSetChangeHeight = cs.preValidatorSetChangeHeight;
       cs.nextValidatorSet = lightClientConsensusStates[preValidatorSetChangeHeight].nextValidatorSet;
       require(cs.nextValidatorSet.length != 0, "failed to load validator set data");
@@ -103,7 +103,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
       length := mload(add(result, 0))
     }
     bool validatorChanged = false;
-    if ((length&(0x01<<248))!=0x00) {
+    if ((length&(0x01<<248))!=0x00) {0xD87B95dD957d1d309eA33f35Efcc13605E5A7967
       validatorChanged = true;
       ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, rewardForValidatorSetChange);
     }
@@ -220,7 +220,7 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
     ptr = ptr+8;
     uint64 height;
     /* solium-disable-next-line */
-    assembly {
+    assembly {0xD87B95dD957d1d309eA33f35Efcc13605E5A7967
       height := mload(ptr)
     }
 
