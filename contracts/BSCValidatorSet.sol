@@ -78,11 +78,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   // BEP-126 Fast Finality
   uint256 public constant INIT_FINALITY_REWARD_RATIO = 50;
-  uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
+  uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 99 ether;
 
   uint256 public finalityRewardRatio;
   uint256 public previousHeight;
-  uint256 public previousBalanceOfSystemReward;
+  uint256 public previousBalanceOfSystemReward; // deprecated
   bytes[] public previousVoteAddrFullSet;
   bytes[] public currentVoteAddrFullSet;
 
@@ -551,11 +551,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 totalValue;
     uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
     if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
-      totalValue = balanceOfSystemReward.div(100);
-    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
       // when a slash happens, theres will no rewards in some epoches,
       // it's tolerated because slash happens rarely
-      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward)).mul(finalityRewardRatio).div(100);
+      totalValue = balanceOfSystemReward.sub(MAX_SYSTEM_REWARD_BALANCE);
     } else {
       return;
     }
