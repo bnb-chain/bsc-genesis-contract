@@ -22,6 +22,10 @@ contract StakeHub is System, Initializable {
 
     address private constant DEAD_ADDRESS = address(0xdead);
 
+    //TODO
+    bytes private constant INIT_BC_CONSENSUS_ADDRESSES = hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
+    bytes private constant INIT_BC_VOTE_ADDRESSES = hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
+
     /*----------------- storage -----------------*/
     bool private _stakingPaused;
 
@@ -49,6 +53,10 @@ contract StakeHub is System, Initializable {
     mapping(address => address) private _consensusToOperator;
     // slash key => slash record
     mapping(bytes32 => SlashRecord) private _slashRecords;
+
+    // legacy address of BC
+    mapping(address => bool) private _legacyConsensusAddress;
+    mapping(bytes => bool) private _legacyVoteAddress;
 
     uint256 public numOfJailed;
 
@@ -159,6 +167,17 @@ contract StakeHub is System, Initializable {
         downtimeJailTime = 2 days;
         doubleSignJailTime = 730 days;
 
+        address[] memory bcConsensusAddress;
+        bytes[] memory bcVoteAddress;
+        bcConsensusAddress = abi.decode(INIT_BC_CONSENSUS_ADDRESSES, (address[]));
+        bcVoteAddress = abi.decode(INIT_BC_VOTE_ADDRESSES, (bytes[]));
+        for (uint256 i; i < bcConsensusAddress.length; ++i) {
+            _legacyConsensusAddress[bcConsensusAddress[i]] = true;
+        }
+        for (uint256 i; i < bcVoteAddress.length; ++i) {
+            _legacyVoteAddress[bcVoteAddress[i]] = true;
+        }
+
         assetProtector = address(0); // TODO
     }
 
@@ -173,8 +192,13 @@ contract StakeHub is System, Initializable {
         // basic check
         address operatorAddress = msg.sender;
         require(_validators[operatorAddress].creditContract == address(0), "VALIDATOR_EXISTED");
-        require(_consensusToOperator[consensusAddress] == address(0), "DUPLICATE_CONSENSUS_ADDRESS");
-        require(_voteToOperator[voteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(
+            _consensusToOperator[consensusAddress] == address(0) && !_legacyConsensusAddress[consensusAddress],
+            "DUPLICATE_CONSENSUS_ADDRESS"
+        );
+        require(
+            _voteToOperator[voteAddress] == address(0) && !_legacyVoteAddress[voteAddress], "DUPLICATE_VOTE_ADDRESS"
+        );
 
         uint256 delegation = msg.value;
         require(delegation >= minSelfDelegationBNB, "NOT_ENOUGH_SELF_DELEGATION");
@@ -210,7 +234,10 @@ contract StakeHub is System, Initializable {
         validatorExist(msg.sender)
     {
         require(newConsensusAddress != address(0), "INVALID_CONSENSUS_ADDRESS");
-        require(_consensusToOperator[newConsensusAddress] == address(0), "DUPLICATE_CONSENSUS_ADDRESS");
+        require(
+            _consensusToOperator[newConsensusAddress] == address(0) && !_legacyConsensusAddress[newConsensusAddress],
+            "DUPLICATE_CONSENSUS_ADDRESS"
+        );
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
@@ -268,7 +295,10 @@ contract StakeHub is System, Initializable {
         bytes calldata blsProof
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
         require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        require(_voteToOperator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
+        require(
+            _voteToOperator[newVoteAddress] == address(0) && !_legacyVoteAddress[newVoteAddress],
+            "DUPLICATE_VOTE_ADDRESS"
+        );
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];

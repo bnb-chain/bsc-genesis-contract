@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface TokenHub {
@@ -21,6 +22,7 @@ interface TokenHub {
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function CROSS_STAKE_CHANNELID() external view returns (uint8);
     function ERROR_FAIL_DECODE() external view returns (uint32);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
@@ -64,7 +66,7 @@ interface TokenHub {
     function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external;
     function bscChainID() external view returns (uint16);
     function cancelTransferIn(address tokenAddress, address attacker) external;
-    function claimRewards(address to, uint256 amount) external returns (uint256);
+    function claimRewards(address payable to, uint256 amount) external returns (uint256);
     function getBep2SymbolByContractAddr(address contractAddr) external view returns (bytes32);
     function getBoundBep2Symbol(address contractAddr) external view returns (string memory);
     function getBoundContract(string memory bep2Symbol) external view returns (address);

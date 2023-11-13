@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface SlashIndicator {
-    event crashResponse();
-    event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
-    event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
-    event indicatorCleaned();
-    event knownResponse(uint32 code);
-    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
-    event paramChange(string key, bytes value);
-    event unKnownResponse(uint32 code);
-    event validatorSlashed(address indexed validator);
-
     struct FinalityEvidence {
         VoteData voteA;
         VoteData voteB;
@@ -25,6 +16,16 @@ interface SlashIndicator {
         bytes sig;
     }
 
+    event crashResponse();
+    event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
+    event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
+    event indicatorCleaned();
+    event knownResponse(uint32 code);
+    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
+    event paramChange(string key, bytes value);
+    event unKnownResponse(uint32 code);
+    event validatorSlashed(address indexed validator);
+
     function BIND_CHANNELID() external view returns (uint8);
     function BSC_RELAYER_REWARD() external view returns (uint256);
     function CODE_OK() external view returns (uint32);
@@ -33,6 +34,7 @@ interface SlashIndicator {
     function DECREASE_RATE() external view returns (uint256);
     function ERROR_FAIL_DECODE() external view returns (uint32);
     function FELONY_THRESHOLD() external view returns (uint256);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);

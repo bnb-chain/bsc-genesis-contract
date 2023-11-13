@@ -1,6 +1,12 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface GovToken {
+    struct Checkpoint {
+        uint32 fromBlock;
+        uint224 votes;
+    }
+
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
@@ -9,29 +15,8 @@ interface GovToken {
     event ParamChange(string key, bytes value);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
-    struct Checkpoint {
-        uint32 fromBlock;
-        uint224 votes;
-    }
-
     function CLOCK_MODE() external view returns (string memory);
-    function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function DOMAIN_SEPARATOR() external view returns (bytes32);
-    function GOVERNOR_ADDR() external view returns (address);
-    function GOV_HUB_ADDR() external view returns (address);
-    function GOV_TOKEN_ADDR() external view returns (address);
-    function INCENTIVIZE_ADDR() external view returns (address);
-    function LIGHT_CLIENT_ADDR() external view returns (address);
-    function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
-    function SLASH_CONTRACT_ADDR() external view returns (address);
-    function STAKE_CREDIT_ADDR() external view returns (address);
-    function STAKE_HUB_ADDR() external view returns (address);
-    function STAKING_CONTRACT_ADDR() external view returns (address);
-    function SYSTEM_REWARD_ADDR() external view returns (address);
-    function TIMELOCK_ADDR() external view returns (address);
-    function TOKEN_HUB_ADDR() external view returns (address);
-    function TOKEN_MANAGER_ADDR() external view returns (address);
-    function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
@@ -69,7 +54,7 @@ interface GovToken {
     function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external;
     function symbol() external view returns (string memory);
-    function sync(address[] memory stakeCredit, address account) external;
+    function sync(address[] memory stakeCredits, address account) external;
     function totalSupply() external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);

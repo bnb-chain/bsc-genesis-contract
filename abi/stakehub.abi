@@ -70,40 +70,22 @@
         "internalType": "address",
         "name": "operatorAddress",
         "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
       }
     ],
-    "name": "Delegated",
+    "name": "DescriptionEdited",
     "type": "event"
   },
   {
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "operatorAddress",
-        "type": "address"
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "version",
+        "type": "uint8"
       }
     ],
-    "name": "DescriptionEdited",
+    "name": "Initialized",
     "type": "event"
   },
   {
@@ -145,18 +127,6 @@
         "internalType": "address",
         "name": "delegator",
         "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "oldShares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "newShares",
-        "type": "uint256"
       },
       {
         "indexed": false,
@@ -216,37 +186,6 @@
     "anonymous": false,
     "inputs": [],
     "name": "StakingResumed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "operatorAddress",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Undelegated",
     "type": "event"
   },
   {
@@ -376,34 +315,21 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "BLS_PUBKEY_LENGTH",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "internalType": "address",
+        "name": "_addr",
+        "type": "address"
       }
     ],
-    "stateMutability": "view",
+    "name": "addBlackList",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "BLS_SIG_LENGTH",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "CROSS_CHAIN_CONTRACT_ADDR",
+    "name": "assetProtector",
     "outputs": [
       {
         "internalType": "address",
@@ -415,208 +341,19 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "DEAD_ADDRESS",
-    "outputs": [
+    "inputs": [
       {
         "internalType": "address",
         "name": "",
         "type": "address"
       }
     ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "GOVERNOR_ADDR",
+    "name": "blackList",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "bool",
         "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "GOV_HUB_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "GOV_TOKEN_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "INCENTIVIZE_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "LIGHT_CLIENT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "RELAYERHUB_CONTRACT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "SLASH_CONTRACT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "STAKE_CREDIT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "STAKE_HUB_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "STAKING_CONTRACT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "SYSTEM_REWARD_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "TIMELOCK_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "TOKEN_HUB_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "TOKEN_MANAGER_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "VALIDATOR_CONTRACT_ADDR",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -718,6 +455,11 @@
         "internalType": "address",
         "name": "operatorAddress",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "delegateVotePower",
+        "type": "bool"
       }
     ],
     "name": "delegate",
@@ -761,11 +503,6 @@
       {
         "internalType": "uint256",
         "name": "height",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "evidenceTime",
         "type": "uint256"
       }
     ],
@@ -903,56 +640,6 @@
     "name": "editVoteAddress",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getEligibleValidatorSet",
-    "outputs": [
-      {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "consensusAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "address payable",
-            "name": "feeAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "BBCFeeAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "uint64",
-            "name": "votingPower",
-            "type": "uint64"
-          },
-          {
-            "internalType": "bool",
-            "name": "jailed",
-            "type": "bool"
-          },
-          {
-            "internalType": "uint256",
-            "name": "incoming",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct IBSCValidatorSet.Validator[]",
-        "name": "",
-        "type": "tuple[]"
-      },
-      {
-        "internalType": "bytes[]",
-        "name": "",
-        "type": "bytes[]"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1240,19 +927,6 @@
   },
   {
     "inputs": [],
-    "name": "maxEvidenceAge",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "minDelegationBNBChange",
     "outputs": [
       {
@@ -1313,9 +987,27 @@
         "internalType": "uint256",
         "name": "shares",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "delegateVotePower",
+        "type": "bool"
       }
     ],
     "name": "redelegate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_addr",
+        "type": "address"
+      }
+    ],
+    "name": "removeBlackList",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1398,29 +1090,6 @@
       }
     ],
     "name": "unjail",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address[]",
-        "name": "validators",
-        "type": "address[]"
-      },
-      {
-        "internalType": "uint64[]",
-        "name": "votingPowers",
-        "type": "uint64[]"
-      },
-      {
-        "internalType": "bytes[]",
-        "name": "voteAddrs",
-        "type": "bytes[]"
-      }
-    ],
-    "name": "updateEligibleValidatorSet",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

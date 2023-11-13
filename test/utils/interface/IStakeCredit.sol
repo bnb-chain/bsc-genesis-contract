@@ -1,6 +1,16 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface StakeCredit {
+    struct UnbondRequest {
+        uint256 shares;
+        uint256 bnbAmount;
+        uint256 unlockTime;
+    }
+
+    error Empty();
+    error OutOfBounds();
+
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Delegated(address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Initialized(uint8 version);
@@ -12,36 +22,13 @@ interface StakeCredit {
     event UnbondRequested(address indexed delegator, uint256 shares, uint256 bnbAmount, uint256 unlockTime);
     event Unbonded(address indexed delegator, uint256 shares, uint256 bnbAmount);
 
-    struct UnbondRequest {
-        uint256 shares;
-        uint256 bnbAmount;
-        uint256 unlockTime;
-    }
-
-    function COMMISSION_RATE_BASE() external view returns (uint256);
-    function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
-    function GOVERNOR_ADDR() external view returns (address);
-    function GOV_HUB_ADDR() external view returns (address);
-    function GOV_TOKEN_ADDR() external view returns (address);
-    function INCENTIVIZE_ADDR() external view returns (address);
-    function LIGHT_CLIENT_ADDR() external view returns (address);
-    function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
-    function SLASH_CONTRACT_ADDR() external view returns (address);
-    function STAKE_CREDIT_ADDR() external view returns (address);
-    function STAKE_HUB_ADDR() external view returns (address);
-    function STAKING_CONTRACT_ADDR() external view returns (address);
-    function SYSTEM_REWARD_ADDR() external view returns (address);
-    function TIMELOCK_ADDR() external view returns (address);
-    function TOKEN_HUB_ADDR() external view returns (address);
-    function TOKEN_MANAGER_ADDR() external view returns (address);
-    function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
-    function claim(address delegator, uint256 number) external returns (uint256);
+    function claim(address payable delegator, uint256 number) external returns (uint256);
     function decimals() external view returns (uint8);
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
-    function delegate(address delegator) external payable returns (uint256);
+    function delegate(address delegator) external payable;
     function distributeReward(uint64 commissionRate) external payable;
     function getPooledBNB(address account) external view returns (uint256);
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
@@ -60,6 +47,6 @@ interface StakeCredit {
     function unbond(address delegator, uint256 shares) external returns (uint256);
     function unbondRequest(address delegator, uint256 _index) external view returns (UnbondRequest memory, uint256);
     function unbondSequence(address delegator) external view returns (uint256);
-    function undelegate(address delegator, uint256 shares) external returns (uint256);
+    function undelegate(address delegator, uint256 shares) external;
     function validator() external view returns (address);
 }

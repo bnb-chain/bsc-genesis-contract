@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface GovHub {
@@ -12,6 +13,7 @@ interface GovHub {
     function ERROR_FAIL_DECODE() external view returns (uint32);
     function ERROR_TARGET_CONTRACT_FAIL() external view returns (uint32);
     function ERROR_TARGET_NOT_CONTRACT() external view returns (uint32);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
@@ -34,4 +36,5 @@ interface GovHub {
     function handleAckPackage(uint8, bytes memory) external;
     function handleFailAckPackage(uint8, bytes memory) external;
     function handleSynPackage(uint8, bytes memory msgBytes) external returns (bytes memory responsePayload);
+    function updateParam(string memory key, bytes memory value, address target) external;
 }

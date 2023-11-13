@@ -31,7 +31,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   // uint256 public constant FELONY_THRESHOLD = 150;
   uint256 public constant MISDEMEANOR_THRESHOLD = 10;
   uint256 public constant FELONY_THRESHOLD = 20;
-  uint256 public constant BSC_RELAYER_REWARD = 1e16;
   uint256 public constant DECREASE_RATE = 4;
 
   // State of the contract

@@ -1,6 +1,17 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface BSCGovernor {
+    type ProposalState is uint8;
+
+    struct Receipt {
+        bool hasVoted;
+        uint8 support;
+        uint96 votes;
+    }
+
+    error Empty();
+
     event EIP712DomainChanged();
     event Initialized(uint8 version);
     event LateQuorumVoteExtensionSet(uint64 oldVoteExtension, uint64 newVoteExtension);
@@ -30,37 +41,10 @@ interface BSCGovernor {
     event VotingDelaySet(uint256 oldVotingDelay, uint256 newVotingDelay);
     event VotingPeriodSet(uint256 oldVotingPeriod, uint256 newVotingPeriod);
 
-    struct Receipt {
-        bool hasVoted;
-        uint8 support;
-        uint96 votes;
-    }
-
     function BALLOT_TYPEHASH() external view returns (bytes32);
     function CLOCK_MODE() external view returns (string memory);
     function COUNTING_MODE() external pure returns (string memory);
-    function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function EXTENDED_BALLOT_TYPEHASH() external view returns (bytes32);
-    function GOVERNOR_ADDR() external view returns (address);
-    function GOV_HUB_ADDR() external view returns (address);
-    function GOV_TOKEN_ADDR() external view returns (address);
-    function INCENTIVIZE_ADDR() external view returns (address);
-    function INIT_MIN_PERIOD_AFTER_QUORUM() external view returns (uint64);
-    function INIT_PROPOSAL_THRESHOLD() external view returns (uint256);
-    function INIT_QUORUM_NUMERATOR() external view returns (uint256);
-    function INIT_VOTING_DELAY() external view returns (uint256);
-    function INIT_VOTING_PERIOD() external view returns (uint256);
-    function LIGHT_CLIENT_ADDR() external view returns (address);
-    function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
-    function SLASH_CONTRACT_ADDR() external view returns (address);
-    function STAKE_CREDIT_ADDR() external view returns (address);
-    function STAKE_HUB_ADDR() external view returns (address);
-    function STAKING_CONTRACT_ADDR() external view returns (address);
-    function SYSTEM_REWARD_ADDR() external view returns (address);
-    function TIMELOCK_ADDR() external view returns (address);
-    function TOKEN_HUB_ADDR() external view returns (address);
-    function TOKEN_MANAGER_ADDR() external view returns (address);
-    function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function cancel(uint256 proposalId) external;
     function cancel(
         address[] memory targets,
@@ -168,6 +152,7 @@ interface BSCGovernor {
         bytes[] memory calldatas,
         string memory description
     ) external returns (uint256);
+    function proposeStarted() external view returns (bool);
     function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
         external
         returns (uint256);
@@ -182,7 +167,7 @@ interface BSCGovernor {
     function setProposalThreshold(uint256 newProposalThreshold) external;
     function setVotingDelay(uint256 newVotingDelay) external;
     function setVotingPeriod(uint256 newVotingPeriod) external;
-    function state(uint256 proposalId) external view returns (uint8);
+    function state(uint256 proposalId) external view returns (ProposalState);
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
     function timelock() external view returns (address);
     function token() external view returns (address);

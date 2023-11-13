@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface CrossChain {
@@ -37,6 +38,7 @@ interface CrossChain {
     function EMPTY_CONTENT_HASH() external view returns (bytes32);
     function ERROR_FAIL_DECODE() external view returns (uint32);
     function FAIL_ACK_PACKAGE() external view returns (uint8);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);

@@ -140,6 +140,19 @@
   },
   {
     "inputs": [],
+    "name": "GOVERNOR_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "GOV_CHANNELID",
     "outputs": [
       {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface BSCTimelock {
@@ -21,27 +22,10 @@ interface BSCTimelock {
     event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
 
     function CANCELLER_ROLE() external view returns (bytes32);
-    function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
     function EXECUTOR_ROLE() external view returns (bytes32);
-    function GOVERNOR_ADDR() external view returns (address);
-    function GOV_HUB_ADDR() external view returns (address);
-    function GOV_TOKEN_ADDR() external view returns (address);
-    function INCENTIVIZE_ADDR() external view returns (address);
-    function INIT_MINIMAL_DELAY() external view returns (uint256);
-    function LIGHT_CLIENT_ADDR() external view returns (address);
     function PROPOSER_ROLE() external view returns (bytes32);
-    function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
-    function SLASH_CONTRACT_ADDR() external view returns (address);
-    function STAKE_CREDIT_ADDR() external view returns (address);
-    function STAKE_HUB_ADDR() external view returns (address);
-    function STAKING_CONTRACT_ADDR() external view returns (address);
-    function SYSTEM_REWARD_ADDR() external view returns (address);
-    function TIMELOCK_ADDR() external view returns (address);
     function TIMELOCK_ADMIN_ROLE() external view returns (bytes32);
-    function TOKEN_HUB_ADDR() external view returns (address);
-    function TOKEN_MANAGER_ADDR() external view returns (address);
-    function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function cancel(bytes32 id) external;
     function execute(address target, uint256 value, bytes memory payload, bytes32 predecessor, bytes32 salt)
         external

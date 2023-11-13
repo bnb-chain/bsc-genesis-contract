@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface Staking {
@@ -39,6 +40,7 @@ interface Staking {
     function EVENT_DISTRIBUTE_UNDELEGATED() external view returns (uint8);
     function EVENT_REDELEGATE() external view returns (uint8);
     function EVENT_UNDELEGATE() external view returns (uint8);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);

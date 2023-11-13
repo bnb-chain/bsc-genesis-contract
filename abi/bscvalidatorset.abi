@@ -521,6 +521,19 @@
   },
   {
     "inputs": [],
+    "name": "GOVERNOR_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "GOV_CHANNELID",
     "outputs": [
       {
@@ -1527,41 +1540,14 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "consensusAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "address payable",
-            "name": "feeAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "BBCFeeAddress",
-            "type": "address"
-          },
-          {
-            "internalType": "uint64",
-            "name": "votingPower",
-            "type": "uint64"
-          },
-          {
-            "internalType": "bool",
-            "name": "jailed",
-            "type": "bool"
-          },
-          {
-            "internalType": "uint256",
-            "name": "incoming",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct BSCValidatorSet.Validator[]",
-        "name": "_validatorSet",
-        "type": "tuple[]"
+        "internalType": "address[]",
+        "name": "_consensusAddrs",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint64[]",
+        "name": "_votingPowers",
+        "type": "uint64[]"
       },
       {
         "internalType": "bytes[]",

@@ -1,13 +1,23 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface BSCValidatorSet {
+    struct Validator {
+        address consensusAddress;
+        address payable feeAddress;
+        address BBCFeeAddress;
+        uint64 votingPower;
+        bool jailed;
+        uint256 incoming;
+    }
+
     event batchTransfer(uint256 amount);
     event batchTransferFailed(uint256 indexed amount, string reason);
     event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
     event deprecatedDeposit(address indexed validator, uint256 amount);
     event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
-    event directTransfer(address indexed validator, uint256 amount);
-    event directTransferFail(address indexed validator, uint256 amount);
+    event directTransfer(address payable indexed validator, uint256 amount);
+    event directTransferFail(address payable indexed validator, uint256 amount);
     event failReasonWithStr(string message);
     event feeBurned(uint256 amount);
     event finalityRewardDeposit(address indexed validator, uint256 amount);
@@ -23,15 +33,6 @@ interface BSCValidatorSet {
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorSetUpdated();
 
-    struct Validator {
-        address consensusAddress;
-        address feeAddress;
-        address BBCFeeAddress;
-        uint64 votingPower;
-        bool jailed;
-        uint256 incoming;
-    }
-
     function BIND_CHANNELID() external view returns (uint8);
     function BURN_ADDRESS() external view returns (address);
     function BURN_RATIO_SCALE() external view returns (uint256);
@@ -46,6 +47,7 @@ interface BSCValidatorSet {
     function ERROR_RELAYFEE_TOO_LARGE() external view returns (uint32);
     function ERROR_UNKNOWN_PACKAGE_TYPE() external view returns (uint32);
     function EXPIRE_TIME_SECOND_GAP() external view returns (uint256);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
@@ -83,7 +85,7 @@ interface BSCValidatorSet {
         view
         returns (
             address consensusAddress,
-            address feeAddress,
+            address payable feeAddress,
             address BBCFeeAddress,
             uint64 votingPower,
             bool jailed,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface TendermintLightClient {
@@ -10,6 +11,7 @@ interface TendermintLightClient {
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function CROSS_STAKE_CHANNELID() external view returns (uint8);
     function ERROR_FAIL_DECODE() external view returns (uint32);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
@@ -33,7 +35,7 @@ interface TendermintLightClient {
     function chainID() external view returns (bytes32);
     function getAppHash(uint64 height) external view returns (bytes32);
     function getChainID() external view returns (string memory);
-    function getSubmitter(uint64 height) external view returns (address);
+    function getSubmitter(uint64 height) external view returns (address payable);
     function init() external;
     function initialHeight() external view returns (uint64);
     function isHeaderSynced(uint64 height) external view returns (bool);
@@ -48,7 +50,7 @@ interface TendermintLightClient {
             bytes memory nextValidatorSet
         );
     function rewardForValidatorSetChange() external view returns (uint256);
-    function submitters(uint64) external view returns (address);
+    function submitters(uint64) external view returns (address payable);
     function syncTendermintHeader(bytes memory header, uint64 height) external returns (bool);
     function updateParam(string memory key, bytes memory value) external;
 }

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.10;
 
 interface SystemReward {
@@ -13,6 +14,7 @@ interface SystemReward {
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function CROSS_STAKE_CHANNELID() external view returns (uint8);
     function ERROR_FAIL_DECODE() external view returns (uint32);
+    function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
