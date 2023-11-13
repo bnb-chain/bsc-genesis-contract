@@ -239,7 +239,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   /**
    * @dev Update validator set method after fusion fork.
    */
-  function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) public onlyStakeHub {
+  function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) public onlyCoinbase onlyZeroGasPrice {
     // if staking channel is not closed, store the migrated validator set and return
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
       uint256 newLength = _validatorSet.length;

@@ -17,10 +17,10 @@ contract StakeHub is System, Initializable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*----------------- constant -----------------*/
-    uint256 public constant BLS_PUBKEY_LENGTH = 48;
-    uint256 public constant BLS_SIG_LENGTH = 96;
+    uint256 private constant BLS_PUBKEY_LENGTH = 48;
+    uint256 private constant BLS_SIG_LENGTH = 96;
 
-    address public constant DEAD_ADDRESS = address(0xdead);
+    address private constant DEAD_ADDRESS = address(0xdead);
 
     /*----------------- storage -----------------*/
     bool private _stakingPaused;
@@ -38,7 +38,6 @@ contract StakeHub is System, Initializable {
     uint256 public doubleSignSlashAmount;
     uint256 public downtimeJailTime;
     uint256 public doubleSignJailTime;
-    uint256 public maxEvidenceAge;
 
     // validator operator address set
     EnumerableSet.AddressSet private _validatorSet;
@@ -53,7 +52,8 @@ contract StakeHub is System, Initializable {
 
     uint256 public numOfJailed;
 
-    address public emergencyOperator;
+    address public assetProtector;
+    mapping(address => bool) public blackList;
 
     struct Validator {
         address consensusAddress;
@@ -105,15 +105,8 @@ contract StakeHub is System, Initializable {
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
-    event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Redelegated(
-        address indexed srcValidator,
-        address indexed dstValidator,
-        address indexed delegator,
-        uint256 oldShares,
-        uint256 newShares,
-        uint256 bnbAmount
+        address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount
     );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
@@ -137,18 +130,18 @@ contract StakeHub is System, Initializable {
         _;
     }
 
-    modifier validatorNotJailed(address operatorAddress) {
-        require(!_validators[operatorAddress].jailed, "VALIDATOR_JAILED");
-        _;
-    }
-
     modifier whenNotPaused() {
         require(!_stakingPaused, "STAKE_STOPPED");
         _;
     }
 
-    modifier onlyEmergencyOperator() {
-        require(msg.sender == emergencyOperator, "ONLY_EMERGENCY_OPERATOR");
+    modifier onlyAssetProtector() {
+        require(msg.sender == assetProtector, "ONLY_ASSET_PROTECTOR");
+        _;
+    }
+
+    modifier notInBlackList() {
+        require(!blackList[msg.sender], "IN_BLACK_LIST");
         _;
     }
 
@@ -165,9 +158,8 @@ contract StakeHub is System, Initializable {
         doubleSignSlashAmount = 10_000 ether;
         downtimeJailTime = 2 days;
         doubleSignJailTime = 730 days;
-        maxEvidenceAge = 21 days;
 
-        emergencyOperator = address(0); // TODO
+        assetProtector = address(0); // TODO
     }
 
     /*----------------- external functions -----------------*/
@@ -177,7 +169,7 @@ contract StakeHub is System, Initializable {
         bytes calldata blsProof,
         Commission calldata commission,
         Description calldata description
-    ) external payable whenNotPaused {
+    ) external payable whenNotPaused notInBlackList {
         // basic check
         address operatorAddress = msg.sender;
         require(_validators[operatorAddress].creditContract == address(0), "VALIDATOR_EXISTED");
@@ -187,6 +179,7 @@ contract StakeHub is System, Initializable {
         uint256 delegation = msg.value;
         require(delegation >= minSelfDelegationBNB, "NOT_ENOUGH_SELF_DELEGATION");
 
+        require(commission.maxRate <= 5_000, "INVALID_MAX_COMMISSION_RATE");
         require(commission.rate <= commission.maxRate, "INVALID_COMMISSION_RATE");
         require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
         require(_checkMoniker(description.moniker), "INVALID_MONIKER");
@@ -210,7 +203,12 @@ contract StakeHub is System, Initializable {
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
     }
 
-    function editConsensusAddress(address newConsensusAddress) external whenNotPaused validatorExist(msg.sender) {
+    function editConsensusAddress(address newConsensusAddress)
+        external
+        whenNotPaused
+        notInBlackList
+        validatorExist(msg.sender)
+    {
         require(newConsensusAddress != address(0), "INVALID_CONSENSUS_ADDRESS");
         require(_consensusToOperator[newConsensusAddress] == address(0), "DUPLICATE_CONSENSUS_ADDRESS");
 
@@ -225,7 +223,12 @@ contract StakeHub is System, Initializable {
         emit ConsensusAddressEdited(operatorAddress, newConsensusAddress);
     }
 
-    function editCommissionRate(uint64 commissionRate) external whenNotPaused validatorExist(msg.sender) {
+    function editCommissionRate(uint64 commissionRate)
+        external
+        whenNotPaused
+        notInBlackList
+        validatorExist(msg.sender)
+    {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
@@ -242,7 +245,12 @@ contract StakeHub is System, Initializable {
         emit CommissionRateEdited(operatorAddress, commissionRate);
     }
 
-    function editDescription(Description calldata description) external whenNotPaused validatorExist(msg.sender) {
+    function editDescription(Description calldata description)
+        external
+        whenNotPaused
+        notInBlackList
+        validatorExist(msg.sender)
+    {
         require(_checkMoniker(description.moniker), "INVALID_MONIKER");
 
         address operatorAddress = msg.sender;
@@ -258,7 +266,7 @@ contract StakeHub is System, Initializable {
     function editVoteAddress(
         bytes calldata newVoteAddress,
         bytes calldata blsProof
-    ) external whenNotPaused validatorExist(msg.sender) {
+    ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
         require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
         require(_voteToOperator[newVoteAddress] == address(0), "DUPLICATE_VOTE_ADDRESS");
 
@@ -273,7 +281,7 @@ contract StakeHub is System, Initializable {
         emit VoteAddressEdited(operatorAddress, newVoteAddress);
     }
 
-    function unjail(address operatorAddress) public whenNotPaused validatorExist(operatorAddress) {
+    function unjail(address operatorAddress) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.jailed, "NOT_JAILED");
 
@@ -288,7 +296,10 @@ contract StakeHub is System, Initializable {
         emit ValidatorUnjailed(operatorAddress);
     }
 
-    function delegate(address operatorAddress) external payable whenNotPaused validatorExist(operatorAddress) {
+    function delegate(
+        address operatorAddress,
+        bool delegateVotePower
+    ) external payable whenNotPaused notInBlackList validatorExist(operatorAddress) {
         uint256 bnbAmount = msg.value;
         require(bnbAmount >= minDelegationBNBChange, "INVALID_DELEGATION_AMOUNT");
 
@@ -300,20 +311,23 @@ contract StakeHub is System, Initializable {
             require(delegator == operatorAddress, "ONLY_SELF_DELEGATION");
         }
 
-        uint256 shares = IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
-        emit Delegated(operatorAddress, delegator, shares, bnbAmount);
+        IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
 
         _sync(valInfo.creditContract, delegator);
-        IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, operatorAddress);
+        if (delegateVotePower) {
+            IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, operatorAddress);
+        }
     }
 
-    function undelegate(address operatorAddress, uint256 shares) public whenNotPaused validatorExist(operatorAddress) {
+    function undelegate(
+        address operatorAddress,
+        uint256 shares
+    ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         require(shares > 0, "INVALID_SHARES_AMOUNT");
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-        uint256 bnbAmount = IStakeCredit(valInfo.creditContract).undelegate(delegator, shares);
-        emit Undelegated(operatorAddress, delegator, shares, bnbAmount);
+        IStakeCredit(valInfo.creditContract).undelegate(delegator, shares);
 
         if (delegator == operatorAddress) {
             _checkValidatorSelfDelegation(operatorAddress);
@@ -325,8 +339,9 @@ contract StakeHub is System, Initializable {
     function redelegate(
         address srcValidator,
         address dstValidator,
-        uint256 shares
-    ) public whenNotPaused validatorExist(srcValidator) validatorExist(dstValidator) validatorNotJailed(dstValidator) {
+        uint256 shares,
+        bool delegateVotePower
+    ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) {
         require(shares > 0, "INVALID_SHARES_AMOUNT");
 
         address delegator = msg.sender;
@@ -343,8 +358,8 @@ contract StakeHub is System, Initializable {
         }
 
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
-        uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
-        emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
+        IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
+        emit Redelegated(srcValidator, dstValidator, delegator, bnbAmount);
 
         if (delegator == srcValidator) {
             _checkValidatorSelfDelegation(srcValidator);
@@ -354,7 +369,9 @@ contract StakeHub is System, Initializable {
         _pools[0] = srcValInfo.creditContract;
         _pools[1] = dstValInfo.creditContract;
         IGovToken(GOV_TOKEN_ADDR).sync(_pools, delegator);
-        IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
+        if (delegateVotePower) {
+            IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
+        }
     }
 
     /**
@@ -363,12 +380,12 @@ contract StakeHub is System, Initializable {
     function claim(
         address operatorAddress,
         uint256 requestNumber
-    ) external whenNotPaused validatorExist(operatorAddress) {
+    ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         uint256 bnbAmount = IStakeCredit(_validators[operatorAddress].creditContract).claim(msg.sender, requestNumber);
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
-    function sync(address[] calldata operatorAddresses, address account) external whenNotPaused {
+    function sync(address[] calldata operatorAddresses, address account) external whenNotPaused notInBlackList {
         uint256 _length = operatorAddresses.length;
         address[] memory stakeCredits = new address[](_length);
         address _pool;
@@ -390,42 +407,8 @@ contract StakeHub is System, Initializable {
             return;
         }
 
-        try IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate) {
-            emit RewardDistributed(operatorAddress, msg.value);
-        } catch Error(string memory reason) {
-            emit RewardDistributeFailed(operatorAddress, bytes(reason));
-        } catch (bytes memory lowLevelData) {
-            emit RewardDistributeFailed(operatorAddress, lowLevelData);
-        }
-    }
-
-    /**
-     * @dev Get new eligible validators from consensus engine
-     */
-    function updateEligibleValidatorSet(
-        address[] calldata validators,
-        uint64[] calldata votingPowers,
-        bytes[] calldata voteAddrs
-    ) external onlyCoinbase onlyZeroGasPrice {
-        uint256 _length = validators.length;
-        if (_length == 0) {
-            return;
-        }
-
-        IBSCValidatorSet.Validator[] memory bscValidatorSet = new IBSCValidatorSet.Validator[](_length);
-        for (uint256 i; i < _length; ++i) {
-            bscValidatorSet[i] = IBSCValidatorSet.Validator({
-                consensusAddress: validators[i],
-                feeAddress: payable(address(0)),
-                BBCFeeAddress: address(0),
-                votingPower: votingPowers[i],
-                jailed: false,
-                incoming: 0
-            });
-        }
-
-        // update validator set in BSCValidatorSet contract
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).updateValidatorSetV2(bscValidatorSet, voteAddrs);
+        IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
+        emit RewardDistributed(operatorAddress, msg.value);
     }
 
     function downtimeSlash(address consensusAddress) external onlySlash {
@@ -436,12 +419,8 @@ contract StakeHub is System, Initializable {
 
         // slash
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(downtimeSlashAmount);
-        _jailValidator(valInfo);
-
         uint256 jailUntil = block.timestamp + downtimeJailTime;
-        if (valInfo.jailUntil < jailUntil) {
-            valInfo.jailUntil = jailUntil;
-        }
+        _jailValidator(valInfo, jailUntil);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, uint248(block.number), SlashType.DownTime);
 
@@ -456,12 +435,8 @@ contract StakeHub is System, Initializable {
 
         // slash
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
-        _jailValidator(valInfo);
-
-        SlashRecord storage record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.MaliciousVote);
-        if (valInfo.jailUntil < record.jailUntil) {
-            valInfo.jailUntil = record.jailUntil;
-        }
+        SlashRecord memory record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.MaliciousVote);
+        _jailValidator(valInfo, record.jailUntil);
 
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.MaliciousVote
@@ -470,21 +445,16 @@ contract StakeHub is System, Initializable {
         _sync(valInfo.creditContract, operatorAddress);
     }
 
-    function doubleSignSlash(address consensusAddress, uint256 height, uint256 evidenceTime) external onlySlash {
+    function doubleSignSlash(address consensusAddress, uint256 height) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
-        require(evidenceTime + maxEvidenceAge >= block.timestamp, "EVIDENCE_TOO_OLD");
 
         // slash
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
-        _jailValidator(valInfo);
-
-        SlashRecord storage record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.DoubleSign);
-        if (valInfo.jailUntil < record.jailUntil) {
-            valInfo.jailUntil = record.jailUntil;
-        }
+        SlashRecord memory record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.DoubleSign);
+        _jailValidator(valInfo, record.jailUntil);
 
         emit ValidatorSlashed(
             operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DoubleSign
@@ -494,86 +464,89 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- gov -----------------*/
-    function pauseStaking() external onlyEmergencyOperator {
+    function pauseStaking() external onlyAssetProtector {
         _stakingPaused = true;
         emit StakingPaused();
     }
 
-    function resumeStaking() external onlyEmergencyOperator {
+    function resumeStaking() external onlyAssetProtector {
         _stakingPaused = false;
         emit StakingResumed();
     }
 
+    function addBlackList(address _addr) external onlyAssetProtector {
+        blackList[_addr] = true;
+    }
+
+    function removeBlackList(address _addr) external onlyAssetProtector {
+        blackList[_addr] = false;
+    }
+
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("transferGasLimit")) {
-            require(value.length == 32, "length of transferGasLimit mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newTransferGasLimit = value.bytesToUint256(32);
-            require(newTransferGasLimit >= 2300, "the transferGasLimit is out of range");
+            require(newTransferGasLimit >= 2300, "INVALID_TRANSFER_GAS_LIMIT");
             transferGasLimit = newTransferGasLimit;
         } else if (key.compareStrings("minSelfDelegationBNB")) {
-            require(value.length == 32, "length of minSelfDelegationBNB mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newMinSelfDelegationBNB = value.bytesToUint256(32);
-            require(newMinSelfDelegationBNB >= 1000 ether, "the minSelfDelegationBNB is out of range");
-            newMinSelfDelegationBNB = newMinSelfDelegationBNB;
+            require(newMinSelfDelegationBNB >= 1000 ether, "INVALID_MIN_SELF_DELEGATION_BNB");
+            minSelfDelegationBNB = newMinSelfDelegationBNB;
         } else if (key.compareStrings("minDelegationBNBChange")) {
-            require(value.length == 32, "length of minDelegationBNBChange mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newMinDelegationBNBChange = value.bytesToUint256(32);
-            require(newMinDelegationBNBChange >= 1 ether, "the minDelegationBNBChange is out of range");
+            require(newMinDelegationBNBChange >= 1 ether, "INVALID_MIN_DELEGATION_BNB_CHANGE");
             minDelegationBNBChange = newMinDelegationBNBChange;
         } else if (key.compareStrings("maxElectedValidators")) {
-            require(value.length == 32, "length of maxElectedValidators mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newMaxElectedValidators = value.bytesToUint256(32);
-            require(newMaxElectedValidators >= 1, "the maxElectedValidators is out of range");
+            require(newMaxElectedValidators >= 1, "INVALID_MAX_ELECTED_VALIDATORS");
+            require(newMaxElectedValidators <= 500, "INVALID_MAX_ELECTED_VALIDATORS");
             maxElectedValidators = newMaxElectedValidators;
         } else if (key.compareStrings("unbondPeriod")) {
-            require(value.length == 32, "length of unbondPeriod mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newUnbondPeriod = value.bytesToUint256(32);
-            require(newUnbondPeriod >= 3 days, "the unbondPeriod is out of range");
+            require(newUnbondPeriod >= 3 days, "INVALID_UNBOND_PERIOD");
             unbondPeriod = newUnbondPeriod;
         } else if (key.compareStrings("downtimeSlashAmount")) {
-            require(value.length == 32, "length of downtimeSlashAmount mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDowntimeSlashAmount = value.bytesToUint256(32);
             require(
                 newDowntimeSlashAmount >= 5 ether && newDowntimeSlashAmount < doubleSignSlashAmount,
-                "the downtimeSlashAmount is out of range"
+                "INVALID_DOWNTIME_SLASH_AMOUNT"
             );
             downtimeSlashAmount = newDowntimeSlashAmount;
         } else if (key.compareStrings("doubleSignSlashAmount")) {
-            require(value.length == 32, "length of doubleSignSlashAmount mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDoubleSignSlashAmount = value.bytesToUint256(32);
             require(
                 newDoubleSignSlashAmount >= 1000 ether && newDoubleSignSlashAmount > downtimeSlashAmount,
-                "the doubleSignSlashAmount is out of range"
+                "INVALID_DOUBLE_SIGN_SLASH_AMOUNT"
             );
             doubleSignSlashAmount = newDoubleSignSlashAmount;
         } else if (key.compareStrings("downtimeJailTime")) {
-            require(value.length == 32, "length of downtimeJailTime mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDowntimeJailTime = value.bytesToUint256(32);
             require(
-                newDowntimeJailTime >= 2 days && newDowntimeJailTime < doubleSignJailTime,
-                "the downtimeJailTime is out of range"
+                newDowntimeJailTime >= 2 days && newDowntimeJailTime < doubleSignJailTime, "INVALID_DOWNTIME_JAIL_TIME"
             );
             downtimeJailTime = newDowntimeJailTime;
         } else if (key.compareStrings("doubleSignJailTime")) {
-            require(value.length == 32, "length of doubleSignJailTime mismatch");
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDoubleSignJailTime = value.bytesToUint256(32);
             require(
                 newDoubleSignJailTime >= 100 days && newDoubleSignJailTime > downtimeJailTime,
-                "the doubleSignJailTime is out of range"
+                "INVALID_DOUBLE_SIGN_JAIL_TIME"
             );
             doubleSignJailTime = newDoubleSignJailTime;
-        } else if (key.compareStrings("maxEvidenceAge")) {
-            require(value.length == 32, "length of maxEvidenceAge mismatch");
-            uint256 newMaxEvidenceAge = value.bytesToUint256(32);
-            require(newMaxEvidenceAge >= 7 days, "the maxEvidenceAge is out of range");
-            maxEvidenceAge = newMaxEvidenceAge;
-        } else if (key.compareStrings("emergencyOperator")) {
-            require(value.length == 20, "length of emergencyOperator mismatch");
-            address newEmergencyOperator = value.bytesToAddress(20);
-            require(newEmergencyOperator != address(0), "the newEmergencyOperator is invalid");
-            emergencyOperator = newEmergencyOperator;
+        } else if (key.compareStrings("assetProtector")) {
+            require(value.length == 20, "INVALID_VALUE_LENGTH");
+            address newAssetProtector = value.bytesToAddress(20);
+            require(newAssetProtector != address(0), "INVALID_ASSET_PROTECTOR");
+            assetProtector = newAssetProtector;
         } else {
-            require(false, "unknown param");
+            revert("UNKNOWN_PARAM");
         }
         emit ParamChange(key, value);
     }
@@ -745,7 +718,7 @@ contract StakeHub is System, Initializable {
             return;
         }
         if (IStakeCredit(valInfo.creditContract).getSelfDelegationBNB() < minSelfDelegationBNB) {
-            _jailValidator(valInfo);
+            _jailValidator(valInfo, 0);
             // need to inform validator set contract to remove the validator
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
         }
@@ -756,7 +729,7 @@ contract StakeHub is System, Initializable {
         uint256 slashAmount,
         uint256 height,
         SlashType slashType
-    ) internal returns (SlashRecord storage) {
+    ) internal returns (SlashRecord memory) {
         bytes32 slashKey = _getSlashKey(operatorAddress, height, slashType);
         SlashRecord storage record = _slashRecords[slashKey];
         require(record.slashHeight == 0, "SLASHED");
@@ -769,7 +742,7 @@ contract StakeHub is System, Initializable {
         return record;
     }
 
-    function _jailValidator(Validator storage valInfo) internal {
+    function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
@@ -780,7 +753,11 @@ contract StakeHub is System, Initializable {
         if (!valInfo.jailed) {
             valInfo.jailed = true;
             numOfJailed += 1;
+            if (jailUntil > valInfo.jailUntil) {
+                valInfo.jailUntil = jailUntil;
+            }
+
+            emit ValidatorJailed(valInfo.operatorAddress);
         }
-        emit ValidatorJailed(valInfo.operatorAddress);
     }
 }

@@ -57,7 +57,7 @@ contract GovToken is
     }
 
     function _transfer(address, address, uint256) internal pure override(ERC20Upgradeable) {
-        revert("transfer not allowed");
+        revert("TRANSFER_NOT_ALLOWED");
     }
 
     function _afterTokenTransfer(

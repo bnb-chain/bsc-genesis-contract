@@ -18,7 +18,7 @@ import "./lib/RLPEncode.sol";
 interface IStakeHub {
   function downtimeSlash(address validator) external;
   function maliciousVoteSlash(bytes calldata voteAddress, uint256 height) external;
-  function doubleSignSlash(address validator, uint256 height, uint256 evidenceTime) external;
+  function doubleSignSlash(address validator, uint256 height) external;
   function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address);
   function getOperatorAddressByConsensusAddress(address validator) external view returns (address);
 }
@@ -219,7 +219,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
@@ -304,10 +304,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       evidenceTime := mload(add(output, 0x54))
     }
     require(IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(signer) != address(0), "validator not migrated");
+    require(evidenceTime + 21 days >= block.timestamp, "evidence too old");
 
     // slash validator
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
-    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height, evidenceTime);
+    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height);
   }
 
   /**

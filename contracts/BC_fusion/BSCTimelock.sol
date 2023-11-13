@@ -7,6 +7,8 @@ import "./System.sol";
 import "./lib/Utils.sol";
 
 contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
+    using Utils for string;
+
     uint256 private constant INIT_MINIMAL_DELAY = 24 hours;
 
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
@@ -17,13 +19,13 @@ contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
 
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         uint256 valueLength = value.length;
-        if (Utils.compareStrings(key, "minDelay")) {
-            require(valueLength == 32, "invalid minDelay value length");
+        if (key.compareStrings("minDelay")) {
+            require(valueLength == 32, "INVALID_VALUE_LENGTH");
             uint256 newMinDelay = Utils.bytesToUint256(value, valueLength);
-            require(newMinDelay > 0, "invalid minDelay");
+            require(newMinDelay > 0, "INVALID_MIN_DELAY");
             this.updateDelay(newMinDelay);
         } else {
-            revert("unknown param");
+            revert("UNKNOWN_PARAM");
         }
         emit ParamChange(key, value);
     }

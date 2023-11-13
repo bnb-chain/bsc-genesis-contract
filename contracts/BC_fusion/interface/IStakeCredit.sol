@@ -7,8 +7,8 @@ interface IStakeCredit {
     function totalPooledBNB() external view returns (uint256);
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
-    function delegate(address delegator) external payable returns (uint256);
-    function undelegate(address delegator, uint256 shares) external returns (uint256);
+    function delegate(address delegator) external payable;
+    function undelegate(address delegator, uint256 shares) external;
     function unbond(address delegator, uint256 shares) external returns (uint256);
     function distributeReward(uint64 commissionRate) external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);

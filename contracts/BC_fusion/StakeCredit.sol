@@ -14,7 +14,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
     /*----------------- constant -----------------*/
-    uint256 public constant COMMISSION_RATE_BASE = 10_000; // 100%
+    uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- storage -----------------*/
     address public validator; // validator's operator address
@@ -44,7 +44,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     event Slashed(uint256 slashBnbAmount);
 
     /*----------------- external functions -----------------*/
-    function initialize(address _validator, string memory _moniker) public payable initializer onlyStakeHub {
+    function initialize(address _validator, string calldata _moniker) external payable initializer onlyStakeHub {
         string memory name_ = string.concat("stake ", _moniker, " credit");
         string memory symbol_ = string.concat("st", _moniker);
         __ERC20_init_unchained(name_, symbol_);
@@ -55,12 +55,12 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         _bootstrapInitialHolder(msg.value);
     }
 
-    function delegate(address delegator) external payable onlyStakeHub returns (uint256) {
+    function delegate(address delegator) external payable onlyStakeHub {
         require(msg.value != 0, "ZERO_DEPOSIT");
-        return _stake(delegator, msg.value);
+        _stake(delegator, msg.value);
     }
 
-    function undelegate(address delegator, uint256 shares) external onlyStakeHub returns (uint256) {
+    function undelegate(address delegator, uint256 shares) external onlyStakeHub {
         require(shares != 0, "ZERO_AMOUNT");
         require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
@@ -77,7 +77,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         _unbondRequestsQueue[delegator].pushBack(hash);
 
         emit UnbondRequested(delegator, shares, bnbAmount, request.unlockTime);
-        return bnbAmount;
     }
 
     /**
@@ -206,8 +205,8 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
-        assert(validator != address(0));
-        assert(totalSupply() == 0);
+        require(validator != address(0), "INVALID_VALIDATOR");
+        require(totalSupply() == 0, "TOTAL_SUPPLY_NOT_ZERO");
 
         // mint initial tokens to the validator
         // shares is equal to the amount of BNB staked
@@ -216,8 +215,8 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         emit Delegated(validator, initAmount, initAmount);
     }
 
-    function _stake(address delegator, uint256 bnbAmount) internal returns (uint256 shares) {
-        shares = _mintAndSync(delegator, bnbAmount);
+    function _stake(address delegator, uint256 bnbAmount) internal {
+        uint256 shares = _mintAndSync(delegator, bnbAmount);
         emit Delegated(delegator, shares, bnbAmount);
     }
 
@@ -240,10 +239,10 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     }
 
     function _transfer(address, address, uint256) internal pure override {
-        revert("transfer is not allowed");
+        revert("TRANSFER_NOT_ALLOWED");
     }
 
     function _approve(address, address, uint256) internal pure override {
-        revert("approve is not allowed");
+        revert("APPROVE_NOT_ALLOWED");
     }
 }
