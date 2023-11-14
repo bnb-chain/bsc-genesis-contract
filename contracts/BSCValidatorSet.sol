@@ -77,16 +77,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public constant INIT_FINALITY_REWARD_RATIO = 625; // 625/10000 is 1/16
-  uint256 public constant FINALITY_REWARD_RATIO_SCALE = 10000;
-  uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 99 ether;
+  uint256 public constant INIT_SYSTEM_REWARD_RATIO = 625; // 625/10000 is 1/16
+  uint256 public constant SYSTEM_REWARD_RATIO_SCALE = 10000;
+  uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
 
-  uint256 public finalityRewardRatio; // include rewards for relayers before BC-fusion
+  uint256 public systemRewardRatio;
   uint256 public previousHeight;
   uint256 public previousBalanceOfSystemReward; // deprecated
   bytes[] public previousVoteAddrFullSet;
   bytes[] public currentVoteAddrFullSet;
-  bool public IsSystemRewardIncluded;
+  bool public isSystemRewardIncluded;
 
   struct Validator {
     address consensusAddress;
@@ -227,13 +227,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
-    if (IsSystemRewardIncluded == false){
-      finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
+    if (isSystemRewardIncluded == false){
+      systemRewardRatio = INIT_SYSTEM_REWARD_RATIO;
       burnRatio = 938; // 15/16*10% is 9.375%
-      IsSystemRewardIncluded = true;
+      isSystemRewardIncluded = true;
     }
 
-    uint256 toSystemReward = value.mul(finalityRewardRatio).div(FINALITY_REWARD_RATIO_SCALE);
+    uint256 toSystemReward = value.mul(systemRewardRatio).div(SYSTEM_REWARD_RATIO_SCALE);
     if (toSystemReward > 0) {
       address(uint160(SYSTEM_REWARD_ADDR)).transfer(toSystemReward);
       emit systemTransfer(toSystemReward);
@@ -736,11 +736,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(newNumOfCabinets > 0, "the numOfCabinets must be greater than 0");
       require(newNumOfCabinets <= MAX_NUM_OF_VALIDATORS, "the numOfCabinets must be less than MAX_NUM_OF_VALIDATORS");
       numOfCabinets = newNumOfCabinets;
-    } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
-      require(value.length == 32, "length of finalityRewardRatio mismatch");
-      uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio <= FINALITY_REWARD_RATIO_SCALE, "the finalityRewardRatio must be no greater than 10000");
-      finalityRewardRatio = newFinalityRewardRatio;
+    } else if (Memory.compareStrings(key, "systemRewardRatio")) {
+      require(value.length == 32, "length of systemRewardRatio mismatch");
+      uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newSystemRewardRatio >= 1 && newSystemRewardRatio <= SYSTEM_REWARD_RATIO_SCALE, "the systemRewardRatio must be no greater than 10000");
+      systemRewardRatio = newSystemRewardRatio;
     } else {
       require(false, "unknown param");
     }
