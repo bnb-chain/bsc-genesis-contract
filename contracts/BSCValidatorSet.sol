@@ -354,6 +354,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   function jailValidator(address consensusAddress) external onlyStakeHub {
+    for (uint256 i; i < _tmpMigratedValidatorSet.length; ++i) {
+      if (_tmpMigratedValidatorSet[i].consensusAddress == consensusAddress) {
+        _tmpMigratedValidatorSet[i].jailed = true;
+        break;
+      }
+    }
+
     uint256 index = currentValidatorSetMap[consensusAddress];
     if (index==0 || currentValidatorSet[index-1].jailed) {
       emit validatorEmptyJailed(consensusAddress);
