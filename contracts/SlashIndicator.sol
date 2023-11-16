@@ -218,7 +218,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyRelayer onlyInit {
+  //TODO: add onlyRelayer
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
@@ -276,7 +277,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyRelayer onlyInit {
+  //TODO: add onlyRelayer
+  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
     require(header1.length != 0 && header2.length != 0, "empty header");
 
     bytes[] memory elements = new bytes[](3);
@@ -286,10 +288,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     // call precompile contract to verify evidence
     bytes memory input = elements.encodeList();
-    bytes memory output = new bytes(52);
+    bytes memory output = new bytes(84);
     assembly {
       let len := mload(input)
-      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x34)) {
+      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x54)) {
         revert(0, 0)
       }
     }
