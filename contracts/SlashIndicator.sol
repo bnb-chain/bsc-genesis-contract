@@ -218,7 +218,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyRelayer onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
@@ -276,7 +276,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
+  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyRelayer onlyInit {
     require(header1.length != 0 && header2.length != 0, "empty header");
 
     bytes[] memory elements = new bytes[](3);
