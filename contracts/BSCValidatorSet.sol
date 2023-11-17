@@ -12,19 +12,13 @@ import "./interface/IRelayerHub.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/IApplication.sol";
+import "./interface/IStakeHub.sol";
 import "./lib/SafeMath.sol";
 import "./lib/RLPDecode.sol";
 import "./lib/CmnPkg.sol";
 
 interface ICrossChain {
   function registeredContractChannelMap(address, uint8) external view returns (bool);
-}
-
-interface IStakeHub {
-  function maxElectedValidators() external view returns (uint256);
-  function distributeReward(address validator) external payable;
-  function getEligibleValidatorSet() external view returns (BSCValidatorSet.Validator[] memory, bytes[] memory);
-  function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
 }
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {

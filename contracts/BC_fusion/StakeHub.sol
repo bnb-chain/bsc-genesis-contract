@@ -23,8 +23,10 @@ contract StakeHub is System, Initializable {
     address private constant DEAD_ADDRESS = address(0xdead);
 
     //TODO
-    bytes private constant INIT_BC_CONSENSUS_ADDRESSES = hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
-    bytes private constant INIT_BC_VOTE_ADDRESSES = hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
+    bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
+        hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
+    bytes private constant INIT_BC_VOTE_ADDRESSES =
+        hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
     /*----------------- storage -----------------*/
     bool private _stakingPaused;
@@ -51,14 +53,15 @@ contract StakeHub is System, Initializable {
     mapping(bytes => address) private _voteToOperator;
     // validator consensus address => validator operator address
     mapping(address => address) private _consensusToOperator;
-    // slash key => slash record
-    mapping(bytes32 => SlashRecord) private _slashRecords;
+    // slash key => slash jail time
+    mapping(bytes32 => uint256) private _slashRecords;
 
     // legacy address of BC
     mapping(address => bool) private _legacyConsensusAddress;
     mapping(bytes => bool) private _legacyVoteAddress;
 
     uint256 public numOfJailed;
+    mapping(uint256 => uint256) private jailedBitMap;
 
     address public assetProtector;
     mapping(address => bool) public blackList;
@@ -89,13 +92,6 @@ contract StakeHub is System, Initializable {
         uint64 maxChangeRate; // maximum daily increase of the validator commission
     }
 
-    struct SlashRecord {
-        uint256 jailUntil;
-        uint256 slashAmount;
-        uint248 slashHeight;
-        SlashType slashType;
-    }
-
     enum SlashType {
         DoubleSign,
         DownTime,
@@ -113,17 +109,20 @@ contract StakeHub is System, Initializable {
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
+    event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Redelegated(
-        address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount
+        address indexed srcValidator,
+        address indexed dstValidator,
+        address indexed delegator,
+        uint256 oldShares,
+        uint256 newShares,
+        uint256 bnbAmount
     );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event ValidatorSlashed(
-        address indexed operatorAddress,
-        uint256 jailUntil,
-        uint256 slashAmount,
-        uint248 slashHeight,
-        SlashType slashType
+        address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, SlashType slashType
     );
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorEmptyJailed(address indexed operatorAddress);
@@ -158,14 +157,14 @@ contract StakeHub is System, Initializable {
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 2300;
-        minSelfDelegationBNB = 2000 ether;
+        minSelfDelegationBNB = 2_000 ether;
         minDelegationBNBChange = 1 ether;
         maxElectedValidators = 29;
         unbondPeriod = 7 days;
-        downtimeSlashAmount = 50 ether;
-        doubleSignSlashAmount = 10_000 ether;
+        downtimeSlashAmount = 10 ether;
+        doubleSignSlashAmount = 200 ether;
         downtimeJailTime = 2 days;
-        doubleSignJailTime = 730 days;
+        doubleSignJailTime = 30 days;
 
         address[] memory bcConsensusAddress;
         bytes[] memory bcVoteAddress;
@@ -178,7 +177,7 @@ contract StakeHub is System, Initializable {
             _legacyVoteAddress[bcVoteAddress[i]] = true;
         }
 
-        assetProtector = address(0); // TODO
+        assetProtector = 0xdF87F0e2B8519Ea2DD4aBd8B639cdD628497eD25; // TODO
     }
 
     /*----------------- external functions -----------------*/
@@ -341,7 +340,8 @@ contract StakeHub is System, Initializable {
             require(delegator == operatorAddress, "ONLY_SELF_DELEGATION");
         }
 
-        IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
+        uint256 shares = IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
+        emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
         _sync(valInfo.creditContract, delegator);
         if (delegateVotePower) {
@@ -357,7 +357,8 @@ contract StakeHub is System, Initializable {
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-        IStakeCredit(valInfo.creditContract).undelegate(delegator, shares);
+        uint256 bnbAmount = IStakeCredit(valInfo.creditContract).undelegate(delegator, shares);
+        emit Undelegated(operatorAddress, delegator, shares, bnbAmount);
 
         if (delegator == operatorAddress) {
             _checkValidatorSelfDelegation(operatorAddress);
@@ -388,8 +389,8 @@ contract StakeHub is System, Initializable {
         }
 
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
-        IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
-        emit Redelegated(srcValidator, dstValidator, delegator, bnbAmount);
+        uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
+        emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
         if (delegator == srcValidator) {
             _checkValidatorSelfDelegation(srcValidator);
@@ -452,43 +453,65 @@ contract StakeHub is System, Initializable {
         uint256 jailUntil = block.timestamp + downtimeJailTime;
         _jailValidator(valInfo, jailUntil);
 
-        emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, uint248(block.number), SlashType.DownTime);
+        emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DownTime);
 
         _sync(valInfo.creditContract, operatorAddress);
     }
 
-    function maliciousVoteSlash(bytes calldata _voteAddr, uint256 height) external onlySlash {
+    function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
         address operatorAddress = _voteToOperator[_voteAddr];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
-        // slash
-        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
-        SlashRecord memory record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.MaliciousVote);
-        _jailValidator(valInfo, record.jailUntil);
+        // check if can be jailed
+        // there are two slots for each day
+        uint256 dayIndex1 = (block.number / 1 days) * 2;
+        uint256 dayIndex2 = dayIndex1 + 1;
+        if (_canBeJailed(dayIndex1)) {
+            _setJailed(dayIndex1);
+        } else if (_canBeJailed(dayIndex2)) {
+            _setJailed(dayIndex2);
+        } else {
+            return;
+        }
 
-        emit ValidatorSlashed(
-            operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.MaliciousVote
-        );
+        // slash
+        (bool canSlash, uint256 jailUntil) = _checkSlashRecord(operatorAddress, SlashType.MaliciousVote);
+        require(canSlash, "ALREADY_SLASHED");
+        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
+        _jailValidator(valInfo, jailUntil);
+
+        emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
         _sync(valInfo.creditContract, operatorAddress);
     }
 
-    function doubleSignSlash(address consensusAddress, uint256 height) external onlySlash {
+    function doubleSignSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
         require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
-        // slash
-        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
-        SlashRecord memory record = _updateSlashRecord(operatorAddress, slashAmount, height, SlashType.DoubleSign);
-        _jailValidator(valInfo, record.jailUntil);
+        // check if can be jailed
+        // there are two slots for each day
+        uint256 dayIndex1 = (block.number / 1 days) * 2;
+        uint256 dayIndex2 = dayIndex1 + 1;
+        if (_canBeJailed(dayIndex1)) {
+            _setJailed(dayIndex1);
+        } else if (_canBeJailed(dayIndex2)) {
+            _setJailed(dayIndex2);
+        } else {
+            return;
+        }
 
-        emit ValidatorSlashed(
-            operatorAddress, record.jailUntil, record.slashAmount, record.slashHeight, SlashType.DoubleSign
-        );
+        // slash
+        (bool canSlash, uint256 jailUntil) = _checkSlashRecord(operatorAddress, SlashType.DoubleSign);
+        require(canSlash, "ALREADY_SLASHED");
+        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
+        _jailValidator(valInfo, jailUntil);
+
+        emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
         _sync(valInfo.creditContract, operatorAddress);
     }
@@ -653,27 +676,7 @@ contract StakeHub is System, Initializable {
         return _consensusToOperator[consensusAddress];
     }
 
-    function getSlashRecord(
-        address operatorAddress,
-        uint256 height,
-        SlashType slashType
-    ) external view returns (uint256 slashAmount, uint256 slashHeight, uint256 jailUntil) {
-        bytes32 slashKey = _getSlashKey(operatorAddress, height, slashType);
-        SlashRecord memory record = _slashRecords[slashKey];
-        slashAmount = record.slashAmount;
-        slashHeight = record.slashHeight;
-        jailUntil = record.jailUntil;
-    }
-
     /*----------------- internal functions -----------------*/
-    function _getSlashKey(
-        address operatorAddress,
-        uint256 height,
-        SlashType slashType
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(operatorAddress, height, slashType));
-    }
-
     function _sync(address stakeCredit, address account) private {
         address[] memory _pools = new address[](1);
         _pools[0] = stakeCredit;
@@ -754,22 +757,17 @@ contract StakeHub is System, Initializable {
         }
     }
 
-    function _updateSlashRecord(
-        address operatorAddress,
-        uint256 slashAmount,
-        uint256 height,
-        SlashType slashType
-    ) internal returns (SlashRecord memory) {
-        bytes32 slashKey = _getSlashKey(operatorAddress, height, slashType);
-        SlashRecord storage record = _slashRecords[slashKey];
-        require(record.slashHeight == 0, "SLASHED");
-
-        record.jailUntil = block.timestamp + doubleSignJailTime;
-        record.slashAmount = slashAmount;
-        record.slashHeight = uint248(height);
-        record.slashType = slashType;
-
-        return record;
+    function _checkSlashRecord(address operatorAddress, SlashType slashType) internal returns (bool, uint256) {
+        bytes32 slashKey = keccak256(abi.encodePacked(operatorAddress, slashType));
+        uint256 jailUntil = _slashRecords[slashKey];
+        // for double sign and malicious vote slash
+        // if the validator is already jailed, no need to slash again
+        if (jailUntil > block.timestamp) {
+            return (false, 0);
+        }
+        jailUntil = block.timestamp + doubleSignJailTime;
+        _slashRecords[slashKey] = jailUntil;
+        return (true, jailUntil);
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
@@ -789,5 +787,19 @@ contract StakeHub is System, Initializable {
 
             emit ValidatorJailed(valInfo.operatorAddress);
         }
+    }
+
+    function _canBeJailed(uint256 index) internal view returns (bool) {
+        uint256 jailedWordIndex = index / 256;
+        uint256 jailedBitIndex = index % 256;
+        uint256 jailedWord = jailedBitMap[jailedWordIndex];
+        uint256 mask = (1 << jailedBitIndex);
+        return jailedWord & mask == mask;
+    }
+
+    function _setJailed(uint256 index) internal {
+        uint256 jailedWordIndex = index / 256;
+        uint256 jailedBitIndex = index % 256;
+        jailedBitMap[jailedWordIndex] = jailedBitMap[jailedWordIndex] | (1 << jailedBitIndex);
     }
 }

@@ -36,12 +36,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     }
 
     /*----------------- events -----------------*/
-    event Delegated(address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event Unbonded(address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event UnbondRequested(address indexed delegator, uint256 shares, uint256 bnbAmount, uint256 unlockTime);
-    event UnbondClaimed(address indexed delegator, uint256 shares, uint256 bnbAmount);
     event RewardReceived(uint256 rewardToAll, uint256 commission);
-    event Slashed(uint256 slashBnbAmount);
 
     /*----------------- external functions -----------------*/
     function initialize(address _validator, string calldata _moniker) external payable initializer onlyStakeHub {
@@ -55,19 +50,17 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         _bootstrapInitialHolder(msg.value);
     }
 
-    function delegate(address delegator) external payable onlyStakeHub {
+    function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
         require(msg.value != 0, "ZERO_DEPOSIT");
-        _stake(delegator, msg.value);
+        shares = _mintAndSync(delegator, msg.value);
     }
 
-    function undelegate(address delegator, uint256 shares) external onlyStakeHub {
+    function undelegate(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
         require(shares != 0, "ZERO_AMOUNT");
         require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
         _lockedShares[delegator] += shares;
-
-        // calculate the BNB amount and update state
-        uint256 bnbAmount = _burnAndSync(delegator, shares);
+        bnbAmount = _burnAndSync(delegator, shares);
 
         // add to the queue
         uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
@@ -75,27 +68,21 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         bytes32 hash = keccak256(abi.encodePacked(delegator, _useSequence(delegator)));
         _unbondRequests[hash] = request;
         _unbondRequestsQueue[delegator].pushBack(hash);
-
-        emit UnbondRequested(delegator, shares, bnbAmount, request.unlockTime);
     }
 
     /**
      * @dev Unbond immediately without adding to the queue.
      * Only for redelegate process.
      */
-    function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256) {
+    function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
         require(shares != 0, "ZERO_AMOUNT");
         require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
-        // calculate the BNB amount and update state
-        uint256 bnbAmount = _burnAndSync(delegator, shares);
+        bnbAmount = _burnAndSync(delegator, shares);
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         (bool success,) = STAKE_HUB_ADDR.call{ gas: _gasLimit, value: bnbAmount }("");
         require(success, "TRANSFER_FAILED");
-
-        emit Unbonded(delegator, shares, bnbAmount);
-        return bnbAmount;
     }
 
     function claim(address payable delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
@@ -131,7 +118,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         (bool success,) = delegator.call{ gas: _gasLimit, value: _totalBnbAmount }("");
         require(success, "CLAIM_FAILED");
 
-        emit UnbondClaimed(delegator, _totalShares, _totalBnbAmount);
         return _totalBnbAmount;
     }
 
@@ -153,7 +139,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
         slashShares = slashShares > selfDelegation ? selfDelegation : slashShares;
         uint256 realSlashBnbAmount = _burnAndSync(validator, slashShares);
-        emit Slashed(realSlashBnbAmount);
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         (bool success,) = SYSTEM_REWARD_ADDR.call{ gas: _gasLimit, value: realSlashBnbAmount }("");
@@ -212,12 +197,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         // shares is equal to the amount of BNB staked
         _mint(validator, initAmount);
         totalPooledBNB = initAmount;
-        emit Delegated(validator, initAmount, initAmount);
-    }
-
-    function _stake(address delegator, uint256 bnbAmount) internal {
-        uint256 shares = _mintAndSync(delegator, bnbAmount);
-        emit Delegated(delegator, shares, bnbAmount);
     }
 
     function _mintAndSync(address account, uint256 bnbAmount) internal returns (uint256 shares) {

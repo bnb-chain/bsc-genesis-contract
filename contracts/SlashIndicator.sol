@@ -12,16 +12,9 @@ import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/IStakeHub.sol";
 import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
-
-interface IStakeHub {
-  function downtimeSlash(address validator) external;
-  function maliciousVoteSlash(bytes calldata voteAddress, uint256 height) external;
-  function doubleSignSlash(address validator, uint256 height) external;
-  function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address);
-  function getOperatorAddressByConsensusAddress(address validator) external view returns (address);
-}
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
   using RLPEncode for *;
@@ -263,13 +256,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       }
     }
 
-    uint256 slashHeight = _evidence.voteA.srcNum;
-    if (_evidence.voteB.srcNum < slashHeight) {
-      slashHeight = _evidence.voteB.srcNum;
-    }
     bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
     if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByVoteAddress(_evidence.voteAddr) != address(0)) {
-      try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr, slashHeight) {
+      try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr) {
         emit maliciousVoteSlashed(voteAddrSlice);
       } catch (bytes memory reason) {
         emit failedMaliciousVoteSlash(voteAddrSlice, reason);
@@ -295,28 +284,26 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     // call precompile contract to verify evidence
     bytes memory input = elements.encodeList();
-    bytes memory output = new bytes(84);
+    bytes memory output = new bytes(52);
     assembly {
       let len := mload(input)
-      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x54)) {
+      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x34)) {
         revert(0, 0)
       }
     }
 
     address signer;
-    uint256 height;
     uint256 evidenceTime;
     assembly {
       signer := mload(add(output, 0x14))
-      height := mload(add(output, 0x34))
-      evidenceTime := mload(add(output, 0x54))
+      evidenceTime := mload(add(output, 0x34))
     }
     require(IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(signer) != address(0), "validator not migrated");
     require(evidenceTime + 21 days >= block.timestamp, "evidence too old");
 
     // slash validator
     IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
-    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer, height);
+    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer);
   }
 
   /**
