@@ -9,6 +9,8 @@ interface SystemReward {
     event rewardEmpty();
     event rewardTo(address indexed to, uint256 amount);
 
+    receive() external payable;
+
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
@@ -34,7 +36,7 @@ interface SystemReward {
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function alreadyInit() external view returns (bool);
     function bscChainID() external view returns (uint16);
-    function claimRewards(address to, uint256 amount) external returns (uint256);
+    function claimRewards(address payable to, uint256 amount) external returns (uint256);
     function isOperator(address addr) external view returns (bool);
     function numOperator() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;

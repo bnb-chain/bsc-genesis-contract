@@ -20,16 +20,23 @@ interface StakeHub {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
+    event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event DescriptionEdited(address indexed operatorAddress);
     event Initialized(uint8 version);
     event ParamChange(string key, bytes value);
     event Redelegated(
-        address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount
+        address indexed srcValidator,
+        address indexed dstValidator,
+        address indexed delegator,
+        uint256 oldShares,
+        uint256 newShares,
+        uint256 bnbAmount
     );
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event StakingPaused();
     event StakingResumed();
+    event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ValidatorCreated(
         address indexed consensusAddress,
         address indexed operatorAddress,
@@ -39,14 +46,12 @@ interface StakeHub {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorSlashed(
-        address indexed operatorAddress,
-        uint256 jailUntil,
-        uint256 slashAmount,
-        uint248 slashHeight,
-        SlashType slashType
+        address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, SlashType slashType
     );
     event ValidatorUnjailed(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
+
+    receive() external payable;
 
     function addBlackList(address _addr) external;
     function assetProtector() external view returns (address);
@@ -62,7 +67,7 @@ interface StakeHub {
     function delegate(address operatorAddress, bool delegateVotePower) external payable;
     function distributeReward(address consensusAddress) external payable;
     function doubleSignJailTime() external view returns (uint256);
-    function doubleSignSlash(address consensusAddress, uint256 height) external;
+    function doubleSignSlash(address consensusAddress) external;
     function doubleSignSlashAmount() external view returns (uint256);
     function downtimeJailTime() external view returns (uint256);
     function downtimeSlash(address consensusAddress) external;
@@ -73,10 +78,6 @@ interface StakeHub {
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
     function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
     function getOperatorAddressByVoteAddress(bytes memory voteAddress) external view returns (address);
-    function getSlashRecord(address operatorAddress, uint256 height, SlashType slashType)
-        external
-        view
-        returns (uint256 slashAmount, uint256 slashHeight, uint256 jailUntil);
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
@@ -100,7 +101,7 @@ interface StakeHub {
         );
     function initialize() external;
     function isPaused() external view returns (bool);
-    function maliciousVoteSlash(bytes memory _voteAddr, uint256 height) external;
+    function maliciousVoteSlash(bytes memory _voteAddr) external;
     function maxElectedValidators() external view returns (uint256);
     function minDelegationBNBChange() external view returns (uint256);
     function minSelfDelegationBNB() external view returns (uint256);

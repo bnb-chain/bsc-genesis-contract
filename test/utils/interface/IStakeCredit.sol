@@ -12,15 +12,10 @@ interface StakeCredit {
     error OutOfBounds();
 
     event Approval(address indexed owner, address indexed spender, uint256 value);
-    event Delegated(address indexed delegator, uint256 shares, uint256 bnbAmount);
     event Initialized(uint8 version);
     event ParamChange(string key, bytes value);
     event RewardReceived(uint256 rewardToAll, uint256 commission);
-    event Slashed(uint256 slashBnbAmount);
     event Transfer(address indexed from, address indexed to, uint256 value);
-    event UnbondClaimed(address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event UnbondRequested(address indexed delegator, uint256 shares, uint256 bnbAmount, uint256 unlockTime);
-    event Unbonded(address indexed delegator, uint256 shares, uint256 bnbAmount);
 
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
@@ -28,7 +23,7 @@ interface StakeCredit {
     function claim(address payable delegator, uint256 number) external returns (uint256);
     function decimals() external view returns (uint8);
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
-    function delegate(address delegator) external payable;
+    function delegate(address delegator) external payable returns (uint256 shares);
     function distributeReward(uint64 commissionRate) external payable;
     function getPooledBNB(address account) external view returns (uint256);
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
@@ -44,9 +39,9 @@ interface StakeCredit {
     function totalSupply() external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
-    function unbond(address delegator, uint256 shares) external returns (uint256);
+    function unbond(address delegator, uint256 shares) external returns (uint256 bnbAmount);
     function unbondRequest(address delegator, uint256 _index) external view returns (UnbondRequest memory, uint256);
     function unbondSequence(address delegator) external view returns (uint256);
-    function undelegate(address delegator, uint256 shares) external;
+    function undelegate(address delegator, uint256 shares) external returns (uint256 bnbAmount);
     function validator() external view returns (address);
 }

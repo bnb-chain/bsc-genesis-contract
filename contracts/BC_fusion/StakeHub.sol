@@ -466,7 +466,7 @@ contract StakeHub is System, Initializable {
 
         // check if can be jailed
         // there are two slots for each day
-        uint256 dayIndex1 = (block.number / 1 days) * 2;
+        uint256 dayIndex1 = (block.timestamp / 1 days) * 2;
         uint256 dayIndex2 = dayIndex1 + 1;
         if (_canBeJailed(dayIndex1)) {
             _setJailed(dayIndex1);
@@ -495,14 +495,14 @@ contract StakeHub is System, Initializable {
 
         // check if can be jailed
         // there are two slots for each day
-        uint256 dayIndex1 = (block.number / 1 days) * 2;
+        uint256 dayIndex1 = (block.timestamp / 1 days) * 2;
         uint256 dayIndex2 = dayIndex1 + 1;
         if (_canBeJailed(dayIndex1)) {
             _setJailed(dayIndex1);
         } else if (_canBeJailed(dayIndex2)) {
             _setJailed(dayIndex2);
         } else {
-            return;
+            revert("NO_JAIL_SLOT");
         }
 
         // slash
@@ -792,14 +792,14 @@ contract StakeHub is System, Initializable {
     function _canBeJailed(uint256 index) internal view returns (bool) {
         uint256 jailedWordIndex = index / 256;
         uint256 jailedBitIndex = index % 256;
-        uint256 jailedWord = jailedBitMap[jailedWordIndex];
         uint256 mask = (1 << jailedBitIndex);
-        return jailedWord & mask == mask;
+        return jailedBitMap[jailedWordIndex] & mask != mask;
     }
 
     function _setJailed(uint256 index) internal {
         uint256 jailedWordIndex = index / 256;
         uint256 jailedBitIndex = index % 256;
-        jailedBitMap[jailedWordIndex] = jailedBitMap[jailedWordIndex] | (1 << jailedBitIndex);
+        uint256 mask = (1 << jailedBitIndex);
+        jailedBitMap[jailedWordIndex] = jailedBitMap[jailedWordIndex] | mask;
     }
 }

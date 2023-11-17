@@ -672,12 +672,12 @@ contract TokenHubTest is Deployer {
 
     bytes memory key = "mirrorFee";
     bytes memory valueBytes = abi.encodePacked(mirrorFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.mirrorFee(), mirrorFee, "wrong mirrorFee");
 
     key = "syncFee";
     valueBytes = abi.encodePacked(syncFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.syncFee(), syncFee, "wrong syncFee");
 
     // Bind miniToken
@@ -770,12 +770,12 @@ contract TokenHubTest is Deployer {
 
     bytes memory key = "mirrorFee";
     bytes memory valueBytes = abi.encodePacked(mirrorFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.mirrorFee(), mirrorFee, "wrong mirrorFee");
 
     key = "syncFee";
     valueBytes = abi.encodePacked(syncFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.syncFee(), syncFee, "wrong syncFee");
 
     uint64 expireTime = uint64(block.timestamp + 150);
@@ -817,12 +817,12 @@ contract TokenHubTest is Deployer {
 
     bytes memory key = "mirrorFee";
     bytes memory valueBytes = abi.encodePacked(mirrorFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.mirrorFee(), mirrorFee, "wrong mirrorFee");
 
     key = "syncFee";
     valueBytes = abi.encodePacked(syncFee);
-    updateParamByGovHub(key, valueBytes, address(tokenManager));
+    _updateParamByGovHub(key, valueBytes, address(tokenManager));
     assertEq(tokenManager.syncFee(), syncFee, "wrong syncFee");
 
     // Bond mini token

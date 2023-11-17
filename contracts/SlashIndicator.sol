@@ -256,15 +256,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       }
     }
 
-    bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
     if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByVoteAddress(_evidence.voteAddr) != address(0)) {
-      try IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr) {
-        emit maliciousVoteSlashed(voteAddrSlice);
-      } catch (bytes memory reason) {
-        emit failedMaliciousVoteSlash(voteAddrSlice, reason);
-      }
+      IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
     } else {
       // send slash msg to bc if the validator not migrated
+      bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
       try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
         emit maliciousVoteSlashed(voteAddrSlice);
       } catch (bytes memory reason) {
@@ -301,8 +297,17 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(signer) != address(0), "validator not migrated");
     require(evidenceTime + 21 days >= block.timestamp, "evidence too old");
 
-    // slash validator
-    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
+    // reward sender and felony validator if validator found
+    (address[] memory vals, ) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    for (uint i; i < vals.length; ++i) {
+      if (signer == vals[i]) {
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
+        break;
+      }
+    }
+
     IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer);
   }
 

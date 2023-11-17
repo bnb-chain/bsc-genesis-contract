@@ -37,7 +37,7 @@ contract StakingTest is Deployer {
   function setUp() public {
     bytes memory key = "addOrUpdateChannel";
     bytes memory value = abi.encodePacked(CROSS_STAKE_CHANNELID, uint8(1), address(staking));
-    updateParamByGovHub(key, value, address(crossChain));
+    _updateParamByGovHub(key, value, address(crossChain));
 
     // to init the staking contract
     staking.delegate{value: 101 ether}(addrSet[addrIdx], 100 ether);
@@ -62,7 +62,7 @@ contract StakingTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(staking));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(staking));
+    _updateParamByGovHub(key, valueBytes, address(staking));
     assertEq(value, staking.minDelegation());
   }
 
@@ -73,7 +73,7 @@ contract StakingTest is Deployer {
     bytes memory valueBytes = abi.encode(uint256(value) * decimal);
     vm.expectEmit(false, false, false, true, address(staking));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(staking));
+    _updateParamByGovHub(key, valueBytes, address(staking));
     assertEq(uint256(value) * decimal, staking.relayerFee());
   }
 
@@ -85,7 +85,7 @@ contract StakingTest is Deployer {
     bytes memory valueBytes = abi.encode(uint256(value) * decimal);
     vm.expectEmit(false, false, false, true, address(staking));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(staking));
+    _updateParamByGovHub(key, valueBytes, address(staking));
     assertEq(uint256(value) * decimal, staking.bSCRelayerFee());
   }
 

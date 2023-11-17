@@ -17,7 +17,7 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(validator));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(validator));
     assertEq(uint256(value), validator.expireTimeSecondGap());
   }
 
@@ -30,7 +30,7 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(tokenHub));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(tokenHub));
+    _updateParamByGovHub(key, valueBytes, address(tokenHub));
     assertEq(value, tokenHub.relayFee());
   }
 
@@ -42,7 +42,7 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(lightClient));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(lightClient));
+    _updateParamByGovHub(key, valueBytes, address(lightClient));
     assertEq(value, lightClient.rewardForValidatorSetChange());
   }
 
@@ -56,7 +56,7 @@ contract GovHubTest is Deployer {
     // bytes memory valueBytes = abi.encode(value);
     // vm.expectEmit(false, false, false, true, address(relayerHub));
     // emit paramChange(string(key), valueBytes);
-    // updateParamByGovHub(key, valueBytes, address(relayerHub));
+    // _updateParamByGovHub(key, valueBytes, address(relayerHub));
     // assertEq(uint256(value), relayerHub.requiredDeposit());
   }
 
@@ -72,21 +72,21 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value1);
     vm.expectEmit(false, false, false, true, address(incentivize));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(incentivize));
+    _updateParamByGovHub(key, valueBytes, address(incentivize));
     assertEq(value1, incentivize.headerRelayerRewardRateMolecule());
 
     key = "headerRelayerRewardRateDenominator";
     valueBytes = abi.encode(value2);
     vm.expectEmit(false, false, false, true, address(incentivize));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(incentivize));
+    _updateParamByGovHub(key, valueBytes, address(incentivize));
     assertEq(value2, incentivize.headerRelayerRewardRateDenominator());
 
     key = "callerCompensationDenominator";
     valueBytes = abi.encode(value3);
     vm.expectEmit(false, false, false, true, address(incentivize));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(incentivize));
+    _updateParamByGovHub(key, valueBytes, address(incentivize));
     assertEq(value3, incentivize.callerCompensationDenominator());
   }
 
@@ -98,27 +98,27 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(crossChain));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(crossChain));
+    _updateParamByGovHub(key, valueBytes, address(crossChain));
     assertEq(uint256(value), crossChain.batchSizeForOracle());
 
     key = "addOrUpdateChannel";
     valueBytes = abi.encodePacked(uint8(0x58), uint8(0x00), address(incentivize));
     vm.expectEmit(false, false, false, true, address(crossChain));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(crossChain));
+    _updateParamByGovHub(key, valueBytes, address(crossChain));
     assertEq(address(incentivize), crossChain.channelHandlerContractMap(0x58));
 
     key = "enableOrDisableChannel";
     valueBytes = abi.encodePacked(uint8(0x58), uint8(0x00));
     vm.expectEmit(false, false, false, true, address(crossChain));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(crossChain));
+    _updateParamByGovHub(key, valueBytes, address(crossChain));
     assertEq(false, crossChain.registeredContractChannelMap(address(incentivize), 0x58));
 
     valueBytes = abi.encodePacked(uint8(0x58), uint8(0x01));
     vm.expectEmit(false, false, false, true, address(crossChain));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(crossChain));
+    _updateParamByGovHub(key, valueBytes, address(crossChain));
     assertTrue(crossChain.registeredContractChannelMap(address(incentivize), 0x58));
   }
 
@@ -133,14 +133,14 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value1);
     vm.expectEmit(false, false, false, true, address(slash));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(slash));
+    _updateParamByGovHub(key, valueBytes, address(slash));
     assertEq(uint256(value1), slash.felonyThreshold());
 
     key = "misdemeanorThreshold";
     valueBytes = abi.encode(value2);
     vm.expectEmit(false, false, false, true, address(slash));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(slash));
+    _updateParamByGovHub(key, valueBytes, address(slash));
     assertEq(uint256(value2), slash.misdemeanorThreshold());
   }
 
@@ -150,34 +150,34 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("unknown param");
-    updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(validator));
 
     // exceed range
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("the expireTimeSecondGap is out of range");
-    updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(validator));
 
     // length mismatch
     key = "expireTimeSecondGap";
     valueBytes = abi.encodePacked(uint128(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("length of expireTimeSecondGap mismatch");
-    updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(validator));
 
     // address do not exist
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("the target is not a contract");
-    updateParamByGovHub(key, valueBytes, addrSet[addrIdx++]);
+    _updateParamByGovHub(key, valueBytes, addrSet[addrIdx++]);
 
     // method do no exist
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("unknown param");
-    updateParamByGovHub(key, valueBytes, address(systemReward));
+    _updateParamByGovHub(key, valueBytes, address(systemReward));
   }
 }

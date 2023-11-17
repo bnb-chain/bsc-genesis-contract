@@ -21,6 +21,8 @@ interface BSCTimelock {
     event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
     event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
 
+    receive() external payable;
+
     function CANCELLER_ROLE() external view returns (bytes32);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
     function EXECUTOR_ROLE() external view returns (bytes32);

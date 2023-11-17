@@ -15,6 +15,8 @@ interface TokenHub {
     event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
+    receive() external payable;
+
     function BEP2_TOKEN_DECIMALS() external view returns (uint8);
     function BEP2_TOKEN_SYMBOL_FOR_BNB() external view returns (bytes32);
     function BIND_CHANNELID() external view returns (uint8);

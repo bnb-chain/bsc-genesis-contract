@@ -74,7 +74,7 @@ contract RelayerHubTest is Deployer {
     vm.expectEmit(true, true, false, true);
     emit managerRemoved(manager);
     bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
-    updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(relayerHub));
+    _updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(relayerHub));
 
     // check if relayer got removed
     bool isRelayerFalse = relayerHub.isRelayer(newRelayer2);
@@ -86,7 +86,7 @@ contract RelayerHubTest is Deployer {
 
     // check if the manager can remove himself
     bytes memory keyAddManager = "addManager";
-    updateParamByGovHub(keyAddManager, valueManagerBytes, address(relayerHub));
+    _updateParamByGovHub(keyAddManager, valueManagerBytes, address(relayerHub));
     vm.prank(manager, manager);
     relayerHub.removeManagerByHimself();
   }
@@ -197,7 +197,7 @@ contract RelayerHubTest is Deployer {
     address manager = payable(addrSet[addrIdx++]);
     bytes memory valueManagerBytes = abi.encodePacked(bytes20(uint160(manager)));
     require(valueManagerBytes.length == 20, "length of manager address mismatch in tests");
-    updateParamByGovHub(keyAddManager, valueManagerBytes, address(relayerHub));
+    _updateParamByGovHub(keyAddManager, valueManagerBytes, address(relayerHub));
     return manager;
   }
 
@@ -304,7 +304,7 @@ contract RelayerHubTest is Deployer {
 
     // now delete manager before the relayer accepts being a relayer
     bytes memory keyRemoveManager = "removeManager";
-    updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(relayerHub));
+    _updateParamByGovHub(keyRemoveManager, valueManagerBytes, address(relayerHub));
 
     assertFalse(relayerHub.isProvisionalRelayer(newRelayer));
 

@@ -26,7 +26,7 @@ contract SystemRewardTest is Deployer {
   }
 
   function testClaimReward() public {
-    address newAccount = addrSet[addrIdx++];
+    address payable newAccount = addrSet[addrIdx++];
 
     payable(address(systemReward)).transfer(1 ether);
     vm.expectEmit(true, false, false, true, address(systemReward));
@@ -49,13 +49,13 @@ contract SystemRewardTest is Deployer {
     bytes memory valueBytes = abi.encodePacked(address(validator));
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(systemReward));
+    _updateParamByGovHub(key, valueBytes, address(systemReward));
     assertTrue(systemReward.isOperator(address(validator)));
 
     key = "deleteOperator";
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);
-    updateParamByGovHub(key, valueBytes, address(systemReward));
+    _updateParamByGovHub(key, valueBytes, address(systemReward));
     assertFalse(systemReward.isOperator(address(validator)));
   }
 }

@@ -33,6 +33,8 @@ interface BSCValidatorSet {
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorSetUpdated();
 
+    receive() external payable;
+
     function BIND_CHANNELID() external view returns (uint8);
     function BURN_ADDRESS() external view returns (address);
     function BURN_RATIO_SCALE() external view returns (uint256);
@@ -52,10 +54,10 @@ interface BSCValidatorSet {
     function GOV_HUB_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
     function INIT_BURN_RATIO() external view returns (uint256);
-    function INIT_FINALITY_REWARD_RATIO() external view returns (uint256);
     function INIT_MAINTAIN_SLASH_SCALE() external view returns (uint256);
     function INIT_MAX_NUM_OF_MAINTAINING() external view returns (uint256);
     function INIT_NUM_OF_CABINETS() external view returns (uint256);
+    function INIT_SYSTEM_REWARD_RATIO() external view returns (uint256);
     function INIT_VALIDATORSET_BYTES() external view returns (bytes memory);
     function JAIL_MESSAGE_TYPE() external view returns (uint8);
     function LIGHT_CLIENT_ADDR() external view returns (address);
@@ -69,6 +71,7 @@ interface BSCValidatorSet {
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
+    function SYSTEM_REWARD_RATIO_SCALE() external view returns (uint256);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);
     function TRANSFER_IN_CHANNELID() external view returns (uint8);
@@ -99,7 +102,6 @@ interface BSCValidatorSet {
     function exitMaintenance() external;
     function expireTimeSecondGap() external view returns (uint256);
     function felony(address validator) external;
-    function finalityRewardRatio() external view returns (uint256);
     function getCurrentValidatorIndex(address _validator) external view returns (uint256);
     function getIncoming(address validator) external view returns (uint256);
     function getLivingValidators() external view returns (address[] memory, bytes[] memory);
@@ -112,6 +114,7 @@ interface BSCValidatorSet {
     function init() external;
     function isCurrentValidator(address validator) external view returns (bool);
     function isMonitoredForMaliciousVote(bytes memory voteAddr) external view returns (bool);
+    function isSystemRewardIncluded() external view returns (bool);
     function isWorkingValidator(uint256 index) external view returns (bool);
     function jailValidator(address consensusAddress) external;
     function maintainSlashScale() external view returns (uint256);
@@ -125,9 +128,14 @@ interface BSCValidatorSet {
     function previousBalanceOfSystemReward() external view returns (uint256);
     function previousHeight() external view returns (uint256);
     function previousVoteAddrFullSet(uint256) external view returns (bytes memory);
+    function systemRewardRatio() external view returns (uint256);
     function totalInComing() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
-    function updateValidatorSetV2(Validator[] memory _validatorSet, bytes[] memory _voteAddrs) external;
+    function updateValidatorSetV2(
+        address[] memory _consensusAddrs,
+        uint64[] memory _votingPowers,
+        bytes[] memory _voteAddrs
+    ) external;
     function validatorExtraSet(uint256)
         external
         view

@@ -25,22 +25,22 @@ contract Deployer is Test {
   using RLPEncode for *;
 
   // system contract address
-  address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
-  address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
-  address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
-  address public constant LIGHT_CLIENT_ADDR = 0x0000000000000000000000000000000000001003;
-  address public constant TOKEN_HUB_ADDR = 0x0000000000000000000000000000000000001004;
-  address public constant INCENTIVIZE_ADDR = 0x0000000000000000000000000000000000001005;
-  address public constant RELAYERHUB_CONTRACT_ADDR = 0x0000000000000000000000000000000000001006;
-  address public constant GOV_HUB_ADDR = 0x0000000000000000000000000000000000001007;
-  address public constant TOKEN_MANAGER_ADDR = 0x0000000000000000000000000000000000001008;
-  address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
-  address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
-  address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
-  address public constant STAKE_CREDIT_ADDR = 0x0000000000000000000000000000000000002003;
-  address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
-  address public constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
-  address public constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
+  address payable public constant VALIDATOR_CONTRACT_ADDR = payable(0x0000000000000000000000000000000000001000);
+  address payable public constant SLASH_CONTRACT_ADDR = payable(0x0000000000000000000000000000000000001001);
+  address payable public constant SYSTEM_REWARD_ADDR = payable(0x0000000000000000000000000000000000001002);
+  address payable public constant LIGHT_CLIENT_ADDR = payable(0x0000000000000000000000000000000000001003);
+  address payable public constant TOKEN_HUB_ADDR = payable(0x0000000000000000000000000000000000001004);
+  address payable public constant INCENTIVIZE_ADDR = payable(0x0000000000000000000000000000000000001005);
+  address payable public constant RELAYERHUB_CONTRACT_ADDR = payable(0x0000000000000000000000000000000000001006);
+  address payable public constant GOV_HUB_ADDR = payable(0x0000000000000000000000000000000000001007);
+  address payable public constant TOKEN_MANAGER_ADDR = payable(0x0000000000000000000000000000000000001008);
+  address payable public constant CROSS_CHAIN_CONTRACT_ADDR = payable(0x0000000000000000000000000000000000002000);
+  address payable public constant STAKING_CONTRACT_ADDR = payable(0x0000000000000000000000000000000000002001);
+  address payable public constant STAKE_HUB_ADDR = payable(0x0000000000000000000000000000000000002002);
+  address payable public constant STAKE_CREDIT_ADDR = payable(0x0000000000000000000000000000000000002003);
+  address payable public constant GOVERNOR_ADDR = payable(0x0000000000000000000000000000000000002004);
+  address payable public constant GOV_TOKEN_ADDR = payable(0x0000000000000000000000000000000000002005);
+  address payable public constant TIMELOCK_ADDR = payable(0x0000000000000000000000000000000000002006);
 
   uint8 public constant BIND_CHANNELID = 0x01;
   uint8 public constant TRANSFER_IN_CHANNELID = 0x02;
@@ -173,7 +173,7 @@ contract Deployer is Test {
     return user;
   }
 
-  function updateParamByGovHub(bytes memory key, bytes memory value, address addr) public {
+  function _updateParamByGovHub(bytes memory key, bytes memory value, address addr) internal {
     bytes[] memory elements = new bytes[](3);
     elements[0] = key.encodeBytes();
     elements[1] = value.encodeBytes();
@@ -184,7 +184,7 @@ contract Deployer is Test {
     vm.stopPrank();
   }
 
-  function encodeOldValidatorSetUpdatePack(uint8 code, address[] memory valSet) internal pure returns (bytes memory) {
+  function _encodeOldValidatorSetUpdatePack(uint8 code, address[] memory valSet) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](2);
     elements[0] = code.encodeUint();
 
@@ -202,7 +202,7 @@ contract Deployer is Test {
     return elements.encodeList();
   }
 
-  function encodeNewValidatorSetUpdatePack(uint8 code, address[] memory valSet, bytes[] memory voteAddrs) internal pure returns (bytes memory) {
+  function _encodeNewValidatorSetUpdatePack(uint8 code, address[] memory valSet, bytes[] memory voteAddrs) internal pure returns (bytes memory) {
     bytes[] memory elements = new bytes[](2);
     elements[0] = code.encodeUint();
 

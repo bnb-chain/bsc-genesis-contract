@@ -27,6 +27,8 @@ interface Staking {
     event undelegatedClaimed(address indexed delegator, uint256 amount);
     event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);
 
+    receive() external payable;
+
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_FAILED() external view returns (uint8);
     function CODE_OK() external view returns (uint32);

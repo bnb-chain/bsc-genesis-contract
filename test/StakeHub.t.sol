@@ -30,7 +30,7 @@ contract StakeHubTest is Deployer {
     );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event ValidatorSlashed(
-        address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint248 slashHeight, uint8 slashType
+        address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType
     );
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
@@ -270,7 +270,7 @@ contract StakeHubTest is Deployer {
         uint256 slashAmt = stakeHub.downtimeSlashAmount();
         uint256 slashTime = stakeHub.downtimeJailTime();
         vm.expectEmit(true, false, false, false, address(stakeHub));
-        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 1);
+        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, 1);
         stakeHub.downtimeSlash(consensusAddress);
         uint256 curValidatorBnbAmount =
             IStakeCredit(credit).getPooledBNBByShares(IStakeCredit(credit).balanceOf(validator));
@@ -317,11 +317,9 @@ contract StakeHubTest is Deployer {
         vm.startPrank(SLASH_CONTRACT_ADDR);
 
         // double sign slash type: 0
-        uint256 slashAmt = IStakeCredit(credit).getPooledBNBByShares(IStakeCredit(credit).balanceOf(validator)); // 10_000 ether is more than selfDelegation
-        uint256 slashTime = stakeHub.doubleSignJailTime();
-        vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 0);
-        stakeHub.doubleSignSlash(consensusAddress, block.number);
+        vm.expectEmit(true, false, false, false, address(stakeHub)); // as slash amount may vary by 1, we don't check the event data
+        emit ValidatorSlashed(validator, 0, 0, 0);
+        stakeHub.doubleSignSlash(consensusAddress);
 
         // check delegator's share
         uint256 curDelegatorBnbAmount =
@@ -350,11 +348,9 @@ contract StakeHubTest is Deployer {
         vm.startPrank(SLASH_CONTRACT_ADDR);
 
         // malicious vote slash type: 2
-        uint256 slashAmt = IStakeCredit(credit).getPooledBNBByShares(IStakeCredit(credit).balanceOf(validator)); // 10_000 ether is more than selfDelegation
-        uint256 slashTime = stakeHub.doubleSignJailTime();
-        vm.expectEmit(true, false, false, true, address(stakeHub));
-        emit ValidatorSlashed(validator, block.timestamp + slashTime, slashAmt, uint248(block.number), 2);
-        stakeHub.maliciousVoteSlash(voteAddr, block.number);
+        vm.expectEmit(true, false, false, false, address(stakeHub)); // as slash amount may vary by 1, we don't check the event data
+        emit ValidatorSlashed(validator, 0, 0, 2);
+        stakeHub.maliciousVoteSlash(voteAddr);
 
         // check delegator's share
         uint256 curDelegatorBnbAmount =
@@ -367,12 +363,13 @@ contract StakeHubTest is Deployer {
         if (!crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
             bytes memory key = "enableOrDisableChannel";
             bytes memory value = bytes(hex"0801");
-            updateParamByGovHub(key, value, address(crossChain));
+            _updateParamByGovHub(key, value, address(crossChain));
             assertTrue(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
         }
 
         uint256 length = stakeHub.maxElectedValidators();
-        BSCValidatorSet.Validator[] memory newValSet = new BSCValidatorSet.Validator[](length);
+        address[] memory newConsensusAddrs = new address[](length);
+        uint64[] memory newVotingPower = new uint64[](length);
         bytes[] memory newVoteAddrs = new bytes[](length);
         address operatorAddress;
         address consensusAddress;
@@ -382,28 +379,26 @@ contract StakeHubTest is Deployer {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
             (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
-            newValSet[length - i -1].consensusAddress = consensusAddress;
-            newValSet[length - i -1].votingPower = votingPower;
+            newConsensusAddrs[length - i -1] = consensusAddress;
+            newVotingPower[length - i -1] = votingPower;
             newVoteAddrs[length - i -1] = voteAddress;
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
-        validator.updateValidatorSetV2(newValSet, newVoteAddrs);
+        validator.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
 
-        address[] memory newValAddrs = new address[](length);
-        uint64[] memory newVotingPower = new uint64[](length);
-        for (uint256 i; i < newValSet.length; ++i) {
+        for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2) * 1e8;
-            newValAddrs[length - i - 1] = addrSet[addrIdx++];
-            newVotingPower[length - i -1] = votingPower * 2;
-            newVoteAddrs[length - i -1] = bytes(vm.toString(newValAddrs[i]));
+            newConsensusAddrs[length - i -1] = addrSet[addrIdx++];
+            newVotingPower[length - i -1] = votingPower;
+            newVoteAddrs[length - i -1] = bytes(vm.toString(newConsensusAddrs[i]));
         }
         vm.prank(address(crossChain));
-        validator.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newValAddrs, newVotingPower, newVoteAddrs));
+        validator.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newConsensusAddrs, newVotingPower, newVoteAddrs));
 
         ( , , , uint64 preVotingPower, , ) = validator.currentValidatorSet(0);
         uint64 curVotingPower;
-        for (uint256 i = 1; i < newValSet.length; ++i) {
+        for (uint256 i = 1; i < length; ++i) {
             ( , , , curVotingPower, , ) = validator.currentValidatorSet(i);
             assert(curVotingPower <= preVotingPower);
             preVotingPower = curVotingPower;
@@ -415,12 +410,13 @@ contract StakeHubTest is Deployer {
         if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
             bytes memory key = "enableOrDisableChannel";
             bytes memory value = bytes(hex"0800");
-            updateParamByGovHub(key, value, address(crossChain));
+            _updateParamByGovHub(key, value, address(crossChain));
             assertFalse(crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
         }
 
         uint256 length = stakeHub.maxElectedValidators();
-        BSCValidatorSet.Validator[] memory newValSet = new BSCValidatorSet.Validator[](length);
+        address[] memory newConsensusAddrs = new address[](length);
+        uint64[] memory newVotingPower = new uint64[](length);
         bytes[] memory newVoteAddrs = new bytes[](length);
         address operatorAddress;
         address consensusAddress;
@@ -430,16 +426,16 @@ contract StakeHubTest is Deployer {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
             (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
-            newValSet[length - i -1].consensusAddress = consensusAddress;
-            newValSet[length - i -1].votingPower = votingPower;
+            newConsensusAddrs[length - i -1] = consensusAddress;
+            newVotingPower[length - i -1] = votingPower;
             newVoteAddrs[length - i -1] = voteAddress;
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
-        validator.updateValidatorSetV2(newValSet, newVoteAddrs);
+        validator.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
     }
 
-    function testEncodecv() public {
+    function testEncodeLegacyBytes() public {
         address[] memory cAddresses;
         bytes[] memory vAddresses;
         bytes memory cBz = abi.encode(cAddresses);

@@ -41,6 +41,8 @@ interface BSCGovernor {
     event VotingDelaySet(uint256 oldVotingDelay, uint256 newVotingDelay);
     event VotingPeriodSet(uint256 oldVotingPeriod, uint256 newVotingPeriod);
 
+    receive() external payable;
+
     function BALLOT_TYPEHASH() external view returns (bytes32);
     function CLOCK_MODE() external view returns (string memory);
     function COUNTING_MODE() external pure returns (string memory);
