@@ -924,7 +924,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           validatorExtraSet[i].voteAddress = newVoteAddrs[i];
         }
         currentValidatorSet[i].incoming = 0;
-        currentValidatorSet[i].jailed = false;
+        currentValidatorSet[i].jailed = newValidatorSet[i].jailed;
       }
     }
 
