@@ -66,9 +66,7 @@ interface StakeHub {
     ) external payable;
     function delegate(address operatorAddress, bool delegateVotePower) external payable;
     function distributeReward(address consensusAddress) external payable;
-    function doubleSignJailTime() external view returns (uint256);
     function doubleSignSlash(address consensusAddress) external;
-    function doubleSignSlashAmount() external view returns (uint256);
     function downtimeJailTime() external view returns (uint256);
     function downtimeSlash(address consensusAddress) external;
     function downtimeSlashAmount() external view returns (uint256);
@@ -76,6 +74,9 @@ interface StakeHub {
     function editConsensusAddress(address newConsensusAddress) external;
     function editDescription(Description memory description) external;
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
+    function felonyJailTime() external view returns (uint256);
+    function felonyPerDay() external view returns (uint256);
+    function felonySlashAmount() external view returns (uint256);
     function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
     function getOperatorAddressByVoteAddress(bytes memory voteAddress) external view returns (address);
     function getValidatorBasicInfo(address operatorAddress)
