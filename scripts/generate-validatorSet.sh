@@ -45,7 +45,7 @@ sed -i -e "s/bytes public constant INIT_VALIDATORSET_BYTES = .*;/bytes public co
 
 case $NETWORK in
 local)
-    sed -i -e "s/for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {/ValidatorExtra memory validatorExtra;\nfor (uint i; i<validatorSetPkg.validatorSet.length; ++i) {\n validatorExtraSet.push(validatorExtra);\n validatorExtraSet[i].voteAddress=validatorSetPkg.voteAddrs[i];/g" "$OUTPUT"
+    sed -i -e "s/for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {/ValidatorExtra memory validatorExtra;\n    for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {\n      validatorExtraSet.push(validatorExtra);\n      validatorExtraSet[i].voteAddress=validatorSetPkg.voteAddrs[i];/g" "$OUTPUT"
     ;;
 *) ;;
 esac

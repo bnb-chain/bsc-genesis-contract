@@ -53,7 +53,7 @@ local)
     sed -i -e "s/address public constant WHITELIST_1 = .*;/${LOCAL_WHITELIST1}/g" "$OUTPUT"
     sed -i -e "s/address public constant WHITELIST_2 = .*;/${LOCAL_WHITELIST2}/g" "$OUTPUT"
     sed -i -e "s/function whitelistInit() external/function whitelistInit() public/g" "$OUTPUT"
-    sed -i -e "s/alreadyInit = true;/whitelistInit();\nalreadyInit = true;/g" "$OUTPUT"
+    sed -i -e "s/alreadyInit = true;/whitelistInit();\n        alreadyInit = true;/g" "$OUTPUT"
     ;;
 QA)
     sed -i -e "s/address public constant WHITELIST_1 = .*;/${QA_WHITELIST1}/g" "$OUTPUT"
