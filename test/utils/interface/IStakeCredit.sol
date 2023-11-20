@@ -31,7 +31,7 @@ interface StakeCredit {
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
     function initialize(address _validator, string memory _moniker) external payable;
-    function lockedShares(address delegator) external view returns (uint256);
+    function lockedBNBs(address delegator) external view returns (uint256);
     function name() external view returns (string memory);
     function slash(uint256 slashBnbAmount) external returns (uint256);
     function symbol() external view returns (string memory);

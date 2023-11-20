@@ -70,6 +70,37 @@
         "internalType": "address",
         "name": "operatorAddress",
         "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bnbAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Delegated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operatorAddress",
+        "type": "address"
       }
     ],
     "name": "DescriptionEdited",
@@ -131,6 +162,18 @@
       {
         "indexed": false,
         "internalType": "uint256",
+        "name": "oldShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
         "name": "bnbAmount",
         "type": "uint256"
       }
@@ -186,6 +229,37 @@
     "anonymous": false,
     "inputs": [],
     "name": "StakingResumed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "operatorAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "delegator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bnbAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "Undelegated",
     "type": "event"
   },
   {
@@ -265,12 +339,6 @@
         "internalType": "uint256",
         "name": "slashAmount",
         "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint248",
-        "name": "slashHeight",
-        "type": "uint248"
       },
       {
         "indexed": false,
@@ -499,11 +567,6 @@
         "internalType": "address",
         "name": "consensusAddress",
         "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "height",
-        "type": "uint256"
       }
     ],
     "name": "doubleSignSlash",
@@ -675,45 +738,6 @@
         "internalType": "address",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "operatorAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "height",
-        "type": "uint256"
-      },
-      {
-        "internalType": "enum StakeHub.SlashType",
-        "name": "slashType",
-        "type": "uint8"
-      }
-    ],
-    "name": "getSlashRecord",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "slashAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "slashHeight",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "jailUntil",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -900,11 +924,6 @@
         "internalType": "bytes",
         "name": "_voteAddr",
         "type": "bytes"
-      },
-      {
-        "internalType": "uint256",
-        "name": "height",
-        "type": "uint256"
       }
     ],
     "name": "maliciousVoteSlash",

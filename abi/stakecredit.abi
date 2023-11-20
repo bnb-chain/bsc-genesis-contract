@@ -38,31 +38,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Delegated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "uint8",
         "name": "version",
@@ -114,19 +89,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "slashBnbAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Slashed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "address",
         "name": "from",
@@ -146,87 +108,6 @@
       }
     ],
     "name": "Transfer",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "UnbondClaimed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "unlockTime",
-        "type": "uint256"
-      }
-    ],
-    "name": "UnbondRequested",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "delegator",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "bnbAmount",
-        "type": "uint256"
-      }
-    ],
-    "name": "Unbonded",
     "type": "event"
   },
   {
@@ -366,7 +247,13 @@
       }
     ],
     "name": "delegate",
-    "outputs": [],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "payable",
     "type": "function"
   },
@@ -503,7 +390,7 @@
         "type": "address"
       }
     ],
-    "name": "lockedShares",
+    "name": "lockedBNBs",
     "outputs": [
       {
         "internalType": "uint256",
@@ -655,7 +542,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "bnbAmount",
         "type": "uint256"
       }
     ],
@@ -741,7 +628,13 @@
       }
     ],
     "name": "undelegate",
-    "outputs": [],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "bnbAmount",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },

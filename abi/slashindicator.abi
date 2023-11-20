@@ -284,6 +284,19 @@
   },
   {
     "inputs": [],
+    "name": "INIT_MALICIOUS_VOTE_SLASH_SCOPE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "LIGHT_CLIENT_ADDR",
     "outputs": [
       {
@@ -690,6 +703,19 @@
     "name": "init",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maliciousVoteSlashScope",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
