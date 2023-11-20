@@ -24,8 +24,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
     mapping(bytes32 => UnbondRequest) private _unbondRequests;
     // user => unbond request queue(hash of the request)
     mapping(address => DoubleEndedQueueUpgradeable.Bytes32Deque) private _unbondRequestsQueue;
-    // user => locked shares
-    mapping(address => uint256) private _lockedShares;
     // user => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
 
@@ -59,10 +57,8 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         require(shares != 0, "ZERO_AMOUNT");
         require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
 
-        _lockedShares[delegator] += shares;
-        bnbAmount = _burnAndSync(delegator, shares);
-
         // add to the queue
+        bnbAmount = _burnAndSync(delegator, shares);
         uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
         UnbondRequest memory request = UnbondRequest({ shares: shares, bnbAmount: bnbAmount, unlockTime: unlockTime });
         bytes32 hash = keccak256(abi.encodePacked(delegator, _useSequence(delegator)));
@@ -93,7 +89,6 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
             ? _unbondRequestsQueue[delegator].length()
             : number;
 
-        uint256 _totalShares;
         uint256 _totalBnbAmount;
         while (number != 0) {
             bytes32 hash = _unbondRequestsQueue[delegator].front();
@@ -102,17 +97,14 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
                 break;
             }
 
-            _totalShares += request.shares;
-            _totalBnbAmount += request.bnbAmount;
-
             // remove from the queue
             _unbondRequestsQueue[delegator].popFront();
             delete _unbondRequests[hash];
 
+            _totalBnbAmount += request.bnbAmount;
             --number;
         }
-        require(_totalShares != 0, "NO_CLAIMABLE_UNBOND_REQUEST");
-        _lockedShares[delegator] -= _totalShares;
+        require(_totalBnbAmount != 0, "NO_CLAIMABLE_UNBOND_REQUEST");
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         (bool success,) = delegator.call{ gas: _gasLimit, value: _totalBnbAmount }("");
@@ -172,8 +164,19 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         return (_unbondRequests[hash], _unbondRequestsQueue[delegator].length());
     }
 
-    function lockedShares(address delegator) public view returns (uint256) {
-        return _lockedShares[delegator];
+    function lockedBNBs(address delegator) public view returns (uint256) {
+        uint256 length = _unbondRequestsQueue[delegator].length();
+        if (length == 0) {
+            return 0;
+        }
+
+        uint256 _totalBnbAmount;
+        for (uint256 i; i < length; ++i) {
+            bytes32 hash = _unbondRequestsQueue[delegator].front();
+            UnbondRequest memory request = _unbondRequests[hash];
+            _totalBnbAmount += request.bnbAmount;
+        }
+        return _totalBnbAmount;
     }
 
     function unbondSequence(address delegator) public view returns (uint256) {

@@ -156,7 +156,7 @@ contract StakeHub is System, Initializable {
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
-        transferGasLimit = 2300;
+        transferGasLimit = 5000;
         minSelfDelegationBNB = 2_000 ether;
         minDelegationBNBChange = 1 ether;
         maxElectedValidators = 29;
@@ -374,6 +374,7 @@ contract StakeHub is System, Initializable {
         bool delegateVotePower
     ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) {
         require(shares > 0, "INVALID_SHARES_AMOUNT");
+        require(srcValidator != dstValidator, "SAME_VALIDATOR");
 
         address delegator = msg.sender;
         Validator memory srcValInfo = _validators[srcValidator];
@@ -778,12 +779,13 @@ contract StakeHub is System, Initializable {
             return;
         }
 
+        if (jailUntil > valInfo.jailUntil) {
+            valInfo.jailUntil = jailUntil;
+        }
+
         if (!valInfo.jailed) {
             valInfo.jailed = true;
             numOfJailed += 1;
-            if (jailUntil > valInfo.jailUntil) {
-                valInfo.jailUntil = jailUntil;
-            }
 
             emit ValidatorJailed(valInfo.operatorAddress);
         }

@@ -28,7 +28,7 @@ contract BSCGovernor is
     using Utils for string;
 
     uint256 private constant INIT_VOTING_DELAY = 24 hours;
-    uint256 private constant INIT_VOTING_PERIOD = 7 days;
+    uint256 private constant INIT_VOTING_PERIOD = 14 days;
     uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
     uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
@@ -63,7 +63,6 @@ contract BSCGovernor is
         whitelistTargets[CROSS_CHAIN_CONTRACT_ADDR] = true;
         whitelistTargets[STAKING_CONTRACT_ADDR] = true;
         whitelistTargets[STAKE_HUB_ADDR] = true;
-        whitelistTargets[STAKE_CREDIT_ADDR] = true;
         whitelistTargets[GOVERNOR_ADDR] = true;
         whitelistTargets[GOV_TOKEN_ADDR] = true;
         whitelistTargets[TIMELOCK_ADDR] = true;
