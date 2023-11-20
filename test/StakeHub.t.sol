@@ -119,7 +119,7 @@ contract StakeHubTest is Deployer {
     }
 
     function testDelegate() public {
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         (address validator, address credit) = _createValidator(2000 ether);
         vm.startPrank(delegator);
 
@@ -137,7 +137,7 @@ contract StakeHubTest is Deployer {
     }
 
     function testUndelegate() public {
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         (address validator, address credit) = _createValidator(2000 ether);
         vm.startPrank(delegator);
 
@@ -169,7 +169,7 @@ contract StakeHubTest is Deployer {
     }
 
     function testRedelegate() public {
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         (address validator1, address credit1) = _createValidator(2000 ether);
         (address validator2, address credit2) = _createValidator(2000 ether);
         vm.startPrank(delegator);
@@ -195,7 +195,7 @@ contract StakeHubTest is Deployer {
     }
 
     function testDistributeReward() public {
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         uint256 selfDelegation = 2000 ether;
         (address validator, address credit) = _createValidator(selfDelegation);
 
@@ -236,7 +236,7 @@ contract StakeHubTest is Deployer {
         uint256 _totalPooledBNB = IStakeCredit(credit).totalPooledBNB();
         assertEq(_totalPooledBNB, 2095242857142857142858);
         uint256 expectedShares = 100 ether * 2000095458884494749761 / _totalPooledBNB;
-        address newDelegator = addrSet[addrIdx++];
+        address newDelegator = _getNextUserAddress();
         vm.prank(newDelegator);
         stakeHub.delegate{ value: delegation }(validator, false);
         uint256 newShares = IStakeCredit(credit).balanceOf(newDelegator);
@@ -251,7 +251,7 @@ contract StakeHubTest is Deployer {
         (address validator, address credit) = _createValidator(selfDelegation);
         _createValidator(selfDelegation); // create 2 validator to avoid empty jail
 
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
@@ -303,7 +303,7 @@ contract StakeHubTest is Deployer {
         uint256 reward = 100 ether;
         (address validator, address credit) = _createValidator(selfDelegation);
 
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
@@ -334,7 +334,7 @@ contract StakeHubTest is Deployer {
         uint256 reward = 100 ether;
         (address validator, address credit) = _createValidator(selfDelegation);
 
-        address delegator = addrSet[addrIdx++];
+        address delegator = _getNextUserAddress();
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
@@ -385,21 +385,21 @@ contract StakeHubTest is Deployer {
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
-        validator.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
+        bscValidatorSet.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
 
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2) * 1e8;
-            newConsensusAddrs[length - i -1] = addrSet[addrIdx++];
+            newConsensusAddrs[length - i -1] = _getNextUserAddress();
             newVotingPower[length - i -1] = votingPower;
             newVoteAddrs[length - i -1] = bytes(vm.toString(newConsensusAddrs[i]));
         }
         vm.prank(address(crossChain));
-        validator.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newConsensusAddrs, newVotingPower, newVoteAddrs));
+        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newConsensusAddrs, newVotingPower, newVoteAddrs));
 
-        ( , , , uint64 preVotingPower, , ) = validator.currentValidatorSet(0);
+        ( , , , uint64 preVotingPower, , ) = bscValidatorSet.currentValidatorSet(0);
         uint64 curVotingPower;
         for (uint256 i = 1; i < length; ++i) {
-            ( , , , curVotingPower, , ) = validator.currentValidatorSet(i);
+            ( , , , curVotingPower, , ) = bscValidatorSet.currentValidatorSet(i);
             assert(curVotingPower <= preVotingPower);
             preVotingPower = curVotingPower;
         }
@@ -432,7 +432,7 @@ contract StakeHubTest is Deployer {
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
-        validator.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
+        bscValidatorSet.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
     }
 
     function testEncodeLegacyBytes() public {
@@ -440,12 +440,12 @@ contract StakeHubTest is Deployer {
         bytes[] memory vAddresses;
         bytes memory cBz = abi.encode(cAddresses);
         bytes memory vBz = abi.encode(vAddresses);
-        emit log_named_bytes("cBz", cBz);
-        emit log_named_bytes("vBz", vBz);
+        emit log_named_bytes("consensus address bytes", cBz);
+        emit log_named_bytes("vote address bytes", vBz);
     }
 
     function _createValidator(uint256 delegation) internal returns (address operatorAddress, address credit) {
-        operatorAddress = addrSet[addrIdx++];
+        operatorAddress = _getNextUserAddress();
         StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
         StakeHub.Description memory description = StakeHub.Description({
             moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),

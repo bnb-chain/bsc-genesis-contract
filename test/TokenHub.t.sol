@@ -137,8 +137,8 @@ contract TokenHubTest is Deployer {
     string memory bep2Symbol = tokenHub.getBoundBep2Symbol(address(maliciousToken));
     assertEq(bep2Symbol, "MALICIOU-A09", "wrong bep2 token symbol");
 
-    address recipient = addrSet[addrIdx++];
-    address refundAddr = addrSet[addrIdx++];
+    address recipient = _getNextUserAddress();
+    address refundAddr = _getNextUserAddress();
     uint256 amount = 115e17;
     assertEq(maliciousToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("MALICIOU-A09"), address(maliciousToken), amount, recipient, refundAddr);
@@ -175,8 +175,8 @@ contract TokenHubTest is Deployer {
     assertEq(address(tokenManager).balance, 0, "tokenManager balance should be 0");
 
     // Expired transferIn
-    address recipient = addrSet[addrIdx++];
-    address refundAddr = addrSet[addrIdx++];
+    address recipient = _getNextUserAddress();
+    address refundAddr = _getNextUserAddress();
     assertEq(abcToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
 
@@ -212,8 +212,8 @@ contract TokenHubTest is Deployer {
     require(success, "rlp decode refund package failed");
 
     // TransferIn succeed
-    recipient = addrSet[addrIdx++];
-    refundAddr = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
+    refundAddr = _getNextUserAddress();
     assertEq(abcToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
     vm.prank(address(crossChain));
@@ -221,8 +221,8 @@ contract TokenHubTest is Deployer {
     assertEq(abcToken.balanceOf(recipient), 115e17, "wrong balance");
 
     // BNB transferIn
-    recipient = addrSet[addrIdx++];
-    refundAddr = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
+    refundAddr = _getNextUserAddress();
     pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 1e18, recipient, refundAddr);
     uint256 balance = recipient.balance;
     vm.prank(address(crossChain));
@@ -233,7 +233,7 @@ contract TokenHubTest is Deployer {
 
     // BNB transferIn to a non-payable address
     recipient = address(lightClient);
-    refundAddr = addrSet[addrIdx++];
+    refundAddr = _getNextUserAddress();
     pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 1e18, recipient, refundAddr);
     balance = recipient.balance;
     vm.prank(address(crossChain));
@@ -277,8 +277,8 @@ contract TokenHubTest is Deployer {
     assertEq(address(tokenManager).balance, 0, "tokenManager balance should be 0");
 
     // Expired transferIn
-    address recipient = addrSet[addrIdx++];
-    address refundAddr = addrSet[addrIdx++];
+    address recipient = _getNextUserAddress();
+    address refundAddr = _getNextUserAddress();
     assertEq(abcToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
 
@@ -314,8 +314,8 @@ contract TokenHubTest is Deployer {
     require(success, "rlp decode refund package failed");
 
     // TransferIn succeed
-    recipient = addrSet[addrIdx++];
-    refundAddr = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
+    refundAddr = _getNextUserAddress();
     assertEq(abcToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
     vm.prank(address(crossChain));
@@ -323,8 +323,8 @@ contract TokenHubTest is Deployer {
     assertEq(abcToken.balanceOf(recipient), 115e17, "wrong balance");
 
     // BNB transferIn without lock
-    address _recipient = addrSet[addrIdx++];
-    address _refundAddr = addrSet[addrIdx++];
+    address _recipient = _getNextUserAddress();
+    address _refundAddr = _getNextUserAddress();
     bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 9999 * 1e18, _recipient, _refundAddr);
     uint256 balance = _recipient.balance;
     vm.prank(address(crossChain));
@@ -332,8 +332,8 @@ contract TokenHubTest is Deployer {
     assertEq(_recipient.balance - balance, 9999 * 1e18, "wrong balance");
 
     // BNB transferIn with lock
-    _recipient = addrSet[addrIdx++];
-    _refundAddr = addrSet[addrIdx++];
+    _recipient = _getNextUserAddress();
+    _refundAddr = _getNextUserAddress();
     _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
     balance = _recipient.balance;
     vm.prank(address(crossChain));
@@ -351,7 +351,7 @@ contract TokenHubTest is Deployer {
 
     // BNB transferIn to a non-payable address
     _recipient = address(lightClient);
-    _refundAddr = addrSet[addrIdx++];
+    _refundAddr = _getNextUserAddress();
     _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 1e18, _recipient, _refundAddr);
     balance = _recipient.balance;
     vm.prank(address(crossChain));
@@ -383,7 +383,7 @@ contract TokenHubTest is Deployer {
   }
 
   function testSuspend() public {
-    address[] memory _validators = validator.getValidators();
+    address[] memory _validators = bscValidatorSet.getValidators();
     vm.prank(_validators[0]);
     crossChain.suspend();
     assert(crossChain.isSuspended());
@@ -393,8 +393,8 @@ contract TokenHubTest is Deployer {
     crossChain.suspend();
 
     //    // BNB transferIn with lock
-    //    address _recipient = addrSet[addrIdx++];
-    //    address _refundAddr = addrSet[addrIdx++];
+    //    address _recipient = _getNextUserAddress();
+    //    address _refundAddr = _getNextUserAddress();
     //    bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
     //    uint256 balance = _recipient.balance;
     //    uint256 amount;
@@ -421,8 +421,8 @@ contract TokenHubTest is Deployer {
 
   function testCancelTransfer() public {
     // BNB transferIn with lock
-    address _recipient = addrSet[addrIdx++];
-    address _refundAddr = addrSet[addrIdx++];
+    address _recipient = _getNextUserAddress();
+    address _refundAddr = _getNextUserAddress();
     bytes memory _pack = buildTransferInPackage(bytes32("BNB"), address(0x0), 10000 * 1e18, _recipient, _refundAddr);
     uint256 balance = _recipient.balance;
     uint256 amount;
@@ -438,7 +438,7 @@ contract TokenHubTest is Deployer {
     assertEq(unlockAt, block.timestamp + INIT_LOCK_PERIOD, "wrong unlockAt");
 
     // cancelTransferIn by validators
-    address[] memory _validators = validator.getValidators();
+    address[] memory _validators = bscValidatorSet.getValidators();
     vm.prank(_validators[0]);
     crossChain.cancelTransfer(address(0), _recipient);
     (amount, unlockAt) = tokenHub.lockInfoMap(address(0), _recipient);
@@ -512,9 +512,10 @@ contract TokenHubTest is Deployer {
     refundAddrs = new address[](length);
     for (uint256 i; i < length; ++i) {
       amounts[i] = (i + 1) * 1e6;
-      balances[i] = abcToken.balanceOf(addrSet[addrIdx]);
-      recipients[i] = addrSet[addrIdx];
-      refundAddrs[i] = addrSet[addrIdx++];
+      recipient = _getNextUserAddress();
+      balances[i] = abcToken.balanceOf(recipient);
+      recipients[i] = recipient;
+      refundAddrs[i] = recipient;
     }
 
     package = buildBatchTransferOutFailAckPackage(bytes32("ABC-9C7"), address(abcToken), amounts, recipients, refundAddrs);
@@ -530,9 +531,10 @@ contract TokenHubTest is Deployer {
     address[] memory recipients = new address[](2);
     address[] memory refundAddrs = new address[](2);
     uint256[] memory amounts = new uint256[](2);
+    address recipient = _getNextUserAddress();
     for (uint256 i; i < 2; ++i) {
-      recipients[i] = addrSet[addrIdx];
-      refundAddrs[i] = addrSet[addrIdx++];
+      recipients[i] = recipient;
+      refundAddrs[i] = _getNextUserAddress();
       amounts[i] = 5e9;
     }
 
@@ -559,9 +561,10 @@ contract TokenHubTest is Deployer {
     address[] memory recipients = new address[](2);
     address[] memory refundAddrs = new address[](2);
     uint256[] memory amounts = new uint256[](2);
+    recipient = _getNextUserAddress();
     for (uint256 i; i < 2; ++i) {
-      recipients[i] = addrSet[addrIdx];
-      refundAddrs[i] = addrSet[addrIdx++];
+      recipients[i] = recipient;
+      refundAddrs[i] = _getNextUserAddress();
     }
     amounts[0] = 100000000000000000000000000000000000000000000000000000000000000000000000000000;
     amounts[1] = 15792089237316195423570985008687907853269984665640564039457584007910000000000;
@@ -588,8 +591,8 @@ contract TokenHubTest is Deployer {
     assertEq(tokenHub.getBoundContract("ABC-9C7"), address(0x0), "wrong token contract address");
 
     // TransferIn failed
-    address recipient = addrSet[addrIdx++];
-    address refundAddr = addrSet[addrIdx++];
+    address recipient = _getNextUserAddress();
+    address refundAddr = _getNextUserAddress();
     assertEq(abcToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
     vm.prank(address(crossChain));
@@ -597,7 +600,7 @@ contract TokenHubTest is Deployer {
     assertEq(abcToken.balanceOf(recipient), 0, "wrong balance");
 
     // TransferOut refund
-    recipient = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
     uint256 amount = 1e18;
     uint256[] memory amounts = new uint256[](1);
     address[] memory refundAddrs = new address[](1);
@@ -638,8 +641,8 @@ contract TokenHubTest is Deployer {
     assertEq(tokenHub.getBoundContract("XYZ-9C7M"), address(miniToken), "wrong token contract address");
 
     // TransferIn
-    address recipient = addrSet[addrIdx++];
-    address refundAddr = addrSet[addrIdx++];
+    address recipient = _getNextUserAddress();
+    address refundAddr = _getNextUserAddress();
     assertEq(miniToken.balanceOf(recipient), 0);
     pack = buildTransferInPackage(bytes32("XYZ-9C7M"), address(miniToken), 1e18, recipient, refundAddr);
     vm.prank(address(crossChain));
@@ -650,7 +653,7 @@ contract TokenHubTest is Deployer {
     uint64 expireTime = uint64(block.timestamp + 150);
     uint256 amount = 1e18;
     uint256 relayerFee = 1e16;
-    recipient = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
 
     miniToken.approve(address(tokenHub), amount);
     vm.expectEmit(true, false, false, true, address(tokenHub));
@@ -659,7 +662,7 @@ contract TokenHubTest is Deployer {
 
     // TransferOut failed
     amount = 5e17;
-    recipient = addrSet[addrIdx++];
+    recipient = _getNextUserAddress();
 
     miniToken.approve(address(tokenHub), amount);
     vm.expectRevert(bytes("For miniToken, the transfer amount must not be less than 1"));

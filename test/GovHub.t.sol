@@ -15,10 +15,10 @@ contract GovHubTest is Deployer {
 
     bytes memory key = "expireTimeSecondGap";
     bytes memory valueBytes = abi.encode(value);
-    vm.expectEmit(false, false, false, true, address(validator));
+    vm.expectEmit(false, false, false, true, address(bscValidatorSet));
     emit paramChange(string(key), valueBytes);
-    _updateParamByGovHub(key, valueBytes, address(validator));
-    assertEq(uint256(value), validator.expireTimeSecondGap());
+    _updateParamByGovHub(key, valueBytes, address(bscValidatorSet));
+    assertEq(uint256(value), bscValidatorSet.expireTimeSecondGap());
   }
 
   function testGovTokenHub(uint256 value) public {
@@ -123,7 +123,7 @@ contract GovHubTest is Deployer {
   }
 
   function testGovSlash(uint16 value1, uint16 value2) public {
-    uint256 misdemeanorThreshold = slash.misdemeanorThreshold();
+    uint256 misdemeanorThreshold = slashIndicator.misdemeanorThreshold();
     vm.assume(uint256(value1) > misdemeanorThreshold);
     vm.assume(value1 <= 1000);
     vm.assume(value2 < value1);
@@ -131,17 +131,17 @@ contract GovHubTest is Deployer {
 
     bytes memory key = "felonyThreshold";
     bytes memory valueBytes = abi.encode(value1);
-    vm.expectEmit(false, false, false, true, address(slash));
+    vm.expectEmit(false, false, false, true, address(slashIndicator));
     emit paramChange(string(key), valueBytes);
-    _updateParamByGovHub(key, valueBytes, address(slash));
-    assertEq(uint256(value1), slash.felonyThreshold());
+    _updateParamByGovHub(key, valueBytes, address(slashIndicator));
+    assertEq(uint256(value1), slashIndicator.felonyThreshold());
 
     key = "misdemeanorThreshold";
     valueBytes = abi.encode(value2);
-    vm.expectEmit(false, false, false, true, address(slash));
+    vm.expectEmit(false, false, false, true, address(slashIndicator));
     emit paramChange(string(key), valueBytes);
-    _updateParamByGovHub(key, valueBytes, address(slash));
-    assertEq(uint256(value2), slash.misdemeanorThreshold());
+    _updateParamByGovHub(key, valueBytes, address(slashIndicator));
+    assertEq(uint256(value2), slashIndicator.misdemeanorThreshold());
   }
 
   function testGovFailed(uint256 value) public {
@@ -150,28 +150,28 @@ contract GovHubTest is Deployer {
     bytes memory valueBytes = abi.encode(value);
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("unknown param");
-    _updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(bscValidatorSet));
 
     // exceed range
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("the expireTimeSecondGap is out of range");
-    _updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(bscValidatorSet));
 
     // length mismatch
     key = "expireTimeSecondGap";
     valueBytes = abi.encodePacked(uint128(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("length of expireTimeSecondGap mismatch");
-    _updateParamByGovHub(key, valueBytes, address(validator));
+    _updateParamByGovHub(key, valueBytes, address(bscValidatorSet));
 
     // address do not exist
     key = "expireTimeSecondGap";
     valueBytes = abi.encode(uint256(10));
     vm.expectEmit(false, false, false, true, address(govHub));
     emit failReasonWithStr("the target is not a contract");
-    _updateParamByGovHub(key, valueBytes, addrSet[addrIdx++]);
+    _updateParamByGovHub(key, valueBytes, _getNextUserAddress());
 
     // method do no exist
     key = "expireTimeSecondGap";

@@ -52,8 +52,8 @@ contract Deployer is Test {
   uint8 public constant SLASH_CHANNELID = 0x0b;
   uint8 public constant CROSS_STAKE_CHANNELID = 0x10;
 
-  BSCValidatorSet public validator;
-  SlashIndicator public slash;
+  BSCValidatorSet public bscValidatorSet;
+  SlashIndicator public slashIndicator;
   SystemReward public systemReward;
   TendermintLightClient public lightClient;
   TokenHub public tokenHub;
@@ -70,8 +70,6 @@ contract Deployer is Test {
   BSCTimelock public timelock;
 
   address payable public relayer;
-  address payable[] public addrSet;
-  uint256 public addrIdx;
 
   bytes32 internal nextUser = keccak256(abi.encodePacked("user address"));
 
@@ -82,10 +80,10 @@ contract Deployer is Test {
     // vm.createSelectFork("bsc", 23839447);
 
     // setup system contracts
-    validator = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
-    vm.label(address(validator), "Validator");
-    slash = SlashIndicator(SLASH_CONTRACT_ADDR);
-    vm.label(address(slash), "SlashIndicator");
+    bscValidatorSet = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
+    vm.label(address(bscValidatorSet), "Validator");
+    slashIndicator = SlashIndicator(SLASH_CONTRACT_ADDR);
+    vm.label(address(slashIndicator), "SlashIndicator");
     systemReward = SystemReward(SYSTEM_REWARD_ADDR);
     vm.label(address(systemReward), "SystemReward");
     lightClient = TendermintLightClient(LIGHT_CLIENT_ADDR);
@@ -149,27 +147,15 @@ contract Deployer is Test {
     deployedCode = vm.getDeployedCode("BSCTimelock.sol");
     vm.etch(TIMELOCK_ADDR, deployedCode);
 
-    addrSet = createUsers(100);
-
     relayer = payable(0xb005741528b86F5952469d80A8614591E3c5B632); // whitelabel relayer
     vm.label(relayer, "relayer");
-  }
-
-  // create users with 1,000,000 ether balance
-  function createUsers(uint256 userNum) public returns (address payable[] memory) {
-    address payable[] memory users = new address payable[](userNum);
-    for (uint256 i = 0; i < userNum; ++i) {
-      address payable user = _getNextUserAddress();
-      vm.deal(user, 1_000_000 ether);
-      users[i] = user;
-    }
-    return users;
   }
 
   function _getNextUserAddress() internal returns (address payable) {
     //bytes32 to address conversion
     address payable user = payable(address(uint160(uint256(nextUser))));
     nextUser = keccak256(abi.encodePacked(nextUser));
+    vm.deal(user, 10_000 ether);
     return user;
   }
 

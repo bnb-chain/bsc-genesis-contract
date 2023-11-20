@@ -28,14 +28,14 @@ contract RelayerIncentivizeTest is Deployer {
     uint256 roundSeq = incentivize.roundSequence();
     vm.startPrank(address(crossChain));
     while (incentivize.roundSequence() == roundSeq) {
-      incentivize.addReward(addrSet[99], payable(address(crossChain)), 1e16, false);
+      incentivize.addReward(_getNextUserAddress(), payable(address(crossChain)), 1e16, false);
     }
     ++roundSeq;
 
     address payable[] memory addrs = new address payable[](8);
     uint256[] memory bals = new uint256[](8);
     for (uint256 i; i < 8; ++i) {
-      addrs[i] = addrSet[addrIdx++];
+      addrs[i] = _getNextUserAddress();
       vm.label(addrs[i], vm.toString(i));
       bals[i] = addrs[i].balance;
     }
@@ -88,7 +88,7 @@ contract RelayerIncentivizeTest is Deployer {
     uint256 roundSeq = incentivize.roundSequence();
     vm.startPrank(address(crossChain));
     while (incentivize.roundSequence() == roundSeq) {
-      incentivize.addReward(addrSet[99], payable(address(crossChain)), 1e16, false);
+      incentivize.addReward(_getNextUserAddress(), payable(address(crossChain)), 1e16, false);
     }
     ++roundSeq;
 
@@ -96,7 +96,7 @@ contract RelayerIncentivizeTest is Deployer {
     uint256[] memory bals = new uint256[](8);
     uint256[] memory txFees = new uint256[](8);
     for (uint256 i; i < 8; ++i) {
-      addrs[i] = addrSet[addrIdx++];
+      addrs[i] = _getNextUserAddress();
       vm.label(addrs[i], vm.toString(i));
       bals[i] = addrs[i].balance;
     }
@@ -167,7 +167,7 @@ contract RelayerIncentivizeTest is Deployer {
     uint256 roundSeq = incentivize.roundSequence();
     vm.startPrank(address(crossChain));
     while (incentivize.roundSequence() == roundSeq) {
-      incentivize.addReward(addrSet[99], payable(address(crossChain)), 1e16, false);
+      incentivize.addReward(_getNextUserAddress(), payable(address(crossChain)), 1e16, false);
     }
     ++roundSeq;
 
@@ -194,7 +194,7 @@ contract RelayerIncentivizeTest is Deployer {
     uint256 roundSeq = incentivize.roundSequence();
     vm.startPrank(address(crossChain));
     while (incentivize.roundSequence() == roundSeq) {
-      incentivize.addReward(addrSet[99], payable(address(crossChain)), 1e16, false);
+      incentivize.addReward(_getNextUserAddress(), payable(address(crossChain)), 1e16, false);
     }
     ++roundSeq;
     incentivize.claimRelayerReward(relayer);

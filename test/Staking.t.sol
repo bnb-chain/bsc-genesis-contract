@@ -40,7 +40,8 @@ contract StakingTest is Deployer {
     _updateParamByGovHub(key, value, address(crossChain));
 
     // to init the staking contract
-    staking.delegate{value: 101 ether}(addrSet[addrIdx], 100 ether);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: 101 ether}(validator, 100 ether);
     relayFee = staking.getRelayerFee();
     bSCRelayFee = staking.bSCRelayerFee();
     minDelegation = staking.getMinDelegation();
@@ -48,7 +49,7 @@ contract StakingTest is Deployer {
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[addrIdx++].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (1e20 / decimal).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
@@ -91,48 +92,49 @@ contract StakingTest is Deployer {
 
   function testDelegate(uint16 amount) public {
     vm.assume(amount > 0);
+    address validator = _getNextUserAddress();
     uint256 bigAmount = uint256(amount) * minDelegation;
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (bigAmount / decimal).encodeUint();
 
     uint256 sendValue = minDelegation + relayFee + 1;
     vm.expectRevert(bytes("precision loss in conversion"));
-    staking.delegate{value: sendValue}(addrSet[0], minDelegation);
+    staking.delegate{value: sendValue}(validator, minDelegation);
 
     sendValue = minDelegation + relayFee;
     vm.expectRevert(bytes("precision loss in conversion"));
-    staking.delegate{value: sendValue}(addrSet[0], minDelegation + 1);
+    staking.delegate{value: sendValue}(validator, minDelegation + 1);
 
     vm.expectRevert(bytes("invalid delegate amount"));
-    staking.delegate{value: sendValue}(addrSet[0], 1e18);
+    staking.delegate{value: sendValue}(validator, 1e18);
 
     sendValue = minDelegation;
     vm.expectRevert(bytes("not enough msg value"));
-    staking.delegate{value: sendValue}(addrSet[0], minDelegation);
+    staking.delegate{value: sendValue}(validator, minDelegation);
 
     sendValue = minDelegation + relayFee / 2;
     vm.expectRevert(bytes("not enough msg value"));
-    staking.delegate{value: sendValue}(addrSet[0], minDelegation);
+    staking.delegate{value: sendValue}(validator, minDelegation);
 
     sendValue = bigAmount + relayFee;
     vm.expectEmit(true, true, false, true, address(staking));
-    emit delegateSubmitted(address(this), addrSet[0], bigAmount, relayFee - bSCRelayFee);
-    staking.delegate{value: sendValue}(addrSet[0], bigAmount);
+    emit delegateSubmitted(address(this), validator, bigAmount, relayFee - bSCRelayFee);
+    staking.delegate{value: sendValue}(validator, bigAmount);
 
-    uint256 delegatedBefore = staking.getDelegated(address(this), addrSet[0]);
+    uint256 delegatedBefore = staking.getDelegated(address(this), validator);
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.expectEmit(true, true, false, true, address(staking));
-    emit delegateSuccess(address(this), addrSet[0], bigAmount);
+    emit delegateSuccess(address(this), validator, bigAmount);
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
-    assertEq(bigAmount + delegatedBefore, staking.getDelegated(address(this), addrSet[0]));
+    assertEq(bigAmount + delegatedBefore, staking.getDelegated(address(this), validator));
   }
 
   function testUndelegate(uint16 amount) public {
     vm.assume(amount > 0);
-    address validator = addrSet[addrIdx++];
+    address validator = _getNextUserAddress();
     uint256 bigAmount = uint256(amount) * minDelegation;
     uint256 sendValue = relayFee + bigAmount + 2 * minDelegation + bSCRelayFee / 10;
     staking.delegate{value: sendValue}(validator, bigAmount + 2 * minDelegation + bSCRelayFee / 10);
@@ -158,7 +160,7 @@ contract StakingTest is Deployer {
     staking.undelegate{value: relayFee / 10}(validator, bigAmount);
 
     vm.expectRevert(bytes("not enough funds"));
-    staking.undelegate{value: relayFee}(addrSet[addrIdx++], bigAmount);
+    staking.undelegate{value: relayFee}(_getNextUserAddress(), bigAmount);
 
     vm.expectEmit(true, true, false, true, address(staking));
     emit undelegateSubmitted(address(this), validator, bigAmount, relayFee - bSCRelayFee);
@@ -186,61 +188,62 @@ contract StakingTest is Deployer {
   function testRedelegate(uint16 amount) public {
     vm.assume(amount > 0);
 
-    address validator = addrSet[addrIdx++];
+    address srcValidator = _getNextUserAddress();
+    address dstValidator = _getNextUserAddress();
     uint256 bigAmount = uint256(amount) * minDelegation;
     uint256 sendValue = relayFee + bigAmount + 2 * minDelegation + bSCRelayFee / 10;
-    staking.delegate{value: sendValue}(validator, bigAmount + 2 * minDelegation + bSCRelayFee / 10);
+    staking.delegate{value: sendValue}(srcValidator, bigAmount + 2 * minDelegation + bSCRelayFee / 10);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = validator.encodeAddress();
+    elements[1] = srcValidator.encodeAddress();
     elements[2] = ((bigAmount + 2 * minDelegation + bSCRelayFee / 10) / decimal).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
 
     vm.expectRevert(bytes("precision loss in conversion"));
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx++], bigAmount + 1);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, bigAmount + 1);
 
     vm.expectRevert(bytes("precision loss in conversion"));
-    staking.redelegate{value: relayFee + 1}(validator, addrSet[addrIdx++], bigAmount);
+    staking.redelegate{value: relayFee + 1}(srcValidator, dstValidator, bigAmount);
 
     vm.expectRevert(bytes("invalid redelegation"));
-    staking.redelegate{value: relayFee}(validator, validator, bigAmount);
+    staking.redelegate{value: relayFee}(srcValidator, srcValidator, bigAmount);
 
     vm.expectRevert(bytes("invalid amount"));
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx++], minDelegation / 10);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, minDelegation / 10);
 
-    console2.log(staking.getDelegated(address(this), validator));
+    console2.log(staking.getDelegated(address(this), srcValidator));
     vm.expectRevert(bytes("not enough funds"));
-    staking.redelegate{value: relayFee}(addrSet[addrIdx++], validator, bigAmount);
+    staking.redelegate{value: relayFee}(dstValidator, srcValidator, bigAmount);
 
     vm.expectRevert(bytes("not enough relay fee"));
-    staking.redelegate{value: relayFee / 10}(validator, addrSet[addrIdx++], bigAmount);
+    staking.redelegate{value: relayFee / 10}(srcValidator, dstValidator, bigAmount);
 
     vm.expectEmit(true, true, false, true, address(staking));
-    emit redelegateSubmitted(address(this), validator, addrSet[addrIdx], bigAmount, relayFee - bSCRelayFee);
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx], bigAmount);
+    emit redelegateSubmitted(address(this), srcValidator, dstValidator, bigAmount, relayFee - bSCRelayFee);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, bigAmount);
 
     bytes[] memory elements1 = new bytes[](4);
     elements1[0] = address(this).encodeAddress();
-    elements1[1] = validator.encodeAddress();
-    elements1[2] = addrSet[addrIdx].encodeAddress();
+    elements1[1] = srcValidator.encodeAddress();
+    elements1[2] = dstValidator.encodeAddress();
     elements1[3] = (bigAmount / decimal).encodeUint();
     ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_REDELEGATE, elements1.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
 
     vm.expectRevert(bytes("pending redelegation exist"));
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx], bigAmount);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, bigAmount);
 
     skip(8 days);
     vm.expectRevert(bytes("insufficient balance after redelegate"));
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx], 2 * minDelegation);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, 2 * minDelegation);
 
     vm.expectEmit(true, true, false, true, address(staking));
-    emit redelegateSubmitted(address(this), validator, addrSet[addrIdx], minDelegation, relayFee - bSCRelayFee);
-    staking.redelegate{value: relayFee}(validator, addrSet[addrIdx], minDelegation);
+    emit redelegateSubmitted(address(this), srcValidator, dstValidator, minDelegation, relayFee - bSCRelayFee);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, minDelegation);
   }
 
   function testHandleRewardSynPackage(uint256 reward) public {
@@ -248,7 +251,8 @@ contract StakingTest is Deployer {
     vm.assume(reward <= 1e18);
 
     uint256 sendValue = minDelegation + relayFee;
-    staking.delegate{value: sendValue}(addrSet[0], minDelegation);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, minDelegation);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = EVENT_DISTRIBUTE_REWARD.encodeUint();
@@ -271,11 +275,12 @@ contract StakingTest is Deployer {
   function testHandleUndelegatedSynPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, amount * minDelegation);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (amount * minDelegation / decimal).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
@@ -284,11 +289,11 @@ contract StakingTest is Deployer {
     bytes[] memory elements1 = new bytes[](4);
     elements1[0] = EVENT_DISTRIBUTE_UNDELEGATED.encodeUint();
     elements1[1] = address(this).encodeAddress();
-    elements1[2] = addrSet[0].encodeAddress();
+    elements1[2] = validator.encodeAddress();
     elements1[3] = (amount * minDelegation).encodeUint();
 
     vm.expectEmit(true, true, false, true, address(staking));
-    emit undelegatedReceived(address(this), addrSet[0], amount * minDelegation);
+    emit undelegatedReceived(address(this), validator, amount * minDelegation);
     vm.startPrank(address(crossChain));
     staking.handleSynPackage(CROSS_STAKE_CHANNELID, elements1.encodeList());
     vm.stopPrank();
@@ -301,19 +306,19 @@ contract StakingTest is Deployer {
   }
 
   function testHandleDelegateAckPackage() public {
-    //    vm.assume(amount > 0);
     uint16 amount = 5;
     uint256 sendValue = amount * minDelegation + relayFee;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, amount * minDelegation);
 
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (amount * minDelegation / decimal).encodeUint();
 
     bytes memory ackPack = _genAckPack(uint8(0), uint8(1), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.expectEmit(true, true, false, true, address(staking));
-    emit delegateFailed(address(this), addrSet[0], amount * minDelegation, uint8(1));
+    emit delegateFailed(address(this), validator, amount * minDelegation, uint8(1));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
   }
@@ -321,19 +326,20 @@ contract StakingTest is Deployer {
   function testHandleUndelegateAckPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, amount * minDelegation);
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (amount * minDelegation / decimal).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
-    staking.undelegate{value: relayFee}(addrSet[0], amount * minDelegation);
+    staking.undelegate{value: relayFee}(validator, amount * minDelegation);
 
     ackPack = _genAckPack(uint8(0), uint8(1), _RLPEncode(EVENT_UNDELEGATE, elements.encodeList()));
     vm.expectEmit(true, true, false, true, address(staking));
-    emit undelegateFailed(address(this), addrSet[0], amount * minDelegation, uint8(1));
+    emit undelegateFailed(address(this), validator, amount * minDelegation, uint8(1));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
   }
@@ -341,25 +347,27 @@ contract StakingTest is Deployer {
   function testHandleRedelegateAckPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
+    address srcValidator = _getNextUserAddress();
+    address dstValidator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(srcValidator, amount * minDelegation);
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = srcValidator.encodeAddress();
     elements[2] = (amount * minDelegation / decimal).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
-    staking.redelegate{value: relayFee}(addrSet[0], addrSet[1], amount * minDelegation);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, amount * minDelegation);
 
     bytes[] memory elements1 = new bytes[](4);
     elements1[0] = address(this).encodeAddress();
-    elements1[1] = addrSet[0].encodeAddress();
-    elements1[2] = addrSet[1].encodeAddress();
+    elements1[1] = srcValidator.encodeAddress();
+    elements1[2] = dstValidator.encodeAddress();
     elements1[3] = (amount * minDelegation / decimal).encodeUint();
 
     ackPack = _genAckPack(uint8(0), uint8(1), _RLPEncode(EVENT_REDELEGATE, elements1.encodeList()));
     vm.expectEmit(true, true, true, true, address(staking));
-    emit redelegateFailed(address(this), addrSet[0], addrSet[1], amount * minDelegation, uint8(1));
+    emit redelegateFailed(address(this), srcValidator, dstValidator, amount * minDelegation, uint8(1));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
   }
@@ -367,15 +375,16 @@ contract StakingTest is Deployer {
   function testHandleDelegateFailAckPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
-    uint256 bcAmount = amount * minDelegation / decimal;
-    uint8 eventCode = EVENT_DELEGATE;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, amount * minDelegation);
 
+    uint256 bcAmount = amount * minDelegation / decimal;
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (bcAmount).encodeUint();
 
+    uint8 eventCode = EVENT_DELEGATE;
     vm.expectEmit(false, false, false, true, address(staking));
     emit crashResponse(eventCode);
     vm.startPrank(address(crossChain));
@@ -386,18 +395,20 @@ contract StakingTest is Deployer {
   function testHandleUndelegateFailAckPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
+    address validator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(validator, amount * minDelegation);
+
     uint256 bcAmount = amount * minDelegation / decimal;
-    uint8 eventCode = EVENT_UNDELEGATE;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = validator.encodeAddress();
     elements[2] = (bcAmount).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
-    staking.undelegate{value: relayFee}(addrSet[0], amount * minDelegation);
+    staking.undelegate{value: relayFee}(validator, amount * minDelegation);
 
+    uint8 eventCode = EVENT_UNDELEGATE;
     vm.expectEmit(false, false, false, true, address(staking));
     emit crashResponse(eventCode);
     vm.startPrank(address(crossChain));
@@ -408,24 +419,27 @@ contract StakingTest is Deployer {
   function testHandleRedelegateFailAckPackage(uint16 amount) public {
     vm.assume(amount > 0);
     uint256 sendValue = amount * minDelegation + relayFee;
+    address srcValidator = _getNextUserAddress();
+    staking.delegate{value: sendValue}(srcValidator, amount * minDelegation);
+
+    address dstValidator = _getNextUserAddress();
     uint256 bcAmount = amount * minDelegation / decimal;
-    uint8 eventCode = EVENT_REDELEGATE;
-    staking.delegate{value: sendValue}(addrSet[0], amount * minDelegation);
     bytes[] memory elements = new bytes[](3);
     elements[0] = address(this).encodeAddress();
-    elements[1] = addrSet[0].encodeAddress();
+    elements[1] = srcValidator.encodeAddress();
     elements[2] = (bcAmount).encodeUint();
     bytes memory ackPack = _genAckPack(uint8(1), uint8(0), _RLPEncode(EVENT_DELEGATE, elements.encodeList()));
     vm.prank(address(crossChain));
     staking.handleAckPackage(CROSS_STAKE_CHANNELID, ackPack);
-    staking.redelegate{value: relayFee}(addrSet[0], addrSet[1], amount * minDelegation);
+    staking.redelegate{value: relayFee}(srcValidator, dstValidator, amount * minDelegation);
 
     bytes[] memory elements1 = new bytes[](4);
     elements1[0] = address(this).encodeAddress();
-    elements1[1] = addrSet[0].encodeAddress();
-    elements1[2] = addrSet[1].encodeAddress();
+    elements1[1] = srcValidator.encodeAddress();
+    elements1[2] = dstValidator.encodeAddress();
     elements1[3] = (bcAmount).encodeUint();
 
+    uint8 eventCode = EVENT_REDELEGATE;
     vm.expectEmit(false, false, false, true, address(staking));
     emit crashResponse(eventCode);
     vm.startPrank(address(crossChain));

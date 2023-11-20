@@ -20,13 +20,11 @@ contract SystemRewardTest is Deployer {
   function testOperator() public {
     assertTrue(systemReward.isOperator(LIGHT_CLIENT_ADDR), "light client should be operator");
     assertTrue(systemReward.isOperator(INCENTIVIZE_ADDR), "relayer incentivize should be operator");
-    assertTrue(!systemReward.isOperator(addrSet[0]), "address in addrSet should not be operator");
-    assertTrue(!systemReward.isOperator(addrSet[49]), "address in addrSet should not be operator");
-    assertTrue(!systemReward.isOperator(addrSet[99]), "address in addrSet should not be operator");
+    assertTrue(!systemReward.isOperator(_getNextUserAddress()), "address should not be operator");
   }
 
   function testClaimReward() public {
-    address payable newAccount = addrSet[addrIdx++];
+    address payable newAccount = _getNextUserAddress();
 
     payable(address(systemReward)).transfer(1 ether);
     vm.expectEmit(true, false, false, true, address(systemReward));
@@ -46,16 +44,16 @@ contract SystemRewardTest is Deployer {
 
   function testGov() public {
     bytes memory key = "addOperator";
-    bytes memory valueBytes = abi.encodePacked(address(validator));
+    bytes memory valueBytes = abi.encodePacked(address(bscValidatorSet));
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);
     _updateParamByGovHub(key, valueBytes, address(systemReward));
-    assertTrue(systemReward.isOperator(address(validator)));
+    assertTrue(systemReward.isOperator(address(bscValidatorSet)));
 
     key = "deleteOperator";
     vm.expectEmit(false, false, false, true, address(systemReward));
     emit paramChange(string(key), valueBytes);
     _updateParamByGovHub(key, valueBytes, address(systemReward));
-    assertFalse(systemReward.isOperator(address(validator)));
+    assertFalse(systemReward.isOperator(address(bscValidatorSet)));
   }
 }
