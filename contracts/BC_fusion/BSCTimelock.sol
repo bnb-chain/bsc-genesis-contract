@@ -23,6 +23,7 @@ contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
             require(valueLength == 32, "INVALID_VALUE_LENGTH");
             uint256 newMinDelay = Utils.bytesToUint256(value, valueLength);
             require(newMinDelay > 0, "INVALID_MIN_DELAY");
+            require(newMinDelay < 14 days, "INVALID_MIN_DELAY");
             this.updateDelay(newMinDelay);
         } else {
             revert("UNKNOWN_PARAM");

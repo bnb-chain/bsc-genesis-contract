@@ -44,7 +44,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
         validator = _validator;
 
-        assert(msg.value != 0);
+        require(msg.value != 0);
         _bootstrapInitialHolder(msg.value);
     }
 

@@ -41,9 +41,9 @@ contract StakeHub is System, Initializable {
 
     // slash params
     uint256 public downtimeSlashAmount;
-    uint256 public doubleSignSlashAmount;
+    uint256 public felonySlashAmount;
     uint256 public downtimeJailTime;
-    uint256 public doubleSignJailTime;
+    uint256 public felonyJailTime;
 
     // validator operator address set
     EnumerableSet.AddressSet private _validatorSet;
@@ -54,14 +54,18 @@ contract StakeHub is System, Initializable {
     // validator consensus address => validator operator address
     mapping(address => address) private _consensusToOperator;
     // slash key => slash jail time
-    mapping(bytes32 => uint256) private _slashRecords;
+    mapping(bytes32 => uint256) private _felonyRecords;
 
     // legacy address of BC
     mapping(address => bool) private _legacyConsensusAddress;
     mapping(bytes => bool) private _legacyVoteAddress;
 
     uint256 public numOfJailed;
-    mapping(uint256 => uint256) private jailedBitMap;
+
+    // max number of jailed validators per day(only for malicious vote and double sign)
+    uint256 public felonyPerDay;
+    // days => num of malicious vote and double sign slash
+    mapping(uint256 => uint256) private _felonyMap;
 
     address public assetProtector;
     mapping(address => bool) public blackList;
@@ -162,9 +166,10 @@ contract StakeHub is System, Initializable {
         maxElectedValidators = 29;
         unbondPeriod = 7 days;
         downtimeSlashAmount = 10 ether;
-        doubleSignSlashAmount = 200 ether;
+        felonySlashAmount = 200 ether;
         downtimeJailTime = 2 days;
-        doubleSignJailTime = 30 days;
+        felonyJailTime = 30 days;
+        felonyPerDay = 2;
 
         address[] memory bcConsensusAddress;
         bytes[] memory bcVoteAddress;
@@ -466,21 +471,16 @@ contract StakeHub is System, Initializable {
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
         // check if can be jailed
-        // there are two slots for each day
-        uint256 dayIndex1 = (block.timestamp / 1 days) * 2;
-        uint256 dayIndex2 = dayIndex1 + 1;
-        if (_canBeJailed(dayIndex1)) {
-            _setJailed(dayIndex1);
-        } else if (_canBeJailed(dayIndex2)) {
-            _setJailed(dayIndex2);
-        } else {
-            return;
+        uint256 dayIndex = block.timestamp;
+        if (_felonyMap[dayIndex] >= felonyPerDay) {
+            revert("TOO_MANY_JAILED");
         }
+        _felonyMap[dayIndex] += 1;
 
         // slash
-        (bool canSlash, uint256 jailUntil) = _checkSlashRecord(operatorAddress, SlashType.MaliciousVote);
+        (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.MaliciousVote);
         require(canSlash, "ALREADY_SLASHED");
-        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
+        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
@@ -495,21 +495,16 @@ contract StakeHub is System, Initializable {
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
         // check if can be jailed
-        // there are two slots for each day
-        uint256 dayIndex1 = (block.timestamp / 1 days) * 2;
-        uint256 dayIndex2 = dayIndex1 + 1;
-        if (_canBeJailed(dayIndex1)) {
-            _setJailed(dayIndex1);
-        } else if (_canBeJailed(dayIndex2)) {
-            _setJailed(dayIndex2);
-        } else {
-            revert("NO_JAIL_SLOT");
+        uint256 dayIndex = block.timestamp;
+        if (_felonyMap[dayIndex] >= felonyPerDay) {
+            revert("TOO_MANY_JAILED");
         }
+        _felonyMap[dayIndex] += 1;
 
         // slash
-        (bool canSlash, uint256 jailUntil) = _checkSlashRecord(operatorAddress, SlashType.DoubleSign);
+        (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.DoubleSign);
         require(canSlash, "ALREADY_SLASHED");
-        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(doubleSignSlashAmount);
+        uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
@@ -517,7 +512,6 @@ contract StakeHub is System, Initializable {
         _sync(valInfo.creditContract, operatorAddress);
     }
 
-    /*----------------- gov -----------------*/
     function pauseStaking() external onlyAssetProtector {
         _stakingPaused = true;
         emit StakingPaused();
@@ -550,7 +544,7 @@ contract StakeHub is System, Initializable {
         } else if (key.compareStrings("minDelegationBNBChange")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newMinDelegationBNBChange = value.bytesToUint256(32);
-            require(newMinDelegationBNBChange >= 1 ether, "INVALID_MIN_DELEGATION_BNB_CHANGE");
+            require(newMinDelegationBNBChange >= 0.1 ether, "INVALID_MIN_DELEGATION_BNB_CHANGE");
             minDelegationBNBChange = newMinDelegationBNBChange;
         } else if (key.compareStrings("maxElectedValidators")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
@@ -567,33 +561,33 @@ contract StakeHub is System, Initializable {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDowntimeSlashAmount = value.bytesToUint256(32);
             require(
-                newDowntimeSlashAmount >= 5 ether && newDowntimeSlashAmount < doubleSignSlashAmount,
+                newDowntimeSlashAmount >= 5 ether && newDowntimeSlashAmount < felonySlashAmount,
                 "INVALID_DOWNTIME_SLASH_AMOUNT"
             );
             downtimeSlashAmount = newDowntimeSlashAmount;
-        } else if (key.compareStrings("doubleSignSlashAmount")) {
+        } else if (key.compareStrings("felonySlashAmount")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
-            uint256 newDoubleSignSlashAmount = value.bytesToUint256(32);
+            uint256 newFelonySlashAmount = value.bytesToUint256(32);
             require(
-                newDoubleSignSlashAmount >= 1000 ether && newDoubleSignSlashAmount > downtimeSlashAmount,
-                "INVALID_DOUBLE_SIGN_SLASH_AMOUNT"
+                newFelonySlashAmount >= 1000 ether && newFelonySlashAmount > downtimeSlashAmount,
+                "INVALID_FELONY_SLASH_AMOUNT"
             );
-            doubleSignSlashAmount = newDoubleSignSlashAmount;
+            felonySlashAmount = newFelonySlashAmount;
         } else if (key.compareStrings("downtimeJailTime")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newDowntimeJailTime = value.bytesToUint256(32);
-            require(
-                newDowntimeJailTime >= 2 days && newDowntimeJailTime < doubleSignJailTime, "INVALID_DOWNTIME_JAIL_TIME"
-            );
+            require(newDowntimeJailTime >= 2 days && newDowntimeJailTime < felonyJailTime, "INVALID_DOWNTIME_JAIL_TIME");
             downtimeJailTime = newDowntimeJailTime;
-        } else if (key.compareStrings("doubleSignJailTime")) {
+        } else if (key.compareStrings("felonyJailTime")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
-            uint256 newDoubleSignJailTime = value.bytesToUint256(32);
-            require(
-                newDoubleSignJailTime >= 100 days && newDoubleSignJailTime > downtimeJailTime,
-                "INVALID_DOUBLE_SIGN_JAIL_TIME"
-            );
-            doubleSignJailTime = newDoubleSignJailTime;
+            uint256 newFelonyJailTime = value.bytesToUint256(32);
+            require(newFelonyJailTime >= 100 days && newFelonyJailTime > downtimeJailTime, "INVALID_FELONY_JAIL_TIME");
+            felonyJailTime = newFelonyJailTime;
+        } else if (key.compareStrings("felonyPerDay")) {
+            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            uint256 newJailedPerDay = value.bytesToUint256(32);
+            require(newJailedPerDay != 0, "INVALID_JAILED_PER_DAY");
+            felonyPerDay = newJailedPerDay;
         } else if (key.compareStrings("assetProtector")) {
             require(value.length == 20, "INVALID_VALUE_LENGTH");
             address newAssetProtector = value.bytesToAddress(20);
@@ -758,16 +752,16 @@ contract StakeHub is System, Initializable {
         }
     }
 
-    function _checkSlashRecord(address operatorAddress, SlashType slashType) internal returns (bool, uint256) {
+    function _checkFelonyRecord(address operatorAddress, SlashType slashType) internal returns (bool, uint256) {
         bytes32 slashKey = keccak256(abi.encodePacked(operatorAddress, slashType));
-        uint256 jailUntil = _slashRecords[slashKey];
+        uint256 jailUntil = _felonyRecords[slashKey];
         // for double sign and malicious vote slash
         // if the validator is already jailed, no need to slash again
         if (jailUntil > block.timestamp) {
             return (false, 0);
         }
-        jailUntil = block.timestamp + doubleSignJailTime;
-        _slashRecords[slashKey] = jailUntil;
+        jailUntil = block.timestamp + felonyJailTime;
+        _felonyRecords[slashKey] = jailUntil;
         return (true, jailUntil);
     }
 
@@ -789,19 +783,5 @@ contract StakeHub is System, Initializable {
 
             emit ValidatorJailed(valInfo.operatorAddress);
         }
-    }
-
-    function _canBeJailed(uint256 index) internal view returns (bool) {
-        uint256 jailedWordIndex = index / 256;
-        uint256 jailedBitIndex = index % 256;
-        uint256 mask = (1 << jailedBitIndex);
-        return jailedBitMap[jailedWordIndex] & mask != mask;
-    }
-
-    function _setJailed(uint256 index) internal {
-        uint256 jailedWordIndex = index / 256;
-        uint256 jailedBitIndex = index % 256;
-        uint256 mask = (1 << jailedBitIndex);
-        jailedBitMap[jailedWordIndex] = jailedBitMap[jailedWordIndex] | mask;
     }
 }
