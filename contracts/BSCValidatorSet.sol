@@ -56,7 +56,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-  uint256 public constant INIT_BURN_RATIO = 0; // deprecated
+  uint256 public constant INIT_BURN_RATIO = 1000;
   uint256 public burnRatio;
   bool public burnRatioInitialized; // deprecated
 
@@ -229,7 +229,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     if (isSystemRewardIncluded == false){
       systemRewardRatio = INIT_SYSTEM_REWARD_RATIO;
-      burnRatio = 938; // 15/16*10% is 9.375%
+      burnRatio = INIT_BURN_RATIO;
       isSystemRewardIncluded = true;
     }
 
