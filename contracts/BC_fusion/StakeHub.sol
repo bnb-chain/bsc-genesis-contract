@@ -384,17 +384,13 @@ contract StakeHub is System, Initializable {
         address delegator = msg.sender;
         Validator memory srcValInfo = _validators[srcValidator];
         Validator memory dstValInfo = _validators[dstValidator];
-        require(
-            IStakeCredit(srcValInfo.creditContract).getPooledBNBByShares(shares) >= minDelegationBNBChange,
-            "INVALID_REDELEGATION_AMOUNT"
-        );
-
         if (dstValInfo.jailed) {
             // only self delegation
             require(delegator == dstValidator, "ONLY_SELF_DELEGATION");
         }
 
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
+        require(bnbAmount >= minDelegationBNBChange, "INVALID_REDELEGATION_AMOUNT");
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
