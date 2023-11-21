@@ -561,7 +561,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return;
     }
 
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(payable(address(this)), totalValue);
     if (totalValue == 0) {
       return;
     }

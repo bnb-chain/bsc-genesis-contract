@@ -228,7 +228,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
         uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony( vals[i]);
         break;
       }
