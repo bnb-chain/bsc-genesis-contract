@@ -471,7 +471,7 @@ contract StakeHub is System, Initializable {
         require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
         // check if can be jailed
-        uint256 dayIndex = block.timestamp;
+        uint256 dayIndex = block.timestamp / 1 days;
         if (_felonyMap[dayIndex] >= felonyPerDay) {
             revert("TOO_MANY_JAILED");
         }
@@ -569,7 +569,7 @@ contract StakeHub is System, Initializable {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newFelonySlashAmount = value.bytesToUint256(32);
             require(
-                newFelonySlashAmount >= 1000 ether && newFelonySlashAmount > downtimeSlashAmount,
+                newFelonySlashAmount >= 100 ether && newFelonySlashAmount > downtimeSlashAmount,
                 "INVALID_FELONY_SLASH_AMOUNT"
             );
             felonySlashAmount = newFelonySlashAmount;
@@ -581,7 +581,7 @@ contract StakeHub is System, Initializable {
         } else if (key.compareStrings("felonyJailTime")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
             uint256 newFelonyJailTime = value.bytesToUint256(32);
-            require(newFelonyJailTime >= 100 days && newFelonyJailTime > downtimeJailTime, "INVALID_FELONY_JAIL_TIME");
+            require(newFelonyJailTime >= 10 days && newFelonyJailTime > downtimeJailTime, "INVALID_FELONY_JAIL_TIME");
             felonyJailTime = newFelonyJailTime;
         } else if (key.compareStrings("felonyPerDay")) {
             require(value.length == 32, "INVALID_VALUE_LENGTH");
