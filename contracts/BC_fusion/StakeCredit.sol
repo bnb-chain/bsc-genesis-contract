@@ -22,9 +22,9 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
     // hash of the unbond request => unbond request
     mapping(bytes32 => UnbondRequest) private _unbondRequests;
-    // user => unbond request queue(hash of the request)
+    // user address => unbond request queue(hash of the request)
     mapping(address => DoubleEndedQueueUpgradeable.Bytes32Deque) private _unbondRequestsQueue;
-    // user => personal unbond sequence
+    // user address => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
 
     struct UnbondRequest {
@@ -76,8 +76,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
         bnbAmount = _burnAndSync(delegator, shares);
 
-        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = STAKE_HUB_ADDR.call{ gas: _gasLimit, value: bnbAmount }("");
+        (bool success,) = STAKE_HUB_ADDR.call{ value: bnbAmount }("");
         require(success, "TRANSFER_FAILED");
     }
 
@@ -132,8 +131,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         slashShares = slashShares > selfDelegation ? selfDelegation : slashShares;
         uint256 realSlashBnbAmount = _burnAndSync(validator, slashShares);
 
-        uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
-        (bool success,) = SYSTEM_REWARD_ADDR.call{ gas: _gasLimit, value: realSlashBnbAmount }("");
+        (bool success,) = SYSTEM_REWARD_ADDR.call{ value: realSlashBnbAmount }("");
         require(success, "TRANSFER_FAILED");
         return realSlashBnbAmount;
     }

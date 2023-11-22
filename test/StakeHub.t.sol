@@ -23,15 +23,10 @@ contract StakeHubTest is Deployer {
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event Redelegated(
-        address indexed srcValidator,
-        address indexed dstValidator,
-        address indexed delegator,
-        uint256 bnbAmount
+        address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount
     );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
-    event ValidatorSlashed(
-        address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType
-    );
+    event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType);
     event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
@@ -379,9 +374,9 @@ contract StakeHubTest is Deployer {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
             (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
-            newConsensusAddrs[length - i -1] = consensusAddress;
-            newVotingPower[length - i -1] = votingPower;
-            newVoteAddrs[length - i -1] = voteAddress;
+            newConsensusAddrs[length - i - 1] = consensusAddress;
+            newVotingPower[length - i - 1] = votingPower;
+            newVoteAddrs[length - i - 1] = voteAddress;
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
@@ -389,17 +384,19 @@ contract StakeHubTest is Deployer {
 
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2) * 1e8;
-            newConsensusAddrs[length - i -1] = _getNextUserAddress();
-            newVotingPower[length - i -1] = votingPower;
-            newVoteAddrs[length - i -1] = bytes(vm.toString(newConsensusAddrs[i]));
+            newConsensusAddrs[length - i - 1] = _getNextUserAddress();
+            newVotingPower[length - i - 1] = votingPower;
+            newVoteAddrs[length - i - 1] = bytes(vm.toString(newConsensusAddrs[i]));
         }
         vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newConsensusAddrs, newVotingPower, newVoteAddrs));
+        bscValidatorSet.handleSynPackage(
+            STAKING_CHANNELID, _encodeValidatorSetUpdatePack(newConsensusAddrs, newVotingPower, newVoteAddrs)
+        );
 
-        ( , , , uint64 preVotingPower, , ) = bscValidatorSet.currentValidatorSet(0);
+        (,,, uint64 preVotingPower,,) = bscValidatorSet.currentValidatorSet(0);
         uint64 curVotingPower;
         for (uint256 i = 1; i < length; ++i) {
-            ( , , , curVotingPower, , ) = bscValidatorSet.currentValidatorSet(i);
+            (,,, curVotingPower,,) = bscValidatorSet.currentValidatorSet(i);
             assert(curVotingPower <= preVotingPower);
             preVotingPower = curVotingPower;
         }
@@ -426,9 +423,9 @@ contract StakeHubTest is Deployer {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
             (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
-            newConsensusAddrs[length - i -1] = consensusAddress;
-            newVotingPower[length - i -1] = votingPower;
-            newVoteAddrs[length - i -1] = voteAddress;
+            newConsensusAddrs[length - i - 1] = consensusAddress;
+            newVotingPower[length - i - 1] = votingPower;
+            newVoteAddrs[length - i - 1] = voteAddress;
         }
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
@@ -465,7 +462,11 @@ contract StakeHubTest is Deployer {
         (, credit,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
     }
 
-    function _encodeValidatorSetUpdatePack(address[] memory valSet, uint64[] memory votingPowers, bytes[] memory voteAddrs) internal pure returns (bytes memory) {
+    function _encodeValidatorSetUpdatePack(
+        address[] memory valSet,
+        uint64[] memory votingPowers,
+        bytes[] memory voteAddrs
+    ) internal pure returns (bytes memory) {
         bytes[] memory elements = new bytes[](2);
         elements[0] = uint8(0).encodeUint();
 

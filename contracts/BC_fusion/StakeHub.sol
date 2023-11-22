@@ -29,7 +29,8 @@ contract StakeHub is System, Initializable {
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
     /*----------------- storage -----------------*/
-    bool private _stakingPaused;
+    bool private _paused;
+    uint8 private _isRedelegating;
 
     uint256 public transferGasLimit;
 
@@ -132,17 +133,17 @@ contract StakeHub is System, Initializable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event StakingPaused();
-    event StakingResumed();
+    event Paused();
+    event Resumed();
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
-        require(_validators[operatorAddress].creditContract != address(0), "VALIDATOR_NOT_EXIST");
+        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST");
         _;
     }
 
     modifier whenNotPaused() {
-        require(!_stakingPaused, "STAKE_STOPPED");
+        require(!_paused, "STAKE_HUB_PAUSED");
         _;
     }
 
@@ -156,7 +157,10 @@ contract StakeHub is System, Initializable {
         _;
     }
 
-    receive() external payable { }
+    receive() external payable {
+        // to prevent BNB from being lost
+        require(_isRedelegating == 1);
+    }
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
@@ -195,7 +199,7 @@ contract StakeHub is System, Initializable {
     ) external payable whenNotPaused notInBlackList {
         // basic check
         address operatorAddress = msg.sender;
-        require(_validators[operatorAddress].creditContract == address(0), "VALIDATOR_EXISTED");
+        require(!_validatorSet.contains(operatorAddress), "VALIDATOR_EXISTED");
         require(
             _consensusToOperator[consensusAddress] == address(0) && !_legacyConsensusAddress[consensusAddress],
             "DUPLICATE_CONSENSUS_ADDRESS"
@@ -213,10 +217,12 @@ contract StakeHub is System, Initializable {
         require(_checkMoniker(description.moniker), "INVALID_MONIKER");
         require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
 
-        // deploy stake pool
+        // deploy stake credit proxy contract
         address creditContract = _deployStakeCredit(operatorAddress, description.moniker);
 
-        _validatorSet.add(operatorAddress);
+        bool success = _validatorSet.add(operatorAddress);
+        require(success, "ADD_VALIDATOR_FAILED"); // should never happen
+
         Validator storage valInfo = _validators[operatorAddress];
         valInfo.consensusAddress = consensusAddress;
         valInfo.operatorAddress = operatorAddress;
@@ -315,7 +321,7 @@ contract StakeHub is System, Initializable {
         emit VoteAddressEdited(operatorAddress, newVoteAddress);
     }
 
-    function unjail(address operatorAddress) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
+    function unjail(address operatorAddress) external whenNotPaused validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         require(valInfo.jailed, "NOT_JAILED");
 
@@ -339,16 +345,15 @@ contract StakeHub is System, Initializable {
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-
         if (valInfo.jailed) {
-            // only self delegation
+            // only self delegation allowed
             require(delegator == operatorAddress, "ONLY_SELF_DELEGATION");
         }
 
         uint256 shares = IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
-        _sync(valInfo.creditContract, delegator);
+        _syncGovToken(valInfo.creditContract, delegator);
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, operatorAddress);
         }
@@ -362,6 +367,7 @@ contract StakeHub is System, Initializable {
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
+
         uint256 bnbAmount = IStakeCredit(valInfo.creditContract).undelegate(delegator, shares);
         emit Undelegated(operatorAddress, delegator, shares, bnbAmount);
 
@@ -369,7 +375,7 @@ contract StakeHub is System, Initializable {
             _checkValidatorSelfDelegation(operatorAddress);
         }
 
-        _sync(valInfo.creditContract, delegator);
+        _syncGovToken(valInfo.creditContract, delegator);
     }
 
     function redelegate(
@@ -385,23 +391,25 @@ contract StakeHub is System, Initializable {
         Validator memory srcValInfo = _validators[srcValidator];
         Validator memory dstValInfo = _validators[dstValidator];
         if (dstValInfo.jailed) {
-            // only self delegation
+            // only self delegation allowed
             require(delegator == dstValidator, "ONLY_SELF_DELEGATION");
         }
 
+        _isRedelegating = 1;
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         require(bnbAmount >= minDelegationBNBChange, "INVALID_REDELEGATION_AMOUNT");
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
+        _isRedelegating = 0;
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
         if (delegator == srcValidator) {
             _checkValidatorSelfDelegation(srcValidator);
         }
 
-        address[] memory _pools = new address[](2);
-        _pools[0] = srcValInfo.creditContract;
-        _pools[1] = dstValInfo.creditContract;
-        IGovToken(GOV_TOKEN_ADDR).sync(_pools, delegator);
+        address[] memory stakeCredits = new address[](2);
+        stakeCredits[0] = srcValInfo.creditContract;
+        stakeCredits[1] = dstValInfo.creditContract;
+        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, delegator);
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
         }
@@ -418,20 +426,23 @@ contract StakeHub is System, Initializable {
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
-    function sync(address[] calldata operatorAddresses, address account) external whenNotPaused notInBlackList {
+    function syncGovToken(address[] calldata operatorAddresses, address account) external whenNotPaused {
         uint256 _length = operatorAddresses.length;
         address[] memory stakeCredits = new address[](_length);
-        address _pool;
+        address credit;
         for (uint256 i = 0; i < _length; ++i) {
-            _pool = _validators[operatorAddresses[i]].creditContract;
-            require(_pool != address(0), "validator not exist");
-            stakeCredits[i] = _pool;
+            credit = _validators[operatorAddresses[i]].creditContract;
+            require(credit != address(0), "VALIDATOR_NOT_EXIST");
+            stakeCredits[i] = credit;
         }
 
         IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, account);
     }
 
     /*----------------- system functions -----------------*/
+    /**
+     * @dev This function will be called by consensus engine. So it should never revert.
+     */
     function distributeReward(address consensusAddress) external payable onlyValidatorContract {
         address operatorAddress = _consensusToOperator[consensusAddress];
         Validator memory valInfo = _validators[operatorAddress];
@@ -446,9 +457,8 @@ contract StakeHub is System, Initializable {
 
     function downtimeSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
-        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
         // slash
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(downtimeSlashAmount);
@@ -457,20 +467,16 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DownTime);
 
-        _sync(valInfo.creditContract, operatorAddress);
+        _syncGovToken(valInfo.creditContract, operatorAddress);
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
         address operatorAddress = _voteToOperator[_voteAddr];
-        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
-        // check if can be jailed
         uint256 dayIndex = block.timestamp / 1 days;
-        if (_felonyMap[dayIndex] >= felonyPerDay) {
-            revert("TOO_MANY_JAILED");
-        }
+        require(_felonyMap[dayIndex] < felonyPerDay, "NO_MORE_FELONY_TODAY");
         _felonyMap[dayIndex] += 1;
 
         // slash
@@ -481,20 +487,16 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
-        _sync(valInfo.creditContract, operatorAddress);
+        _syncGovToken(valInfo.creditContract, operatorAddress);
     }
 
     function doubleSignSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
-        require(operatorAddress != address(0), "INVALID_CONSENSUS_ADDRESS"); // should never happen
+        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.creditContract != address(0), "VALIDATOR_NOT_EXIST");
 
-        // check if can be jailed
         uint256 dayIndex = block.timestamp;
-        if (_felonyMap[dayIndex] >= felonyPerDay) {
-            revert("TOO_MANY_JAILED");
-        }
+        require(_felonyMap[dayIndex] < felonyPerDay, "NO_MORE_FELONY_TODAY");
         _felonyMap[dayIndex] += 1;
 
         // slash
@@ -505,25 +507,25 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
-        _sync(valInfo.creditContract, operatorAddress);
+        _syncGovToken(valInfo.creditContract, operatorAddress);
     }
 
-    function pauseStaking() external onlyAssetProtector {
-        _stakingPaused = true;
-        emit StakingPaused();
+    function pause() external onlyAssetProtector {
+        _paused = true;
+        emit Paused();
     }
 
-    function resumeStaking() external onlyAssetProtector {
-        _stakingPaused = false;
-        emit StakingResumed();
+    function resume() external onlyAssetProtector {
+        _paused = false;
+        emit Resumed();
     }
 
-    function addBlackList(address _addr) external onlyAssetProtector {
-        blackList[_addr] = true;
+    function addToBlackList(address account) external onlyAssetProtector {
+        blackList[account] = true;
     }
 
-    function removeBlackList(address _addr) external onlyAssetProtector {
-        blackList[_addr] = false;
+    function removeFromBlackList(address account) external onlyAssetProtector {
+        blackList[account] = false;
     }
 
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
@@ -597,12 +599,13 @@ contract StakeHub is System, Initializable {
 
     /*----------------- view functions -----------------*/
     function isPaused() external view returns (bool) {
-        return _stakingPaused;
+        return _paused;
     }
 
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
+        validatorExist(operatorAddress)
         returns (
             address consensusAddress,
             address creditContract,
@@ -619,11 +622,21 @@ contract StakeHub is System, Initializable {
         jailUntil = valInfo.jailUntil;
     }
 
-    function getValidatorDescription(address operatorAddress) external view returns (Description memory) {
+    function getValidatorDescription(address operatorAddress)
+        external
+        view
+        validatorExist(operatorAddress)
+        returns (Description memory)
+    {
         return _validators[operatorAddress].description;
     }
 
-    function getValidatorCommission(address operatorAddress) external view returns (Commission memory) {
+    function getValidatorCommission(address operatorAddress)
+        external
+        view
+        validatorExist(operatorAddress)
+        returns (Commission memory)
+    {
         return _validators[operatorAddress].commission;
     }
 
@@ -668,10 +681,10 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _sync(address stakeCredit, address account) private {
-        address[] memory _pools = new address[](1);
-        _pools[0] = stakeCredit;
-        IGovToken(GOV_TOKEN_ADDR).sync(_pools, account);
+    function _syncGovToken(address credit, address account) private {
+        address[] memory stakeCredits = new address[](1);
+        stakeCredits[0] = credit;
+        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, account);
     }
 
     function _checkMoniker(string memory moniker) internal pure returns (bool) {

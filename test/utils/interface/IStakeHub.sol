@@ -24,6 +24,7 @@ interface StakeHub {
     event DescriptionEdited(address indexed operatorAddress);
     event Initialized(uint8 version);
     event ParamChange(string key, bytes value);
+    event Paused();
     event Redelegated(
         address indexed srcValidator,
         address indexed dstValidator,
@@ -32,10 +33,9 @@ interface StakeHub {
         uint256 newShares,
         uint256 bnbAmount
     );
+    event Resumed();
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
-    event StakingPaused();
-    event StakingResumed();
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ValidatorCreated(
         address indexed consensusAddress,
@@ -53,7 +53,7 @@ interface StakeHub {
 
     receive() external payable;
 
-    function addBlackList(address _addr) external;
+    function addToBlackList(address account) external;
     function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
     function claim(address operatorAddress, uint256 requestNumber) external;
@@ -107,11 +107,11 @@ interface StakeHub {
     function minDelegationBNBChange() external view returns (uint256);
     function minSelfDelegationBNB() external view returns (uint256);
     function numOfJailed() external view returns (uint256);
-    function pauseStaking() external;
+    function pause() external;
     function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower) external;
-    function removeBlackList(address _addr) external;
-    function resumeStaking() external;
-    function sync(address[] memory operatorAddresses, address account) external;
+    function removeFromBlackList(address account) external;
+    function resume() external;
+    function syncGovToken(address[] memory operatorAddresses, address account) external;
     function transferGasLimit() external view returns (uint256);
     function unbondPeriod() external view returns (uint256);
     function undelegate(address operatorAddress, uint256 shares) external;

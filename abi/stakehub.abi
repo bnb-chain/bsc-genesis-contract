@@ -140,6 +140,12 @@
   },
   {
     "anonymous": false,
+    "inputs": [],
+    "name": "Paused",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [
       {
         "indexed": true,
@@ -183,6 +189,12 @@
   },
   {
     "anonymous": false,
+    "inputs": [],
+    "name": "Resumed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [
       {
         "indexed": true,
@@ -217,18 +229,6 @@
       }
     ],
     "name": "RewardDistributed",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [],
-    "name": "StakingPaused",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [],
-    "name": "StakingResumed",
     "type": "event"
   },
   {
@@ -386,11 +386,11 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_addr",
+        "name": "account",
         "type": "address"
       }
     ],
-    "name": "addBlackList",
+    "name": "addToBlackList",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -998,7 +998,7 @@
   },
   {
     "inputs": [],
-    "name": "pauseStaking",
+    "name": "pause",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1035,18 +1035,18 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_addr",
+        "name": "account",
         "type": "address"
       }
     ],
-    "name": "removeBlackList",
+    "name": "removeFromBlackList",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "resumeStaking",
+    "name": "resume",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1064,7 +1064,7 @@
         "type": "address"
       }
     ],
-    "name": "sync",
+    "name": "syncGovToken",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
