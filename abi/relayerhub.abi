@@ -4,32 +4,6 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "address",
-        "name": "_addedManager",
-        "type": "address"
-      }
-    ],
-    "name": "managerAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "_removedManager",
-        "type": "address"
-      }
-    ],
-    "name": "managerRemoved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
         "internalType": "string",
         "name": "key",
         "type": "string"
@@ -54,7 +28,7 @@
         "type": "address"
       }
     ],
-    "name": "relayerAddedProvisionally",
+    "name": "relayerRegister",
     "type": "event"
   },
   {
@@ -68,25 +42,6 @@
       }
     ],
     "name": "relayerUnRegister",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "_from",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "_to",
-        "type": "address"
-      }
-    ],
-    "name": "relayerUpdated",
     "type": "event"
   },
   {
@@ -377,45 +332,6 @@
   },
   {
     "inputs": [],
-    "name": "WHITELIST_1",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "WHITELIST_2",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "manager",
-        "type": "address"
-      }
-    ],
-    "name": "acceptBeingRelayer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "alreadyInit",
     "outputs": [
       {
@@ -442,6 +358,19 @@
   },
   {
     "inputs": [],
+    "name": "dues",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "init",
     "outputs": [],
     "stateMutability": "nonpayable",
@@ -451,45 +380,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "managerAddress",
-        "type": "address"
-      }
-    ],
-    "name": "isManager",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "relayerAddress",
-        "type": "address"
-      }
-    ],
-    "name": "isProvisionalRelayer",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "relayerAddress",
+        "name": "sender",
         "type": "address"
       }
     ],
@@ -506,9 +397,22 @@
   },
   {
     "inputs": [],
-    "name": "removeManagerByHimself",
+    "name": "register",
     "outputs": [],
-    "stateMutability": "nonpayable",
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requiredDeposit",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -534,39 +438,6 @@
     "name": "updateParam",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "relayerToBeAdded",
-        "type": "address"
-      }
-    ],
-    "name": "updateRelayer",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "whitelistInit",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "whitelistInitDone",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   }
 ]
