@@ -353,7 +353,7 @@ contract StakeHub is System, Initializable {
         uint256 shares = IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
 
-        _syncGovToken(valInfo.creditContract, delegator);
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, delegator);
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, operatorAddress);
         }
@@ -375,7 +375,7 @@ contract StakeHub is System, Initializable {
             _checkValidatorSelfDelegation(operatorAddress);
         }
 
-        _syncGovToken(valInfo.creditContract, delegator);
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, delegator);
     }
 
     function redelegate(
@@ -409,7 +409,7 @@ contract StakeHub is System, Initializable {
         address[] memory stakeCredits = new address[](2);
         stakeCredits[0] = srcValInfo.creditContract;
         stakeCredits[1] = dstValInfo.creditContract;
-        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, delegator);
+        IGovToken(GOV_TOKEN_ADDR).syncBatch(stakeCredits, delegator);
         if (delegateVotePower) {
             IGovToken(GOV_TOKEN_ADDR).delegateVote(delegator, dstValidator);
         }
@@ -436,7 +436,7 @@ contract StakeHub is System, Initializable {
             stakeCredits[i] = credit;
         }
 
-        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, account);
+        IGovToken(GOV_TOKEN_ADDR).syncBatch(stakeCredits, account);
     }
 
     /*----------------- system functions -----------------*/
@@ -467,7 +467,7 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DownTime);
 
-        _syncGovToken(valInfo.creditContract, operatorAddress);
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
     function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
@@ -487,7 +487,7 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
-        _syncGovToken(valInfo.creditContract, operatorAddress);
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
     function doubleSignSlash(address consensusAddress) external onlySlash {
@@ -507,7 +507,7 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
-        _syncGovToken(valInfo.creditContract, operatorAddress);
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
     function pause() external onlyAssetProtector {
@@ -681,12 +681,6 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _syncGovToken(address credit, address account) private {
-        address[] memory stakeCredits = new address[](1);
-        stakeCredits[0] = credit;
-        IGovToken(GOV_TOKEN_ADDR).sync(stakeCredits, account);
-    }
-
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 

@@ -30,7 +30,11 @@ contract GovToken is
         __ERC20Votes_init();
     }
 
-    function sync(address[] calldata stakeCredits, address account) external onlyStakeHub {
+    function sync(address stakeCredit, address account) external onlyStakeHub {
+        _sync(stakeCredit, account);
+    }
+
+    function syncBatch(address[] calldata stakeCredits, address account) external onlyStakeHub {
         uint256 _length = stakeCredits.length;
         for (uint256 i = 0; i < _length; ++i) {
             _sync(stakeCredits[i], account);
