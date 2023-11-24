@@ -12,7 +12,6 @@ interface IStakeCredit {
     function unbond(address delegator, uint256 shares) external returns (uint256);
     function distributeReward(uint64 commissionRate) external payable;
     function slash(uint256 slashBnbAmount) external returns (uint256);
-    function getSelfDelegationBNB() external view returns (uint256);
     function balanceOf(address delegator) external view returns (uint256);
     function totalSupply() external view returns (uint256);
     function getPooledBNB(address account) external view returns (uint256);

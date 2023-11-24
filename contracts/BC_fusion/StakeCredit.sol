@@ -9,11 +9,11 @@ import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgrad
 import "./System.sol";
 import "./interface/IStakeHub.sol";
 
-contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable, System {
+contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 
-    /*----------------- constant -----------------*/
+    /*----------------- constants -----------------*/
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- storage -----------------*/
@@ -22,23 +22,23 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
 
     // hash of the unbond request => unbond request
     mapping(bytes32 => UnbondRequest) private _unbondRequests;
-    // user address => unbond request queue(hash of the request)
+    // delegator address => unbond request queue(hash of the request)
     mapping(address => DoubleEndedQueueUpgradeable.Bytes32Deque) private _unbondRequestsQueue;
-    // user address => personal unbond sequence
+    // delegator address => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
 
+    /*----------------- structs and events -----------------*/
     struct UnbondRequest {
         uint256 shares;
         uint256 bnbAmount;
         uint256 unlockTime;
     }
 
-    /*----------------- events -----------------*/
     event RewardReceived(uint256 rewardToAll, uint256 commission);
 
-    /*----------------- external functions -----------------*/
+    /*----------------- init -----------------*/
     function initialize(address _validator, string calldata _moniker) external payable initializer onlyStakeHub {
-        string memory name_ = string.concat("stake ", _moniker, " credit");
+        string memory name_ = string.concat("Stake ", _moniker, " Credit");
         string memory symbol_ = string.concat("st", _moniker);
         __ERC20_init_unchained(name_, symbol_);
 
@@ -48,6 +48,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         _bootstrapInitialHolder(msg.value);
     }
 
+    /*----------------- external functions -----------------*/
     function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
         require(msg.value != 0, "ZERO_DEPOSIT");
         shares = _mintAndSync(delegator, msg.value);
@@ -181,11 +182,7 @@ contract StakeCredit is Initializable, ReentrancyGuardUpgradeable, ERC20Upgradea
         return _unbondSequence[delegator].current();
     }
 
-    function getSelfDelegationBNB() public view returns (uint256) {
-        return getPooledBNBByShares(balanceOf(validator));
-    }
-
-    function getPooledBNB(address account) external view returns (uint256) {
+    function getPooledBNB(address account) public view returns (uint256) {
         return getPooledBNBByShares(balanceOf(account));
     }
 

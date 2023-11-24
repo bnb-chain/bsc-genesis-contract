@@ -196,7 +196,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   /**
    * @dev Deprecated after fusion
    */
-  function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
+  function delegate(address, uint256) override external payable {
     revert("not supported");
   }
 
@@ -243,7 +243,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   /**
    * @dev Deprecated after fusion
    */
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
+  function redelegate(address, address, uint256) override external payable {
     revert("not supported");
   }
 

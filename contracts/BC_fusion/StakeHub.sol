@@ -16,7 +16,7 @@ contract StakeHub is System, Initializable {
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    /*----------------- constant -----------------*/
+    /*----------------- constants -----------------*/
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     uint256 private constant BLS_SIG_LENGTH = 96;
 
@@ -31,7 +31,6 @@ contract StakeHub is System, Initializable {
     /*----------------- storage -----------------*/
     bool private _paused;
     uint8 private _isRedelegating;
-
     uint256 public transferGasLimit;
 
     // stake params
@@ -57,20 +56,21 @@ contract StakeHub is System, Initializable {
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
 
-    // legacy address of BC
+    // legacy addresses of BC
     mapping(address => bool) private _legacyConsensusAddress;
     mapping(bytes => bool) private _legacyVoteAddress;
 
+    // total number of current jailed validators
     uint256 public numOfJailed;
-
     // max number of jailed validators per day(only for malicious vote and double sign)
-    uint256 public felonyPerDay;
-    // days => num of malicious vote and double sign slash
+    uint256 private felonyPerDay;
+    // day => number of malicious vote and double sign slash
     mapping(uint256 => uint256) private _felonyMap;
 
     address public assetProtector;
     mapping(address => bool) public blackList;
 
+    /*----------------- structs and events -----------------*/
     struct Validator {
         address consensusAddress;
         address operatorAddress;
@@ -103,7 +103,6 @@ contract StakeHub is System, Initializable {
         MaliciousVote
     }
 
-    /*----------------- events -----------------*/
     event ValidatorCreated(
         address indexed consensusAddress,
         address indexed operatorAddress,
@@ -326,7 +325,7 @@ contract StakeHub is System, Initializable {
         require(valInfo.jailed, "NOT_JAILED");
 
         require(
-            IStakeCredit(valInfo.creditContract).getSelfDelegationBNB() >= minSelfDelegationBNB,
+            IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) >= minSelfDelegationBNB,
             "NOT_ENOUGH_SELF_DELEGATION"
         );
         require(valInfo.jailUntil <= block.timestamp, "STILL_JAILED");
@@ -426,7 +425,10 @@ contract StakeHub is System, Initializable {
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
-    function syncGovToken(address[] calldata operatorAddresses, address account) external whenNotPaused {
+    function syncGovToken(
+        address[] calldata operatorAddresses,
+        address account
+    ) external whenNotPaused notInBlackList {
         uint256 _length = operatorAddresses.length;
         address[] memory stakeCredits = new address[](_length);
         address credit;
@@ -748,9 +750,9 @@ contract StakeHub is System, Initializable {
         if (valInfo.jailed) {
             return;
         }
-        if (IStakeCredit(valInfo.creditContract).getSelfDelegationBNB() < minSelfDelegationBNB) {
+        if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, 0);
-            // need to inform validator set contract to remove the validator
+            // need to inform BSCValidatorSet contract to remove the validator
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
         }
     }

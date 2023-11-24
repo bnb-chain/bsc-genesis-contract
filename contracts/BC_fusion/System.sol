@@ -2,6 +2,7 @@
 pragma solidity 0.8.17;
 
 contract System {
+    /*----------------- constants -----------------*/
     address internal constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address internal constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address internal constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
@@ -19,8 +20,10 @@ contract System {
     address internal constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
     address internal constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
 
+    /*----------------- events -----------------*/
     event ParamChange(string key, bytes value);
 
+    /*----------------- modifiers -----------------*/
     modifier onlyCoinbase() {
         require(msg.sender == block.coinbase, "the message sender must be the block producer");
         _;
