@@ -13,19 +13,8 @@ contract TokenHubTest is Deployer {
 
     event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
     event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
-    event mirrorFailure(address indexed bep20Addr, uint8 errCode);
-    event mirrorSuccess(address indexed bep20Addr, bytes32 bep2Symbol);
-    event syncFailure(address indexed bep20Addr, uint8 errCode);
-    event syncSuccess(address indexed bep20Addr);
-    event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);
     event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
     event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
-    event refundFailure(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
-    event rewardTo(address to, uint256 amount);
-    event receiveDeposit(address from, uint256 amount);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
-    event paramChange(string key, bytes value);
-    event crossChainPackage();
 
     ITestToken public abcToken;
     ITestToken public defToken;

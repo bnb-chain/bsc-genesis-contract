@@ -16,6 +16,16 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     /*----------------- constants -----------------*/
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
+    /*----------------- errors -----------------*/
+    error TransferNotAllowed();
+    error ApproveNotAllowed();
+    error WrongInitContext();
+    error TransferFailed();
+    error ZeroAmount();
+    error InsufficientBalance();
+    error NoUnbondRequest();
+    error NoClaimableUnbondRequest();
+
     /*----------------- storage -----------------*/
     address public validator; // validator's operator address
     uint256 public totalPooledBNB; // total reward plus total BNB staked in the pool
@@ -44,19 +54,18 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
 
         validator = _validator;
 
-        require(msg.value != 0);
         _bootstrapInitialHolder(msg.value);
     }
 
     /*----------------- external functions -----------------*/
     function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
-        require(msg.value != 0, "ZERO_DEPOSIT");
+        if (msg.value == 0) revert ZeroAmount();
         shares = _mintAndSync(delegator, msg.value);
     }
 
     function undelegate(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
-        require(shares != 0, "ZERO_AMOUNT");
-        require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
+        if (shares == 0) revert ZeroAmount();
+        if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
         // add to the queue
         bnbAmount = _burnAndSync(delegator, shares);
@@ -72,19 +81,19 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * Only for redelegate process.
      */
     function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
-        require(shares != 0, "ZERO_AMOUNT");
-        require(shares <= balanceOf(delegator), "INSUFFICIENT_BALANCE");
+        if (shares == 0) revert ZeroAmount();
+        if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
         bnbAmount = _burnAndSync(delegator, shares);
 
         (bool success,) = STAKE_HUB_ADDR.call{ value: bnbAmount }("");
-        require(success, "TRANSFER_FAILED");
+        if (!success) revert TransferFailed();
     }
 
     function claim(address payable delegator, uint256 number) external onlyStakeHub nonReentrant returns (uint256) {
         // number == 0 means claim all
         // number should not exceed the length of the queue
-        require(_unbondRequestsQueue[delegator].length() != 0, "NO_UNBOND_REQUEST");
+        if (_unbondRequestsQueue[delegator].length() == 0) revert NoUnbondRequest();
         number = (number == 0 || number > _unbondRequestsQueue[delegator].length())
             ? _unbondRequestsQueue[delegator].length()
             : number;
@@ -104,11 +113,11 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
             _totalBnbAmount += request.bnbAmount;
             --number;
         }
-        require(_totalBnbAmount != 0, "NO_CLAIMABLE_UNBOND_REQUEST");
+        if (_totalBnbAmount == 0) revert NoClaimableUnbondRequest();
 
         uint256 _gasLimit = IStakeHub(STAKE_HUB_ADDR).transferGasLimit();
         (bool success,) = delegator.call{ gas: _gasLimit, value: _totalBnbAmount }("");
-        require(success, "CLAIM_FAILED");
+        if (!success) revert TransferFailed();
 
         return _totalBnbAmount;
     }
@@ -133,7 +142,8 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         uint256 realSlashBnbAmount = _burnAndSync(validator, slashShares);
 
         (bool success,) = SYSTEM_REWARD_ADDR.call{ value: realSlashBnbAmount }("");
-        require(success, "TRANSFER_FAILED");
+        if (!success) revert TransferFailed();
+
         return realSlashBnbAmount;
     }
 
@@ -188,8 +198,8 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
 
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
-        require(validator != address(0), "INVALID_VALIDATOR");
-        require(totalSupply() == 0, "TOTAL_SUPPLY_NOT_ZERO");
+        // check before mint
+        if (initAmount == 0 || validator == address(0) || totalSupply() != 0) revert WrongInitContext();
 
         // mint initial tokens to the validator
         // shares is equal to the amount of BNB staked
@@ -216,10 +226,10 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     }
 
     function _transfer(address, address, uint256) internal pure override {
-        revert("TRANSFER_NOT_ALLOWED");
+        revert TransferNotAllowed();
     }
 
     function _approve(address, address, uint256) internal pure override {
-        revert("APPROVE_NOT_ALLOWED");
+        revert ApproveNotAllowed();
     }
 }

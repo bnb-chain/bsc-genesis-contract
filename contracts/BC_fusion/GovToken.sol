@@ -21,6 +21,10 @@ contract GovToken is
     string private constant NAME = "BSC Governance Token";
     string private constant SYMBOL = "govBNB";
 
+    /*----------------- errors -----------------*/
+    error TransferNotAllowed();
+    error ApproveNotAllowed();
+
     /*----------------- storage -----------------*/
     // validator StakeCredit contract => user => amount
     mapping(address => mapping(address => uint256)) public mintedMap;
@@ -66,11 +70,11 @@ contract GovToken is
     }
 
     function _transfer(address, address, uint256) internal pure override {
-        revert("TRANSFER_NOT_ALLOWED");
+        revert TransferNotAllowed();
     }
 
     function _approve(address, address, uint256) internal pure override {
-        revert("APPROVE_NOT_ALLOWED");
+        revert ApproveNotAllowed();
     }
 
     function _afterTokenTransfer(

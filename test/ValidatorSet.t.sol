@@ -6,24 +6,14 @@ contract ValidatorSetTest is Deployer {
     using RLPEncode for *;
 
     event validatorSetUpdated();
-    event validatorJailed(address indexed validator);
-    event validatorEmptyJailed(address indexed validator);
     event batchTransfer(uint256 amount);
     event batchTransferFailed(uint256 indexed amount, string reason);
-    event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
     event systemTransfer(uint256 amount);
     event directTransfer(address payable indexed validator, uint256 amount);
     event directTransferFail(address payable indexed validator, uint256 amount);
     event deprecatedDeposit(address indexed validator, uint256 amount);
     event validatorDeposit(address indexed validator, uint256 amount);
-    event validatorMisdemeanor(address indexed validator, uint256 amount);
-    event validatorFelony(address indexed validator, uint256 amount);
     event failReasonWithStr(string message);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
-    event paramChange(string key, bytes value);
-    event feeBurned(uint256 amount);
-    event validatorEnterMaintenance(address indexed validator);
-    event validatorExitMaintenance(address indexed validator);
     event finalityRewardDeposit(address indexed validator, uint256 amount);
     event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
     event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
@@ -213,7 +203,7 @@ contract ValidatorSetTest is Deployer {
 
     function testUpdateValidatorExceedCap() public {
         uint256 cap = bscValidatorSet.MAX_NUM_OF_VALIDATORS();
-        address[] memory newValidators = new address[](cap+1);
+        address[] memory newValidators = new address[](cap + 1);
         for (uint256 i; i < cap + 1; ++i) {
             newValidators[i] = _getNextUserAddress();
         }
@@ -288,7 +278,7 @@ contract ValidatorSetTest is Deployer {
     function testValidateSetChange() public {
         address[][] memory newValSet = new address[][](5);
         for (uint256 i; i < 5; ++i) {
-            address[] memory valSet = new address[](5+i);
+            address[] memory valSet = new address[](5 + i);
             for (uint256 j; j < 5 + i; ++j) {
                 valSet[j] = _getNextUserAddress();
             }

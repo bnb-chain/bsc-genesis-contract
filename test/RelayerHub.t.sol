@@ -3,12 +3,8 @@ pragma solidity ^0.8.10;
 import "./utils/Deployer.sol";
 
 contract RelayerHubTest is Deployer {
-    event relayerRegister(address _relayer);
-    event relayerUnRegister(address _relayer);
-    event paramChange(string key, bytes value);
     event relayerUpdated(address _from, address _to);
     event managerRemoved(address _manager);
-    event managerAdded(address _manager);
     event relayerAddedProvisionally(address _relayer);
 
     function setUp() public { }

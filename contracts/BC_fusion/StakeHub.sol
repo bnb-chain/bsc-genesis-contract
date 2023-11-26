@@ -28,6 +28,29 @@ contract StakeHub is System, Initializable {
     bytes private constant INIT_BC_VOTE_ADDRESSES =
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
+    /*----------------- errors -----------------*/
+    error StakeHubPaused();
+    error InBlackList();
+    error OnlyAssetProtector();
+    error ValidatorExisted();
+    error ValidatorNotExist();
+    error ValidatorNotJailed();
+    error DuplicateConsensusAddress();
+    error DuplicateVoteAddress();
+    error SelfDelegationNotEnough();
+    error InvalidCommission();
+    error InvalidMoniker();
+    error InvalidVoteAddress();
+    error InvalidConsensusAddress();
+    error UpdateTooFrequently();
+    error JailTimeNotExpired();
+    error DelegationAmountTooSmall();
+    error OnlySelfDelegation();
+    error ZeroShares();
+    error SameValidator();
+    error NoMoreFelonyToday();
+    error AlreadySlashed();
+
     /*----------------- storage -----------------*/
     bool private _paused;
     uint8 private _isRedelegating;
@@ -137,28 +160,28 @@ contract StakeHub is System, Initializable {
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
-        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST");
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
         _;
     }
 
     modifier whenNotPaused() {
-        require(!_paused, "STAKE_HUB_PAUSED");
+        if (_paused) revert StakeHubPaused();
         _;
     }
 
     modifier onlyAssetProtector() {
-        require(msg.sender == assetProtector, "ONLY_ASSET_PROTECTOR");
+        if (msg.sender != assetProtector) revert OnlyAssetProtector();
         _;
     }
 
     modifier notInBlackList() {
-        require(!blackList[msg.sender], "IN_BLACK_LIST");
+        if (blackList[msg.sender]) revert InBlackList();
         _;
     }
 
     receive() external payable {
         // to prevent BNB from being lost
-        require(_isRedelegating == 1);
+        if (_isRedelegating != 1) revert();
     }
 
     /*----------------- init -----------------*/
@@ -198,30 +221,28 @@ contract StakeHub is System, Initializable {
     ) external payable whenNotPaused notInBlackList {
         // basic check
         address operatorAddress = msg.sender;
-        require(!_validatorSet.contains(operatorAddress), "VALIDATOR_EXISTED");
-        require(
-            _consensusToOperator[consensusAddress] == address(0) && !_legacyConsensusAddress[consensusAddress],
-            "DUPLICATE_CONSENSUS_ADDRESS"
-        );
-        require(
-            _voteToOperator[voteAddress] == address(0) && !_legacyVoteAddress[voteAddress], "DUPLICATE_VOTE_ADDRESS"
-        );
+        if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
+        if (_consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
+            revert DuplicateConsensusAddress();
+        }
+        if (_voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
+            revert DuplicateVoteAddress();
+        }
 
         uint256 delegation = msg.value;
-        require(delegation >= minSelfDelegationBNB, "NOT_ENOUGH_SELF_DELEGATION");
+        if (delegation < minSelfDelegationBNB) revert SelfDelegationNotEnough();
 
-        require(commission.maxRate <= 5_000, "INVALID_MAX_COMMISSION_RATE");
-        require(commission.rate <= commission.maxRate, "INVALID_COMMISSION_RATE");
-        require(commission.maxChangeRate <= commission.maxRate, "INVALID_MAX_CHANGE_RATE");
-        require(_checkMoniker(description.moniker), "INVALID_MONIKER");
-        require(_checkVoteAddress(voteAddress, blsProof), "INVALID_VOTE_ADDRESS");
+        if (
+            commission.maxRate > 5_000 || commission.rate > commission.maxRate
+                || commission.maxChangeRate > commission.maxRate
+        ) revert InvalidCommission();
+        if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
+        if (!_checkVoteAddress(voteAddress, blsProof)) revert InvalidVoteAddress();
 
         // deploy stake credit proxy contract
         address creditContract = _deployStakeCredit(operatorAddress, description.moniker);
 
-        bool success = _validatorSet.add(operatorAddress);
-        require(success, "ADD_VALIDATOR_FAILED"); // should never happen
-
+        _validatorSet.add(operatorAddress);
         Validator storage valInfo = _validators[operatorAddress];
         valInfo.consensusAddress = consensusAddress;
         valInfo.operatorAddress = operatorAddress;
@@ -242,15 +263,14 @@ contract StakeHub is System, Initializable {
         notInBlackList
         validatorExist(msg.sender)
     {
-        require(newConsensusAddress != address(0), "INVALID_CONSENSUS_ADDRESS");
-        require(
-            _consensusToOperator[newConsensusAddress] == address(0) && !_legacyConsensusAddress[newConsensusAddress],
-            "DUPLICATE_CONSENSUS_ADDRESS"
-        );
+        if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
+        if (_consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
+            revert DuplicateConsensusAddress();
+        }
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
+        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.consensusAddress = newConsensusAddress;
         valInfo.updateTime = block.timestamp;
@@ -267,13 +287,13 @@ contract StakeHub is System, Initializable {
     {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
+        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
 
-        require(commissionRate <= valInfo.commission.maxRate, "INVALID_COMMISSION_RATE");
+        if (commissionRate > valInfo.commission.maxRate) revert InvalidCommission();
         uint256 changeRate = commissionRate >= valInfo.commission.rate
             ? commissionRate - valInfo.commission.rate
             : valInfo.commission.rate - commissionRate;
-        require(changeRate <= valInfo.commission.maxChangeRate, "INVALID_COMMISSION_RATE");
+        if (changeRate > valInfo.commission.maxChangeRate) revert InvalidCommission();
 
         valInfo.commission.rate = commissionRate;
         valInfo.updateTime = block.timestamp;
@@ -287,11 +307,11 @@ contract StakeHub is System, Initializable {
         notInBlackList
         validatorExist(msg.sender)
     {
-        require(_checkMoniker(description.moniker), "INVALID_MONIKER");
+        if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
+        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
@@ -303,15 +323,14 @@ contract StakeHub is System, Initializable {
         bytes calldata newVoteAddress,
         bytes calldata blsProof
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
-        require(_checkVoteAddress(newVoteAddress, blsProof), "INVALID_VOTE_ADDRESS");
-        require(
-            _voteToOperator[newVoteAddress] == address(0) && !_legacyVoteAddress[newVoteAddress],
-            "DUPLICATE_VOTE_ADDRESS"
-        );
+        if (!_checkVoteAddress(newVoteAddress, blsProof)) revert InvalidVoteAddress();
+        if (_voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
+            revert DuplicateVoteAddress();
+        }
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.updateTime + 1 days <= block.timestamp, "UPDATE_TOO_FREQUENTLY");
+        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
@@ -322,13 +341,12 @@ contract StakeHub is System, Initializable {
 
     function unjail(address operatorAddress) external whenNotPaused validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
-        require(valInfo.jailed, "NOT_JAILED");
+        if (!valInfo.jailed) revert ValidatorNotJailed();
 
-        require(
-            IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) >= minSelfDelegationBNB,
-            "NOT_ENOUGH_SELF_DELEGATION"
-        );
-        require(valInfo.jailUntil <= block.timestamp, "STILL_JAILED");
+        if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
+            revert SelfDelegationNotEnough();
+        }
+        if (valInfo.jailUntil > block.timestamp) revert JailTimeNotExpired();
 
         valInfo.jailed = false;
         numOfJailed -= 1;
@@ -340,14 +358,11 @@ contract StakeHub is System, Initializable {
         bool delegateVotePower
     ) external payable whenNotPaused notInBlackList validatorExist(operatorAddress) {
         uint256 bnbAmount = msg.value;
-        require(bnbAmount >= minDelegationBNBChange, "INVALID_DELEGATION_AMOUNT");
+        if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
-        if (valInfo.jailed) {
-            // only self delegation allowed
-            require(delegator == operatorAddress, "ONLY_SELF_DELEGATION");
-        }
+        if (valInfo.jailed && delegator != operatorAddress) revert OnlySelfDelegation();
 
         uint256 shares = IStakeCredit(valInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         emit Delegated(operatorAddress, delegator, shares, bnbAmount);
@@ -362,7 +377,7 @@ contract StakeHub is System, Initializable {
         address operatorAddress,
         uint256 shares
     ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
-        require(shares > 0, "INVALID_SHARES_AMOUNT");
+        if (shares == 0) revert ZeroShares();
 
         address delegator = msg.sender;
         Validator memory valInfo = _validators[operatorAddress];
@@ -383,20 +398,17 @@ contract StakeHub is System, Initializable {
         uint256 shares,
         bool delegateVotePower
     ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) {
-        require(shares > 0, "INVALID_SHARES_AMOUNT");
-        require(srcValidator != dstValidator, "SAME_VALIDATOR");
+        if (shares == 0) revert ZeroShares();
+        if (srcValidator == dstValidator) revert SameValidator();
 
         address delegator = msg.sender;
         Validator memory srcValInfo = _validators[srcValidator];
         Validator memory dstValInfo = _validators[dstValidator];
-        if (dstValInfo.jailed) {
-            // only self delegation allowed
-            require(delegator == dstValidator, "ONLY_SELF_DELEGATION");
-        }
+        if (dstValInfo.jailed && delegator != dstValidator) revert OnlySelfDelegation();
 
         _isRedelegating = 1;
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
-        require(bnbAmount >= minDelegationBNBChange, "INVALID_REDELEGATION_AMOUNT");
+        if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         _isRedelegating = 0;
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
@@ -433,8 +445,8 @@ contract StakeHub is System, Initializable {
         address[] memory stakeCredits = new address[](_length);
         address credit;
         for (uint256 i = 0; i < _length; ++i) {
+            if (!_validatorSet.contains(operatorAddresses[i])) revert ValidatorNotExist(); // should never happen
             credit = _validators[operatorAddresses[i]].creditContract;
-            require(credit != address(0), "VALIDATOR_NOT_EXIST");
             stakeCredits[i] = credit;
         }
 
@@ -459,7 +471,7 @@ contract StakeHub is System, Initializable {
 
     function downtimeSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
-        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         // slash
@@ -474,16 +486,16 @@ contract StakeHub is System, Initializable {
 
     function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
         address operatorAddress = _voteToOperator[_voteAddr];
-        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         uint256 dayIndex = block.timestamp / 1 days;
-        require(_felonyMap[dayIndex] < felonyPerDay, "NO_MORE_FELONY_TODAY");
+        if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
         _felonyMap[dayIndex] += 1;
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.MaliciousVote);
-        require(canSlash, "ALREADY_SLASHED");
+        if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
 
@@ -494,16 +506,16 @@ contract StakeHub is System, Initializable {
 
     function doubleSignSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
-        require(_validatorSet.contains(operatorAddress), "VALIDATOR_NOT_EXIST"); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         uint256 dayIndex = block.timestamp;
-        require(_felonyMap[dayIndex] < felonyPerDay, "NO_MORE_FELONY_TODAY");
+        if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
         _felonyMap[dayIndex] += 1;
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.DoubleSign);
-        require(canSlash, "ALREADY_SLASHED");
+        if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
 
@@ -532,69 +544,66 @@ contract StakeHub is System, Initializable {
 
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("transferGasLimit")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newTransferGasLimit = value.bytesToUint256(32);
-            require(newTransferGasLimit >= 2300, "INVALID_TRANSFER_GAS_LIMIT");
+            if (newTransferGasLimit < 2300) revert InvalidValue(key, value);
             transferGasLimit = newTransferGasLimit;
         } else if (key.compareStrings("minSelfDelegationBNB")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinSelfDelegationBNB = value.bytesToUint256(32);
-            require(newMinSelfDelegationBNB >= 1000 ether, "INVALID_MIN_SELF_DELEGATION_BNB");
+            if (newMinSelfDelegationBNB < 1000 ether) revert InvalidValue(key, value);
             minSelfDelegationBNB = newMinSelfDelegationBNB;
         } else if (key.compareStrings("minDelegationBNBChange")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinDelegationBNBChange = value.bytesToUint256(32);
-            require(newMinDelegationBNBChange >= 0.1 ether, "INVALID_MIN_DELEGATION_BNB_CHANGE");
+            if (newMinDelegationBNBChange < 0.1 ether) revert InvalidValue(key, value);
             minDelegationBNBChange = newMinDelegationBNBChange;
         } else if (key.compareStrings("maxElectedValidators")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMaxElectedValidators = value.bytesToUint256(32);
-            require(newMaxElectedValidators >= 1, "INVALID_MAX_ELECTED_VALIDATORS");
-            require(newMaxElectedValidators <= 500, "INVALID_MAX_ELECTED_VALIDATORS");
+            if (newMaxElectedValidators < 1 || newMaxElectedValidators > 500) revert InvalidValue(key, value);
             maxElectedValidators = newMaxElectedValidators;
         } else if (key.compareStrings("unbondPeriod")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newUnbondPeriod = value.bytesToUint256(32);
-            require(newUnbondPeriod >= 3 days, "INVALID_UNBOND_PERIOD");
+            if (newUnbondPeriod < 3 days) revert InvalidValue(key, value);
             unbondPeriod = newUnbondPeriod;
         } else if (key.compareStrings("downtimeSlashAmount")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newDowntimeSlashAmount = value.bytesToUint256(32);
-            require(
-                newDowntimeSlashAmount >= 5 ether && newDowntimeSlashAmount < felonySlashAmount,
-                "INVALID_DOWNTIME_SLASH_AMOUNT"
-            );
+            if (newDowntimeSlashAmount < 5 ether || newDowntimeSlashAmount > felonySlashAmount) {
+                revert InvalidValue(key, value);
+            }
             downtimeSlashAmount = newDowntimeSlashAmount;
         } else if (key.compareStrings("felonySlashAmount")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newFelonySlashAmount = value.bytesToUint256(32);
-            require(
-                newFelonySlashAmount >= 100 ether && newFelonySlashAmount > downtimeSlashAmount,
-                "INVALID_FELONY_SLASH_AMOUNT"
-            );
+            if (newFelonySlashAmount < 100 ether || newFelonySlashAmount <= downtimeSlashAmount) {
+                revert InvalidValue(key, value);
+            }
             felonySlashAmount = newFelonySlashAmount;
         } else if (key.compareStrings("downtimeJailTime")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newDowntimeJailTime = value.bytesToUint256(32);
-            require(newDowntimeJailTime >= 2 days && newDowntimeJailTime < felonyJailTime, "INVALID_DOWNTIME_JAIL_TIME");
+            if (newDowntimeJailTime < 2 days || newDowntimeJailTime >= felonyJailTime) revert InvalidValue(key, value);
             downtimeJailTime = newDowntimeJailTime;
         } else if (key.compareStrings("felonyJailTime")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newFelonyJailTime = value.bytesToUint256(32);
-            require(newFelonyJailTime >= 10 days && newFelonyJailTime > downtimeJailTime, "INVALID_FELONY_JAIL_TIME");
+            if (newFelonyJailTime < 10 days || newFelonyJailTime <= downtimeJailTime) revert InvalidValue(key, value);
             felonyJailTime = newFelonyJailTime;
         } else if (key.compareStrings("felonyPerDay")) {
-            require(value.length == 32, "INVALID_VALUE_LENGTH");
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newJailedPerDay = value.bytesToUint256(32);
-            require(newJailedPerDay != 0, "INVALID_JAILED_PER_DAY");
+            if (newJailedPerDay == 0) revert InvalidValue(key, value);
             felonyPerDay = newJailedPerDay;
         } else if (key.compareStrings("assetProtector")) {
-            require(value.length == 20, "INVALID_VALUE_LENGTH");
+            if (value.length != 20) revert InvalidValue(key, value);
             address newAssetProtector = value.bytesToAddress(20);
-            require(newAssetProtector != address(0), "INVALID_ASSET_PROTECTOR");
+            if (newAssetProtector == address(0)) revert InvalidValue(key, value);
             assetProtector = newAssetProtector;
         } else {
-            revert("UNKNOWN_PARAM");
+            revert UnknownParam(key, value);
         }
         emit ParamChange(key, value);
     }
@@ -713,8 +722,9 @@ contract StakeHub is System, Initializable {
     }
 
     function _checkVoteAddress(bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {
-        require(voteAddress.length == BLS_PUBKEY_LENGTH, "INVALID_VOTE_ADDRESS");
-        require(blsProof.length == BLS_SIG_LENGTH, "INVALID_BLS_PROOF");
+        if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
+            return false;
+        }
 
         // get msg hash
         bytes32 msgHash = keccak256(abi.encodePacked(voteAddress, block.chainid));

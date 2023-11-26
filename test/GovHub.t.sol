@@ -4,8 +4,6 @@ import "./utils/Deployer.sol";
 
 contract GovHubTest is Deployer {
     event failReasonWithStr(string message);
-    event failReasonWithBytes(bytes message);
-    event paramChange(string key, bytes valueBytes);
 
     function setUp() public { }
 

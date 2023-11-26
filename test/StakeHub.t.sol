@@ -15,19 +15,12 @@ interface IStakeCredit {
 contract StakeHubTest is Deployer {
     using RLPEncode for *;
 
-    event ValidatorCreated(
-        address indexed consensusAddress, address indexed operatorAddress, address indexed poolModule, bytes voteAddress
-    );
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newAddress);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
-    event Redelegated(
-        address indexed srcValidator, address indexed dstValidator, address indexed delegator, uint256 bnbAmount
-    );
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType);
-    event ValidatorJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
 

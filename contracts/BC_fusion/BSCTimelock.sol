@@ -7,6 +7,7 @@ import "./System.sol";
 import "./lib/Utils.sol";
 
 contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
+    using Utils for bytes;
     using Utils for string;
 
     /*----------------- constants -----------------*/
@@ -21,15 +22,13 @@ contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
 
     /*----------------- system functions -----------------*/
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
-        uint256 valueLength = value.length;
         if (key.compareStrings("minDelay")) {
-            require(valueLength == 32, "INVALID_VALUE_LENGTH");
-            uint256 newMinDelay = Utils.bytesToUint256(value, valueLength);
-            require(newMinDelay > 0, "INVALID_MIN_DELAY");
-            require(newMinDelay < 14 days, "INVALID_MIN_DELAY");
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newMinDelay = value.bytesToUint256(32);
+            if (newMinDelay == 0 || newMinDelay > 14 days) revert InvalidValue(key, value);
             this.updateDelay(newMinDelay);
         } else {
-            revert("UNKNOWN_PARAM");
+            revert UnknownParam(key, value);
         }
         emit ParamChange(key, value);
     }

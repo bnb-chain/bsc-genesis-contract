@@ -38,6 +38,10 @@ contract BSCGovernor is
     // ensures there is a minimum voting period (1 days) after quorum is reached
     uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
 
+    /*----------------- errors -----------------*/
+    error NotWhitelisted();
+    error TotalSupplyNotEnough();
+
     /*----------------- storage -----------------*/
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;
@@ -85,7 +89,7 @@ contract BSCGovernor is
         _checkAndStartPropose();
 
         for (uint256 i = 0; i < targets.length; i++) {
-            require(whitelistTargets[targets[i]], "ONLY_WHITELIST");
+            if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
 
         return GovernorCompatibilityBravoUpgradeable.propose(targets, values, calldatas, description);
@@ -106,34 +110,33 @@ contract BSCGovernor is
 
     /*----------------- system functions -----------------*/
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
-        uint256 valueLength = value.length;
         if (key.compareStrings("votingDelay")) {
-            require(valueLength == 32, "INVALID_VALUE_LENGTH");
-            uint256 newVotingDelay = value.bytesToUint256(valueLength);
-            require(newVotingDelay > 0, "INVALID_VOTING_DELAY");
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newVotingDelay = value.bytesToUint256(32);
+            if (newVotingDelay == 0) revert InvalidValue(key, value);
             _setVotingDelay(newVotingDelay);
         } else if (key.compareStrings("votingPeriod")) {
-            require(valueLength == 32, "INVALID_VALUE_LENGTH");
-            uint256 newVotingPeriod = value.bytesToUint256(valueLength);
-            require(newVotingPeriod > 0, "INVALID_VOTING_PERIOD");
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newVotingPeriod = value.bytesToUint256(32);
+            if (newVotingPeriod == 0) revert InvalidValue(key, value);
             _setVotingPeriod(newVotingPeriod);
         } else if (key.compareStrings("proposalThreshold")) {
-            require(valueLength == 32, "INVALID_VALUE_LENGTH");
-            uint256 newProposalThreshold = value.bytesToUint256(valueLength);
-            require(newProposalThreshold > 0, "INVALID_PROPOSAL_THRESHOLD");
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newProposalThreshold = value.bytesToUint256(32);
+            if (newProposalThreshold == 0) revert InvalidValue(key, value);
             _setProposalThreshold(newProposalThreshold);
         } else if (key.compareStrings("quorumNumerator")) {
-            require(valueLength == 32, "INVALID_VALUE_LENGTH");
-            uint256 newQuorumNumerator = value.bytesToUint256(valueLength);
-            require(newQuorumNumerator >= 1, "INVALID_QUORUM_NUMERATOR");
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newQuorumNumerator = value.bytesToUint256(32);
+            if (newQuorumNumerator == 0) revert InvalidValue(key, value);
             _updateQuorumNumerator(newQuorumNumerator);
         } else if (key.compareStrings("minPeriodAfterQuorum")) {
-            require(valueLength == 8, "INVALID_VALUE_LENGTH");
-            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(valueLength);
-            require(newMinPeriodAfterQuorum >= 1, "INVALID_MIN_PERIOD_AFTER_QUORUM");
+            if (value.length != 8) revert InvalidValue(key, value);
+            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(8);
+            if (newMinPeriodAfterQuorum == 0) revert InvalidValue(key, value);
             _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
         } else {
-            revert("UNKNOWN_PARAM");
+            revert UnknownParam(key, value);
         }
         emit ParamChange(key, value);
     }
@@ -178,10 +181,9 @@ contract BSCGovernor is
     /*----------------- internal functions -----------------*/
     function _checkAndStartPropose() internal {
         if (!proposeStarted) {
-            require(
-                IGovToken(GOV_TOKEN_ADDR).totalSupply() >= PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD,
-                "TOTAL_SUPPLY_NOT_ENOUGH"
-            );
+            if (IGovToken(GOV_TOKEN_ADDR).totalSupply() < PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD) {
+                revert TotalSupplyNotEnough();
+            }
             proposeStarted = true;
         }
     }
@@ -194,7 +196,7 @@ contract BSCGovernor is
         bytes32 descriptionHash
     ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) {
         for (uint256 i = 0; i < targets.length; i++) {
-            require(whitelistTargets[targets[i]], "ONLY_WHITELIST");
+            if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
 
         GovernorTimelockControlUpgradeable._execute(proposalId, targets, values, calldatas, descriptionHash);

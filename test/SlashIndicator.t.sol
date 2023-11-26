@@ -5,7 +5,6 @@ import "./utils/Deployer.sol";
 contract SlashIndicatorTest is Deployer {
     event validatorSlashed(address indexed validator0);
     event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
-    event indicatorCleaned();
 
     uint256 public burnRatio;
     uint256 public burnRatioScale;

@@ -3,12 +3,6 @@ pragma solidity ^0.8.10;
 import "./utils/Deployer.sol";
 
 contract RelayerIncentivizeTest is Deployer {
-    event distributeCollectedReward(
-        uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer
-    );
-    event paramChange(string key, bytes value);
-    event rewardToRelayer(address relayer, uint256 amount);
-
     uint256 public roundSize;
     uint256 public maximumWeight;
     uint256 public gasPrice;

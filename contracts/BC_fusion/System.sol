@@ -20,42 +20,49 @@ contract System {
     address internal constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
     address internal constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
 
+    /*----------------- errors -----------------*/
+    error UnknownParam(string key, bytes value);
+    error InvalidValue(string key, bytes value);
+    error OnlyCoinbase();
+    error OnlyZeroGasPrice();
+    error OnlySystemContract(address systemContract);
+
     /*----------------- events -----------------*/
     event ParamChange(string key, bytes value);
 
     /*----------------- modifiers -----------------*/
     modifier onlyCoinbase() {
-        require(msg.sender == block.coinbase, "the message sender must be the block producer");
+        if (msg.sender != block.coinbase) revert OnlyCoinbase();
         _;
     }
 
     modifier onlyZeroGasPrice() {
-        require(tx.gasprice == 0, "gasprice is not zero");
+        if (tx.gasprice != 0) revert OnlyZeroGasPrice();
         _;
     }
 
     modifier onlyValidatorContract() {
-        require(msg.sender == VALIDATOR_CONTRACT_ADDR, "the message sender must be validatorSet contract");
+        if (msg.sender != VALIDATOR_CONTRACT_ADDR) revert OnlySystemContract(VALIDATOR_CONTRACT_ADDR);
         _;
     }
 
     modifier onlySlash() {
-        require(msg.sender == SLASH_CONTRACT_ADDR, "the message sender must be slash contract");
+        if (msg.sender != SLASH_CONTRACT_ADDR) revert OnlySystemContract(SLASH_CONTRACT_ADDR);
         _;
     }
 
     modifier onlyGov() {
-        require(msg.sender == GOV_HUB_ADDR, "the message sender must be governance contract");
+        if (msg.sender != GOV_HUB_ADDR) revert OnlySystemContract(GOV_HUB_ADDR);
         _;
     }
 
     modifier onlyGovernor() {
-        require(msg.sender == GOVERNOR_ADDR, "the message sender must be governance v2 contract");
+        if (msg.sender != GOVERNOR_ADDR) revert OnlySystemContract(GOVERNOR_ADDR);
         _;
     }
 
     modifier onlyStakeHub() {
-        require(msg.sender == STAKE_HUB_ADDR, "the msg sender must be stakeHub");
+        if (msg.sender != STAKE_HUB_ADDR) revert OnlySystemContract(STAKE_HUB_ADDR);
         _;
     }
 }

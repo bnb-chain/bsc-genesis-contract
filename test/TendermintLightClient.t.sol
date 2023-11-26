@@ -3,10 +3,6 @@ pragma solidity ^0.8.10;
 import "./utils/Deployer.sol";
 
 contract TendermintLightClientTest is Deployer {
-    event relayerRegister(address _relayer);
-    event relayerUnRegister(address _relayer);
-    event paramChange(string key, bytes value);
-
     uint256 public requiredDeposit;
     uint256 public dues;
 

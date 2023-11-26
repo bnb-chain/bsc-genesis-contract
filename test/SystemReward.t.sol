@@ -3,7 +3,6 @@ pragma solidity ^0.8.10;
 import "./utils/Deployer.sol";
 
 contract SystemRewardTest is Deployer {
-    event paramChange(string key, bytes value);
     event rewardTo(address indexed to, uint256 amount);
     event rewardEmpty();
 

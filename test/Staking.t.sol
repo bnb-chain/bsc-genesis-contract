@@ -24,14 +24,12 @@ contract StakingTest is Deployer {
     event undelegatedClaimed(address indexed delegator, uint256 amount);
     event delegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
     event undelegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
-    event redelegateSuccess(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount);
     event delegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
     event undelegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
     event redelegateFailed(
         address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode
     );
     event crashResponse(uint8 indexed eventCode);
-    event paramChange(string key, bytes valueBytes);
 
     uint8 public constant EVENT_DELEGATE = 0x01;
     uint8 public constant EVENT_UNDELEGATE = 0x02;

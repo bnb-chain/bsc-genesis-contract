@@ -73,6 +73,8 @@ contract Deployer is Test {
 
     bytes32 internal nextUser = keccak256(abi.encodePacked("user address"));
 
+    event paramChange(string key, bytes value);
+
     constructor() {
         // create fork
         // you should modify this for your own test, which generally should be the bsc mainnet latest number
