@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
@@ -10,11 +11,21 @@ import "./System.sol";
 import "./lib/Utils.sol";
 
 contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
+    /*----------------- init paramters -----------------*/
     string public constant sourceChainID = "Binance-Chain-Ganges";
     address public approvalAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
     bytes32 public merkleRoot = 0x0000000000000000000000000000000000000000000000000000000000000000;
     bool public merkleRootAlreadyInit = false;
 
+    /*----------------- errors -----------------*/
+    error AlreadyClaimed();
+    error InvalidProof();
+    error InvalidApproverSignature();
+    error InvalidOwnerPubKeyLength();
+    error InvalidOwnerSignatureLength();
+    error MerkleRootAlreadyInitiated();
+
+    /*----------------- storage -----------------*/
     // claimedMap is used to record the claimed token.
     mapping(bytes32 => bool) private claimedMap;
 
@@ -32,13 +43,13 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         bytes32 node = keccak256(abi.encodePacked(ownerAddr, tokenSymbol, amount));
     
         // Check if the token is claimed.
-        require(isClaimed(node), "AlreadyClaimed");
+        if (isClaimed(node)) revert AlreadyClaimed();
         
         // Verify the approval signature.
         _verifyApproverSig(msg.sender, ownerSignature, approvalSignature, node, merkleProof);
     
         // Verify the merkle proof.
-        require(MerkleProof.verify(merkleProof, merkleRoot, node), "InvalidProof");
+        if (!MerkleProof.verify(merkleProof, merkleRoot, node)) revert InvalidProof();
     
         // Mark it claimed and send the token.
         claimedMap[node] = true;
@@ -56,14 +67,14 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         }
         // Perform the approvalSignature recovery and ensure the recovered signer is the approval account
         bytes32 hash = keccak256(abi.encodePacked(sourceChainID, account, ownerSignature, leafHash, merkleRoot, buffer));
-        require(ECDSA.recover(hash, approvalSignature) == approvalAddress, "InvalidSignature");
+        if (ECDSA.recover(hash, approvalSignature) != approvalAddress) revert InvalidApproverSignature();
     }
 
     function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal view returns (bytes memory) {
         // Ensure the public key is valid
-        require(pubKey.length == 33, "Invalid pubKey length");
+        if (pubKey.length != 33) revert InvalidOwnerPubKeyLength();
         // Ensure the signature length is correct
-        require(signature.length == 64, "Invalid signature length");
+        if (signature.length != 64) revert InvalidOwnerSignatureLength();
 
         // assemble input data
         bytes memory input = new bytes(129);
@@ -108,20 +119,20 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     /*********************** Param update ********************************/
     function updateParam(string calldata key, bytes calldata value) external onlyGov{
       if (Utils.compareStrings(key,"approvalAddress")) {
-        require(value.length == 20, "length of approvalAddress mismatch");
+        if (value.length != 20) revert InvalidValue(key, value);
         address newApprovalAddress = Utils.bytesToAddress(value, 20);
-        require(newApprovalAddress != address(0), "approvalAddress should not be zero");
+        if (newApprovalAddress == address(0)) revert InvalidValue(key, value);
         approvalAddress = newApprovalAddress;
       } else if (Utils.compareStrings(key,"merkleRoot")) {
-        require(!merkleRootAlreadyInit, "merkleRoot already init");
-        require(value.length == 32, "length of merkleRoot mismatch");
+        if (merkleRootAlreadyInit) revert MerkleRootAlreadyInitiated();
+        if (value.length != 32) revert InvalidValue(key, value);
         bytes32 newMerkleRoot = 0;
         Utils.bytesToBytes32(32 ,value, newMerkleRoot);
-        require(newMerkleRoot != bytes32(0), "merkleRoot should not be zero");
+        if (newMerkleRoot == bytes32(0)) revert InvalidValue(key, value);
         merkleRoot = newMerkleRoot;
         merkleRootAlreadyInit = true;
       } else {
-        require(false, "unknown param");
+         revert UnknownParam(key, value);
       }
       emit paramChange(key,value);
     }
