@@ -44,6 +44,12 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         _;
     }
 
+    modifier merkelRootReady() {
+        if (!merkleRootAlreadyInit) revert MerkleRootNotInitialize();
+        if (merkleRoot == bytes32(0)) revert MerkleRootNotInitialize();
+        _;
+    }
+
     function pause() external onlyAssetProtector {
         _paused = true;
         emit Paused();
@@ -77,6 +83,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     error InvalidOwnerPubKeyLength();
     error InvalidOwnerSignatureLength();
     error MerkleRootAlreadyInitiated();
+    error MerkleRootNotInitialize();
     error AirDropPaused();
     error InBlackList();
     error OnlyAssetProtector();
@@ -88,7 +95,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     function claim(
         bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
-        bytes32[] calldata merkleProof) whenNotPaused notInBlackList nonReentrant external override {
+        bytes32[] calldata merkleProof) merkelRootReady whenNotPaused notInBlackList nonReentrant external override {
         // Recover the owner address and check signature.
         bytes memory ownerAddr = _verifySecp256k1Sig(ownerPubKey, ownerSignature, _tmSignatureHash(tokenSymbol, amount, msg.sender));
         // Generate the leaf node of merkle tree.
@@ -112,7 +119,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         emit Claimed(tokenSymbol, msg.sender, amount);
     }
 
-    function _verifyApproverSig(address account, bytes memory ownerSignature, bytes memory approvalSignature, bytes32 leafHash, bytes32[] memory merkleProof) internal pure {
+    function _verifyApproverSig(address account, bytes memory ownerSignature, bytes memory approvalSignature, bytes32 leafHash, bytes32[] memory merkleProof) internal view {
         bytes memory buffer;
         for (uint i = 0; i < merkleProof.length; i++) {
             buffer = abi.encodePacked(buffer, merkleProof[i]);
@@ -122,7 +129,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         if (ECDSA.recover(hash, approvalSignature) != approvalAddress) revert InvalidApproverSignature();
     }
 
-    function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal pure returns (bytes memory) {
+    function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal view returns (bytes memory) {
         // Ensure the public key is valid
         if (pubKey.length != 33) revert InvalidOwnerPubKeyLength();
         // Ensure the signature length is correct
