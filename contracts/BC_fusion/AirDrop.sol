@@ -16,7 +16,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
 
     /*----------------- init paramters -----------------*/
     string public constant sourceChainID = "Binance-Chain-Ganges";
-    address public approvalAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+    address public approverAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
     bytes32 public merkleRoot = 0x0000000000000000000000000000000000000000000000000000000000000000;
     bool public merkleRootAlreadyInit = false;
 
@@ -126,7 +126,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         }
         // Perform the approvalSignature recovery and ensure the recovered signer is the approval account
         bytes32 hash = keccak256(abi.encodePacked(sourceChainID, account, ownerSignature, leafHash, merkleRoot, buffer));
-        if (ECDSA.recover(hash, approvalSignature) != approvalAddress) revert InvalidApproverSignature();
+        if (ECDSA.recover(hash, approvalSignature) != approverAddress) revert InvalidApproverSignature();
     }
 
     function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal view returns (bytes memory) {
@@ -177,11 +177,11 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
 
     /*********************** Param update ********************************/
     function updateParam(string calldata key, bytes calldata value) external onlyGov{
-        if (key.compareStrings("approvalAddress")) {
+        if (key.compareStrings("approverAddress")) {
             if (value.length != 20) revert InvalidValue(key, value);
             address newApprovalAddress = Utils.bytesToAddress(value, 20);
             if (newApprovalAddress == address(0)) revert InvalidValue(key, value);
-            approvalAddress = newApprovalAddress;
+            approverAddress = newApprovalAddress;
         } else if (key.compareStrings("merkleRoot")) {
             if (merkleRootAlreadyInit) revert MerkleRootAlreadyInitiated();
             if (value.length != 32) revert InvalidValue(key, value);

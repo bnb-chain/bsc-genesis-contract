@@ -5,6 +5,10 @@ pragma solidity 0.8.17;
 interface IAirDrop {
     // Returns the merkle root of the merkle tree containing account balances available to claim.
     function merkleRoot() external view returns (bytes32);
+    // Returns the address of the contract that is allowed to confirm the claim.
+    function approverAddress() external view returns (address);
+    // Returns the address of the contract that is allowed to pause the claim.
+    function assetProtector() external view returns (address);
     // Returns true if the index has been marked claimed.
     function isClaimed(bytes32 index) external view returns (bool);
     // Claim the given amount of the token to the given address. Reverts if the inputs are invalid.
