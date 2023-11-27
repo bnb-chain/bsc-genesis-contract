@@ -77,7 +77,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 2;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
-  bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+  bytes32 override constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP20=50000;
   uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
 
@@ -520,6 +520,32 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     elements[5] = uint256(transOutSynPkg.expireTime).encodeUint();
     return elements.encodeList();
+  }
+
+  /**
+   * @dev request a BC token aridrop transfer from BSC
+   *
+   * @param tokenSymbol The token symbol on BSC.
+   * @param recipient The destination address of the transfer on BSC.
+   * @param amount The amount to transfer
+   */
+  function unlock(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyAirDrop payable {
+    uint256 convertedAmount;
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
+      require(contractAddr != address(0x00), "invalid symbol");
+      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
+      convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep2 amount
+      require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
+      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+      require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
+      IBEP20(contractAddr).transfer(recipient, convertedAmount);
+    }else{
+      convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
+      require(address(this).balance >= convertedAmount, "insufficient balance");
+      (bool success, ) = recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: convertedAmount}("");
+      require(success, "transfer BNB failed");
+    }
   }
 
   /**

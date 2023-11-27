@@ -6,6 +6,8 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
+  bytes32 override constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+
   function getMiniRelayFee() external view override(ITokenHub) returns (uint256) {
     return (1e16);
   }
@@ -21,6 +23,10 @@ contract MockTokenHub is ITokenHub {
   function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub) {}
 
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
+
+  function unlock(bytes32, address, uint256)
+  external override(ITokenHub) payable {
+  }
 
   function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {

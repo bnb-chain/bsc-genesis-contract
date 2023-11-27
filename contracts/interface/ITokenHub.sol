@@ -14,6 +14,9 @@ interface ITokenHub {
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
     external payable returns (bool);
+  
+  function unlock(bytes32 tokenSymbol, address recipient, uint256 amount)
+    external payable;
 
   /* solium-disable-next-line */
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
@@ -22,4 +25,6 @@ interface ITokenHub {
   function withdrawStakingBNB(uint256 amount) external returns(bool);
 
   function cancelTransferIn(address tokenAddress, address attacker) external;
+
+  function BEP2_TOKEN_SYMBOL_FOR_BNB() external view returns (bytes32);
 }
