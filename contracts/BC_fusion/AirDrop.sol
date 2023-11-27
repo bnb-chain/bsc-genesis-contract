@@ -11,11 +11,64 @@ import "./System.sol";
 import "./lib/Utils.sol";
 
 contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
+    using Utils for string;
+    using Utils for bytes;
+
     /*----------------- init paramters -----------------*/
     string public constant sourceChainID = "Binance-Chain-Ganges";
     address public approvalAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
     bytes32 public merkleRoot = 0x0000000000000000000000000000000000000000000000000000000000000000;
     bool public merkleRootAlreadyInit = false;
+
+    /*----------------- storage -----------------*/
+    // claimedMap is used to record the claimed token.
+    mapping(bytes32 => bool) private claimedMap;
+
+    /*----------------- permission control -----------------*/
+    address public assetProtector = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+    mapping(address => bool) public blackList;
+    bool private _paused;
+
+    modifier whenNotPaused() {
+        if (_paused) revert AirDropPaused();
+        _;
+    }
+
+    modifier onlyAssetProtector() {
+        if (msg.sender != assetProtector) revert OnlyAssetProtector();
+        _;
+    }
+
+    modifier notInBlackList() {
+        if (blackList[msg.sender]) revert InBlackList();
+        _;
+    }
+
+    function pause() external onlyAssetProtector {
+        _paused = true;
+        emit Paused();
+    }
+
+    function resume() external onlyAssetProtector {
+        _paused = false;
+        emit Resumed();
+    }
+
+    function addToBlackList(address account) external onlyAssetProtector {
+        blackList[account] = true;
+    }
+
+    function removeFromBlackList(address account) external onlyAssetProtector {
+        blackList[account] = false;
+    }
+
+    /*----------------- events -----------------*/
+    // This event is triggered whenever a call to #pause succeeds.
+    event Paused();
+    // This event is triggered whenever a call to #pause succeeds.
+    event Resumed();
+    // This event is triggered whenever a call to #claim succeeds.
+    event Claimed(bytes32 tokenSymbol, address account, uint256 amount);
 
     /*----------------- errors -----------------*/
     error AlreadyClaimed();
@@ -24,10 +77,9 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     error InvalidOwnerPubKeyLength();
     error InvalidOwnerSignatureLength();
     error MerkleRootAlreadyInitiated();
-
-    /*----------------- storage -----------------*/
-    // claimedMap is used to record the claimed token.
-    mapping(bytes32 => bool) private claimedMap;
+    error AirDropPaused();
+    error InBlackList();
+    error OnlyAssetProtector();
 
     function isClaimed(bytes32 node) public view override returns (bool) {
         return claimedMap[node];
@@ -36,7 +88,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     function claim(
         bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
-        bytes32[] calldata merkleProof) nonReentrant external override {
+        bytes32[] calldata merkleProof) whenNotPaused notInBlackList nonReentrant external override {
         // Recover the owner address and check signature.
         bytes memory ownerAddr = _verifySecp256k1Sig(ownerPubKey, ownerSignature, _tmSignatureHash(tokenSymbol, amount, msg.sender));
         // Generate the leaf node of merkle tree.
@@ -118,22 +170,27 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
 
     /*********************** Param update ********************************/
     function updateParam(string calldata key, bytes calldata value) external onlyGov{
-      if (Utils.compareStrings(key,"approvalAddress")) {
-        if (value.length != 20) revert InvalidValue(key, value);
-        address newApprovalAddress = Utils.bytesToAddress(value, 20);
-        if (newApprovalAddress == address(0)) revert InvalidValue(key, value);
-        approvalAddress = newApprovalAddress;
-      } else if (Utils.compareStrings(key,"merkleRoot")) {
-        if (merkleRootAlreadyInit) revert MerkleRootAlreadyInitiated();
-        if (value.length != 32) revert InvalidValue(key, value);
-        bytes32 newMerkleRoot = 0;
-        Utils.bytesToBytes32(32 ,value, newMerkleRoot);
-        if (newMerkleRoot == bytes32(0)) revert InvalidValue(key, value);
-        merkleRoot = newMerkleRoot;
-        merkleRootAlreadyInit = true;
-      } else {
-         revert UnknownParam(key, value);
-      }
-      emit paramChange(key,value);
+        if (key.compareStrings("approvalAddress")) {
+            if (value.length != 20) revert InvalidValue(key, value);
+            address newApprovalAddress = Utils.bytesToAddress(value, 20);
+            if (newApprovalAddress == address(0)) revert InvalidValue(key, value);
+            approvalAddress = newApprovalAddress;
+        } else if (key.compareStrings("merkleRoot")) {
+            if (merkleRootAlreadyInit) revert MerkleRootAlreadyInitiated();
+            if (value.length != 32) revert InvalidValue(key, value);
+            bytes32 newMerkleRoot = 0;
+            Utils.bytesToBytes32(32 ,value, newMerkleRoot);
+            if (newMerkleRoot == bytes32(0)) revert InvalidValue(key, value);
+            merkleRoot = newMerkleRoot;
+            merkleRootAlreadyInit = true;
+        } else if (key.compareStrings("assetProtector")) {
+            if (value.length != 20) revert InvalidValue(key, value);
+            address newAssetProtector = value.bytesToAddress(20);
+            if (newAssetProtector == address(0)) revert InvalidValue(key, value);
+            assetProtector = newAssetProtector;
+        }else {
+            revert UnknownParam(key, value);
+        }
+        emit ParamChange(key,value);
     }
 }

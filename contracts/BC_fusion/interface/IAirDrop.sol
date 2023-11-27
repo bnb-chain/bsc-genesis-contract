@@ -11,8 +11,4 @@ interface IAirDrop {
     function claim(bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
         bytes32[] calldata merkleProof) external;
-    // This event is triggered whenever a call to #claim succeeds.
-    event Claimed(bytes32 tokenSymbol, address account, uint256 amount);
-    // This event is triggered whenever a call to #paramChange succeeds.
-    event paramChange(string key, bytes value);
 }
