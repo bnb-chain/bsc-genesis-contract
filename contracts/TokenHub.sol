@@ -541,13 +541,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
       require(contractAddr != address(0x00), "invalid symbol");
       uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
-      convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep2 amount
-      require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
-      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+      require(amount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+      convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep20 amount
       require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
       _lockAirdropToken(tokenSymbol, contractAddr, convertedAmount, recipient);
     }else{
-      convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
+      convertedAmount = amount.mul(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
       require(address(this).balance >= convertedAmount, "insufficient balance");
       address contractAddr = address(0x00);
       _lockAirdropToken(tokenSymbol, contractAddr, convertedAmount, recipient);
