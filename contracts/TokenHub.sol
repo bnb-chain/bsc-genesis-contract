@@ -539,12 +539,39 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
       require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
-      IBEP20(contractAddr).transfer(recipient, convertedAmount);
+
+      TransferInSynPackage memory transInSynPkg = TransferInSynPackage({
+        bep2TokenSymbol: tokenSymbol,
+        contractAddr: contractAddr,
+        amount: convertedAmount,
+        recipient: recipient,
+        refundAddr: address(0x0), // did not used here.
+        expireTime: 0 // did not used here.
+      });
+
+      if (!_checkAndLockTransferIn(transInSynPkg)) {
+        bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
+        require(success, "transfer Token failed");
+      }
+
     }else{
       convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
       require(address(this).balance >= convertedAmount, "insufficient balance");
-      (bool success, ) = recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: convertedAmount}("");
-      require(success, "transfer BNB failed");
+
+      TransferInSynPackage memory transInSynPkg = TransferInSynPackage({
+        bep2TokenSymbol: tokenSymbol,
+        contractAddr: address(0x0),
+        amount: convertedAmount,
+        recipient: recipient,
+        refundAddr: address(0x0), // did not used here.
+        expireTime: 0 // did not used here.
+      });
+
+      if (!_checkAndLockTransferIn(transInSynPkg)) {
+        // directly transfer to the recipient
+        (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
+        require(success, "transfer BNB failed");
+      }
     }
   }
 
