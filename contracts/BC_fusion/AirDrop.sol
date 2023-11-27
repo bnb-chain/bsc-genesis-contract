@@ -112,7 +112,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         emit Claimed(tokenSymbol, msg.sender, amount);
     }
 
-    function _verifyApproverSig(address account, bytes memory ownerSignature, bytes memory approvalSignature, bytes32 leafHash, bytes32[] memory merkleProof) private view {
+    function _verifyApproverSig(address account, bytes memory ownerSignature, bytes memory approvalSignature, bytes32 leafHash, bytes32[] memory merkleProof) internal pure {
         bytes memory buffer;
         for (uint i = 0; i < merkleProof.length; i++) {
             buffer = abi.encodePacked(buffer, merkleProof[i]);
@@ -122,7 +122,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         if (ECDSA.recover(hash, approvalSignature) != approvalAddress) revert InvalidApproverSignature();
     }
 
-    function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal view returns (bytes memory) {
+    function _verifySecp256k1Sig(bytes memory pubKey, bytes memory signature, bytes32 messageHash) internal pure returns (bytes memory) {
         // Ensure the public key is valid
         if (pubKey.length != 33) revert InvalidOwnerPubKeyLength();
         // Ensure the signature length is correct
