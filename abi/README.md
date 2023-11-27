@@ -1,7 +1,7 @@
 # ABI Files for Build-In System Contracts
 
 | Contract Name         | Address                                    | ABI file name                                      |
-|-----------------------|--------------------------------------------|----------------------------------------------------|
+| --------------------- | ------------------------------------------ | -------------------------------------------------- |
 | BSCValidatorSet       | 0x0000000000000000000000000000000000001000 | [bscvalidatorset](bscvalidatorset.abi)             |
 | SlashIndicator        | 0x0000000000000000000000000000000000001001 | [slashindicator](slashindicator.abi)               |
 | SystemReward          | 0x0000000000000000000000000000000000001002 | [systemreward](systemreward.abi)                   |
@@ -13,3 +13,8 @@
 | TokenManager          | 0x0000000000000000000000000000000000001008 | [tokenmanager](tokenmanager.abi)                   |
 | CrossChain            | 0x0000000000000000000000000000000000002000 | [crosschain](crosschain.abi)                       |
 | Staking               | 0x0000000000000000000000000000000000002001 | [staking](staking.abi)                             |
+| StakeHub              | 0x0000000000000000000000000000000000002002 | [stakehub](staking.abi)                            |
+| StakeCredit           | 0x0000000000000000000000000000000000002003 | [stakecredit](stakecredit.abi)                     |
+| BSCGovernor           | 0x0000000000000000000000000000000000002004 | [bscgovernor](bscgovernor.abi)                     |
+| GovToken              | 0x0000000000000000000000000000000000002005 | [govtoken](govtoken.abi)                           |
+| BSCTimelock           | 0x0000000000000000000000000000000000002006 | [bsctimelock](bsctimelock.abi)                     |

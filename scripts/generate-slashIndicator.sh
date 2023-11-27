@@ -22,10 +22,9 @@ done
 # Replace the specific line
 case $NETWORK in
 local)
-    sed -i -e "s/alreadyInit = true;/enableMaliciousVoteSlash = true;\nalreadyInit = true;/g" "$OUTPUT"
+    sed -i -e "s/alreadyInit = true;/enableMaliciousVoteSlash = true;\n    alreadyInit = true;/g" "$OUTPUT"
     ;;
-*)
-    ;;
+*) ;;
 esac
 
 echo "SlashIndicator file updated."

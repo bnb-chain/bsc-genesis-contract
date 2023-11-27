@@ -32,6 +32,25 @@
   },
   {
     "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "voteAddrSlice",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "failReason",
+        "type": "bytes"
+      }
+    ],
+    "name": "failedMaliciousVoteSlash",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
     "inputs": [],
     "name": "indicatorCleaned",
     "type": "event"
@@ -47,6 +66,19 @@
       }
     ],
     "name": "knownResponse",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "voteAddrSlice",
+        "type": "bytes32"
+      }
+    ],
+    "name": "maliciousVoteSlashed",
     "type": "event"
   },
   {
@@ -102,19 +134,6 @@
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "BSC_RELAYER_REWARD",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -200,6 +219,19 @@
   },
   {
     "inputs": [],
+    "name": "GOVERNOR_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "GOV_CHANNELID",
     "outputs": [
       {
@@ -240,6 +272,19 @@
   {
     "inputs": [],
     "name": "INIT_FINALITY_SLASH_REWARD_RATIO",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INIT_MALICIOUS_VOTE_SLASH_SCOPE",
     "outputs": [
       {
         "internalType": "uint256",
@@ -305,6 +350,19 @@
   {
     "inputs": [],
     "name": "SLASH_CONTRACT_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STAKE_HUB_ADDR",
     "outputs": [
       {
         "internalType": "address",
@@ -450,6 +508,37 @@
     "name": "clean",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "validator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "count",
+        "type": "uint256"
+      }
+    ],
+    "name": "downtimeSlash",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "enableMaliciousVoteSlash",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -618,6 +707,19 @@
   },
   {
     "inputs": [],
+    "name": "maliciousVoteSlashScope",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "misdemeanorThreshold",
     "outputs": [
       {
@@ -664,6 +766,24 @@
       }
     ],
     "name": "slash",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes",
+        "name": "header1",
+        "type": "bytes"
+      },
+      {
+        "internalType": "bytes",
+        "name": "header2",
+        "type": "bytes"
+      }
+    ],
+    "name": "submitDoubleSignEvidence",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

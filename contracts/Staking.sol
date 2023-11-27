@@ -194,35 +194,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
   /***************************** External functions *****************************/
   /**
-   * @dev Delegate BNB from BSC to BC
-   *
-   * @param validator BC validator address encoded to evm address
-   * @param amount Amount user delegate to BC validator
+   * @dev Deprecated after fusion
    */
-  function delegate(address validator, uint256 amount) override external payable noReentrant tenDecimalPrecision(amount) initParams {
-    require(amount >= minDelegation, "invalid delegate amount");
-    require(msg.value >= amount.add(relayerFee), "not enough msg value");
-    (bool success,) = msg.sender.call{gas: transferGas}("");
-    require(success, "invalid delegator"); // the msg sender must be payable
-
-    uint256 convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _relayerFee = (msg.value).sub(amount);
-    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
-
-    bytes[] memory elements = new bytes[](3);
-    elements[0] = msg.sender.encodeAddress();
-    elements[1] = validator.encodeAddress();
-    elements[2] = convertedAmount.encodeUint();
-    bytes memory msgBytes = _RLPEncode(EVENT_DELEGATE, elements.encodeList());
-    packageQueue[rightIndex] = keccak256(msgBytes);
-    ++rightIndex;
-    delegateInFly[msg.sender] += 1;
-
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(amount.add(oracleRelayerFee));
-    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
-
-    emit delegateSubmitted(msg.sender, validator, amount, oracleRelayerFee);
+  function delegate(address, uint256) override external payable {
+    revert("not supported");
   }
 
   /**
@@ -266,43 +241,10 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
   }
 
   /**
-   * @dev Redelegate from validatorSrc to validatorDst on BC
-   *
-   * @param amount Amount that the user redelegates
+   * @dev Deprecated after fusion
    */
-  function redelegate(address validatorSrc, address validatorDst, uint256 amount) override external noReentrant payable tenDecimalPrecision(amount) initParams {
-    require(validatorSrc != validatorDst, "invalid redelegation");
-    require(msg.value >= relayerFee, "not enough relay fee");
-    require(amount >= minDelegation, "invalid amount");
-    require(block.timestamp >= pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] &&
-      block.timestamp >= pendingRedelegateTime[msg.sender][validatorDst][validatorSrc], "pending redelegation exist");
-    uint256 remainBalance = delegatedOfValidator[msg.sender][validatorSrc].sub(amount, "not enough funds");
-    if (remainBalance != 0) {
-      require(remainBalance > bSCRelayerFee, "insufficient balance after redelegate");
-    }
-
-    uint256 convertedAmount = amount.div(TEN_DECIMALS);// native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-    uint256 _relayerFee = msg.value;
-    uint256 oracleRelayerFee = _relayerFee.sub(bSCRelayerFee);
-
-    bytes[] memory elements = new bytes[](4);
-    elements[0] = msg.sender.encodeAddress();
-    elements[1] = validatorSrc.encodeAddress();
-    elements[2] = validatorDst.encodeAddress();
-    elements[3] = convertedAmount.encodeUint();
-    bytes memory msgBytes = _RLPEncode(EVENT_REDELEGATE, elements.encodeList());
-    packageQueue[rightIndex] = keccak256(msgBytes);
-    ++rightIndex;
-    redelegateInFly[msg.sender] += 1;
-
-    pendingRedelegateTime[msg.sender][validatorDst][validatorSrc] = block.timestamp.add(LOCK_TIME);
-    pendingRedelegateTime[msg.sender][validatorSrc][validatorDst] = block.timestamp.add(LOCK_TIME);
-
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(CROSS_STAKE_CHANNELID, msgBytes, oracleRelayerFee.div(TEN_DECIMALS));
-    payable(TOKEN_HUB_ADDR).transfer(oracleRelayerFee);
-    payable(SYSTEM_REWARD_ADDR).transfer(bSCRelayerFee);
-
-    emit redelegateSubmitted(msg.sender, validatorSrc, validatorDst, amount, oracleRelayerFee);
+  function redelegate(address, address, uint256) override external payable {
+    revert("not supported");
   }
 
   /**

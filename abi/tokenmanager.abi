@@ -352,6 +352,19 @@
   },
   {
     "inputs": [],
+    "name": "GOVERNOR_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "GOV_CHANNELID",
     "outputs": [
       {
@@ -548,6 +561,19 @@
   {
     "inputs": [],
     "name": "SLASH_CONTRACT_ADDR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "STAKE_HUB_ADDR",
     "outputs": [
       {
         "internalType": "address",

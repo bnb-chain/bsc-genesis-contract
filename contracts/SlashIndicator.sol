@@ -12,15 +12,18 @@ import "./interface/IBSCValidatorSet.sol";
 import "./interface/IParamSubscriber.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/ISystemReward.sol";
+import "./interface/IStakeHub.sol";
 import "./lib/CmnPkg.sol";
 import "./lib/RLPEncode.sol";
 
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
   using RLPEncode for *;
 
-  uint256 public constant MISDEMEANOR_THRESHOLD = 50;
-  uint256 public constant FELONY_THRESHOLD = 150;
-  uint256 public constant BSC_RELAYER_REWARD = 1e16;
+  // TODO: revert to 50 and 150
+  // uint256 public constant MISDEMEANOR_THRESHOLD = 50;
+  // uint256 public constant FELONY_THRESHOLD = 150;
+  uint256 public constant MISDEMEANOR_THRESHOLD = 5;
+  uint256 public constant FELONY_THRESHOLD = 10;
   uint256 public constant DECREASE_RATE = 4;
 
   // State of the contract
@@ -40,7 +43,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   bool public enableMaliciousVoteSlash;
 
   uint256 public constant INIT_MALICIOUS_VOTE_SLASH_SCOPE = 86400;  // 3 days
-   
+
   uint256 public maliciousVoteSlashScope;
 
   event validatorSlashed(address indexed validator);
@@ -81,7 +84,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     _;
     previousHeight = block.number;
   }
-  
+
   function init() external onlyNotInit{
     misdemeanorThreshold = MISDEMEANOR_THRESHOLD;
     felonyThreshold = FELONY_THRESHOLD;
@@ -130,8 +133,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (indicator.count % felonyThreshold == 0) {
       indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {} catch (bytes memory reason) {
-        emit failedFelony(validator, indicator.count, reason);
+      if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(validator) != address(0)) {
+        _downtimeSlash(validator, indicator.count);
+      } else {
+        // send slash msg to bc if validator is not migrated
+        try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {} catch (bytes memory reason) {
+          emit failedFelony(validator, indicator.count, reason);
+        }
       }
     } else if (indicator.count % misdemeanorThreshold == 0) {
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
@@ -194,7 +202,21 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     emit indicatorCleaned();
   }
 
-  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit onlyRelayer {
+  function downtimeSlash(address validator, uint256 count) external override onlyValidatorContract {
+    _downtimeSlash(validator, count);
+  }
+
+  function _downtimeSlash(address validator, uint256 count) internal {
+    try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) {
+    } catch Error(string memory reason) {
+      emit failedFelony(validator, count, bytes(reason));
+    } catch (bytes memory lowLevelData) {
+      emit failedFelony(validator, count, lowLevelData);
+    }
+  }
+
+  //TODO: add onlyRelayer
+  function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
@@ -220,8 +242,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).isMonitoredForMaliciousVote(_evidence.voteAddr),"voteAddr is not found");
 
     // BLS verification
-    require(verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
-      verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
+    require(_verifyBLSSignature(_evidence.voteA, _evidence.voteAddr) &&
+      _verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
 
     // reward sender and felony validator if validator found
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
@@ -229,18 +251,64 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
         uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
         ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony( vals[i]);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
         break;
       }
     }
 
-    // send slash msg to bc
-    bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
-    try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
-      emit maliciousVoteSlashed(voteAddrSlice);
-    } catch (bytes memory reason) {
-      emit failedMaliciousVoteSlash(voteAddrSlice, reason);
+    if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByVoteAddress(_evidence.voteAddr) != address(0)) {
+      IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
+    } else {
+      // send slash msg to bc if the validator not migrated
+      bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
+      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
+        emit maliciousVoteSlashed(voteAddrSlice);
+      } catch (bytes memory reason) {
+        emit failedMaliciousVoteSlash(voteAddrSlice, reason);
+      }
     }
+  }
+
+  //TODO: add onlyRelayer
+  function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
+    require(header1.length != 0 && header2.length != 0, "empty header");
+
+    bytes[] memory elements = new bytes[](3);
+    elements[0] = bscChainID.encodeUint();
+    elements[1] = header1.encodeBytes();
+    elements[2] = header2.encodeBytes();
+
+    // call precompile contract to verify evidence
+    bytes memory input = elements.encodeList();
+    bytes memory output = new bytes(52);
+    assembly {
+      let len := mload(input)
+      if iszero(staticcall(not(0), 0x68, add(input, 0x20), len, add(output, 0x20), 0x34)) {
+        revert(0, 0)
+      }
+    }
+
+    address signer;
+    uint256 evidenceTime;
+    assembly {
+      signer := mload(add(output, 0x14))
+      evidenceTime := mload(add(output, 0x34))
+    }
+    require(IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(signer) != address(0), "validator not migrated");
+    require(evidenceTime + 21 days >= block.timestamp, "evidence too old");
+
+    // reward sender and felony validator if validator found
+    (address[] memory vals, ) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
+    for (uint i; i < vals.length; ++i) {
+      if (signer == vals[i]) {
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
+        break;
+      }
+    }
+
+    IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer);
   }
 
   /**
@@ -252,7 +320,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
   }
 
-  function verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns(bool) {
+  function _verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns(bool) {
     bytes[] memory elements = new bytes[](4);
     bytes memory _bytes = new bytes(32);
     elements[0] = vote.srcNum.encodeUint();
@@ -266,9 +334,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
     // assemble input data
     bytes memory input = new bytes(176);
-    bytesConcat(input, _bytes, 0, 32);
-    bytesConcat(input, vote.sig, 32, 96);
-    bytesConcat(input, voteAddr, 128, 48);
+    _bytesConcat(input, _bytes, 0, 32);
+    _bytesConcat(input, vote.sig, 32, 96);
+    _bytesConcat(input, voteAddr, 128, 48);
 
     // call the precompiled contract to verify the BLS signature
     // the precompiled contract's address is 0x66
@@ -285,7 +353,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     return true;
   }
 
-  function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
+  function _bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
     for (uint i; i<len; ++i) {
       data[index++] = _bytes[i];
     }
