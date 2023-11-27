@@ -15,4 +15,6 @@ interface IAirDrop {
     function claim(bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
         bytes32[] calldata merkleProof) external;
+    // Cancel the user claim request by the assetProtector.
+    function cancelClaim(bytes32 tokenSymbol, address recipient) external;
 }

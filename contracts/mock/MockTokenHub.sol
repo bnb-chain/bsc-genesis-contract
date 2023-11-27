@@ -25,7 +25,12 @@ contract MockTokenHub is ITokenHub {
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
 
   function unlock(bytes32, address, uint256)
-  external override(ITokenHub) payable {
+  external override(ITokenHub) {
+  }
+
+  function cancelAirdrop(bytes32, address) external override {
+    address AIRDROP_CONTRACT_ADDR = address(0x0000000000000000000000000000000000003000);
+    require(msg.sender == AIRDROP_CONTRACT_ADDR, "only airdrop contract can call this function");
   }
 
   function transferOut(address, address, uint256, uint64)

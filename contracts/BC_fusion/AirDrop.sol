@@ -234,4 +234,12 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         }
         emit ParamChange(key,value);
     }
+
+    /// cancelClaim is used to cancel the claim request.
+    /// @dev The claim request can only be canceled by the assetProtector.
+    /// @param tokenSymbol is the symbol of token.
+    /// @param attacker is the address of the attacker.
+    function cancelClaim(bytes32 tokenSymbol, address attacker) external onlyAssetProtector{
+        ITokenHub(TOKEN_HUB_ADDR).cancelAirdrop(tokenSymbol, attacker);
+    }
 }

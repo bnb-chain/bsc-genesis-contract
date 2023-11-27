@@ -96,6 +96,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public INIT_LOCK_PERIOD = 12 hours;
   // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
+  // the lock pried for airdrop
+  uint256 constant public lockPeriodForAirdrop = 7 days;
   // token address => largeTransferLimit amount, address(0) means BNB
   mapping(address => uint256) public largeTransferLimitMap;
   // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
@@ -116,6 +118,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
   event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
   event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
+
+  // BEP-299: Token Migration after BC Fusion
+  event AirDropLocked(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+  event CancelAirDrop(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed attacker, uint256 amount);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -529,7 +535,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
    * @param recipient The destination address of the transfer on BSC.
    * @param amount The amount to transfer
    */
-  function unlock(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyAirDrop payable {
+  function unlock(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyAirDrop {
     uint256 convertedAmount;
     if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
       address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
@@ -539,40 +545,43 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
       require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
       require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
       require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
-
-      TransferInSynPackage memory transInSynPkg = TransferInSynPackage({
-        bep2TokenSymbol: tokenSymbol,
-        contractAddr: contractAddr,
-        amount: convertedAmount,
-        recipient: recipient,
-        refundAddr: address(0x0), // did not used here.
-        expireTime: 0 // did not used here.
-      });
-
-      if (!_checkAndLockTransferIn(transInSynPkg)) {
-        bool success = IBEP20(transInSynPkg.contractAddr).transfer{gas: MAX_GAS_FOR_CALLING_BEP20}(transInSynPkg.recipient, transInSynPkg.amount);
-        require(success, "transfer Token failed");
-      }
-
+      _lockAirdropToken(tokenSymbol, contractAddr, convertedAmount, recipient);
     }else{
       convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
       require(address(this).balance >= convertedAmount, "insufficient balance");
-
-      TransferInSynPackage memory transInSynPkg = TransferInSynPackage({
-        bep2TokenSymbol: tokenSymbol,
-        contractAddr: address(0x0),
-        amount: convertedAmount,
-        recipient: recipient,
-        refundAddr: address(0x0), // did not used here.
-        expireTime: 0 // did not used here.
-      });
-
-      if (!_checkAndLockTransferIn(transInSynPkg)) {
-        // directly transfer to the recipient
-        (bool success, ) = transInSynPkg.recipient.call{gas: MAX_GAS_FOR_TRANSFER_BNB, value: transInSynPkg.amount}("");
-        require(success, "transfer BNB failed");
-      }
+      address contractAddr = address(0x00);
+      _lockAirdropToken(tokenSymbol, contractAddr, convertedAmount, recipient);
     }
+  }
+
+  // lock the airdrop token for 7 days to the recipient address
+  function _lockAirdropToken(bytes32 tokenSymbol, address contractAddr, uint256 amount, address recipient) internal {
+    LockInfo storage lockInfo = lockInfoMap[contractAddr][recipient];
+    lockInfo.amount = lockInfo.amount.add(amount);
+    lockInfo.unlockAt = block.timestamp + lockPeriodForAirdrop;
+
+    emit AirDropLocked(
+      tokenSymbol,
+      contractAddr,
+      recipient,
+      amount,
+      lockInfo.unlockAt
+    );
+  }
+
+  function cancelAirdrop(bytes32 tokenSymbol, address attacker) override external onlyAirDrop {
+    address tokenAddress = address(0x00);
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      tokenAddress = bep2SymbolToContractAddr[tokenSymbol];
+      require(tokenAddress != address(0x00), "invalid symbol");
+    }
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
+    require(lockInfo.amount > 0, "no locked amount");
+
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
+
+    emit CancelAirDrop(tokenSymbol, tokenAddress, attacker, _amount);
   }
 
   /**
