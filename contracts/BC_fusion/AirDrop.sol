@@ -171,7 +171,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
           // call tmSignatureRecover precompile contract
           // Contract address: 0x69
           // input:
-          // | tmPubKey | tmSignature  |  tmSignatureMsgHash  |
+          // | PubKey | Signature  |  SignatureMsgHash  |
           // | 33 bytes |  64 bytes    |       32 bytes       |
           // output:
           // | recovered address  |
