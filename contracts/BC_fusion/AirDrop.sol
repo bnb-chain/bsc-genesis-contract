@@ -32,8 +32,6 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     /*----------------- permission control -----------------*/
     /// assetProtector is the address that is allowed to pause the claim.
     address public assetProtector = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
-    /// blackList is the address that is not allowed to claim.
-    mapping(address => bool) public blackList;
     /// paused is used to pause the claim.
     bool private _paused;
 
@@ -44,11 +42,6 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
 
     modifier onlyAssetProtector() {
         if (msg.sender != assetProtector) revert OnlyAssetProtector();
-        _;
-    }
-
-    modifier notInBlackList() {
-        if (blackList[msg.sender]) revert InBlackList();
         _;
     }
 
@@ -66,14 +59,6 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     function resume() external onlyAssetProtector {
         _paused = false;
         emit Resumed();
-    }
-
-    function addToBlackList(address account) external onlyAssetProtector {
-        blackList[account] = true;
-    }
-
-    function removeFromBlackList(address account) external onlyAssetProtector {
-        blackList[account] = false;
     }
 
     /*----------------- events -----------------*/
@@ -114,7 +99,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     function claim(
         bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
-        bytes32[] calldata merkleProof) merkelRootReady whenNotPaused notInBlackList nonReentrant external override {
+        bytes32[] calldata merkleProof) merkelRootReady whenNotPaused nonReentrant external override {
         // Recover the owner address and check signature.
         bytes memory ownerAddr = _verifySecp256k1Sig(ownerPubKey, ownerSignature, _tmSignatureHash(tokenSymbol, amount, msg.sender));
         // Generate the leaf node of merkle tree.
