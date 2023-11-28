@@ -77,7 +77,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   MINIMUM_BEP20_SYMBOL_LEN = 2;
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
-  bytes32 override constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+  bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
   uint256 constant public MAX_GAS_FOR_CALLING_BEP20=50000;
   uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
 

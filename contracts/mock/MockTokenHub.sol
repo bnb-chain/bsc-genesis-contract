@@ -6,7 +6,7 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
-  bytes32 override constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+  bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
 
   function getMiniRelayFee() external view override(ITokenHub) returns (uint256) {
     return (1e16);
