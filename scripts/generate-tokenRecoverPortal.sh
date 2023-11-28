@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Default values
-OUTPUT="./contracts/BC_fusion/AirDrop.sol"
+OUTPUT="./contracts/BC_fusion/TokenRecoverPortal.sol"
 SOURCE_CHAIN_ID=""
 APPROVAL_ADDRESS="0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
 MERKLE_ROOT="0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -39,4 +39,4 @@ sed -i -e "s/string public constant sourceChainID = .*;/string public constant s
 sed -i -e "s/address public approvalAddress = .*;/address public approvalAddress = ${APPROVAL_ADDRESS};/g" "$OUTPUT"
 sed -i -e "s/bytes32 public constant override merkleRoot = .*;/bytes32 public constant override merkleRoot = ${MERKLE_ROOT};/g" "$OUTPUT"
 
-echo "AirDrop file updated."
+echo "TokenRecoverPortal file updated."

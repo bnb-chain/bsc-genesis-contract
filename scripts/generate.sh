@@ -45,7 +45,7 @@ function generate_local() {
     bash ${basedir}/generate-validatorSet.sh --initBurnRatio 1000 --network local
     bash ${basedir}/generate-systemReward.sh --network local
     bash ${basedir}/generate-slashIndicator.sh --network local
-    bash ${basedir}/generate-airdrop.sh --sourceChainId Binance-Chain-Ganges --approvalAddress 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --merkleRoot 0x0000000000000000000000000000000000000000000000000000000000000000
+    bash ${basedir}/generate-tokenRecoverPortal.sh --sourceChainId Binance-Chain-Ganges --approvalAddress 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa --merkleRoot 0x0000000000000000000000000000000000000000000000000000000000000000
     forge build
     node ${basedir}/generate-genesis.js --chainId ${CHAIN_ID}
 }

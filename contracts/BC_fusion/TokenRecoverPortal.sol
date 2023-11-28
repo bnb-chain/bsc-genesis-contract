@@ -6,16 +6,17 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interface/ITokenHub.sol";
-import "./interface/IAirDrop.sol";
+import "./interface/ITokenRecoverPortal.sol";
 import "./System.sol";
 import "./lib/Utils.sol";
 
-/// @title AirDrop is used to claim the token from BC users.
-/// @dev This is designed for the BC users to claim the token from TokenHub.
-/// The BC will chain will stop and generate a merkle tree root after BC-fusion plan was started.
-/// The BC users can claim the token from TokenHub after the merkle tree root is generated.
-/// For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
-contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
+/** @title TokenRecoverPortal is used to recover the token from BC users.
+  * @dev This is designed for the BC users to recover the token from TokenHub.
+  * The BC will chain will stop and generate a merkle tree root after BC-fusion plan was started.
+  * The BC users can recover the token from TokenHub after the merkle tree root is generated.
+  * For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
+  */
+contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, System {
     using Utils for string;
     using Utils for bytes;
 
@@ -26,17 +27,17 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     bool public merkleRootAlreadyInit = false;
 
     /*----------------- storage -----------------*/
-    /// claimedMap is used to record the claimed token.
-    mapping(bytes32 => bool) private claimedMap;
+    /// recoverdMap is used to record the recoverd token.
+    mapping(bytes32 => bool) private recoverdMap;
 
     /*----------------- permission control -----------------*/
-    /// assetProtector is the address that is allowed to pause the claim.
+    /// assetProtector is the address that is allowed to pause the #recover.
     address public assetProtector = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
-    /// paused is used to pause the claim.
+    /// paused is used to pause the #recover.
     bool private _paused;
 
     modifier whenNotPaused() {
-        if (_paused) revert AirDropPaused();
+        if (_paused) revert TokenRecoverPortalPaused();
         _;
     }
 
@@ -66,29 +67,29 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     event Paused();
     /// This event is triggered whenever a call to #pause succeeds.
     event Resumed();
-    /// This event is triggered whenever a call to #claim succeeds.
-    event Claimed(bytes32 tokenSymbol, address account, uint256 amount);
+    /// This event is triggered whenever a call to #recover succeeds.
+    event TokenRecoverRequestd(bytes32 tokenSymbol, address account, uint256 amount);
 
     /*----------------- errors -----------------*/
-    error AlreadyClaimed();
+    error AlreadyRecovered();
     error InvalidProof();
     error InvalidApproverSignature();
     error InvalidOwnerPubKeyLength();
     error InvalidOwnerSignatureLength();
     error MerkleRootAlreadyInitiated();
     error MerkleRootNotInitialize();
-    error AirDropPaused();
+    error TokenRecoverPortalPaused();
     error InBlackList();
     error OnlyAssetProtector();
 
-    /// isClaimed check if the token is claimed.
+    /// isRecovered check if the token is recovered.
     /// @param node the leaf node of merkle tree.
     /// @return the result of check.
-    function isClaimed(bytes32 node) public view override returns (bool) {
-        return claimedMap[node];
+    function isRecovered(bytes32 node) public view override returns (bool) {
+        return recoverdMap[node];
     }
 
-    /// claim is used to claim the token from BC users.
+    /// recover is used to get the token from BC users.
     /// @dev The token will be unlocked from TokenHub after the signature and the merkel proof is verified.
     /// @param tokenSymbol is the symbol of token.
     /// @param amount is the amount of token.
@@ -96,7 +97,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
     /// @param ownerSignature is the secp256k1 signature of the token owner on BC.
     /// @param approvalSignature is the eth_secp256k1 signature of the approver.
     /// @param merkleProof is the merkle proof of the token owner on BC.
-    function claim(
+    function recover(
         bytes32 tokenSymbol, uint256 amount,
         bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
         bytes32[] calldata merkleProof) merkelRootReady whenNotPaused nonReentrant external override {
@@ -105,8 +106,8 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         // Generate the leaf node of merkle tree.
         bytes32 node = keccak256(abi.encodePacked(ownerAddr, tokenSymbol, amount));
     
-        // Check if the token is claimed.
-        if (isClaimed(node)) revert AlreadyClaimed();
+        // Check if the token is recovered.
+        if (isRecovered(node)) revert AlreadyRecovered();
         
         // Verify the approval signature.
         _verifyApproverSig(msg.sender, ownerSignature, approvalSignature, node, merkleProof);
@@ -114,17 +115,17 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         // Verify the merkle proof.
         if (!MerkleProof.verify(merkleProof, merkleRoot, node)) revert InvalidProof();
     
-        // Mark it claimed and send the token.
-        claimedMap[node] = true;
+        // Mark it recovered and lock the token for 7 days.
+        recoverdMap[node] = true;
         
         // Unlock the token from TokenHub.
-        ITokenHub(TOKEN_HUB_ADDR).unlock(tokenSymbol, msg.sender, amount);
+        ITokenHub(TOKEN_HUB_ADDR).recoverBCAsset(tokenSymbol, msg.sender, amount);
 
-        emit Claimed(tokenSymbol, msg.sender, amount);
+        emit TokenRecoverRequestd(tokenSymbol, msg.sender, amount);
     }
 
     /// verifyApproverSig is used to verify the approver signature.
-    /// @dev The signature is generated by the approver address(need to call a aridrop backend service).
+    /// @dev The signature is generated by the approver address(need to call a token migration backend service).
     function _verifyApproverSig(address account, bytes memory ownerSignature, bytes memory approvalSignature, bytes32 leafHash, bytes32[] memory merkleProof) internal view {
         bytes memory buffer;
         for (uint i = 0; i < merkleProof.length; i++) {
@@ -153,7 +154,7 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         bytes memory output = new bytes(20);
         /* solium-disable-next-line */
         assembly {
-          // call tmSignatureRecover precompile contract
+          // call Secp256k1SignatureRecover precompile contract
           // Contract address: 0x69
           // input:
           // | PubKey | Signature  |  SignatureMsgHash  |
@@ -220,11 +221,11 @@ contract AirDrop is IAirDrop, ReentrancyGuardUpgradeable, System {
         emit ParamChange(key,value);
     }
 
-    /// cancelClaim is used to cancel the claim request.
-    /// @dev The claim request can only be canceled by the assetProtector.
+    /// cancelTokenRecover is used to cancel the recovery request.
+    /// @dev The token recover request can only be canceled by the assetProtector.
     /// @param tokenSymbol is the symbol of token.
     /// @param attacker is the address of the attacker.
-    function cancelClaim(bytes32 tokenSymbol, address attacker) external onlyAssetProtector{
-        ITokenHub(TOKEN_HUB_ADDR).cancelAirdrop(tokenSymbol, attacker);
+    function cancelTokenRecover(bytes32 tokenSymbol, address attacker) external onlyAssetProtector{
+        ITokenHub(TOKEN_HUB_ADDR).cancelTokenRecoverLock(tokenSymbol, attacker);
     }
 }

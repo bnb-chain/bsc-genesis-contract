@@ -59,7 +59,7 @@ Promise.all([
   readByteCode('governor', 'out/BSCGovernor.sol/BSCGovernor.json'),
   readByteCode('govToken', 'out/GovToken.sol/GovToken.json'),
   readByteCode('timelock', 'out/BSCTimelock.sol/BSCTimelock.json'),
-  readByteCode('airdrop', 'out/AirDrop.sol/AirDrop.json'),
+  readByteCode('tokenRecoverPortal', 'out/TokenRecoverPortal.sol/TokenRecoverPortal.json'),
 ]).then((result) => {
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
