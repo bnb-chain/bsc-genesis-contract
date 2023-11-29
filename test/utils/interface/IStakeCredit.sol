@@ -32,6 +32,8 @@ interface StakeCredit {
     event RewardReceived(uint256 rewardToAll, uint256 commission);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
+    receive() external payable;
+
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);

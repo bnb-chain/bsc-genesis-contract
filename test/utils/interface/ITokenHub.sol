@@ -2,9 +2,19 @@
 pragma solidity ^0.8.10;
 
 interface TokenHub {
+    event CancelTokenRecoverLock(
+        bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed attacker, uint256 amount
+    );
     event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
     event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
     event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+    event TokenRecoverLocked(
+        bytes32 indexed tokenSymbol,
+        address indexed tokenAddr,
+        address indexed recipient,
+        uint256 amount,
+        uint256 unlockAt
+    );
     event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
     event paramChange(string key, bytes value);
     event receiveDeposit(address from, uint256 amount);
@@ -32,6 +42,7 @@ interface TokenHub {
     function INIT_LOCK_PERIOD() external view returns (uint256);
     function INIT_MINIMUM_RELAY_FEE() external view returns (uint256);
     function LIGHT_CLIENT_ADDR() external view returns (address);
+    function LOCK_PERIOD_FOR_TOKEN_RECOVER() external view returns (uint256);
     function MAXIMUM_BEP20_SYMBOL_LEN() external view returns (uint8);
     function MAX_BEP2_TOTAL_SUPPLY() external view returns (uint256);
     function MAX_GAS_FOR_CALLING_BEP20() external view returns (uint256);
@@ -48,6 +59,7 @@ interface TokenHub {
     function TEN_DECIMALS() external view returns (uint256);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);
+    function TOKEN_RECOVER_PORTAL_ADDR() external view returns (address);
     function TRANSFER_IN_CHANNELID() external view returns (uint8);
     function TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE() external view returns (uint8);
     function TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT() external view returns (uint8);
@@ -67,6 +79,7 @@ interface TokenHub {
     function bep20ContractDecimals(address) external view returns (uint256);
     function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external;
     function bscChainID() external view returns (uint16);
+    function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) external;
     function cancelTransferIn(address tokenAddress, address attacker) external;
     function claimRewards(address payable to, uint256 amount) external returns (uint256);
     function getBep2SymbolByContractAddr(address contractAddr) external view returns (bytes32);
@@ -81,6 +94,7 @@ interface TokenHub {
     function largeTransferLimitMap(address) external view returns (uint256);
     function lockInfoMap(address, address) external view returns (uint256 amount, uint256 unlockAt);
     function lockPeriod() external view returns (uint256);
+    function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external;
     function relayFee() external view returns (uint256);
     function setLargeTransferLimit(address bep20Token, uint256 largeTransferLimit) external;
     function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)

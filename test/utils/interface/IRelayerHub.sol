@@ -30,6 +30,7 @@ interface RelayerHub {
     function SYSTEM_REWARD_ADDR() external view returns (address);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);
+    function TOKEN_RECOVER_PORTAL_ADDR() external view returns (address);
     function TRANSFER_IN_CHANNELID() external view returns (uint8);
     function TRANSFER_OUT_CHANNELID() external view returns (uint8);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);

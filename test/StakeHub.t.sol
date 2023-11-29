@@ -203,11 +203,21 @@ contract StakeHubTest is Deployer {
         stakeHub.redelegate(validator1, validator2, oldShares + 1, false);
 
         // success case
+        uint256 redelegateFeeRate = stakeHub.redelegateFeeRate();
+        uint256 feeBase = stakeHub.REDELEGATE_FEE_RATE_BASE();
+        uint256 redelegateFee = bnbAmount * redelegateFeeRate / feeBase;
+        uint256 expectedShares = (bnbAmount - redelegateFee) * IStakeCredit(credit2).totalSupply() / (IStakeCredit(credit2).totalPooledBNB() + redelegateFee);
         stakeHub.redelegate(validator1, validator2, oldShares, false);
         uint256 newShares = IStakeCredit(credit2).balanceOf(delegator);
-        assertEq(newShares, oldShares);
+        assertEq(newShares, expectedShares);
 
         vm.stopPrank();
+
+        // self redelegate
+        vm.startPrank(validator1);
+        uint256 selfDelegation = 2000 ether;
+        vm.expectRevert();
+        stakeHub.redelegate(validator1, validator2, selfDelegation, false);
     }
 
     function testReceiveBNB() public {
