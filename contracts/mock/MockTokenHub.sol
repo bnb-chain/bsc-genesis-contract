@@ -29,8 +29,8 @@ contract MockTokenHub is ITokenHub {
   }
 
   function cancelTokenRecoverLock(bytes32, address) external override {
-    address TOKEN_RECOVER_PORTAL_CONTRACT_ADDR = address(0x0000000000000000000000000000000000003000);
-    require(msg.sender == TOKEN_RECOVER_PORTAL_CONTRACT_ADDR, "only token reover portal contract can call this function");
+    address TOKEN_RECOVER_PORTAL_ADDR = address(0x0000000000000000000000000000000000003000);
+    require(msg.sender == TOKEN_RECOVER_PORTAL_ADDR, "only token reover portal contract can call this function");
   }
 
   function transferOut(address, address, uint256, uint64)
