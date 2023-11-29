@@ -458,7 +458,7 @@ contract StakeHub is System, Initializable {
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
         // check if the srcValidator has enough self delegation
-        if (IStakeCredit(srcValInfo.creditContract).getPooledBNB(srcValidator) < minSelfDelegationBNB) {
+        if (delegator == srcValidator && IStakeCredit(srcValInfo.creditContract).getPooledBNB(srcValidator) < minSelfDelegationBNB) {
             revert SelfDelegationNotEnough();
         }
 
@@ -657,7 +657,7 @@ contract StakeHub is System, Initializable {
         } else if (key.compareStrings("redelegateFeeRate")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newRedelegateFeeRate = value.bytesToUint256(32);
-            if (newRedelegateFeeRate > REDELEGATE_FEE_RATE_BASE || newRedelegateFeeRate == 0) {
+            if (newRedelegateFeeRate > 100) {
                 revert InvalidValue(key, value);
             }
             redelegateFeeRate = newRedelegateFeeRate;
