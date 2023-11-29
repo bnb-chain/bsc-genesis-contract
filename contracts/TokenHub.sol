@@ -96,6 +96,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public INIT_LOCK_PERIOD = 12 hours;
   // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
+  // the lock Period for token recover
+  uint256 constant public LOCK_PERIOD_FOR_TOKEN_RECOVER = 7 days;
   // token address => largeTransferLimit amount, address(0) means BNB
   mapping(address => uint256) public largeTransferLimitMap;
   // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
@@ -116,6 +118,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
   event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
   event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
+
+  // BEP-299: Token Migration after BC Fusion
+  event TokenRecoverLocked(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+  event CancelTokenRecoverLock(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed attacker, uint256 amount);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -520,6 +526,61 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     elements[5] = uint256(transOutSynPkg.expireTime).encodeUint();
     return elements.encodeList();
+  }
+
+  /**
+   * @dev request a BC token recover from BSC
+   *
+   * @param tokenSymbol The token symbol on BSC.
+   * @param recipient The destination address of the transfer on BSC.
+   * @param amount The amount to transfer
+   */
+  function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyTokenRecoverPortal {
+    require(amount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+    uint256 convertedAmount;
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
+      require(contractAddr != address(0x00), "invalid symbol");
+      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
+      convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep20 amount
+      require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
+      _lockRecoverToken(tokenSymbol, contractAddr, convertedAmount, recipient);
+    }else{
+      convertedAmount = amount.mul(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
+      require(address(this).balance >= convertedAmount, "insufficient balance");
+      address contractAddr = address(0x00);
+      _lockRecoverToken(tokenSymbol, contractAddr, convertedAmount, recipient);
+    }
+  }
+
+  // lock the token for 7 days to the recipient address
+  function _lockRecoverToken(bytes32 tokenSymbol, address contractAddr, uint256 amount, address recipient) internal {
+    LockInfo storage lockInfo = lockInfoMap[contractAddr][recipient];
+    lockInfo.amount = lockInfo.amount.add(amount);
+    lockInfo.unlockAt = block.timestamp + LOCK_PERIOD_FOR_TOKEN_RECOVER;
+
+    emit TokenRecoverLocked(
+      tokenSymbol,
+      contractAddr,
+      recipient,
+      amount,
+      lockInfo.unlockAt
+    );
+  }
+
+  function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) override external onlyTokenRecoverPortal {
+    address tokenAddress = address(0x00);
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      tokenAddress = bep2SymbolToContractAddr[tokenSymbol];
+      require(tokenAddress != address(0x00), "invalid symbol");
+    }
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
+    require(lockInfo.amount > 0, "no locked amount");
+
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
+
+    emit CancelTokenRecoverLock(tokenSymbol, tokenAddress, attacker, _amount);
   }
 
   /**

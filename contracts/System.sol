@@ -33,6 +33,7 @@ contract System {
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
   address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
   address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
+  address public constant TOKEN_RECOVER_PORTAL_ADDR = 0x0000000000000000000000000000000000003000;
 
   modifier onlyCoinbase() {
     require(msg.sender == block.coinbase, "the message sender must be the block producer");
@@ -101,6 +102,11 @@ contract System {
 
   modifier onlyGovernor() {
       require(msg.sender == GOVERNOR_ADDR, "the msg sender must be governor contract");
+      _;
+  }
+
+  modifier onlyTokenRecoverPortal() {
+      require(msg.sender == TOKEN_RECOVER_PORTAL_ADDR, "the msg sender must be token recover portal");
       _;
   }
 

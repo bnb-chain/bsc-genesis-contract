@@ -23,4 +23,34 @@ library Utils {
             _output := mload(add(_input, _offset))
         }
     }
+
+    function bytesToBytes32(uint _offst, bytes memory  _input, bytes32 _output) internal pure {
+        assembly {
+            mstore(_output , add(_input, _offst))
+            mstore(add(_output,32) , add(add(_input, _offst),32))
+        }
+    }
+
+    function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
+        for (uint i; i<len; ++i) {
+          data[index++] = _bytes[i];
+        }
+    }
+
+    function bytesToHex(bytes memory buffer, bool prefix) internal pure returns (string memory) {
+        // Fixed buffer size for hexadecimal conversion
+        bytes memory converted = new bytes(buffer.length * 2);
+
+        bytes memory _base = "0123456789abcdef";
+
+        for (uint256 i = 0; i < buffer.length; i++) {
+            converted[i * 2] = _base[uint8(buffer[i]) / _base.length];
+            converted[i * 2 + 1] = _base[uint8(buffer[i]) % _base.length];
+        }
+
+        if (prefix) {
+            return string(abi.encodePacked('0x',converted));
+        }
+        return string(converted);
+    }
 }

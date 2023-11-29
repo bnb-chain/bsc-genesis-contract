@@ -14,6 +14,10 @@ interface ITokenHub {
 
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
     external payable returns (bool);
+  
+  function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount)
+    external;
+  function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) external;
 
   /* solium-disable-next-line */
   function batchTransferOutBNB(address[] calldata recipientAddrs, uint256[] calldata amounts, address[] calldata refundAddrs,
