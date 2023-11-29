@@ -481,7 +481,9 @@ contract StakeHubTest is Deployer {
 
         uint256 toLock = stakeHub.INIT_LOCK_AMOUNT();
         vm.prank(operatorAddress);
-        stakeHub.createValidator{ value: delegation + toLock }(consensusAddress, blsPubKey, blsProof, commission, description);
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, blsPubKey, blsProof, commission, description
+        );
 
         (, credit,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
     }
