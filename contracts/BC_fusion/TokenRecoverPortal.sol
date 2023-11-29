@@ -199,7 +199,7 @@ contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, 
         ));
     }
 
-    /** updateParam is used to update the paramters of AirDrop.
+    /** updateParam is used to update the paramters of TokenRecoverPortal.
       * @dev The paramters can only be updated by the governor.
       * @param key is the key of the paramter.
       * @param value is the value of the paramter.

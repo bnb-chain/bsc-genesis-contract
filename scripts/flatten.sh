@@ -14,4 +14,4 @@ forge flatten contracts/BC_fusion/StakeCredit.sol >contracts/flattened/StakeCred
 forge flatten contracts/BC_fusion/BSCGovernor.sol >contracts/flattened/BSCGovernor.sol
 forge flatten contracts/BC_fusion/GovToken.sol >contracts/flattened/GovToken.sol
 forge flatten contracts/BC_fusion/BSCTimelock.sol >contracts/flattened/BSCTimelock.sol
-forge flatten contracts/BC_fusion/AirDrop.sol > contracts/flattened/AirDrop.sol
+forge flatten contracts/BC_fusion/TokenRecoverPortal.sol > contracts/flattened/TokenRecoverPortal.sol

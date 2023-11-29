@@ -535,7 +535,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
    * @param recipient The destination address of the transfer on BSC.
    * @param amount The amount to transfer
    */
-  function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyAirDrop {
+  function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyTokenRecoverPortal {
     require(amount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
     uint256 convertedAmount;
     if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
@@ -568,7 +568,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     );
   }
 
-  function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) override external onlyAirDrop {
+  function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) override external onlyTokenRecoverPortal {
     address tokenAddress = address(0x00);
     if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
       tokenAddress = bep2SymbolToContractAddr[tokenSymbol];

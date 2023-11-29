@@ -33,7 +33,7 @@ contract System {
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
   address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
   address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
-  address public constant AIRDROP_CONTRACT_ADDR = 0x0000000000000000000000000000000000003000;
+  address public constant TOKEN_RECOVER_PORTAL_CONTRACT_ADDR = 0x0000000000000000000000000000000000003000;
 
   modifier onlyCoinbase() {
     require(msg.sender == block.coinbase, "the message sender must be the block producer");
@@ -105,8 +105,8 @@ contract System {
       _;
   }
 
-  modifier onlyAirDrop() {
-      require(msg.sender == AIRDROP_CONTRACT_ADDR, "the msg sender must be airdrop");
+  modifier onlyTokenRecoverPortal() {
+      require(msg.sender == TOKEN_RECOVER_PORTAL_CONTRACT_ADDR, "the msg sender must be token recover portal");
       _;
   }
 

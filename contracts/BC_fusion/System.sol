@@ -19,7 +19,7 @@ contract System {
     address internal constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
     address internal constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
     address internal constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
-    address internal constant AIRDROP_CONTRACT_ADDR = 0x0000000000000000000000000000000000003000;
+    address internal constant TOKEN_RECOVER_PORTAL_CONTRACT_ADDR = 0x0000000000000000000000000000000000003000;
 
     /*----------------- errors -----------------*/
     error UnknownParam(string key, bytes value);
@@ -67,8 +67,8 @@ contract System {
         _;
     }
 
-    modifier onlyAirDrop() {
-        require(msg.sender == AIRDROP_CONTRACT_ADDR, "the msg sender must be airdrop");
+    modifier onlyTokenRecoverPortal() {
+        require(msg.sender == TOKEN_RECOVER_PORTAL_CONTRACT_ADDR, "the msg sender must be token recover portal");
         _;
     }
 }
