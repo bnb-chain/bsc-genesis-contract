@@ -11,6 +11,13 @@ interface BSCGovernor {
     }
 
     error Empty();
+    error InvalidValue(string key, bytes value);
+    error NotWhitelisted();
+    error OnlyCoinbase();
+    error OnlySystemContract(address systemContract);
+    error OnlyZeroGasPrice();
+    error TotalSupplyNotEnough();
+    error UnknownParam(string key, bytes value);
 
     event EIP712DomainChanged();
     event Initialized(uint8 version);

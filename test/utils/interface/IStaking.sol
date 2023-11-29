@@ -70,7 +70,7 @@ interface Staking {
     function bscChainID() external view returns (uint16);
     function claimReward() external returns (uint256 amount);
     function claimUndelegated() external returns (uint256 amount);
-    function delegate(address validator, uint256 amount) external payable;
+    function delegate(address, uint256) external payable;
     function getDelegated(address delegator, address validator) external view returns (uint256);
     function getDistributedReward(address delegator) external view returns (uint256);
     function getMinDelegation() external view returns (uint256);
@@ -87,7 +87,7 @@ interface Staking {
     function handleFailAckPackage(uint8, bytes memory msgBytes) external;
     function handleSynPackage(uint8, bytes memory msgBytes) external returns (bytes memory);
     function minDelegation() external view returns (uint256);
-    function redelegate(address validatorSrc, address validatorDst, uint256 amount) external payable;
+    function redelegate(address, address, uint256) external payable;
     function relayerFee() external view returns (uint256);
     function transferGas() external view returns (uint256);
     function undelegate(address validator, uint256 amount) external payable;

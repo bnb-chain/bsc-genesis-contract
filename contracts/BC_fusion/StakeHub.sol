@@ -20,7 +20,8 @@ contract StakeHub is System, Initializable {
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     uint256 private constant BLS_SIG_LENGTH = 96;
 
-    address private constant DEAD_ADDRESS = address(0xdead);
+    address public constant DEAD_ADDRESS = address(0xdead);
+    uint256 public constant INIT_LOCK_AMOUNT = 1 ether;
 
     //TODO
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
@@ -87,7 +88,7 @@ contract StakeHub is System, Initializable {
     uint256 public numOfJailed;
     // max number of jailed validators per day(only for malicious vote and double sign)
     uint256 private felonyPerDay;
-    // day => number of malicious vote and double sign slash
+    // day index(timestamp / 86400) => number of malicious vote and double sign slash
     mapping(uint256 => uint256) private _felonyMap;
 
     address public assetProtector;
@@ -184,7 +185,9 @@ contract StakeHub is System, Initializable {
         if (_isRedelegating != 1) revert();
     }
 
-    /*----------------- init -----------------*/
+    /**
+     * @dev this function is invoked by BSC Parlia consensus engine during the hard fork
+     */
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 5000;
         minSelfDelegationBNB = 2_000 ether;
@@ -212,6 +215,13 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- external functions -----------------*/
+    /**
+     * @param consensusAddress the consensus address of the validator
+     * @param voteAddress the vote address of the validator
+     * @param blsProof the bls proof of the vote address
+     * @param commission the commission of the validator
+     * @param description the description of the validator
+     */
     function createValidator(
         address consensusAddress,
         bytes calldata voteAddress,
@@ -230,13 +240,15 @@ contract StakeHub is System, Initializable {
         }
 
         uint256 delegation = msg.value;
-        if (delegation < minSelfDelegationBNB) revert SelfDelegationNotEnough();
+        if (delegation < minSelfDelegationBNB + INIT_LOCK_AMOUNT) revert SelfDelegationNotEnough();
 
+        if (consensusAddress == address(0)) revert InvalidConsensusAddress();
         if (
             commission.maxRate > 5_000 || commission.rate > commission.maxRate
                 || commission.maxChangeRate > commission.maxRate
         ) revert InvalidCommission();
         if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
+        // proof-of-possession verify
         if (!_checkVoteAddress(voteAddress, blsProof)) revert InvalidVoteAddress();
 
         // deploy stake credit proxy contract
@@ -257,6 +269,9 @@ contract StakeHub is System, Initializable {
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
     }
 
+    /**
+     * @param newConsensusAddress the new consensus address of the validator
+     */
     function editConsensusAddress(address newConsensusAddress)
         external
         whenNotPaused
@@ -279,6 +294,9 @@ contract StakeHub is System, Initializable {
         emit ConsensusAddressEdited(operatorAddress, newConsensusAddress);
     }
 
+    /**
+     * @param commissionRate the new commission rate of the validator
+     */
     function editCommissionRate(uint64 commissionRate)
         external
         whenNotPaused
@@ -301,6 +319,9 @@ contract StakeHub is System, Initializable {
         emit CommissionRateEdited(operatorAddress, commissionRate);
     }
 
+    /**
+     * @param description the new description of the validator
+     */
     function editDescription(Description calldata description)
         external
         whenNotPaused
@@ -319,10 +340,15 @@ contract StakeHub is System, Initializable {
         emit DescriptionEdited(operatorAddress);
     }
 
+    /**
+     * @param newVoteAddress the new vote address of the validator
+     * @param blsProof the bls proof of the vote address
+     */
     function editVoteAddress(
         bytes calldata newVoteAddress,
         bytes calldata blsProof
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
+        // proof-of-possession verify
         if (!_checkVoteAddress(newVoteAddress, blsProof)) revert InvalidVoteAddress();
         if (_voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
@@ -339,6 +365,9 @@ contract StakeHub is System, Initializable {
         emit VoteAddressEdited(operatorAddress, newVoteAddress);
     }
 
+    /**
+     * @param operatorAddress the operator address of the validator to be unjailed
+     */
     function unjail(address operatorAddress) external whenNotPaused validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         if (!valInfo.jailed) revert ValidatorNotJailed();
@@ -353,6 +382,10 @@ contract StakeHub is System, Initializable {
         emit ValidatorUnjailed(operatorAddress);
     }
 
+    /**
+     * @param operatorAddress the operator address of the validator to be delegated to
+     * @param delegateVotePower whether to delegate vote power to the validator
+     */
     function delegate(
         address operatorAddress,
         bool delegateVotePower
@@ -373,6 +406,11 @@ contract StakeHub is System, Initializable {
         }
     }
 
+    /**
+     * @dev Undelegate BNB from a validator, fund is only claimable few days later
+     * @param operatorAddress the operator address of the validator to be undelegated from
+     * @param shares the shares to be undelegated
+     */
     function undelegate(
         address operatorAddress,
         uint256 shares
@@ -392,6 +430,12 @@ contract StakeHub is System, Initializable {
         IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, delegator);
     }
 
+    /**
+     * @param srcValidator the operator address of the validator to be redelegated from
+     * @param dstValidator the operator address of the validator to be redelegated to
+     * @param shares the shares to be redelegated
+     * @param delegateVotePower whether to delegate vote power to the dstValidator
+     */
     function redelegate(
         address srcValidator,
         address dstValidator,
@@ -428,6 +472,8 @@ contract StakeHub is System, Initializable {
 
     /**
      * @dev Claim the undelegated BNB from the pool after unbondPeriod
+     * @param operatorAddress the operator address of the validator
+     * @param requestNumber the request number of the undelegation. 0 means claim all
      */
     function claim(
         address operatorAddress,
@@ -437,6 +483,11 @@ contract StakeHub is System, Initializable {
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
+    /**
+     * @dev Sync the gov tokens of validators in operatorAddresses
+     * @param operatorAddresses the operator addresses of the validators
+     * @param account the account to sync gov tokens to
+     */
     function syncGovToken(
         address[] calldata operatorAddresses,
         address account
@@ -469,6 +520,9 @@ contract StakeHub is System, Initializable {
         emit RewardDistributed(operatorAddress, msg.value);
     }
 
+    /**
+     * @dev Downtime slash. Only the `SlashIndicator` contract can call this function.
+     */
     function downtimeSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
@@ -484,6 +538,9 @@ contract StakeHub is System, Initializable {
         IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
+    /**
+     * @dev Malicious vote slash. Only the `SlashIndicator` contract can call this function.
+     */
     function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
         address operatorAddress = _voteToOperator[_voteAddr];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
@@ -504,6 +561,9 @@ contract StakeHub is System, Initializable {
         IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
+    /**
+     * @dev Double sign slash. Only the `SlashIndicator` contract can call this function.
+     */
     function doubleSignSlash(address consensusAddress) external onlySlash {
         address operatorAddress = _consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
@@ -524,24 +584,40 @@ contract StakeHub is System, Initializable {
         IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
+    /**
+     * @dev Pause the whole system in emergency
+     */
     function pause() external onlyAssetProtector {
         _paused = true;
         emit Paused();
     }
 
+    /**
+     * @dev Resume the whole system
+     */
     function resume() external onlyAssetProtector {
         _paused = false;
         emit Resumed();
     }
 
+    /**
+     * @dev Add an address to the black list
+     */
     function addToBlackList(address account) external onlyAssetProtector {
         blackList[account] = true;
     }
 
+    /**
+     * @dev Remove an address from the black list
+     */
     function removeFromBlackList(address account) external onlyAssetProtector {
         blackList[account] = false;
     }
 
+    /**
+     * @param key the key of the param
+     * @param value the value of the param
+     */
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("transferGasLimit")) {
             if (value.length != 32) revert InvalidValue(key, value);
@@ -609,10 +685,17 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- view functions -----------------*/
+    /**
+     * @return is the system paused
+     */
     function isPaused() external view returns (bool) {
         return _paused;
     }
 
+    /**
+     * @return the basic info of a validator
+     * including consensus address, credit contract, vote address, jailed and jailUntil
+     */
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
@@ -633,6 +716,9 @@ contract StakeHub is System, Initializable {
         jailUntil = valInfo.jailUntil;
     }
 
+    /**
+     * @return the description of a validator
+     */
     function getValidatorDescription(address operatorAddress)
         external
         view
@@ -642,6 +728,9 @@ contract StakeHub is System, Initializable {
         return _validators[operatorAddress].description;
     }
 
+    /**
+     * @return the commission of a validator
+     */
     function getValidatorCommission(address operatorAddress)
         external
         view
@@ -651,6 +740,13 @@ contract StakeHub is System, Initializable {
         return _validators[operatorAddress].commission;
     }
 
+    /**
+     * @dev this function will be invoked by Parlia consensus engine.
+     * @return the election info of a validator
+     * including consensus address, voting power and vote address.
+     * The voting power will be 0 if the validator is jailed.
+     * This function is for the consensus engine.
+     */
     function getValidatorElectionInfo(
         uint256 offset,
         uint256 limit
@@ -683,10 +779,16 @@ contract StakeHub is System, Initializable {
         }
     }
 
+    /**
+     * @return the operator address that ever used the vote address
+     */
     function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address) {
         return _voteToOperator[voteAddress];
     }
 
+    /**
+     * @return the operator address that ever used the consensus address
+     */
     function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address) {
         return _consensusToOperator[consensusAddress];
     }
