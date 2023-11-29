@@ -185,7 +185,9 @@ contract StakeHub is System, Initializable {
         if (_isRedelegating != 1) revert();
     }
 
-    /*----------------- init -----------------*/
+    /**
+     * @dev this function is invoked by BSC Parlia consensus engine during the hard fork
+     */
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 5000;
         minSelfDelegationBNB = 2_000 ether;
@@ -246,6 +248,7 @@ contract StakeHub is System, Initializable {
                 || commission.maxChangeRate > commission.maxRate
         ) revert InvalidCommission();
         if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
+        // proof-of-possession verify
         if (!_checkVoteAddress(voteAddress, blsProof)) revert InvalidVoteAddress();
 
         // deploy stake credit proxy contract
@@ -345,6 +348,7 @@ contract StakeHub is System, Initializable {
         bytes calldata newVoteAddress,
         bytes calldata blsProof
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
+        // proof-of-possession verify
         if (!_checkVoteAddress(newVoteAddress, blsProof)) revert InvalidVoteAddress();
         if (_voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
@@ -403,6 +407,7 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @dev Undelegate BNB from a validator, fund is only claimable few days later
      * @param operatorAddress the operator address of the validator to be undelegated from
      * @param shares the shares to be undelegated
      */
@@ -736,6 +741,7 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @dev this function will be invoked by Parlia consensus engine.
      * @return the election info of a validator
      * including consensus address, voting power and vote address.
      * The voting power will be 0 if the validator is jailed.

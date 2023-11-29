@@ -145,7 +145,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     }
 
     /**
-     * @dev Distribute the reward to the validator and the system. Only the `StakeHub` contract can call this function.
+     * @dev Distribute the reward to the validator and all delegators. Only the `StakeHub` contract can call this function.
      * @param commissionRate the commission rate of the validator
      */
     function distributeReward(uint64 commissionRate) external payable onlyStakeHub {
