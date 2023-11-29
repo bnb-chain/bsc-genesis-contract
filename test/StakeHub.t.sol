@@ -210,6 +210,27 @@ contract StakeHubTest is Deployer {
         vm.stopPrank();
     }
 
+    function testReceiveBNB() public {
+        // send to stakeHub directly
+        (bool success,) = address(stakeHub).call{ value: 1 ether }("");
+        assertTrue(!success);
+        (success,) = address(stakeHub).call{ value: 1 ether }(hex"12");
+        assertTrue(!success);
+
+        // send to credit contract directly
+        (, address credit) = _createValidator(2000 ether);
+        (success,) = credit.call{ value: 1 ether }("");
+        assertTrue(!success);
+        (success,) = credit.call{ value: 1 ether }(hex"12");
+        assertTrue(!success);
+
+        // send to credit contract by stakeHub
+        vm.deal(address(stakeHub), 1 ether);
+        vm.prank(address(stakeHub));
+        (success,) = credit.call{ value: 1 ether }("");
+        assertTrue(success);
+    }
+
     function testDistributeReward() public {
         address delegator = _getNextUserAddress();
         uint256 selfDelegation = 2000 ether;
