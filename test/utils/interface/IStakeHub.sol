@@ -17,6 +17,33 @@ interface StakeHub {
         string details;
     }
 
+    error AlreadySlashed();
+    error DelegationAmountTooSmall();
+    error DuplicateConsensusAddress();
+    error DuplicateVoteAddress();
+    error InBlackList();
+    error InvalidCommission();
+    error InvalidConsensusAddress();
+    error InvalidMoniker();
+    error InvalidValue(string key, bytes value);
+    error InvalidVoteAddress();
+    error JailTimeNotExpired();
+    error NoMoreFelonyToday();
+    error OnlyAssetProtector();
+    error OnlyCoinbase();
+    error OnlySelfDelegation();
+    error OnlySystemContract(address systemContract);
+    error OnlyZeroGasPrice();
+    error SameValidator();
+    error SelfDelegationNotEnough();
+    error StakeHubPaused();
+    error UnknownParam(string key, bytes value);
+    error UpdateTooFrequently();
+    error ValidatorExisted();
+    error ValidatorNotExist();
+    error ValidatorNotJailed();
+    error ZeroShares();
+
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
@@ -53,6 +80,8 @@ interface StakeHub {
 
     receive() external payable;
 
+    function DEAD_ADDRESS() external view returns (address);
+    function INIT_LOCK_AMOUNT() external view returns (uint256);
     function addToBlackList(address account) external;
     function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
@@ -75,7 +104,6 @@ interface StakeHub {
     function editDescription(Description memory description) external;
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
     function felonyJailTime() external view returns (uint256);
-    function felonyPerDay() external view returns (uint256);
     function felonySlashAmount() external view returns (uint256);
     function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
     function getOperatorAddressByVoteAddress(bytes memory voteAddress) external view returns (address);

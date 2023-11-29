@@ -17,6 +17,8 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- errors -----------------*/
+    error ZeroTotalShares();
+    error ZeroTotalPooledBNB();
     error TransferNotAllowed();
     error ApproveNotAllowed();
     error WrongInitContext();
@@ -152,9 +154,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
     function getSharesByPooledBNB(uint256 bnbAmount) public view returns (uint256) {
-        if (totalPooledBNB == 0) {
-            return 0;
-        }
+        if (totalPooledBNB == 0) revert ZeroTotalPooledBNB();
         return (bnbAmount * totalSupply()) / totalPooledBNB;
     }
 
@@ -162,9 +162,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
      */
     function getPooledBNBByShares(uint256 shares) public view returns (uint256) {
-        if (totalSupply() == 0) {
-            return 0;
-        }
+        if (totalSupply() == 0) revert ZeroTotalShares();
         return (shares * totalPooledBNB) / totalSupply();
     }
 
@@ -199,11 +197,16 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
         // check before mint
-        if (initAmount == 0 || validator == address(0) || totalSupply() != 0) revert WrongInitContext();
+        uint256 toLock = IStakeHub(STAKE_HUB_ADDR).INIT_LOCK_AMOUNT();
+        if (initAmount <= toLock || validator == address(0) || totalSupply() != 0) revert WrongInitContext();
 
-        // mint initial tokens to the validator
+        // mint initial tokens to the validator and lock some of them
         // shares is equal to the amount of BNB staked
-        _mint(validator, initAmount);
+        address deadAddress = IStakeHub(STAKE_HUB_ADDR).DEAD_ADDRESS();
+        _mint(deadAddress, toLock);
+        uint256 initShares = initAmount - toLock;
+        _mint(validator, initShares);
+
         totalPooledBNB = initAmount;
     }
 

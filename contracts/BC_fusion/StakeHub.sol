@@ -20,7 +20,8 @@ contract StakeHub is System, Initializable {
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     uint256 private constant BLS_SIG_LENGTH = 96;
 
-    address private constant DEAD_ADDRESS = address(0xdead);
+    address public constant DEAD_ADDRESS = address(0xdead);
+    uint256 public constant INIT_LOCK_AMOUNT = 1 ether;
 
     //TODO
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
@@ -230,8 +231,9 @@ contract StakeHub is System, Initializable {
         }
 
         uint256 delegation = msg.value;
-        if (delegation < minSelfDelegationBNB) revert SelfDelegationNotEnough();
+        if (delegation < minSelfDelegationBNB + INIT_LOCK_AMOUNT) revert SelfDelegationNotEnough();
 
+        if (consensusAddress == address(0)) revert InvalidConsensusAddress();
         if (
             commission.maxRate > 5_000 || commission.rate > commission.maxRate
                 || commission.maxChangeRate > commission.maxRate

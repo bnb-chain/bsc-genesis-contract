@@ -2,6 +2,12 @@
 pragma solidity ^0.8.10;
 
 interface BSCTimelock {
+    error InvalidValue(string key, bytes value);
+    error OnlyCoinbase();
+    error OnlySystemContract(address systemContract);
+    error OnlyZeroGasPrice();
+    error UnknownParam(string key, bytes value);
+
     event CallExecuted(bytes32 indexed id, uint256 indexed index, address target, uint256 value, bytes data);
     event CallSalt(bytes32 indexed id, bytes32 salt);
     event CallScheduled(

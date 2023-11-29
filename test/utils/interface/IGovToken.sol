@@ -7,6 +7,14 @@ interface GovToken {
         uint224 votes;
     }
 
+    error ApproveNotAllowed();
+    error InvalidValue(string key, bytes value);
+    error OnlyCoinbase();
+    error OnlySystemContract(address systemContract);
+    error OnlyZeroGasPrice();
+    error TransferNotAllowed();
+    error UnknownParam(string key, bytes value);
+
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
     event DelegateVotesChanged(address indexed delegate, uint256 previousBalance, uint256 newBalance);
@@ -54,7 +62,8 @@ interface GovToken {
     function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external;
     function symbol() external view returns (string memory);
-    function sync(address[] memory stakeCredits, address account) external;
+    function sync(address stakeCredit, address account) external;
+    function syncBatch(address[] memory stakeCredits, address account) external;
     function totalSupply() external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);

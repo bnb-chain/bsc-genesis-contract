@@ -8,8 +8,23 @@ interface StakeCredit {
         uint256 unlockTime;
     }
 
+    error ApproveNotAllowed();
     error Empty();
+    error InsufficientBalance();
+    error InvalidValue(string key, bytes value);
+    error NoClaimableUnbondRequest();
+    error NoUnbondRequest();
+    error OnlyCoinbase();
+    error OnlySystemContract(address systemContract);
+    error OnlyZeroGasPrice();
     error OutOfBounds();
+    error TransferFailed();
+    error TransferNotAllowed();
+    error UnknownParam(string key, bytes value);
+    error WrongInitContext();
+    error ZeroAmount();
+    error ZeroTotalPooledBNB();
+    error ZeroTotalShares();
 
     event Approval(address indexed owner, address indexed spender, uint256 value);
     event Initialized(uint8 version);
@@ -27,7 +42,6 @@ interface StakeCredit {
     function distributeReward(uint64 commissionRate) external payable;
     function getPooledBNB(address account) external view returns (uint256);
     function getPooledBNBByShares(uint256 shares) external view returns (uint256);
-    function getSelfDelegationBNB() external view returns (uint256);
     function getSharesByPooledBNB(uint256 bnbAmount) external view returns (uint256);
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
     function initialize(address _validator, string memory _moniker) external payable;
