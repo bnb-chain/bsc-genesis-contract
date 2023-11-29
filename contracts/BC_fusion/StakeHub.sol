@@ -458,7 +458,10 @@ contract StakeHub is System, Initializable {
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
         // check if the srcValidator has enough self delegation
-        if (delegator == srcValidator && IStakeCredit(srcValInfo.creditContract).getPooledBNB(srcValidator) < minSelfDelegationBNB) {
+        if (
+            delegator == srcValidator
+                && IStakeCredit(srcValInfo.creditContract).getPooledBNB(srcValidator) < minSelfDelegationBNB
+        ) {
             revert SelfDelegationNotEnough();
         }
 

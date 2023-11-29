@@ -206,7 +206,8 @@ contract StakeHubTest is Deployer {
         uint256 redelegateFeeRate = stakeHub.redelegateFeeRate();
         uint256 feeBase = stakeHub.REDELEGATE_FEE_RATE_BASE();
         uint256 redelegateFee = bnbAmount * redelegateFeeRate / feeBase;
-        uint256 expectedShares = (bnbAmount - redelegateFee) * IStakeCredit(credit2).totalSupply() / (IStakeCredit(credit2).totalPooledBNB() + redelegateFee);
+        uint256 expectedShares = (bnbAmount - redelegateFee) * IStakeCredit(credit2).totalSupply()
+            / (IStakeCredit(credit2).totalPooledBNB() + redelegateFee);
         stakeHub.redelegate(validator1, validator2, oldShares, false);
         uint256 newShares = IStakeCredit(credit2).balanceOf(delegator);
         assertEq(newShares, expectedShares);

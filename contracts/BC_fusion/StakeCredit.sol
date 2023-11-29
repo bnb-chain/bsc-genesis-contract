@@ -48,9 +48,10 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
 
     event RewardReceived(uint256 rewardToAll, uint256 commission);
 
-    receive() external payable {
-        // only accept BNB from `StakeHub`
-        if (msg.sender != STAKE_HUB_ADDR) revert();
+    /**
+     * @notice only accept BNB from `StakeHub`
+     */
+    receive() external payable onlyStakeHub {
         totalPooledBNB += msg.value;
     }
 
