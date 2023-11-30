@@ -37,6 +37,7 @@ interface StakeHub {
     error SameValidator();
     error SelfDelegationNotEnough();
     error StakeHubPaused();
+    error TransferFailed();
     error UnknownParam(string key, bytes value);
     error UpdateTooFrequently();
     error ValidatorExisted();
@@ -82,6 +83,7 @@ interface StakeHub {
 
     function DEAD_ADDRESS() external view returns (address);
     function INIT_LOCK_AMOUNT() external view returns (uint256);
+    function REDELEGATE_FEE_RATE_BASE() external view returns (uint256);
     function addToBlackList(address account) external;
     function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
@@ -137,6 +139,7 @@ interface StakeHub {
     function numOfJailed() external view returns (uint256);
     function pause() external;
     function redelegate(address srcValidator, address dstValidator, uint256 shares, bool delegateVotePower) external;
+    function redelegateFeeRate() external view returns (uint256);
     function removeFromBlackList(address account) external;
     function resume() external;
     function syncGovToken(address[] memory operatorAddresses, address account) external;

@@ -22,6 +22,7 @@ contract StakeHub is System, Initializable {
 
     address public constant DEAD_ADDRESS = address(0xdead);
     uint256 public constant INIT_LOCK_AMOUNT = 1 ether;
+    uint256 public constant REDELEGATE_FEE_RATE_BASE = 10000; // 100%
 
     //TODO
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
@@ -51,6 +52,7 @@ contract StakeHub is System, Initializable {
     error SameValidator();
     error NoMoreFelonyToday();
     error AlreadySlashed();
+    error TransferFailed();
 
     /*----------------- storage -----------------*/
     bool private _paused;
@@ -62,6 +64,7 @@ contract StakeHub is System, Initializable {
     uint256 public minDelegationBNBChange;
     uint256 public maxElectedValidators;
     uint256 public unbondPeriod;
+    uint256 public redelegateFeeRate;
 
     // slash params
     uint256 public downtimeSlashAmount;
@@ -194,6 +197,7 @@ contract StakeHub is System, Initializable {
         minDelegationBNBChange = 1 ether;
         maxElectedValidators = 29;
         unbondPeriod = 7 days;
+        redelegateFeeRate = 2;
         downtimeSlashAmount = 10 ether;
         felonySlashAmount = 200 ether;
         downtimeJailTime = 2 days;
@@ -453,13 +457,22 @@ contract StakeHub is System, Initializable {
         _isRedelegating = 1;
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
+        // check if the srcValidator has enough self delegation
+        if (
+            delegator == srcValidator
+                && IStakeCredit(srcValInfo.creditContract).getPooledBNB(srcValidator) < minSelfDelegationBNB
+        ) {
+            revert SelfDelegationNotEnough();
+        }
+
+        uint256 feeCharge = bnbAmount * redelegateFeeRate / REDELEGATE_FEE_RATE_BASE;
+        (bool success,) = dstValInfo.creditContract.call{ value: feeCharge }("");
+        if (!success) revert TransferFailed();
+
+        bnbAmount -= feeCharge;
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
         _isRedelegating = 0;
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
-
-        if (delegator == srcValidator) {
-            _checkValidatorSelfDelegation(srcValidator);
-        }
 
         address[] memory stakeCredits = new address[](2);
         stakeCredits[0] = srcValInfo.creditContract;
@@ -644,6 +657,13 @@ contract StakeHub is System, Initializable {
             uint256 newUnbondPeriod = value.bytesToUint256(32);
             if (newUnbondPeriod < 3 days) revert InvalidValue(key, value);
             unbondPeriod = newUnbondPeriod;
+        } else if (key.compareStrings("redelegateFeeRate")) {
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newRedelegateFeeRate = value.bytesToUint256(32);
+            if (newRedelegateFeeRate > 100) {
+                revert InvalidValue(key, value);
+            }
+            redelegateFeeRate = newRedelegateFeeRate;
         } else if (key.compareStrings("downtimeSlashAmount")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newDowntimeSlashAmount = value.bytesToUint256(32);
@@ -693,7 +713,7 @@ contract StakeHub is System, Initializable {
     }
 
     /**
-     * @return the basic info of a validator
+     * @notice get the basic info of a validator
      * including consensus address, credit contract, vote address, jailed and jailUntil
      */
     function getValidatorBasicInfo(address operatorAddress)
@@ -742,7 +762,7 @@ contract StakeHub is System, Initializable {
 
     /**
      * @dev this function will be invoked by Parlia consensus engine.
-     * @return the election info of a validator
+     * @notice get the election info of a validator
      * including consensus address, voting power and vote address.
      * The voting power will be 0 if the validator is jailed.
      * This function is for the consensus engine.
