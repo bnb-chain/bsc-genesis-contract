@@ -14,15 +14,15 @@ import "./lib/Utils.sol";
 import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
-    System,
-    Initializable,
-    GovernorUpgradeable,
-    GovernorSettingsUpgradeable,
-    GovernorCompatibilityBravoUpgradeable,
-    GovernorVotesUpgradeable,
-    GovernorTimelockControlUpgradeable,
-    GovernorVotesQuorumFractionUpgradeable,
-    GovernorPreventLateQuorumUpgradeable
+System,
+Initializable,
+GovernorUpgradeable,
+GovernorSettingsUpgradeable,
+GovernorCompatibilityBravoUpgradeable,
+GovernorVotesUpgradeable,
+GovernorTimelockControlUpgradeable,
+GovernorVotesQuorumFractionUpgradeable,
+GovernorPreventLateQuorumUpgradeable
 {
     using Utils for bytes;
     using Utils for string;
@@ -41,12 +41,30 @@ contract BSCGovernor is
     /*----------------- errors -----------------*/
     error NotWhitelisted();
     error TotalSupplyNotEnough();
+    error GovernorPaused();
+    error OnlyGovernorProtector();
+
+    /*----------------- events -----------------*/
+    event Paused();
+    event Resumed();
 
     /*----------------- storage -----------------*/
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;
-
     bool public proposeStarted;
+    bool public paused;
+    address public governorProtector;
+
+    /*----------------- modifier -----------------*/
+    modifier whenNotPaused() {
+        if (paused) revert GovernorPaused();
+        _;
+    }
+
+    modifier onlyGovernorProtector() {
+        if (msg.sender != governorProtector) revert OnlyGovernorProtector();
+        _;
+    }
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
@@ -73,9 +91,34 @@ contract BSCGovernor is
         whitelistTargets[GOVERNOR_ADDR] = true;
         whitelistTargets[GOV_TOKEN_ADDR] = true;
         whitelistTargets[TIMELOCK_ADDR] = true;
+
+        governorProtector = address(0x000000000000000000000000000000000000dEaD); // TODO
+    }
+
+    /*----------------- onlyGovernorProtector -----------------*/
+    /**
+     * @dev Pause the whole system in emergency
+     */
+    function pause() external onlyGovernorProtector {
+        paused = true;
+        emit Paused();
+    }
+
+    /**
+     * @dev Resume the whole system
+     */
+    function resume() external onlyGovernorProtector {
+        paused = false;
+        emit Resumed();
     }
 
     /*----------------- external functions -----------------*/
+    /**
+     * @dev Create a new proposal. Vote start after a delay specified by {IGovernor-votingDelay} and lasts for a
+     * duration specified by {IGovernor-votingPeriod}.
+     *
+     * Emits a {ProposalCreated} event.
+     */
     function propose(
         address[] memory targets,
         uint256[] memory values,
@@ -95,6 +138,12 @@ contract BSCGovernor is
         return GovernorCompatibilityBravoUpgradeable.propose(targets, values, calldatas, description);
     }
 
+    /**
+     * @dev Cancel a proposal. A proposal is cancellable by the proposer, but only while it is Pending state, i.e.
+     * before the vote starts.
+     *
+     * Emits a {ProposalCanceled} event.
+     */
     function cancel(
         address[] memory targets,
         uint256[] memory values,
@@ -109,6 +158,10 @@ contract BSCGovernor is
     }
 
     /*----------------- system functions -----------------*/
+    /**
+     * @param key the key of the param
+     * @param value the value of the param
+     */
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("votingDelay")) {
             if (value.length != 32) revert InvalidValue(key, value);
@@ -142,6 +195,14 @@ contract BSCGovernor is
     }
 
     /*----------------- view functions -----------------*/
+    /*
+     *@notice Query if a contract implements an interface
+     *@param interfaceID The interface identifier, as specified in ERC-165
+     *@dev Interface identification is specified in ERC-165. This function
+     *uses less than 30,000 gas.
+     *@return `true` if the contract implements `interfaceID` and
+     *`interfaceID` is not 0xffffffff, `false` otherwise
+     */
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -151,6 +212,10 @@ contract BSCGovernor is
         return GovernorTimelockControlUpgradeable.supportsInterface(interfaceId);
     }
 
+    /**
+     * @notice module:core
+     * @dev Current state of a proposal, following Compound's convention
+     */
     function state(uint256 proposalId)
         public
         view
@@ -160,6 +225,9 @@ contract BSCGovernor is
         return GovernorTimelockControlUpgradeable.state(proposalId);
     }
 
+    /**
+     * @dev Part of the Governor Bravo's interface: _"The number of votes required in order for a voter to become a proposer"_.
+     */
     function proposalThreshold()
         public
         view
@@ -169,6 +237,11 @@ contract BSCGovernor is
         return GovernorSettingsUpgradeable.proposalThreshold();
     }
 
+    /**
+     * @notice module:core
+     * @dev Timepoint at which votes close. If using block number, votes close at the end of this block, so it is
+     * possible to cast a vote during this block.
+     */
     function proposalDeadline(uint256 proposalId)
         public
         view
@@ -194,7 +267,7 @@ contract BSCGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) {
+    ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) whenNotPaused {
         for (uint256 i = 0; i < targets.length; i++) {
             if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }

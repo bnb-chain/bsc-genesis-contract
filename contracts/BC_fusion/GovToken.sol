@@ -38,10 +38,20 @@ contract GovToken is
     }
 
     /*----------------- external functions -----------------*/
+    /**
+     * @dev Sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
+     * @param stakeCredit the stakeCredit Token contract
+     * @param account the account to sync gov tokens to
+     */
     function sync(address stakeCredit, address account) external onlyStakeHub {
         _sync(stakeCredit, account);
     }
 
+    /**
+     * @dev Batch sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
+     * @param stakeCredits the stakeCredit Token contracts
+     * @param account the account to sync gov tokens to
+     */
     function syncBatch(address[] calldata stakeCredits, address account) external onlyStakeHub {
         uint256 _length = stakeCredits.length;
         for (uint256 i = 0; i < _length; ++i) {
@@ -49,6 +59,11 @@ contract GovToken is
         }
     }
 
+    /**
+     * @dev delegate govBNB votes to delegatee
+     * @param delegator the delegator
+     * @param delegatee the delegatee
+     */
     function delegateVote(address delegator, address delegatee) external onlyStakeHub {
         _delegate(delegator, delegatee);
     }
