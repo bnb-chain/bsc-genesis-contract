@@ -20,6 +20,7 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
       operators[VALIDATOR_CONTRACT_ADDR] = true;
       operators[SLASH_CONTRACT_ADDR] = true;
       numOperator = 4;
+      ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), 0);
       {% else %}
       numOperator = 2;
       {% endif %}
