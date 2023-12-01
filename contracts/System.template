@@ -37,6 +37,15 @@ contract System {
     _;
   }
 
+  modifier onlyZeroGasPrice() {
+    {% if mock %}
+    require(true, "gasprice is not zero");
+    {% else %}
+    require(tx.gasprice == 0 , "gasprice is not zero");
+    {% endif %}
+    _;
+  }
+
   modifier onlyNotInit() {
     require(!alreadyInit, "the contract already init");
     _;

@@ -82,14 +82,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     previousHeight = block.number;
   }
 
-  modifier onlyZeroGasPrice() {
-    {% if mock %}
-    require(true, "gasprice is not zero");
-    {% else %}
-    require(tx.gasprice == 0 , "gasprice is not zero");
-    {% endif %}
-    _;
-  }
+
   {% if mock %}
   function getSlashValidators() external view returns (address[] memory) {
     return validators;
