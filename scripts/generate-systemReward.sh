@@ -29,7 +29,8 @@ local)
     sed -i -e "s/operators\[INCENTIVIZE_ADDR\] = true;/${ADD_OPERATOR_VALIDATORSET}/g" "$OUTPUT"
     sed -i -e "s/numOperator = 2/numOperator = 4/g" "$OUTPUT"
     ;;
-*) ;;
+*)
+    ;;
 esac
 
 echo "SystemReward file updated."

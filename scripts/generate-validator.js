@@ -1,11 +1,9 @@
 const fs = require('fs');
 const readline = require('readline');
 const nunjucks = require('nunjucks');
-const BLSKeys = require('./BLSkeystore.json');
 
 async function processValidatorConf() {
   const fileStream = fs.createReadStream(__dirname + '/../validators.conf');
-  const publicKey = BLSKeys.public_key;
 
   const rl = readline.createInterface({
     input: fileStream,
@@ -20,7 +18,7 @@ async function processValidatorConf() {
       feeAddr: vs[1],
       bscFeeAddr: vs[2],
       votingPower: vs[3],
-      bLSPublicKey: '0x' + publicKey.pop(),
+      bLSPublicKey: vs[4],
     });
   }
   return validators;

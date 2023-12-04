@@ -14,15 +14,15 @@ import "./lib/Utils.sol";
 import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
-System,
-Initializable,
-GovernorUpgradeable,
-GovernorSettingsUpgradeable,
-GovernorCompatibilityBravoUpgradeable,
-GovernorVotesUpgradeable,
-GovernorTimelockControlUpgradeable,
-GovernorVotesQuorumFractionUpgradeable,
-GovernorPreventLateQuorumUpgradeable
+    System,
+    Initializable,
+    GovernorUpgradeable,
+    GovernorSettingsUpgradeable,
+    GovernorCompatibilityBravoUpgradeable,
+    GovernorVotesUpgradeable,
+    GovernorTimelockControlUpgradeable,
+    GovernorVotesQuorumFractionUpgradeable,
+    GovernorPreventLateQuorumUpgradeable
 {
     using Utils for bytes;
     using Utils for string;

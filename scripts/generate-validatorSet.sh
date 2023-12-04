@@ -47,7 +47,8 @@ case $NETWORK in
 local)
     sed -i -e "s/for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {/ValidatorExtra memory validatorExtra;\n    for (uint i; i<validatorSetPkg.validatorSet.length; ++i) {\n      validatorExtraSet.push(validatorExtra);\n      validatorExtraSet[i].voteAddress=validatorSetPkg.voteAddrs[i];/g" "$OUTPUT"
     ;;
-*) ;;
+*)
+    ;;
 esac
 
 echo "BSCValidatorSet file updated."
