@@ -21,15 +21,15 @@ contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, 
     using Utils for string;
     using Utils for bytes;
 
-    /*----------------- init paramters -----------------*/
+    /*----------------- init parameters -----------------*/
     string public constant sourceChainID = "Binance-Chain-Ganges";
     address public approverAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
     bytes32 public merkleRoot = 0x0000000000000000000000000000000000000000000000000000000000000000;
     bool public merkleRootAlreadyInit = false;
 
     /*----------------- storage -----------------*/
-    // recoverdMap is used to record the recoverd token.
-    mapping(bytes32 => bool) private recoverdMap;
+    // recoveredMap is used to record the recovered token.
+    mapping(bytes32 => bool) private recoveredMap;
 
     /*----------------- permission control -----------------*/
     // assetProtector is the address that is allowed to pause the #recover.
@@ -81,7 +81,7 @@ contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, 
     // This event is triggered whenever a call to #pause succeeds.
     event Resumed();
     // This event is triggered whenever a call to #recover succeeds.
-    event TokenRecoverRequestd(bytes32 tokenSymbol, address account, uint256 amount);
+    event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
 
     /**
      * isRecovered check if the token is recovered.
@@ -89,7 +89,7 @@ contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, 
      * @return the result of check.
      */
     function isRecovered(bytes32 node) public view override returns (bool) {
-        return recoverdMap[node];
+        return recoveredMap[node];
     }
 
     /**
@@ -128,12 +128,12 @@ contract TokenRecoverPortal is ITokenRecoverPortal, ReentrancyGuardUpgradeable, 
         if (!MerkleProof.verify(merkleProof, merkleRoot, node)) revert InvalidProof();
 
         // Mark it recovered.
-        recoverdMap[node] = true;
+        recoveredMap[node] = true;
 
         // recover the token from TokenHub contract. it will be unlocked after 7 days.
         ITokenHub(TOKEN_HUB_ADDR).recoverBCAsset(tokenSymbol, msg.sender, amount);
 
-        emit TokenRecoverRequestd(tokenSymbol, msg.sender, amount);
+        emit TokenRecoverRequested(tokenSymbol, msg.sender, amount);
     }
 
     /**
