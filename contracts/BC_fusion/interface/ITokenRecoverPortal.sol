@@ -12,9 +12,14 @@ interface ITokenRecoverPortal {
     // Returns true if the index has been marked recovered.
     function isRecovered(bytes32 index) external view returns (bool);
     // recover the given amount of the token to the given address. Reverts if the inputs are invalid.
-    function recover(bytes32 tokenSymbol, uint256 amount,
-        bytes calldata ownerPubKey, bytes calldata ownerSignature, bytes calldata approvalSignature,
-        bytes32[] calldata merkleProof) external;
+    function recover(
+        bytes32 tokenSymbol,
+        uint256 amount,
+        bytes calldata ownerPubKey,
+        bytes calldata ownerSignature,
+        bytes calldata approvalSignature,
+        bytes32[] calldata merkleProof
+    ) external;
     // Cancel the user token recover request by the assetProtector.
     function cancelTokenRecover(bytes32 tokenSymbol, address recipient) external;
 }

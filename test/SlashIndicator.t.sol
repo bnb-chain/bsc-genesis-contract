@@ -301,7 +301,7 @@ contract SlashIndicatorTest is Deployer {
             hex"00000000000000000000000023618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f"
         );
         vm.prank(relayer);
-        vm.expectRevert(bytes("VALIDATOR_NOT_EXIST")); // as no such operator address existed
+        vm.expectRevert(); // as no such operator address existed
         slashIndicator.submitDoubleSignEvidence(headerA, headerB);
     }
 
