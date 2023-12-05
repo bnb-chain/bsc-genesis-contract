@@ -82,9 +82,10 @@ contract StakeHub is System, Initializable {
     mapping(address => address) private _consensusToOperator;
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
-    // operator address => day index => nested reward info(receivedReward & totalPooledBNB)
-    // @dev the info is not the origin value, we just keep the ratio of the two values
-    mapping(address => mapping(uint256 => uint256)) private _rewardInfo;
+    // operator address => day index => receivedReward
+    mapping(address => mapping(uint256 => uint256)) private _rewardRecords;
+    // operator address => day index => totalPooledBNB
+    mapping(address => mapping(uint256 => uint256)) private _totalPooledBNBRecords;
 
     // legacy addresses of BC
     mapping(address => bool) private _legacyConsensusAddress;
@@ -532,11 +533,9 @@ contract StakeHub is System, Initializable {
             return;
         }
 
-        uint256 _totalPooledBNB = IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress);
-        _totalPooledBNB = _truncUint256(_totalPooledBNB);
-        uint256 _reward = _truncUint256(msg.value);
-        uint256 _info = _reward << 128 | _totalPooledBNB;
-        _rewardInfo[operatorAddress][block.timestamp / 1 days] = _info;
+        uint256 dayIndex = block.timestamp / 1 days;
+        _rewardRecords[operatorAddress][dayIndex] = msg.value;
+        _totalPooledBNBRecords[operatorAddress][dayIndex] = IStakeCredit(valInfo.creditContract).totalPooledBNB();
 
         IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
         emit RewardDistributed(operatorAddress, msg.value);
@@ -722,28 +721,20 @@ contract StakeHub is System, Initializable {
     }
 
     /**
-     * @notice the returned reward may be not accurate, it's been truncated
-     * @return the validator's reward and apy of the day(with 2 decimals)
+     * @return the validator's reward of the day
      */
-    function getValidatorRewardInfo(
+    function getValidatorRewardRecord(address operatorAddress, uint256 dayIndex) external view returns (uint256) {
+        return _rewardRecords[operatorAddress][dayIndex];
+    }
+
+    /**
+     * @return the validator's total pooled BNB of the day
+     */
+    function getValidatorTotalPooledBNBRecord(
         address operatorAddress,
         uint256 dayIndex
-    ) external view returns (uint256, uint256) {
-        uint256 info = _rewardInfo[operatorAddress][dayIndex];
-        uint256 mask = (1 << 120) - 1;
-        uint256 reward = (info >> 128) & mask;
-        uint256 totalPooledBNB = (info & 0xffffffffffffffffffffffffffffffff) & mask;
-
-        uint256 apy;
-        if (totalPooledBNB == 0) {
-            apy = 0;
-        } else {
-            apy = reward * 365 * 10000 / totalPooledBNB;
-        }
-
-        uint256 leadingZero = info >> 248;
-        uint256 realReward = reward << (136 - leadingZero);
-        return (realReward, apy);
+    ) external view returns (uint256) {
+        return _totalPooledBNBRecords[operatorAddress][dayIndex];
     }
 
     /**
@@ -954,19 +945,5 @@ contract StakeHub is System, Initializable {
 
             emit ValidatorJailed(valInfo.operatorAddress);
         }
-    }
-
-    function _truncUint256(uint256 x) internal pure returns (uint256) {
-        uint256 leadingZero;
-        uint256 mask = 1 << 255;
-        for (uint256 i; i < 136; ++i) {
-            if (x & mask == 0) {
-                leadingZero += 1;
-                mask >>= 1;
-            } else {
-                break;
-            }
-        }
-        return leadingZero << 120 | x >> (136 - leadingZero);
     }
 }

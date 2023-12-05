@@ -487,23 +487,6 @@ contract StakeHubTest is Deployer {
         bscValidatorSet.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
     }
 
-    function testGetApy() public {
-        (address validator,) = _createValidator(2000 ether);
-        (address consensusAddress,,,,) = stakeHub.getValidatorBasicInfo(validator);
-
-        vm.startPrank(address(bscValidatorSet));
-        // apy: 1825 ~ 1819
-        for (uint256 i; i < 7; ++i) {
-            vm.warp(block.timestamp + 1 days);
-            stakeHub.distributeReward{ value: 1 ether }(consensusAddress);
-            uint256 dayIndex = block.timestamp / 1 days;
-            (uint256 reward, uint256 apy) = stakeHub.getValidatorRewardInfo(validator, dayIndex);
-            emit log_named_uint("reward", reward);
-            emit log_named_uint("apy", apy);
-        }
-        vm.stopPrank();
-    }
-
     function testEncodeLegacyBytes() public {
         address[] memory cAddresses;
         bytes[] memory vAddresses;
