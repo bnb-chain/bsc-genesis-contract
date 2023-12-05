@@ -130,6 +130,10 @@ interface StakeHub {
             bytes[] memory voteAddrs,
             uint256 totalLength
         );
+    function getValidatorRewardInfo(address operatorAddress, uint256 dayIndex)
+        external
+        view
+        returns (uint256, uint256);
     function initialize() external;
     function isPaused() external view returns (bool);
     function maliciousVoteSlash(bytes memory _voteAddr) external;
