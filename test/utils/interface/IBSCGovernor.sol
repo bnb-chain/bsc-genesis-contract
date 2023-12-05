@@ -11,9 +11,11 @@ interface BSCGovernor {
     }
 
     error Empty();
+    error GovernorPaused();
     error InvalidValue(string key, bytes value);
     error NotWhitelisted();
     error OnlyCoinbase();
+    error OnlyGovernorProtector();
     error OnlySystemContract(address systemContract);
     error OnlyZeroGasPrice();
     error TotalSupplyNotEnough();
@@ -23,6 +25,7 @@ interface BSCGovernor {
     event Initialized(uint8 version);
     event LateQuorumVoteExtensionSet(uint64 oldVoteExtension, uint64 newVoteExtension);
     event ParamChange(string key, bytes value);
+    event Paused();
     event ProposalCanceled(uint256 proposalId);
     event ProposalCreated(
         uint256 proposalId,
@@ -40,6 +43,7 @@ interface BSCGovernor {
     event ProposalQueued(uint256 proposalId, uint256 eta);
     event ProposalThresholdSet(uint256 oldProposalThreshold, uint256 newProposalThreshold);
     event QuorumNumeratorUpdated(uint256 oldQuorumNumerator, uint256 newQuorumNumerator);
+    event Resumed();
     event TimelockChange(address oldTimelock, address newTimelock);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
     event VoteCastWithParams(
@@ -113,6 +117,7 @@ interface BSCGovernor {
         external
         view
         returns (uint256);
+    function governorProtector() external view returns (address);
     function hasVoted(uint256 proposalId, address account) external view returns (bool);
     function hashProposal(
         address[] memory targets,
@@ -128,6 +133,8 @@ interface BSCGovernor {
         returns (bytes4);
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external returns (bytes4);
     function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4);
+    function pause() external;
+    function paused() external view returns (bool);
     function proposalDeadline(uint256 proposalId) external view returns (uint256);
     function proposalEta(uint256 proposalId) external view returns (uint256);
     function proposalProposer(uint256 proposalId) external view returns (address);
@@ -172,6 +179,7 @@ interface BSCGovernor {
     function quorumNumerator() external view returns (uint256);
     function quorumVotes() external view returns (uint256);
     function relay(address target, uint256 value, bytes memory data) external payable;
+    function resume() external;
     function setLateQuorumVoteExtension(uint64 newVoteExtension) external;
     function setProposalThreshold(uint256 newProposalThreshold) external;
     function setVotingDelay(uint256 newVotingDelay) external;

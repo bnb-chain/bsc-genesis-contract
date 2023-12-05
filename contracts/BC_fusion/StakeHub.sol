@@ -82,6 +82,10 @@ contract StakeHub is System, Initializable {
     mapping(address => address) private _consensusToOperator;
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
+    // operator address => day index => receivedReward
+    mapping(address => mapping(uint256 => uint256)) private _rewardRecords;
+    // operator address => day index => totalPooledBNB
+    mapping(address => mapping(uint256 => uint256)) private _totalPooledBNBRecords;
 
     // legacy addresses of BC
     mapping(address => bool) private _legacyConsensusAddress;
@@ -529,6 +533,10 @@ contract StakeHub is System, Initializable {
             return;
         }
 
+        uint256 dayIndex = block.timestamp / 1 days;
+        _rewardRecords[operatorAddress][dayIndex] = msg.value;
+        _totalPooledBNBRecords[operatorAddress][dayIndex] = IStakeCredit(valInfo.creditContract).totalPooledBNB();
+
         IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
         emit RewardDistributed(operatorAddress, msg.value);
     }
@@ -710,6 +718,23 @@ contract StakeHub is System, Initializable {
      */
     function isPaused() external view returns (bool) {
         return _paused;
+    }
+
+    /**
+     * @return the validator's reward of the day
+     */
+    function getValidatorRewardRecord(address operatorAddress, uint256 dayIndex) external view returns (uint256) {
+        return _rewardRecords[operatorAddress][dayIndex];
+    }
+
+    /**
+     * @return the validator's total pooled BNB of the day
+     */
+    function getValidatorTotalPooledBNBRecord(
+        address operatorAddress,
+        uint256 dayIndex
+    ) external view returns (uint256) {
+        return _totalPooledBNBRecords[operatorAddress][dayIndex];
     }
 
     /**
