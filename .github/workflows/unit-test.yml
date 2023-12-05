@@ -4,10 +4,12 @@ on:
     branches:
       - master
       - develop
+      - bc-fusion
   pull_request:
     branches:
       - master
       - develop
+      - bc-fusion
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
