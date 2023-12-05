@@ -4,6 +4,10 @@
   "description": "",
   "author": "",
   "license": "MIT",
+  "scripts": {
+    "lint:check": "forge fmt ./contracts/BC_fusion --check",
+    "lint:write": "forge fmt ./contracts/BC_fusion"
+  },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.3",
     "@openzeppelin/contracts-upgradeable": "^4.9.3",
