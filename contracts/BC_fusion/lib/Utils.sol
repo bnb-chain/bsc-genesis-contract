@@ -24,16 +24,16 @@ library Utils {
         }
     }
 
-    function bytesToBytes32(uint _offst, bytes memory  _input, bytes32 _output) internal pure {
+    function bytesToBytes32(uint256 _offst, bytes memory _input, bytes32 _output) internal pure {
         assembly {
-            mstore(_output , add(_input, _offst))
-            mstore(add(_output,32) , add(add(_input, _offst),32))
+            mstore(_output, add(_input, _offst))
+            mstore(add(_output, 32), add(add(_input, _offst), 32))
         }
     }
 
     function bytesConcat(bytes memory data, bytes memory _bytes, uint256 index, uint256 len) internal pure {
-        for (uint i; i<len; ++i) {
-          data[index++] = _bytes[i];
+        for (uint256 i; i < len; ++i) {
+            data[index++] = _bytes[i];
         }
     }
 
@@ -49,7 +49,7 @@ library Utils {
         }
 
         if (prefix) {
-            return string(abi.encodePacked('0x',converted));
+            return string(abi.encodePacked("0x", converted));
         }
         return string(converted);
     }
