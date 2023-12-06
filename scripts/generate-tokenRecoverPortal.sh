@@ -35,8 +35,8 @@ basedir=$(
 )
 
 # Replace the specific line
-sed -i -e "s/string public constant sourceChainID = .*;/string public constant sourceChainID = \"${SOURCE_CHAIN_ID}\";/g" "$OUTPUT"
+sed -i -e "s/string public constant SOURCE_CHAIN_ID = .*;/string public constant SOURCE_CHAIN_ID = \"${SOURCE_CHAIN_ID}\";/g" "$OUTPUT"
 sed -i -e "s/address public approvalAddress = .*;/address public approvalAddress = ${APPROVAL_ADDRESS};/g" "$OUTPUT"
-sed -i -e "s/bytes32 public constant override merkleRoot = .*;/bytes32 public constant override merkleRoot = ${MERKLE_ROOT};/g" "$OUTPUT"
+sed -i -e "s/bytes32 public merkleRoot = .*;/bytes32 public merkleRoot = ${MERKLE_ROOT};/g" "$OUTPUT"
 
 echo "TokenRecoverPortal file updated."

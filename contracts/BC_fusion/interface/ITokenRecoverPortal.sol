@@ -6,7 +6,7 @@ interface ITokenRecoverPortal {
     // Returns the merkle root of the merkle tree containing account balances available to recover.
     function merkleRoot() external view returns (bytes32);
     // Returns the address of the contract that is allowed to confirm the recover.
-    function approverAddress() external view returns (address);
+    function approvalAddress() external view returns (address);
     // Returns the address of the contract that is allowed to pause the recover.
     function assetProtector() external view returns (address);
     // Returns true if the index has been marked recovered.
