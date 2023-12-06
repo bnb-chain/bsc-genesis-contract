@@ -54,18 +54,25 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 
 1. Edit `init_holders.js` file to alloc the initial BNB holder.
 2. Edit `validators.js` file to alloc the initial validator set.
-3. Run `bash scripts/generate-*.sh` to change system contracts setting.
+3. Edit system contracts setting as needed.
 4. Run `node scripts/generate-genesis.js` will generate genesis.json
 
 ## How to generate mainnet/testnet/QA/local genesis file
 
+You may need install some python dependencies firstly.
+Save the following content to `requirements.txt` file, and run `pip install -r requirements.txt` to install them.
+```txt
+Jinja2==3.1.2
+typer==0.9.0
+```
+
+
+Then:
 ```shell 
-bash scripts/generate.sh mainnet
-bash scripts/generate.sh testnet
-bash scripts/generate.sh QA
-bash scripts/generate.sh local
+python scripts/generate.py ${network}
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
+(`python scripts/generate.py --help` for more details)
 
 ## How to update contract interface for test
 
