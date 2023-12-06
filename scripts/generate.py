@@ -293,13 +293,13 @@ def qa():
 
 @main.command(help="Generate contracts for local network")
 def local(
-        local_chain_id: int = 714,
-        init_consensus_bytes:
-        str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
-        whitelist_1: Annotated[
-            str, typer.Option(help="whitelist relayer1's address")] = "0xA904540818AC9c47f2321F97F1069B9d8746c6DB",
-        whitelist_2: Annotated[
-            str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
+    local_chain_id: int = 714,
+    init_consensus_bytes:
+    str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
+    whitelist_1: Annotated[
+        str, typer.Option(help="whitelist relayer1's address")] = "0xA904540818AC9c47f2321F97F1069B9d8746c6DB",
+    whitelist_2: Annotated[
+        str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
 ):
     global network, chain_id, hex_chain_id
     network = "local"
@@ -353,9 +353,9 @@ def recover():
 
 @main.command(help="Generate init holders")
 def generate_init_holders(
-        init_holders: Annotated[str, typer.Argument(help="A list of addresses separated by comma")],
-        template_file: str = "./scripts/init_holders.template",
-        output_file: str = "./scripts/init_holders.js"
+    init_holders: Annotated[str, typer.Argument(help="A list of addresses separated by comma")],
+    template_file: str = "./scripts/init_holders.template",
+    output_file: str = "./scripts/init_holders.js"
 ):
     init_holders = init_holders.split(",")
     data = {
@@ -367,9 +367,9 @@ def generate_init_holders(
 
 @main.command(help="Generate validators")
 def generate_validators(
-        file_path: str = "./validators.conf",
-        template_file: str = "./scripts/validators.template",
-        output_file: str = "./scripts/validators.js"
+    file_path: str = "./validators.conf",
+    template_file: str = "./scripts/validators.template",
+    output_file: str = "./scripts/validators.js"
 ):
     file_path = os.path.join(work_dir, file_path)
     validators = []
@@ -379,13 +379,15 @@ def generate_validators(
             vs = line.strip().split(',')
             if len(vs) != 5:
                 raise Exception(f"Invalid validator info: {line}")
-            validators.append({
-                'consensusAddr': vs[0],
-                'feeAddr': vs[1],
-                'bscFeeAddr': vs[2],
-                'votingPower': vs[3],
-                'bLSPublicKey': vs[4],
-            })
+            validators.append(
+                {
+                    'consensusAddr': vs[0],
+                    'feeAddr': vs[1],
+                    'bscFeeAddr': vs[2],
+                    'votingPower': vs[3],
+                    'bLSPublicKey': vs[4],
+                }
+            )
 
     data = {
         'validators': validators,
