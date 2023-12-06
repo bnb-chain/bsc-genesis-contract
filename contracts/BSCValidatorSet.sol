@@ -32,7 +32,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   // the precision of cross chain value transfer.
   uint256 public constant PRECISION = 1e10;
   uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
-  uint256 public constant MAX_NUM_OF_VALIDATORS = 41;
+  uint256 public constant MAX_NUM_OF_VALIDATORS = 100;
 
   bytes public constant INIT_VALIDATORSET_BYTES = hex"f87680f873f871949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d791949fb29aac15b9a4b7f17c3385939b007540f4d79164b085e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588";
 
@@ -56,9 +56,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-  uint256 public constant INIT_BURN_RATIO = 0;
+  uint256 public constant INIT_BURN_RATIO = 1000;
   uint256 public burnRatio;
-  bool public burnRatioInitialized;
+  bool public burnRatioInitialized; // deprecated
 
   // BEP-127 Temporary Maintenance
   uint256 public constant INIT_MAX_NUM_OF_MAINTAINING = 3;
@@ -77,14 +77,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   uint256 public maxNumOfWorkingCandidates;
 
   // BEP-126 Fast Finality
-  uint256 public constant INIT_FINALITY_REWARD_RATIO = 50;
+  uint256 public constant INIT_SYSTEM_REWARD_RATIO = 625; // 625/10000 is 1/16
+  uint256 public constant SYSTEM_REWARD_RATIO_SCALE = 10000;
   uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
 
-  uint256 public finalityRewardRatio;
+  uint256 public systemRewardRatio;
   uint256 public previousHeight;
-  uint256 public previousBalanceOfSystemReward;
+  uint256 public previousBalanceOfSystemReward; // deprecated
   bytes[] public previousVoteAddrFullSet;
   bytes[] public currentVoteAddrFullSet;
+  bool public isSystemRewardIncluded;
 
   struct Validator {
     address consensusAddress;
@@ -221,17 +223,24 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    *
    * @param valAddr The validator address who produced the current block
    */
-  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit{
+  function deposit(address valAddr) external payable onlyCoinbase onlyInit noEmptyDeposit onlyZeroGasPrice {
     uint256 value = msg.value;
     uint256 index = currentValidatorSetMap[valAddr];
 
-    uint256 curBurnRatio = INIT_BURN_RATIO;
-    if (burnRatioInitialized) {
-      curBurnRatio = burnRatio;
+    if (isSystemRewardIncluded == false){
+      systemRewardRatio = INIT_SYSTEM_REWARD_RATIO;
+      burnRatio = INIT_BURN_RATIO;
+      isSystemRewardIncluded = true;
     }
 
-    if (value > 0 && curBurnRatio > 0) {
-      uint256 toBurn = value.mul(curBurnRatio).div(BURN_RATIO_SCALE);
+    uint256 toSystemReward = value.mul(systemRewardRatio).div(SYSTEM_REWARD_RATIO_SCALE);
+    if (toSystemReward > 0) {
+      address(uint160(SYSTEM_REWARD_ADDR)).transfer(toSystemReward);
+      emit systemTransfer(toSystemReward);
+    }
+
+    if (value > 0 && burnRatio > 0) {
+      uint256 toBurn = value.mul(burnRatio).div(BURN_RATIO_SCALE);
       if (toBurn > 0) {
         address(uint160(BURN_ADDRESS)).transfer(toBurn);
         emit feeBurned(toBurn);
@@ -240,6 +249,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
+    value = value.sub(toSystemReward);
     if (index>0) {
       Validator storage validator = currentValidatorSet[index-1];
       if (validator.jailed) {
@@ -540,28 +550,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return isWorkingValidator(index);
   }
 
-  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyInit {
-    // first time to call this function
-    if (finalityRewardRatio == 0) {
-      finalityRewardRatio = INIT_FINALITY_REWARD_RATIO;
-      previousBalanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
-      return;
-    }
-
+  function distributeFinalityReward(address[] calldata valAddrs, uint256[] calldata weights) external onlyCoinbase oncePerBlock onlyZeroGasPrice onlyInit {
     uint256 totalValue;
     uint256 balanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
     if (balanceOfSystemReward > MAX_SYSTEM_REWARD_BALANCE) {
-      totalValue = balanceOfSystemReward.div(100);
-    } else if (balanceOfSystemReward > previousBalanceOfSystemReward) {
       // when a slash happens, theres will no rewards in some epoches,
       // it's tolerated because slash happens rarely
-      totalValue = (balanceOfSystemReward.sub(previousBalanceOfSystemReward)).mul(finalityRewardRatio).div(100);
+      totalValue = balanceOfSystemReward.sub(MAX_SYSTEM_REWARD_BALANCE);
     } else {
       return;
     }
 
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
-    previousBalanceOfSystemReward = address(SYSTEM_REWARD_ADDR).balance;
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(payable(address(this)), totalValue);
     if (totalValue == 0) {
       return;
     }
@@ -704,7 +704,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
       require(newBurnRatio <= BURN_RATIO_SCALE, "the burnRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
-      burnRatioInitialized = true;
     } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
       require(value.length == 32, "length of maxNumOfMaintaining mismatch");
       uint256 newMaxNumOfMaintaining = BytesToTypes.bytesToUint256(32, value);
@@ -737,11 +736,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       require(newNumOfCabinets > 0, "the numOfCabinets must be greater than 0");
       require(newNumOfCabinets <= MAX_NUM_OF_VALIDATORS, "the numOfCabinets must be less than MAX_NUM_OF_VALIDATORS");
       numOfCabinets = newNumOfCabinets;
-    } else if (Memory.compareStrings(key, "finalityRewardRatio")) {
-      require(value.length == 32, "length of finalityRewardRatio mismatch");
-      uint256 newFinalityRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalityRewardRatio >= 1 && newFinalityRewardRatio <= 100, "the finalityRewardRatio is out of range");
-      finalityRewardRatio = newFinalityRewardRatio;
+    } else if (Memory.compareStrings(key, "systemRewardRatio")) {
+      require(value.length == 32, "length of systemRewardRatio mismatch");
+      uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newSystemRewardRatio >= 1 && newSystemRewardRatio <= SYSTEM_REWARD_RATIO_SCALE, "the systemRewardRatio must be no greater than 10000");
+      systemRewardRatio = newSystemRewardRatio;
     } else {
       require(false, "unknown param");
     }

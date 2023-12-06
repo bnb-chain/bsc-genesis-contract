@@ -24,6 +24,9 @@
     "berlinBlock": 8,
     "londonBlock": 8,
     "hertzBlock": 8,
+    "hertzfixBlock": 8,
+    "shanghaiTime": 0,
+    "keplerTime": 0,
     "parlia": {
       "period": 3,
       "epoch": 200
@@ -42,47 +45,47 @@
     },
     "0x0000000000000000000000000000000000001000": {
       "balance": "0x0",
-      "code": "0x{{validatorContract}}"
+      "code": "{{validatorContract}}"
     },
     "0x0000000000000000000000000000000000001001": {
       "balance": "0x0",
-      "code": "0x{{slashContract}}"
+      "code": "{{slashContract}}"
     },
     "0x0000000000000000000000000000000000001002": {
       "balance": "0x0",
-      "code": "0x{{systemRewardContract}}"
+      "code": "{{systemRewardContract}}"
     },
     "0x0000000000000000000000000000000000001003": {
       "balance": "0x0",
-      "code": "0x{{tendermintLightClient}}"
+      "code": "{{tendermintLightClient}}"
     },
     "0x0000000000000000000000000000000000001004": {
       "balance": "{{initLockedBNBOnTokenHub}}",
-      "code": "0x{{tokenHub}}"
+      "code": "{{tokenHub}}"
     },
     "0x0000000000000000000000000000000000001005": {
       "balance": "0x0",
-      "code": "0x{{relayerIncentivize}}"
+      "code": "{{relayerIncentivize}}"
     },
     "0x0000000000000000000000000000000000001006": {
       "balance": "0x0",
-      "code": "0x{{relayerHub}}"
+      "code": "{{relayerHub}}"
     },
     "0x0000000000000000000000000000000000001007": {
       "balance": "0x0",
-      "code": "0x{{govHub}}"
+      "code": "{{govHub}}"
     },
     "0x0000000000000000000000000000000000001008": {
       "balance": "0x0",
-      "code": "0x{{tokenManager}}"
+      "code": "{{tokenManager}}"
     },
     "0x0000000000000000000000000000000000002000": {
       "balance": "0x0",
-      "code": "0x{{crossChain}}"
+      "code": "{{crossChain}}"
     },
     "0x0000000000000000000000000000000000002001": {
       "balance": "0x0",
-      "code": "0x{{staking}}"
+      "code": "{{staking}}"
     },
     "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD": {
       "balance": "0x100000000000000000000"

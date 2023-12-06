@@ -6,7 +6,8 @@ import "./interface/IParamSubscriber.sol";
 import "./interface/ISystemReward.sol";
 
 contract SystemReward is System, IParamSubscriber, ISystemReward {
-  uint256 public constant MAX_REWARDS = 1e18;
+  uint256 public constant MAX_REWARDS/*_FOR_RELAYER*/ = 1e18;
+  uint256 public constant MAX_REWARDS_FOR_FINALITY = 5e18;
 
   uint public numOperator;
   mapping(address => bool) operators;
@@ -43,6 +44,20 @@ contract SystemReward is System, IParamSubscriber, ISystemReward {
     uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
     if (actualAmount > MAX_REWARDS) {
       actualAmount = MAX_REWARDS;
+    }
+    if (actualAmount != 0) {
+      to.transfer(actualAmount);
+      emit rewardTo(to, actualAmount);
+    } else {
+      emit rewardEmpty();
+    }
+    return actualAmount;
+  }
+
+  function claimRewardsforFinality(address payable to, uint256 amount) external override(ISystemReward) doInit onlyOperator returns (uint256) {
+    uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
+    if (actualAmount > MAX_REWARDS_FOR_FINALITY) {
+      actualAmount = MAX_REWARDS_FOR_FINALITY;
     }
     if (actualAmount != 0) {
       to.transfer(actualAmount);

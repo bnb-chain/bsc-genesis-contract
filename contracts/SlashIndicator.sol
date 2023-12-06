@@ -39,6 +39,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public finalitySlashRewardRatio;
   bool public enableMaliciousVoteSlash;
 
+  uint256 public constant INIT_MALICIOUS_VOTE_SLASH_SCOPE = 86400;  // 3 days
+   
+  uint256 public maliciousVoteSlashScope;
+
   event validatorSlashed(address indexed validator);
   event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
   event indicatorCleaned();
@@ -76,13 +80,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(block.number > previousHeight, "can not slash twice in one block");
     _;
     previousHeight = block.number;
-  }
-
-  modifier onlyZeroGasPrice() {
-    
-    require(tx.gasprice == 0 , "gasprice is not zero");
-    
-    _;
   }
   
   function init() external onlyNotInit{
@@ -202,10 +199,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (finalitySlashRewardRatio == 0) {
       finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
     }
+    if (maliciousVoteSlashScope == 0) {
+      maliciousVoteSlashScope = INIT_MALICIOUS_VOTE_SLASH_SCOPE;
+    }
 
     // Basic check
-    require(_evidence.voteA.tarNum+256 > block.number &&
-      _evidence.voteB.tarNum+256 > block.number, "target block too old");
+    require(_evidence.voteA.tarNum+maliciousVoteSlashScope > block.number &&
+      _evidence.voteB.tarNum+maliciousVoteSlashScope > block.number, "target block too old");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
       _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
@@ -228,7 +228,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
         uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony( vals[i]);
         break;
       }
@@ -311,6 +311,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     } else if (Memory.compareStrings(key, "enableMaliciousVoteSlash")) {
       require(value.length == 32, "length of enableMaliciousVoteSlash mismatch");
       enableMaliciousVoteSlash = BytesToTypes.bytesToBool(32, value);
+    } else if (Memory.compareStrings(key, "maliciousVoteSlashScope")) {
+      require(value.length == 32, "length of maliciousVoteSlashScope mismatch");
+      uint256 newMaliciousVoteSlashScope = BytesToTypes.bytesToUint256(32, value);
+      require(newMaliciousVoteSlashScope >= 28800*1 && newMaliciousVoteSlashScope < 28800*30, "the malicious vote slash scope out of range");
+      maliciousVoteSlashScope = newMaliciousVoteSlashScope;
     } else {
       require(false, "unknown param");
     }
