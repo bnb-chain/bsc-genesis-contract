@@ -24,7 +24,9 @@
     "berlinBlock": 8,
     "londonBlock": 8,
     "hertzBlock": 8,
-    "fusionBlock": 9,
+    "hertzfixBlock": 8,
+    "shanghaiTime": 0,
+    "keplerTime": 0,
     "parlia": {
       "period": 3,
       "epoch": 200
