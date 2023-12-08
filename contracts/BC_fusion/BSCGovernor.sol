@@ -28,15 +28,20 @@ contract BSCGovernor is
     using Utils for string;
 
     /*----------------- constants -----------------*/
-    uint256 private constant INIT_VOTING_DELAY = 24 hours;
-    uint256 private constant INIT_VOTING_PERIOD = 14 days;
+    /*
+        @dev caution:
+        INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
+    */
+    uint256 private constant SECONDS_PER_BLOCK = 3 seconds;
+    uint256 private constant INIT_VOTING_DELAY = 24 hours / SECONDS_PER_BLOCK;
+    uint256 private constant INIT_VOTING_PERIOD = 14 days / SECONDS_PER_BLOCK;
     uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
     uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
     // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
     uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
-    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
+    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / SECONDS_PER_BLOCK);
 
     /*----------------- errors -----------------*/
     error NotWhitelisted();
