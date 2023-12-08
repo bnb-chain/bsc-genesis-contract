@@ -31,27 +31,49 @@ contract StakeHub is System, Initializable {
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0xd7485e8f
     error StakeHubPaused();
+    // @notice signature: 0xb1d02c3d
     error InBlackList();
+    // @notice signature: 0xf2771a99
     error OnlyAssetProtector();
+    // @notice signature: 0x5f28f62b
     error ValidatorExisted();
+    // @notice signature: 0xfdf4600b
     error ValidatorNotExist();
+    // @notice signature: 0x4b6b857d
     error ValidatorNotJailed();
+    // @notice signature: 0x3cdeb0ea
     error DuplicateConsensusAddress();
+    // @notice signature: 0x11fdb947
     error DuplicateVoteAddress();
+    // @notice signature: 0x2f64097e
     error SelfDelegationNotEnough();
+    // @notice signature: 0xdc81db85
     error InvalidCommission();
+    // @notice signature: 0x5dba5ad7
     error InvalidMoniker();
+    // @notice signature: 0x2c8fc796
     error InvalidVoteAddress();
+    // @notice signature: 0xca40c236
     error InvalidConsensusAddress();
+    // @notice signature: 0x3f259b7a
     error UpdateTooFrequently();
+    // @notice signature: 0x5c32dd9c
     error JailTimeNotExpired();
+    // @notice signature: 0xdc6f0bdd
     error DelegationAmountTooSmall();
+    // @notice signature: 0x64689203
     error OnlySelfDelegation();
+    // @notice signature: 0x9811e0c7
     error ZeroShares();
+    // @notice signature: 0xf0e3e629
     error SameValidator();
+    // @notice signature: 0x413361db
     error NoMoreFelonyToday();
+    // @notice signature: 0x37233762
     error AlreadySlashed();
+    // @notice signature: 0x90b8ec18
     error TransferFailed();
 
     /*----------------- storage -----------------*/
@@ -82,10 +104,6 @@ contract StakeHub is System, Initializable {
     mapping(address => address) private _consensusToOperator;
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
-    // operator address => day index => receivedReward
-    mapping(address => mapping(uint256 => uint256)) private _rewardRecords;
-    // operator address => day index => totalPooledBNB
-    mapping(address => mapping(uint256 => uint256)) private _totalPooledBNBRecords;
 
     // legacy addresses of BC
     mapping(address => bool) private _legacyConsensusAddress;
@@ -219,7 +237,7 @@ contract StakeHub is System, Initializable {
             _legacyVoteAddress[bcVoteAddress[i]] = true;
         }
 
-        assetProtector = 0xdF87F0e2B8519Ea2DD4aBd8B639cdD628497eD25; // TODO
+        assetProtector = DEAD_ADDRESS; // TODO
     }
 
     /*----------------- external functions -----------------*/
@@ -275,6 +293,8 @@ contract StakeHub is System, Initializable {
         _voteToOperator[voteAddress] = operatorAddress;
 
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
+
+        IGovToken(GOV_TOKEN_ADDR).sync(creditContract, operatorAddress);
     }
 
     /**
@@ -441,7 +461,7 @@ contract StakeHub is System, Initializable {
     /**
      * @param srcValidator the operator address of the validator to be redelegated from
      * @param dstValidator the operator address of the validator to be redelegated to
-     * @param shares the shares to be redelegated
+     * @param shares the shares to be redeloperatorAddressegated
      * @param delegateVotePower whether to delegate vote power to the dstValidator
      */
     function redelegate(
@@ -533,10 +553,6 @@ contract StakeHub is System, Initializable {
             return;
         }
 
-        uint256 dayIndex = block.timestamp / 1 days;
-        _rewardRecords[operatorAddress][dayIndex] = msg.value;
-        _totalPooledBNBRecords[operatorAddress][dayIndex] = IStakeCredit(valInfo.creditContract).totalPooledBNB();
-
         IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
         emit RewardDistributed(operatorAddress, msg.value);
     }
@@ -568,6 +584,7 @@ contract StakeHub is System, Initializable {
         Validator storage valInfo = _validators[operatorAddress];
 
         uint256 dayIndex = block.timestamp / 1 days;
+        // This is to prevent many honest validators being slashed at the same time because of implementation bugs
         if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
         _felonyMap[dayIndex] += 1;
 
@@ -590,7 +607,8 @@ contract StakeHub is System, Initializable {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
-        uint256 dayIndex = block.timestamp;
+        uint256 dayIndex = block.timestamp / 1 days;
+        // This is to prevent many honest validators being slashed at the same time because of implementation bugs
         if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
         _felonyMap[dayIndex] += 1;
 
@@ -724,7 +742,8 @@ contract StakeHub is System, Initializable {
      * @return the validator's reward of the day
      */
     function getValidatorRewardRecord(address operatorAddress, uint256 dayIndex) external view returns (uint256) {
-        return _rewardRecords[operatorAddress][dayIndex];
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
+        return IStakeCredit(_validators[operatorAddress].creditContract).rewardRecord(dayIndex);
     }
 
     /**
@@ -734,7 +753,8 @@ contract StakeHub is System, Initializable {
         address operatorAddress,
         uint256 dayIndex
     ) external view returns (uint256) {
-        return _totalPooledBNBRecords[operatorAddress][dayIndex];
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
+        return IStakeCredit(_validators[operatorAddress].creditContract).totalPooledBNBRecord(dayIndex);
     }
 
     /**

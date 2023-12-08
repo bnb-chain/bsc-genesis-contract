@@ -60,7 +60,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   uint256 public constant BURN_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
-  uint256 public constant INIT_BURN_RATIO = 0; // deprecated
+  uint256 public constant INIT_BURN_RATIO = 1000;
   uint256 public burnRatio;
   bool public burnRatioInitialized; // deprecated
 
@@ -256,9 +256,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // if staking channel is not closed, store the migrated validator set and return
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
       uint256 newLength = _validatorSet.length;
-      if (newLength == 0) {
-        return;
-      }
       uint256 oldLength = _tmpMigratedValidatorSet.length;
       if (oldLength > newLength) {
         for (uint256 i = newLength; i < oldLength; ++i) {
@@ -321,7 +318,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     if (isSystemRewardIncluded == false){
       systemRewardRatio = INIT_SYSTEM_REWARD_RATIO;
-      burnRatio = 938; // 15/16*10% is 9.375%
+      burnRatio = INIT_BURN_RATIO;
       isSystemRewardIncluded = true;
     }
 
@@ -695,7 +692,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return;
     }
 
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(payable(address(this)), totalValue);
     if (totalValue == 0) {
       return;
     }

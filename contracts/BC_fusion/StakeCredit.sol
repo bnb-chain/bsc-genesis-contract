@@ -17,16 +17,28 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     uint256 private constant COMMISSION_RATE_BASE = 10_000; // 100%
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0x2fe8dae9
     error ZeroTotalShares();
+    // @notice signature: 0xf6ed9ce0
     error ZeroTotalPooledBNB();
+    // @notice signature: 0x8cd22d19
     error TransferNotAllowed();
+    // @notice signature: 0x20287471
     error ApproveNotAllowed();
+    // @notice signature: 0x858f9ae4
     error WrongInitContext();
+    // @notice signature: 0x90b8ec18
     error TransferFailed();
+    // @notice signature: 0x1f2a2005
     error ZeroAmount();
+    // @notice signature: 0xf4d678b8
     error InsufficientBalance();
+    // @notice signature: 0xad418937
     error NoUnbondRequest();
+    // @notice signature: 0x0f363824
     error NoClaimableUnbondRequest();
+    // @notice signature: 0xb19e9115
+    error RequestExisted();
 
     /*----------------- storage -----------------*/
     address public validator; // validator's operator address
@@ -38,6 +50,11 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     mapping(address => DoubleEndedQueueUpgradeable.Bytes32Deque) private _unbondRequestsQueue;
     // delegator address => personal unbond sequence
     mapping(address => CountersUpgradeable.Counter) private _unbondSequence;
+
+    // day index => receivedReward
+    mapping(uint256 => uint256) public rewardRecord;
+    // day index => totalPooledBNB
+    mapping(uint256 => uint256) public totalPooledBNBRecord;
 
     /*----------------- structs and events -----------------*/
     struct UnbondRequest {
@@ -52,6 +69,9 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @notice only accept BNB from `StakeHub`
      */
     receive() external payable onlyStakeHub {
+        uint256 dayIndex = block.timestamp / 1 days;
+        totalPooledBNBRecord[dayIndex] = totalPooledBNB;
+        rewardRecord[dayIndex] += msg.value;
         totalPooledBNB += msg.value;
     }
 
@@ -94,6 +114,9 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         uint256 unlockTime = block.timestamp + IStakeHub(STAKE_HUB_ADDR).unbondPeriod();
         UnbondRequest memory request = UnbondRequest({ shares: shares, bnbAmount: bnbAmount, unlockTime: unlockTime });
         bytes32 hash = keccak256(abi.encodePacked(delegator, _useSequence(delegator)));
+        // the hash should not exist in the queue
+        // this will not happen in normal cases
+        if (_unbondRequests[hash].shares != 0) revert RequestExisted();
         _unbondRequests[hash] = request;
         _unbondRequestsQueue[delegator].pushBack(hash);
     }
@@ -137,7 +160,6 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
 
             // remove from the queue
             _unbondRequestsQueue[delegator].popFront();
-            delete _unbondRequests[hash];
 
             _totalBnbAmount += request.bnbAmount;
             --number;
@@ -159,6 +181,10 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         uint256 bnbAmount = msg.value;
         uint256 _commission = (bnbAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 _reward = bnbAmount - _commission;
+
+        uint256 dayIndex = block.timestamp / 1 days;
+        totalPooledBNBRecord[dayIndex] = totalPooledBNB;
+        rewardRecord[dayIndex] += _reward;
         totalPooledBNB += _reward;
 
         // mint commission to the validator
@@ -203,25 +229,54 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     }
 
     /**
-     * @return the unbond request at _index and the total length of delegator's unbond queue.
+     * @return the unbond request at _index.
      */
-    function unbondRequest(address delegator, uint256 _index) public view returns (UnbondRequest memory, uint256) {
+    function unbondRequest(address delegator, uint256 _index) public view returns (UnbondRequest memory) {
         bytes32 hash = _unbondRequestsQueue[delegator].at(_index);
-        return (_unbondRequests[hash], _unbondRequestsQueue[delegator].length());
+        return _unbondRequests[hash];
     }
 
     /**
-     * @return the total amount of BNB locked in the unbond queue.
+     * @return the total length of delegator's pending unbond queue.
      */
-    function lockedBNBs(address delegator) public view returns (uint256) {
+    function pendingUnbondRequest(address delegator) public view returns (uint256) {
+        return _unbondRequestsQueue[delegator].length();
+    }
+
+    /**
+     * @return the total number of delegator's claimable unbond requests.
+     */
+    function claimableUnbondRequest(address delegator) public view returns (uint256) {
         uint256 length = _unbondRequestsQueue[delegator].length();
-        if (length == 0) {
+        uint256 count;
+        for (uint256 i; i < length; ++i) {
+            bytes32 hash = _unbondRequestsQueue[delegator].at(i);
+            UnbondRequest memory request = _unbondRequests[hash];
+            if (block.timestamp >= request.unlockTime) {
+                ++count;
+            } else {
+                break;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * @return the sum of first `number` requests' BNB locked in delegator's unbond queue.
+     */
+    function lockedBNBs(address delegator, uint256 number) public view returns (uint256) {
+        // number == 0 means all
+        // number should not exceed the length of the queue
+        if (_unbondRequestsQueue[delegator].length() == 0) {
             return 0;
         }
+        number = (number == 0 || number > _unbondRequestsQueue[delegator].length())
+            ? _unbondRequestsQueue[delegator].length()
+            : number;
 
         uint256 _totalBnbAmount;
-        for (uint256 i; i < length; ++i) {
-            bytes32 hash = _unbondRequestsQueue[delegator].front();
+        for (uint256 i; i < number; ++i) {
+            bytes32 hash = _unbondRequestsQueue[delegator].at(i);
             UnbondRequest memory request = _unbondRequests[hash];
             _totalBnbAmount += request.bnbAmount;
         }

@@ -22,10 +22,15 @@ contract System {
     address internal constant TOKEN_RECOVER_PORTAL_ADDR = 0x0000000000000000000000000000000000003000;
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0x97b88354
     error UnknownParam(string key, bytes value);
+    // @notice signature: 0x0a5a6041
     error InvalidValue(string key, bytes value);
+    // @notice signature: 0x116c64a8
     error OnlyCoinbase();
+    // @notice signature: 0x83f1b1d3
     error OnlyZeroGasPrice();
+    // @notice signature: 0xf22c4390
     error OnlySystemContract(address systemContract);
 
     /*----------------- events -----------------*/

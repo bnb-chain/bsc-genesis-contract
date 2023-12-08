@@ -15,4 +15,6 @@ interface IStakeCredit {
     function balanceOf(address delegator) external view returns (uint256);
     function totalSupply() external view returns (uint256);
     function getPooledBNB(address account) external view returns (uint256);
+    function rewardRecord(uint256 dayIndex) external view returns (uint256);
+    function totalPooledBNBRecord(uint256 dayIndex) external view returns (uint256);
 }

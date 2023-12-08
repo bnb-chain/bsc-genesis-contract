@@ -7,6 +7,7 @@ import subprocess
 import jinja2
 import typer
 from typing_extensions import Annotated
+from web3 import Web3
 
 work_dir = os.getcwd()
 if work_dir.endswith("scripts"):
@@ -87,7 +88,7 @@ def generate_from_template(data, template_file, output_file):
     result_string = template.render(data)
 
     output_path = os.path.join(work_dir, output_file)
-    with open(output_path, 'w') as output_file:
+    with open(output_path, "w") as output_file:
         output_file.write(result_string)
 
 
@@ -173,15 +174,13 @@ def generate_token_hub(max_gas_for_transfer_bnb, max_gas_for_calling_bep20, rewa
     replace_parameter(contract, "uint256 constant public INIT_MINIMUM_RELAY_FEE", f"{init_minimum_relay_fee}")
 
 
-def generate_token_recover_portal(source_chain_id, approval_address, merkle_root):
+def generate_token_recover_portal(source_chain_id):
     contract = "BC_fusion/TokenRecoverPortal.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
     replace_parameter(contract, "string public constant SOURCE_CHAIN_ID", f"\"{source_chain_id}\"")
-    replace_parameter(contract, "address public approvalAddress", f"{approval_address}")
-    replace_parameter(contract, "bytes32 public merkleRoot", f"{merkle_root}")
 
 
 def generate_validator_set(init_burn_ratio, init_validatorset_bytes):
@@ -226,17 +225,16 @@ def mainnet():
     whitelist_1 = "0xb005741528b86F5952469d80A8614591E3c5B632"
     whitelist_2 = "0x446AA6E0DC65690403dF3F127750da1322941F3e"
     source_chain_id = "Binance-Chain-Tigris"
-    approval_address = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
-    merkle_root = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
     generate_system()
     generate_cross_chain()
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
-    generate_token_recover_portal(source_chain_id, approval_address, merkle_root)
+    generate_token_recover_portal(source_chain_id)
 
     generate_genesis()
+    print("Generate genesis of mainnet successfully")
 
 
 @main.command(help="Generate contracts for BSC testnet")
@@ -252,21 +250,27 @@ def testnet():
     whitelist_1 = "0x9fB29AAc15b9A4B7F17c3385939b007540f4d791"
     whitelist_2 = "0x37B8516a0F88E65D677229b402ec6C1e0E333004"
     source_chain_id = "Binance-Chain-Ganges"
-    approval_address = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
-    merkle_root = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
     generate_system()
     generate_cross_chain()
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
-    generate_token_recover_portal(source_chain_id, approval_address, merkle_root)
+    generate_token_recover_portal(source_chain_id)
 
     generate_genesis()
+    print("Generate genesis of testnet successfully")
 
 
 @main.command(help="Generate contracts for qa network")
-def qa():
+def qa(
+    whitelist_1: Annotated[
+        str, typer.Option(help="whitelist relayer1's address")] = "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD",
+    whitelist_2: Annotated[
+        str, typer.Option(help="whitelist relayer2's address")] = "0x42D596440775C90db8d9187b47650986E1063493",
+    source_chain_id: Annotated[
+        str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges"
+):
     global network, chain_id, hex_chain_id
     network = "qa"
     chain_id = 714
@@ -275,20 +279,16 @@ def qa():
     init_consensus_bytes = "42696e616e63652d436861696e2d47616e67657300000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000aea1ac326886b992a991d21a6eb155f41b77867cbf659e78f31d89d8205122a84d1be64f0e9a466c2e66a53433928192783e29f8fa21beb2133499b5ef770f60000000e8d4a5100099308aa365c40554bc89982af505d85da95251445d5dd4a9bb37dd2584fd92d3000000e8d4a5100001776920ff0b0f38d78cf95c033c21adf7045785114e392a7544179652e0a612000000e8d4a51000"
     init_burn_ratio = "1000"
     init_validatorset_bytes = "f901a880f901a4f844941284214b9b9c85549ab3d2b972df0deef66ac2c9946ddf42a51534fc98d0c0a3b42c963cace8441ddf946ddf42a51534fc98d0c0a3b42c963cace8441ddf8410000000f84494a2959d3f95eae5dc7d70144ce1b73b403b7eb6e0948081ef03f1d9e0bb4a5bf38f16285c879299f07f948081ef03f1d9e0bb4a5bf38f16285c879299f07f8410000000f8449435552c16704d214347f29fa77f77da6d75d7c75294dc4973e838e3949c77aced16ac2315dc2d7ab11194dc4973e838e3949c77aced16ac2315dc2d7ab1118410000000f84494980a75ecd1309ea12fa2ed87a8744fbfc9b863d594cc6ac05c95a99c1f7b5f88de0e3486c82293b27094cc6ac05c95a99c1f7b5f88de0e3486c82293b2708410000000f84494f474cf03cceff28abc65c9cbae594f725c80e12d94e61a183325a18a173319dd8e19c8d069459e217594e61a183325a18a173319dd8e19c8d069459e21758410000000f84494b71b214cb885500844365e95cd9942c7276e7fd894d22ca3ba2141d23adab65ce4940eb7665ea2b6a794d22ca3ba2141d23adab65ce4940eb7665ea2b6a78410000000"
-    whitelist_1 = "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD"
-    whitelist_2 = "0x42D596440775C90db8d9187b47650986E1063493"
-    source_chain_id = "Binance-Chain-Ganges"
-    approval_address = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
-    merkle_root = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
     generate_system()
     generate_cross_chain()
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
-    generate_token_recover_portal(source_chain_id, approval_address, merkle_root)
+    generate_token_recover_portal(source_chain_id)
 
     generate_genesis()
+    print("Generate genesis of qa-net successfully")
 
 
 @main.command(help="Generate contracts for local network")
@@ -296,26 +296,24 @@ def local(
     local_chain_id: int = 714,
     init_consensus_bytes:
     str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
+    init_burn_ratio: Annotated[str, typer.Option(help="init burn ratio of BscValidatorSet")] = "1000",
     whitelist_1: Annotated[
         str, typer.Option(help="whitelist relayer1's address")] = "0xA904540818AC9c47f2321F97F1069B9d8746c6DB",
     whitelist_2: Annotated[
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
+    source_chain_id: Annotated[
+        str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges"
 ):
     global network, chain_id, hex_chain_id
     network = "local"
     chain_id = local_chain_id
     hex_chain_id = convert_chain_id(chain_id)
 
-    init_burn_ratio = "1000"
-    source_chain_id = "Binance-Chain-Ganges"
-    approval_address = "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa"
-    merkle_root = "0x0000000000000000000000000000000000000000000000000000000000000000"
-
     try:
         result = subprocess.run(
             [
-                'node', '-e',
-                'const exportsObj = require(\'./scripts/validators.js\'); console.log(exportsObj.validatorSetBytes.toString(\'hex\'));'
+                "node", "-e",
+                "const exportsObj = require(\'./scripts/validators.js\'); console.log(exportsObj.validatorSetBytes.toString(\'hex\'));"
             ],
             capture_output=True,
             text=True,
@@ -332,9 +330,10 @@ def local(
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
-    generate_token_recover_portal(source_chain_id, approval_address, merkle_root)
+    generate_token_recover_portal(source_chain_id)
 
     generate_genesis()
+    print("Generate genesis of local-net successfully")
 
 
 @main.command(help="Recover from the backup")
@@ -350,6 +349,8 @@ def recover():
             c_file = file[:-4] + ".sol"
             os.replace(os.path.join(contracts_dir, file), os.path.join(contracts_dir, c_file))
 
+    print("Recover from the backup successfully")
+
 
 @main.command(help="Generate init holders")
 def generate_init_holders(
@@ -359,10 +360,11 @@ def generate_init_holders(
 ):
     init_holders = init_holders.split(",")
     data = {
-        'initHolders': init_holders,
+        "initHolders": init_holders,
     }
 
     generate_from_template(data, template_file, output_file)
+    print("Generate init holders successfully")
 
 
 @main.command(help="Generate validators")
@@ -374,27 +376,59 @@ def generate_validators(
     file_path = os.path.join(work_dir, file_path)
     validators = []
 
-    with open(file_path, mode='r') as file:
+    with open(file_path, "r") as file:
         for line in file:
-            vs = line.strip().split(',')
+            vs = line.strip().split(",")
             if len(vs) != 5:
                 raise Exception(f"Invalid validator info: {line}")
             validators.append(
                 {
-                    'consensusAddr': vs[0],
-                    'feeAddr': vs[1],
-                    'bscFeeAddr': vs[2],
-                    'votingPower': vs[3],
-                    'bLSPublicKey': vs[4],
+                    "consensusAddr": vs[0],
+                    "feeAddr": vs[1],
+                    "bscFeeAddr": vs[2],
+                    "votingPower": vs[3],
+                    "bLSPublicKey": vs[4],
                 }
             )
 
     data = {
-        'validators': validators,
+        "validators": validators,
     }
 
     generate_from_template(data, template_file, output_file)
+    print("Generate validators successfully")
 
 
-if __name__ == '__main__':
+@main.command(help="Generate errors signature")
+def generate_error_sig(dir_path: str = "./contracts/BC_fusion"):
+    dir_path = os.path.join(work_dir, dir_path)
+
+    annotation_prefix = "    // @notice signature: "
+    error_pattern = re.compile(r"^\s{4}(error)\s([a-zA-Z]*\(.*\));\s$")
+    annotation_pattern = re.compile(r"^\s{4}(//\s@notice\ssignature:)\s.*\s$")
+    for file in os.listdir(dir_path):
+        if file.endswith(".sol"):
+            file_path = os.path.join(dir_path, file)
+            with open(file_path) as f:
+                content = f.readlines()
+            for i, line in enumerate(content):
+                if error_pattern.match(line):
+                    error_msg = line[10:-2]
+                    # remove variable names
+                    match = re.search(r"\((.*?)\)", error_msg)
+                    if match and match.group(1) != "":
+                        variables = [v.split()[0].strip() for v in match.group(1).split(",")]
+                        error_msg = re.sub(r"\((.*?)\)", f"({','.join(variables)})", error_msg)
+                    sig = Web3.keccak(text=error_msg)[:4].hex()
+                    annotation = annotation_prefix + sig + "\n"
+                    # update/insert annotation
+                    if annotation_pattern.match(content[i - 1]):
+                        content[i - 1] = annotation
+                    else:
+                        content.insert(i, annotation)
+            with open(file_path, "w") as f:
+                f.writelines(content)
+
+
+if __name__ == "__main__":
     main()

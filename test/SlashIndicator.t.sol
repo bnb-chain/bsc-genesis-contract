@@ -15,10 +15,13 @@ contract SlashIndicatorTest is Deployer {
     address public validator0;
 
     function setUp() public {
-        burnRatio = bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : 938; // 15/16*10% is 9.375%
+        burnRatio =
+            bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
         burnRatioScale = bscValidatorSet.BURN_RATIO_SCALE();
 
-        systemRewardRatio = bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.systemRewardRatio() : 625; // 1/16
+        systemRewardRatio = bscValidatorSet.isSystemRewardIncluded()
+            ? bscValidatorSet.systemRewardRatio()
+            : bscValidatorSet.INIT_SYSTEM_REWARD_RATIO();
         systemRewardRatioScale = bscValidatorSet.SYSTEM_REWARD_RATIO_SCALE();
 
         address[] memory validators = bscValidatorSet.getValidators();

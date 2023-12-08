@@ -22,7 +22,9 @@ contract GovToken is
     string private constant SYMBOL = "govBNB";
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0x8cd22d19
     error TransferNotAllowed();
+    // @notice signature: 0x20287471
     error ApproveNotAllowed();
 
     /*----------------- storage -----------------*/

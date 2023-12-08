@@ -215,7 +215,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  //TODO: add onlyRelayer
   function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
@@ -250,7 +249,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
         uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
         break;
       }
@@ -269,7 +268,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  //TODO: add onlyRelayer
   function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
     require(header1.length != 0 && header2.length != 0, "empty header");
 

@@ -13,3 +13,4 @@ contracts/flattened/*.sol
 lib/forge-std/
 
 .env
+**/.bak

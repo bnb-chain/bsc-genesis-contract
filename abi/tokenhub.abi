@@ -713,6 +713,30 @@
   },
   {
     "type": "function",
+    "name": "claimRewardsforFinality",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address payable"
+      },
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "getBep2SymbolByContractAddr",
     "inputs": [
       {
