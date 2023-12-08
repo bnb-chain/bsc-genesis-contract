@@ -17,23 +17,23 @@ import "./lib/Utils.sol";
  * The BC users can recover the token from TokenHub after the merkle tree root is generated.
  * For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
  */
-contract TokenRecoverPortal is ReentrancyGuardUpgradeable, System {
+contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     using Utils for string;
     using Utils for bytes;
 
-    /*----------------- init parameters -----------------*/
+    /*----------------- constants -----------------*/
     string public constant SOURCE_CHAIN_ID = "Binance-Chain-Ganges";
-    address public approvalAddress = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
-    bytes32 public merkleRoot = 0x0000000000000000000000000000000000000000000000000000000000000000;
-    bool public merkleRootAlreadyInit = false;
 
     /*----------------- storage -----------------*/
+    address public approvalAddress;
+    bytes32 public merkleRoot;
+    bool public merkleRootAlreadyInit;
+
     // recoveredMap is used to record the recovered token.
     mapping(bytes32 => bool) private recoveredMap;
 
-    /*----------------- permission control -----------------*/
     // assetProtector is the address that is allowed to pause the #recover.
-    address public assetProtector = 0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa;
+    address public assetProtector;
     // paused is used to pause the #recover.
     bool private _paused;
 
@@ -64,15 +64,25 @@ contract TokenRecoverPortal is ReentrancyGuardUpgradeable, System {
     }
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0x3e493100
     error AlreadyRecovered();
+    // @notice signature: 0x09bde339
     error InvalidProof();
+    // @notice signature: 0xad60149e
     error InvalidApprovalSignature();
+    // @notice signature: 0x8152ea1b
     error InvalidOwnerPubKeyLength();
+    // @notice signature: 0xbc97af2e
     error InvalidOwnerSignatureLength();
+    // @notice signature: 0xf36660de
     error MerkleRootAlreadyInitiated();
+    // @notice signature: 0x57407297
     error MerkleRootNotInitialize();
+    // @notice signature: 0xc629ac81
     error TokenRecoverPortalPaused();
+    // @notice signature: 0xb1d02c3d
     error InBlackList();
+    // @notice signature: 0xf2771a99
     error OnlyAssetProtector();
 
     /*----------------- events -----------------*/

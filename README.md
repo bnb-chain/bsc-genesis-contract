@@ -16,9 +16,11 @@ foundryup
 forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
 ```
 
-Please make sure your dependency version is as follows:
-
-Node: v12.18.3 
+Install poetry:
+```shell script
+curl -sSL https://install.python-poetry.org | python3 -
+poetry install
+```
 
 Tips: You can manage multi version of Node:
 ```Shell
@@ -59,20 +61,11 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 
 ## How to generate mainnet/testnet/QA/local genesis file
 
-You may need install some python dependencies firstly.
-Save the following content to `requirements.txt` file, and run `pip install -r requirements.txt` to install them.
-```txt
-Jinja2==3.1.2
-typer==0.9.0
-```
-
-
-Then:
 ```shell 
-python scripts/generate.py ${network}
+poetry run python -m scripts.generate ${network}
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
-(`python scripts/generate.py --help` for more details)
+(`poetry run python -m scripts.generate --help ` for more details)
 
 ## How to update contract interface for test
 

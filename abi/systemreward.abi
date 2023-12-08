@@ -148,6 +148,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_REWARDS_FOR_FINALITY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "RELAYERHUB_CONTRACT_ADDR",
     "inputs": [],
     "outputs": [
@@ -344,6 +357,30 @@
   {
     "type": "function",
     "name": "claimRewards",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address payable"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimRewardsforFinality",
     "inputs": [
       {
         "name": "to",

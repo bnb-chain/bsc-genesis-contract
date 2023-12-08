@@ -256,9 +256,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // if staking channel is not closed, store the migrated validator set and return
     if (ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
       uint256 newLength = _validatorSet.length;
-      if (newLength == 0) {
-        return;
-      }
       uint256 oldLength = _tmpMigratedValidatorSet.length;
       if (oldLength > newLength) {
         for (uint256 i = newLength; i < oldLength; ++i) {

@@ -39,9 +39,13 @@ contract BSCGovernor is
     uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
 
     /*----------------- errors -----------------*/
+    // @notice signature: 0x584a7938
     error NotWhitelisted();
+    // @notice signature: 0x11b6707f
     error TotalSupplyNotEnough();
+    // @notice signature: 0xe96776bf
     error GovernorPaused();
+    // @notice signature: 0x286300de
     error OnlyGovernorProtector();
 
     /*----------------- events -----------------*/

@@ -82,6 +82,7 @@ interface TokenHub {
     function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) external;
     function cancelTransferIn(address tokenAddress, address attacker) external;
     function claimRewards(address payable to, uint256 amount) external returns (uint256);
+    function claimRewardsforFinality(address payable, uint256) external returns (uint256);
     function getBep2SymbolByContractAddr(address contractAddr) external view returns (bytes32);
     function getBoundBep2Symbol(address contractAddr) external view returns (string memory);
     function getBoundContract(string memory bep2Symbol) external view returns (address);

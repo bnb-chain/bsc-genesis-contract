@@ -215,7 +215,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  //TODO: add onlyRelayer
   function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
     if (finalitySlashRewardRatio == 0) {
@@ -269,7 +268,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
   }
 
-  //TODO: add onlyRelayer
   function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
     require(header1.length != 0 && header2.length != 0, "empty header");
 

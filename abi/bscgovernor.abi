@@ -510,6 +510,19 @@
   },
   {
     "type": "function",
+    "name": "governorProtector",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "hasVoted",
     "inputs": [
       {
@@ -710,6 +723,26 @@
       }
     ],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "pause",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "paused",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1099,6 +1132,13 @@
   },
   {
     "type": "function",
+    "name": "resume",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "setLateQuorumVoteExtension",
     "inputs": [
       {
@@ -1374,6 +1414,12 @@
   },
   {
     "type": "event",
+    "name": "Paused",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ProposalCanceled",
     "inputs": [
       {
@@ -1537,6 +1583,12 @@
   },
   {
     "type": "event",
+    "name": "Resumed",
+    "inputs": [],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "TimelockChange",
     "inputs": [
       {
@@ -1679,6 +1731,11 @@
   },
   {
     "type": "error",
+    "name": "GovernorPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidValue",
     "inputs": [
       {
@@ -1701,6 +1758,11 @@
   {
     "type": "error",
     "name": "OnlyCoinbase",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OnlyGovernorProtector",
     "inputs": []
   },
   {

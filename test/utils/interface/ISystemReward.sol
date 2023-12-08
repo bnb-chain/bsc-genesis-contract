@@ -22,6 +22,7 @@ interface SystemReward {
     function INCENTIVIZE_ADDR() external view returns (address);
     function LIGHT_CLIENT_ADDR() external view returns (address);
     function MAX_REWARDS() external view returns (uint256);
+    function MAX_REWARDS_FOR_FINALITY() external view returns (uint256);
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
@@ -38,6 +39,7 @@ interface SystemReward {
     function alreadyInit() external view returns (bool);
     function bscChainID() external view returns (uint16);
     function claimRewards(address payable to, uint256 amount) external returns (uint256);
+    function claimRewardsforFinality(address payable to, uint256 amount) external returns (uint256);
     function isOperator(address addr) external view returns (bool);
     function numOperator() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
