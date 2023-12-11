@@ -47,24 +47,24 @@ def insert(contract, pattern, ins):
         raise Exception(f"{pattern} not found")
 
 
-def replace(contract, pattern, repl):
+def replace(contract, pattern, repl, count=1):
     pattern = re.compile(pattern)
     filepath = os.path.join(work_dir, "contracts", contract)
 
-    found = False
-    with fileinput.FileInput(filepath, inplace=True) as file:
-        for line in file:
-            if not found and pattern.search(line):
-                line = pattern.sub(repl, line)
-                found = True
-            print(line, end="")
+    with open(filepath, "r") as f:
+        content = f.read()
 
-    if not found:
+    if pattern.search(content):
+        content = pattern.sub(repl, content, count=count)
+    else:
         raise Exception(f"{pattern} not found")
+
+    with open(filepath, "w") as f:
+        f.write(content)
 
 
 def replace_parameter(contract, parameter, value):
-    pattern = rf"{parameter} = .*;"
+    pattern = f"{parameter} =[^;]*;"
     repl = f"{parameter} = {value};"
 
     replace(contract, pattern, repl)
@@ -111,19 +111,64 @@ def generate_relayer_hub(whitelist_1, whitelist_2):
     replace_parameter(contract, "address public constant WHITELIST_1", f"{whitelist_1}")
     replace_parameter(contract, "address public constant WHITELIST_2", f"{whitelist_2}")
 
-    if network == "local":
+    if network == "dev":
         replace(contract, r"function whitelistInit\(\) external", "function whitelistInit() public")
         insert(contract, "alreadyInit = true;", "\t\twhitelistInit();")
 
 
 def generate_slash_indicator():
-    if network == "local":
+    if network == "dev":
         contract = "SlashIndicator.sol"
         backup_file(
             os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
         )
 
         insert(contract, "alreadyInit = true;", "\t\tenableMaliciousVoteSlash = true;")
+
+
+def generate_stake_hub(
+    breath_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
+    felony_jail_time, asset_protector
+):
+    contract = "BC_fusion/StakeHub.sol"
+    backup_file(
+        os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
+    )
+
+    replace_parameter(contract, "uint256 public constant BREATH_BLOCK_INTERVAL", f"{breath_block_interval}")
+    replace_parameter(contract, "bytes private constant INIT_BC_CONSENSUS_ADDRESSES", f"{init_bc_consensus_addresses}")
+    replace_parameter(contract, "bytes private constant INIT_BC_VOTE_ADDRESSES", f"{init_bc_vote_addresses}")
+
+    replace(contract, r"unbondPeriod = .*;", f"unbondPeriod = {unbond_period};")
+    replace(contract, r"downtimeJailTime = .*;", f"downtimeJailTime = {downtime_jail_time};")
+    replace(contract, r"felonyJailTime = .*;", f"felonyJailTime = {felony_jail_time};")
+    replace(contract, r"assetProtector = .*;", f"assetProtector = {asset_protector};")
+
+
+def generate_governor(
+    block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+):
+    contract = "BC_fusion/BSCGovernor.sol"
+    backup_file(
+        os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
+    )
+
+    replace_parameter(contract, "uint256 private constant BLOCK_INTERVAL", f"{block_interval}")
+    replace_parameter(contract, "uint256 private constant INIT_VOTING_DELAY", f"{init_voting_delay}")
+    replace_parameter(contract, "uint256 private constant INIT_VOTING_PERIOD", f"{init_voting_period}")
+    replace_parameter(
+        contract, "uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM", f"{init_min_period_after_quorum}"
+    )
+    replace(contract, r"governorProtector = .*;", f"governorProtector = {governor_protector};")
+
+
+def generate_timelock(init_minimal_delay):
+    contract = "BC_fusion/BSCTimelock.sol"
+    backup_file(
+        os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
+    )
+
+    replace_parameter(contract, "uint256 private constant INIT_MINIMAL_DELAY", f"{init_minimal_delay}")
 
 
 def generate_system():
@@ -136,7 +181,7 @@ def generate_system():
 
 
 def generate_system_reward():
-    if network == "local":
+    if network == "dev":
         contract = "SystemReward.sol"
         backup_file(
             os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
@@ -192,7 +237,7 @@ def generate_validator_set(init_burn_ratio, init_validatorset_bytes):
     replace_parameter(contract, "uint256 public constant INIT_BURN_RATIO", f"{init_burn_ratio}")
     replace_parameter(contract, "bytes public constant INIT_VALIDATORSET_BYTES", f"hex\"{init_validatorset_bytes}\"")
 
-    if network == "local":
+    if network == "dev":
         insert(
             contract, r"for \(uint i; i<validatorSetPkg\.validatorSet\.length; \+\+i\)",
             "\t\tValidatorExtra memory validatorExtra;"
@@ -262,7 +307,7 @@ def testnet():
     print("Generate genesis of testnet successfully")
 
 
-@main.command(help="Generate contracts for qa network")
+@main.command(help="Generate contracts for qa environment")
 def qa(
     whitelist_1: Annotated[
         str, typer.Option(help="whitelist relayer1's address")] = "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD",
@@ -288,12 +333,12 @@ def qa(
     generate_token_recover_portal(source_chain_id)
 
     generate_genesis()
-    print("Generate genesis of qa-net successfully")
+    print("Generate genesis of qa environment successfully")
 
 
-@main.command(help="Generate contracts for local network")
-def local(
-    local_chain_id: int = 714,
+@main.command(help="Generate contracts for dev environment")
+def dev(
+    dev_chain_id: int = 714,
     init_consensus_bytes:
     str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
     init_burn_ratio: Annotated[str, typer.Option(help="init burn ratio of BscValidatorSet")] = "1000",
@@ -302,11 +347,29 @@ def local(
     whitelist_2: Annotated[
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
     source_chain_id: Annotated[
-        str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges"
+        str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
+    breath_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
+    block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
+    init_bc_consensus_addresses:
+    str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
+    init_bc_vote_addresses:
+    str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
+    asset_protector: Annotated[str, typer.Option(help="assetProtector of StakeHub")] = "address(0xdEaD)",
+    unbond_period: Annotated[str, typer.Option(help="unbondPeriod of StakeHub")] = "7 days",
+    downtime_jail_time: Annotated[str, typer.Option(help="downtimeJailTime of StakeHub")] = "2 days",
+    felony_jail_time: Annotated[str, typer.Option(help="felonyJailTime of StakeHub")] = "30 days",
+    init_voting_delay: Annotated[str,
+                                 typer.Option(help="INIT_VOTING_DELAY of BSCGovernor")] = "24 hours / BLOCK_INTERVAL",
+    init_voting_period: Annotated[str,
+                                  typer.Option(help="INIT_VOTING_PERIOD of BSCGovernor")] = "14 days / BLOCK_INTERVAL",
+    init_min_period_after_quorum: Annotated[
+        str, typer.Option(help="INIT_MIN_PERIOD_AFTER_QUORUM of BSCGovernor")] = "uint64(1 days / BLOCK_INTERVAL)",
+    governor_protector: Annotated[str, typer.Option(help="governorProtector of BSCGovernor")] = "address(0xdEaD)",
+    init_minimal_delay: Annotated[str, typer.Option(help="INIT_MINIMAL_DELAY of BSCTimelock")] = "24 hours"
 ):
     global network, chain_id, hex_chain_id
-    network = "local"
-    chain_id = local_chain_id
+    network = "dev"
+    chain_id = dev_chain_id
     hex_chain_id = convert_chain_id(chain_id)
 
     try:
@@ -317,7 +380,8 @@ def local(
             ],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
+            cwd=work_dir
         )
         init_validatorset_bytes = result.stdout.strip()[2:]
     except subprocess.CalledProcessError as e:
@@ -331,9 +395,17 @@ def local(
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
     generate_token_recover_portal(source_chain_id)
+    generate_stake_hub(
+        breath_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
+        felony_jail_time, asset_protector
+    )
+    generate_governor(
+        block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+    )
+    generate_timelock(init_minimal_delay)
 
     generate_genesis()
-    print("Generate genesis of local-net successfully")
+    print("Generate genesis of dev environment successfully")
 
 
 @main.command(help="Recover from the backup")

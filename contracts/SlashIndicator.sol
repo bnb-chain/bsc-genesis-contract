@@ -37,9 +37,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public  felonyThreshold;
 
   // BEP-126 Fast Finality
-  uint256 public constant INIT_FINALITY_SLASH_REWARD_RATIO = 20;
+  // @notice change name from `INIT_FINALITY_SLASH_REWARD_RATIO` to `INIT_FELONY_SLASH_REWARD_RATIO` after BC-fusion
+  uint256 public constant INIT_FELONY_SLASH_REWARD_RATIO = 20;
 
-  uint256 public finalitySlashRewardRatio;
+  // @notice change name from `finalitySlashRewardRatio` to `felonySlashRewardRatio` after BC-fusion
+  uint256 public felonySlashRewardRatio;
   bool public enableMaliciousVoteSlash;
 
   uint256 public constant INIT_MALICIOUS_VOTE_SLASH_SCOPE = 86400;  // 3 days
@@ -217,8 +219,8 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
 
   function submitFinalityViolationEvidence(FinalityEvidence memory _evidence) public onlyInit {
     require(enableMaliciousVoteSlash, "malicious vote slash not enabled");
-    if (finalitySlashRewardRatio == 0) {
-      finalitySlashRewardRatio = INIT_FINALITY_SLASH_REWARD_RATIO;
+    if (felonySlashRewardRatio == 0) {
+      felonySlashRewardRatio = INIT_FELONY_SLASH_REWARD_RATIO;
     }
     if (maliciousVoteSlashScope == 0) {
       maliciousVoteSlashScope = INIT_MALICIOUS_VOTE_SLASH_SCOPE;
@@ -248,7 +250,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
-        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
         ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
         break;
@@ -269,6 +271,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   }
 
   function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
+    if (felonySlashRewardRatio == 0) {
+      felonySlashRewardRatio = INIT_FELONY_SLASH_REWARD_RATIO;
+    }
+
     require(header1.length != 0 && header2.length != 0, "empty header");
 
     bytes[] memory elements = new bytes[](3);
@@ -299,7 +305,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     (address[] memory vals, ) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
     for (uint i; i < vals.length; ++i) {
       if (signer == vals[i]) {
-        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * finalitySlashRewardRatio) / 100;
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
         ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
         break;
@@ -369,11 +375,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);
       require(newFelonyThreshold <= 1000 && newFelonyThreshold > misdemeanorThreshold, "the felonyThreshold out of range");
       felonyThreshold = newFelonyThreshold;
-    } else if (Memory.compareStrings(key, "finalitySlashRewardRatio")) {
-      require(value.length == 32, "length of finalitySlashRewardRatio mismatch");
-      uint256 newFinalitySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newFinalitySlashRewardRatio >= 10 && newFinalitySlashRewardRatio < 100, "the finality slash reward ratio out of range");
-      finalitySlashRewardRatio = newFinalitySlashRewardRatio;
+    } else if (Memory.compareStrings(key, "felonySlashRewardRatio")) {
+      require(value.length == 32, "length of felonySlashRewardRatio mismatch");
+      uint256 newFelonySlashRewardRatio = BytesToTypes.bytesToUint256(32, value);
+      require(newFelonySlashRewardRatio >= 10 && newFelonySlashRewardRatio < 100, "the felony slash reward ratio out of range");
+      felonySlashRewardRatio = newFelonySlashRewardRatio;
     } else if (Memory.compareStrings(key, "enableMaliciousVoteSlash")) {
       require(value.length == 32, "length of enableMaliciousVoteSlash mismatch");
       enableMaliciousVoteSlash = BytesToTypes.bytesToBool(32, value);

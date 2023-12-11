@@ -20,6 +20,7 @@ interface RelayerIncentivize {
     function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
+    function GOV_TOKEN_ADDR() external view returns (address);
     function HEADER_RELAYER_REWARD_RATE_DENOMINATOR() external view returns (uint256);
     function HEADER_RELAYER_REWARD_RATE_MOLECULE() external view returns (uint256);
     function INCENTIVIZE_ADDR() external view returns (address);
@@ -29,10 +30,12 @@ interface RelayerIncentivize {
     function ROUND_SIZE() external view returns (uint256);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_CREDIT_ADDR() external view returns (address);
     function STAKE_HUB_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
+    function TIMELOCK_ADDR() external view returns (address);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);
     function TOKEN_RECOVER_PORTAL_ADDR() external view returns (address);

@@ -49,7 +49,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit ConsensusAddressEdited(validator, newConsensusAddress);
         stakeHub.editConsensusAddress(newConsensusAddress);
-        (address realAddr,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        (address realAddr,,,,,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(realAddr, newConsensusAddress);
 
         // 3. edit commission rate
@@ -100,7 +100,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit VoteAddressEdited(validator, newVoteAddress);
         stakeHub.editVoteAddress(newVoteAddress, blsProof);
-        (,, bytes memory realVoteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
+        (,,, bytes memory realVoteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(realVoteAddr, newVoteAddress);
 
         vm.stopPrank();
@@ -158,7 +158,7 @@ contract StakeHubTest is Deployer {
 
     function testUndelegateAll() public {
         uint256 selfDelegation = 2000 ether;
-        uint256 toLock = stakeHub.INIT_LOCK_AMOUNT();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
         (address validator, address credit) = _createValidator(selfDelegation);
         uint256 _totalShares = IStakeCredit(credit).totalSupply();
         assertEq(_totalShares, selfDelegation + toLock, "wrong total shares");
@@ -256,7 +256,7 @@ contract StakeHubTest is Deployer {
 
         // 2. distribute reward
         uint256 reward = 100 ether;
-        (address consensusAddress,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit RewardDistributed(validator, reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
@@ -305,7 +305,7 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -332,7 +332,7 @@ contract StakeHubTest is Deployer {
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
 
         // unjail
-        (,,, bool jailed,) = stakeHub.getValidatorBasicInfo(validator);
+        (,,,, bool jailed,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(jailed, true);
         vm.expectRevert();
         stakeHub.unjail(validator);
@@ -340,7 +340,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit ValidatorUnjailed(validator);
         stakeHub.unjail(validator);
-        (,,, jailed,) = stakeHub.getValidatorBasicInfo(validator);
+        (,,,, jailed,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(jailed, false);
 
         vm.stopPrank();
@@ -357,7 +357,7 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -388,7 +388,7 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,, bytes memory voteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
+        (address consensusAddress,,, bytes memory voteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -428,7 +428,7 @@ contract StakeHubTest is Deployer {
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
-            (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+            (consensusAddress,,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
             newConsensusAddrs[length - i - 1] = consensusAddress;
             newVotingPower[length - i - 1] = votingPower;
             newVoteAddrs[length - i - 1] = voteAddress;
@@ -477,7 +477,7 @@ contract StakeHubTest is Deployer {
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
-            (consensusAddress,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+            (consensusAddress,,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
             newConsensusAddrs[length - i - 1] = consensusAddress;
             newVotingPower[length - i - 1] = votingPower;
             newVoteAddrs[length - i - 1] = voteAddress;
@@ -488,8 +488,20 @@ contract StakeHubTest is Deployer {
     }
 
     function testEncodeLegacyBytes() public {
-        address[] memory cAddresses;
-        bytes[] memory vAddresses;
+        address[] memory cAddresses = new address[](3);
+        bytes[] memory vAddresses = new bytes[](3);
+
+        cAddresses[0] = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+        cAddresses[1] = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
+        cAddresses[2] = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+
+        vAddresses[0] =
+            hex"b86b3146bdd2200b1dbdb1cea5e40d3451c028cbb4fb03b1826f7f2d82bee76bbd5cd68a74a16a7eceea093fd5826b92";
+        vAddresses[1] =
+            hex"87ce273bb9b51fd69e50de7a8d9a99cfb3b1a5c6a7b85f6673d137a5a2ce7df3d6ee4e6d579a142d58b0606c4a7a1c27";
+        vAddresses[2] =
+            hex"a33ac14980d85c0d154c5909ebf7a11d455f54beb4d5d0dc1d8b3670b9c4a6b6c450ee3d623ecc48026f09ed1f0b5c12";
+
         bytes memory cBz = abi.encode(cAddresses);
         bytes memory vBz = abi.encode(vAddresses);
         emit log_named_bytes("consensus address bytes", cBz);
@@ -511,13 +523,13 @@ contract StakeHubTest is Deployer {
         bytes memory blsProof = new bytes(96);
         address consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
 
-        uint256 toLock = stakeHub.INIT_LOCK_AMOUNT();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
         vm.prank(operatorAddress);
         stakeHub.createValidator{ value: delegation + toLock }(
             consensusAddress, blsPubKey, blsProof, commission, description
         );
 
-        (, credit,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+        (, credit,,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
     }
 
     function _encodeValidatorSetUpdatePack(
