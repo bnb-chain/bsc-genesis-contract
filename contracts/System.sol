@@ -3,7 +3,6 @@ pragma solidity 0.6.4;
 import "./interface/ISystemReward.sol";
 import "./interface/IRelayerHub.sol";
 import "./interface/ILightClient.sol";
-import "forge-std/console.sol";
 
 contract System {
 
