@@ -81,21 +81,8 @@ contract BSCGovernor is
         __GovernorVotesQuorumFraction_init(INIT_QUORUM_NUMERATOR);
         __GovernorPreventLateQuorum_init(INIT_MIN_PERIOD_AFTER_QUORUM);
 
-        whitelistTargets[VALIDATOR_CONTRACT_ADDR] = true;
-        whitelistTargets[SLASH_CONTRACT_ADDR] = true;
-        whitelistTargets[SYSTEM_REWARD_ADDR] = true;
-        whitelistTargets[LIGHT_CLIENT_ADDR] = true;
-        whitelistTargets[TOKEN_HUB_ADDR] = true;
-        whitelistTargets[INCENTIVIZE_ADDR] = true;
-        whitelistTargets[RELAYERHUB_CONTRACT_ADDR] = true;
+        // BSCGovernor => Timelock => GovHub => system contracts
         whitelistTargets[GOV_HUB_ADDR] = true;
-        whitelistTargets[TOKEN_MANAGER_ADDR] = true;
-        whitelistTargets[CROSS_CHAIN_CONTRACT_ADDR] = true;
-        whitelistTargets[STAKING_CONTRACT_ADDR] = true;
-        whitelistTargets[STAKE_HUB_ADDR] = true;
-        whitelistTargets[GOVERNOR_ADDR] = true;
-        whitelistTargets[GOV_TOKEN_ADDR] = true;
-        whitelistTargets[TIMELOCK_ADDR] = true;
 
         governorProtector = address(0x000000000000000000000000000000000000dEaD); // TODO
     }
