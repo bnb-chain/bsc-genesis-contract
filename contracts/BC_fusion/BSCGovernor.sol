@@ -28,15 +28,20 @@ contract BSCGovernor is
     using Utils for string;
 
     /*----------------- constants -----------------*/
-    uint256 private constant INIT_VOTING_DELAY = 24 hours;
-    uint256 private constant INIT_VOTING_PERIOD = 14 days;
+    /*
+        @dev caution:
+        INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
+    */
+    uint256 private constant BLOCK_INTERVAL = 3 seconds;
+    uint256 private constant INIT_VOTING_DELAY = 24 hours / BLOCK_INTERVAL;
+    uint256 private constant INIT_VOTING_PERIOD = 14 days / BLOCK_INTERVAL;
     uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
     uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
     // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
     uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
-    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days);
+    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
 
     /*----------------- errors -----------------*/
     // @notice signature: 0x584a7938
@@ -80,21 +85,8 @@ contract BSCGovernor is
         __GovernorVotesQuorumFraction_init(INIT_QUORUM_NUMERATOR);
         __GovernorPreventLateQuorum_init(INIT_MIN_PERIOD_AFTER_QUORUM);
 
-        whitelistTargets[VALIDATOR_CONTRACT_ADDR] = true;
-        whitelistTargets[SLASH_CONTRACT_ADDR] = true;
-        whitelistTargets[SYSTEM_REWARD_ADDR] = true;
-        whitelistTargets[LIGHT_CLIENT_ADDR] = true;
-        whitelistTargets[TOKEN_HUB_ADDR] = true;
-        whitelistTargets[INCENTIVIZE_ADDR] = true;
-        whitelistTargets[RELAYERHUB_CONTRACT_ADDR] = true;
+        // BSCGovernor => Timelock => GovHub => system contracts
         whitelistTargets[GOV_HUB_ADDR] = true;
-        whitelistTargets[TOKEN_MANAGER_ADDR] = true;
-        whitelistTargets[CROSS_CHAIN_CONTRACT_ADDR] = true;
-        whitelistTargets[STAKING_CONTRACT_ADDR] = true;
-        whitelistTargets[STAKE_HUB_ADDR] = true;
-        whitelistTargets[GOVERNOR_ADDR] = true;
-        whitelistTargets[GOV_TOKEN_ADDR] = true;
-        whitelistTargets[TIMELOCK_ADDR] = true;
 
         governorProtector = address(0x000000000000000000000000000000000000dEaD); // TODO
     }

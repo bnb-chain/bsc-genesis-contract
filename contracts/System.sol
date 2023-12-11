@@ -32,7 +32,10 @@ contract System {
   address public constant CROSS_CHAIN_CONTRACT_ADDR = 0x0000000000000000000000000000000000002000;
   address public constant STAKING_CONTRACT_ADDR = 0x0000000000000000000000000000000000002001;
   address public constant STAKE_HUB_ADDR = 0x0000000000000000000000000000000000002002;
+  address public constant STAKE_CREDIT_ADDR = 0x0000000000000000000000000000000000002003;
   address public constant GOVERNOR_ADDR = 0x0000000000000000000000000000000000002004;
+  address public constant GOV_TOKEN_ADDR = 0x0000000000000000000000000000000000002005;
+  address public constant TIMELOCK_ADDR = 0x0000000000000000000000000000000000002006;
   address public constant TOKEN_RECOVER_PORTAL_ADDR = 0x0000000000000000000000000000000000003000;
 
   modifier onlyCoinbase() {
@@ -100,8 +103,8 @@ contract System {
     _;
   }
 
-  modifier onlyGovernor() {
-      require(msg.sender == GOVERNOR_ADDR, "the msg sender must be governor contract");
+  modifier onlyGovernorTimelock() {
+      require(msg.sender == TIMELOCK_ADDR, "the msg sender must be governor timelock contract");
       _;
   }
 
