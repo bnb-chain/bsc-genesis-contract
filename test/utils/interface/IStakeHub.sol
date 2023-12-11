@@ -25,6 +25,7 @@ interface StakeHub {
     error InvalidCommission();
     error InvalidConsensusAddress();
     error InvalidMoniker();
+    error InvalidRequest();
     error InvalidValue(string key, bytes value);
     error InvalidVoteAddress();
     error JailTimeNotExpired();
@@ -81,13 +82,15 @@ interface StakeHub {
 
     receive() external payable;
 
+    function BREATH_BLOCK_INTERVAL() external view returns (uint256);
     function DEAD_ADDRESS() external view returns (address);
-    function INIT_LOCK_AMOUNT() external view returns (uint256);
+    function LOCK_AMOUNT() external view returns (uint256);
     function REDELEGATE_FEE_RATE_BASE() external view returns (uint256);
     function addToBlackList(address account) external;
     function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
     function claim(address operatorAddress, uint256 requestNumber) external;
+    function claimBatch(address[] memory operatorAddresses, uint256[] memory requestNumbers) external;
     function createValidator(
         address consensusAddress,
         bytes memory voteAddress,
@@ -115,6 +118,7 @@ interface StakeHub {
         returns (
             address consensusAddress,
             address creditContract,
+            uint256 createdTime,
             bytes memory voteAddress,
             bool jailed,
             uint256 jailUntil
@@ -130,11 +134,8 @@ interface StakeHub {
             bytes[] memory voteAddrs,
             uint256 totalLength
         );
-    function getValidatorRewardRecord(address operatorAddress, uint256 dayIndex) external view returns (uint256);
-    function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 dayIndex)
-        external
-        view
-        returns (uint256);
+    function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256);
+    function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256);
     function initialize() external;
     function isPaused() external view returns (bool);
     function maliciousVoteSlash(bytes memory _voteAddr) external;

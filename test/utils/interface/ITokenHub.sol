@@ -37,6 +37,7 @@ interface TokenHub {
     function GOVERNOR_ADDR() external view returns (address);
     function GOV_CHANNELID() external view returns (uint8);
     function GOV_HUB_ADDR() external view returns (address);
+    function GOV_TOKEN_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
     function INIT_BNB_LARGE_TRANSFER_LIMIT() external view returns (uint256);
     function INIT_LOCK_PERIOD() external view returns (uint256);
@@ -52,11 +53,13 @@ interface TokenHub {
     function REWARD_UPPER_LIMIT() external view returns (uint256);
     function SLASH_CHANNELID() external view returns (uint8);
     function SLASH_CONTRACT_ADDR() external view returns (address);
+    function STAKE_CREDIT_ADDR() external view returns (address);
     function STAKE_HUB_ADDR() external view returns (address);
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
     function TEN_DECIMALS() external view returns (uint256);
+    function TIMELOCK_ADDR() external view returns (address);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);
     function TOKEN_RECOVER_PORTAL_ADDR() external view returns (address);

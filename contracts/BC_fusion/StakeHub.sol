@@ -20,9 +20,11 @@ contract StakeHub is System, Initializable {
     uint256 private constant BLS_PUBKEY_LENGTH = 48;
     uint256 private constant BLS_SIG_LENGTH = 96;
 
-    address public constant DEAD_ADDRESS = address(0xdead);
-    uint256 public constant INIT_LOCK_AMOUNT = 1 ether;
+    address public constant DEAD_ADDRESS = address(0xdEaD);
+    uint256 public constant LOCK_AMOUNT = 1 ether;
     uint256 public constant REDELEGATE_FEE_RATE_BASE = 10000; // 100%
+
+    uint256 public constant BREATH_BLOCK_INTERVAL = 1 days;
 
     //TODO
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
@@ -75,6 +77,8 @@ contract StakeHub is System, Initializable {
     error AlreadySlashed();
     // @notice signature: 0x90b8ec18
     error TransferFailed();
+    // @notice signature: 0x41abc801
+    error InvalidRequest();
 
     /*----------------- storage -----------------*/
     bool private _paused;
@@ -113,7 +117,7 @@ contract StakeHub is System, Initializable {
     uint256 public numOfJailed;
     // max number of jailed validators per day(only for malicious vote and double sign)
     uint256 private felonyPerDay;
-    // day index(timestamp / 86400) => number of malicious vote and double sign slash
+    // index(timestamp / 1 days) => number of malicious vote and double sign slash
     mapping(uint256 => uint256) private _felonyMap;
 
     address public assetProtector;
@@ -124,6 +128,7 @@ contract StakeHub is System, Initializable {
         address consensusAddress;
         address operatorAddress;
         address creditContract;
+        uint256 createdTime;
         bytes voteAddress;
         Description description;
         Commission commission;
@@ -266,7 +271,7 @@ contract StakeHub is System, Initializable {
         }
 
         uint256 delegation = msg.value;
-        if (delegation < minSelfDelegationBNB + INIT_LOCK_AMOUNT) revert SelfDelegationNotEnough();
+        if (delegation < minSelfDelegationBNB + LOCK_AMOUNT) revert SelfDelegationNotEnough();
 
         if (consensusAddress == address(0)) revert InvalidConsensusAddress();
         if (
@@ -285,6 +290,7 @@ contract StakeHub is System, Initializable {
         valInfo.consensusAddress = consensusAddress;
         valInfo.operatorAddress = operatorAddress;
         valInfo.creditContract = creditContract;
+        valInfo.createdTime = block.timestamp;
         valInfo.voteAddress = voteAddress;
         valInfo.description = description;
         valInfo.commission = commission;
@@ -313,7 +319,7 @@ contract StakeHub is System, Initializable {
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.consensusAddress = newConsensusAddress;
         valInfo.updateTime = block.timestamp;
@@ -333,7 +339,7 @@ contract StakeHub is System, Initializable {
     {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         if (commissionRate > valInfo.commission.maxRate) revert InvalidCommission();
         uint256 changeRate = commissionRate >= valInfo.commission.rate
@@ -360,7 +366,7 @@ contract StakeHub is System, Initializable {
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
@@ -384,7 +390,7 @@ contract StakeHub is System, Initializable {
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + 1 days > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
@@ -512,12 +518,23 @@ contract StakeHub is System, Initializable {
      * @param operatorAddress the operator address of the validator
      * @param requestNumber the request number of the undelegation. 0 means claim all
      */
-    function claim(
-        address operatorAddress,
-        uint256 requestNumber
-    ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
-        uint256 bnbAmount = IStakeCredit(_validators[operatorAddress].creditContract).claim(msg.sender, requestNumber);
-        emit Claimed(operatorAddress, msg.sender, bnbAmount);
+    function claim(address operatorAddress, uint256 requestNumber) external whenNotPaused notInBlackList {
+        _claim(operatorAddress, requestNumber);
+    }
+
+    /**
+     * @dev Claim the undelegated BNB from the pools after unbondPeriod
+     * @param operatorAddresses the operator addresses of the validator
+     * @param requestNumbers numbers of the undelegation requests. 0 means claim all
+     */
+    function claimBatch(
+        address[] calldata operatorAddresses,
+        uint256[] calldata requestNumbers
+    ) external whenNotPaused notInBlackList {
+        if (operatorAddresses.length != requestNumbers.length) revert InvalidRequest();
+        for (uint256 i; i < operatorAddresses.length; ++i) {
+            _claim(operatorAddresses[i], requestNumbers[i]);
+        }
     }
 
     /**
@@ -583,10 +600,10 @@ contract StakeHub is System, Initializable {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
-        uint256 dayIndex = block.timestamp / 1 days;
+        uint256 index = block.timestamp / BREATH_BLOCK_INTERVAL;
         // This is to prevent many honest validators being slashed at the same time because of implementation bugs
-        if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
-        _felonyMap[dayIndex] += 1;
+        if (_felonyMap[index] >= felonyPerDay) revert NoMoreFelonyToday();
+        _felonyMap[index] += 1;
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.MaliciousVote);
@@ -607,10 +624,10 @@ contract StakeHub is System, Initializable {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
-        uint256 dayIndex = block.timestamp / 1 days;
+        uint256 index = block.timestamp / BREATH_BLOCK_INTERVAL;
         // This is to prevent many honest validators being slashed at the same time because of implementation bugs
-        if (_felonyMap[dayIndex] >= felonyPerDay) revert NoMoreFelonyToday();
-        _felonyMap[dayIndex] += 1;
+        if (_felonyMap[index] >= felonyPerDay) revert NoMoreFelonyToday();
+        _felonyMap[index] += 1;
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.DoubleSign);
@@ -741,25 +758,22 @@ contract StakeHub is System, Initializable {
     /**
      * @return the validator's reward of the day
      */
-    function getValidatorRewardRecord(address operatorAddress, uint256 dayIndex) external view returns (uint256) {
+    function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256) {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
-        return IStakeCredit(_validators[operatorAddress].creditContract).rewardRecord(dayIndex);
+        return IStakeCredit(_validators[operatorAddress].creditContract).rewardRecord(index);
     }
 
     /**
      * @return the validator's total pooled BNB of the day
      */
-    function getValidatorTotalPooledBNBRecord(
-        address operatorAddress,
-        uint256 dayIndex
-    ) external view returns (uint256) {
+    function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256) {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
-        return IStakeCredit(_validators[operatorAddress].creditContract).totalPooledBNBRecord(dayIndex);
+        return IStakeCredit(_validators[operatorAddress].creditContract).totalPooledBNBRecord(index);
     }
 
     /**
      * @notice get the basic info of a validator
-     * including consensus address, credit contract, vote address, jailed and jailUntil
+     * including consensus address, credit contract, created time, vote address, jailed and jailUntil
      */
     function getValidatorBasicInfo(address operatorAddress)
         external
@@ -768,6 +782,7 @@ contract StakeHub is System, Initializable {
         returns (
             address consensusAddress,
             address creditContract,
+            uint256 createdTime,
             bytes memory voteAddress,
             bool jailed,
             uint256 jailUntil
@@ -776,6 +791,7 @@ contract StakeHub is System, Initializable {
         Validator memory valInfo = _validators[operatorAddress];
         consensusAddress = valInfo.consensusAddress;
         creditContract = valInfo.creditContract;
+        createdTime = valInfo.createdTime;
         voteAddress = valInfo.voteAddress;
         jailed = valInfo.jailed;
         jailUntil = valInfo.jailUntil;
@@ -965,5 +981,10 @@ contract StakeHub is System, Initializable {
 
             emit ValidatorJailed(valInfo.operatorAddress);
         }
+    }
+
+    function _claim(address operatorAddress, uint256 requestNumber) internal validatorExist(operatorAddress) {
+        uint256 bnbAmount = IStakeCredit(_validators[operatorAddress].creditContract).claim(msg.sender, requestNumber);
+        emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 }

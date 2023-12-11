@@ -5,6 +5,19 @@
   },
   {
     "type": "function",
+    "name": "BREATH_BLOCK_INTERVAL",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "DEAD_ADDRESS",
     "inputs": [],
     "outputs": [
@@ -18,7 +31,7 @@
   },
   {
     "type": "function",
-    "name": "INIT_LOCK_AMOUNT",
+    "name": "LOCK_AMOUNT",
     "inputs": [],
     "outputs": [
       {
@@ -100,6 +113,24 @@
         "name": "requestNumber",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimBatch",
+    "inputs": [
+      {
+        "name": "operatorAddresses",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "requestNumbers",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
       }
     ],
     "outputs": [],
@@ -425,6 +456,11 @@
         "internalType": "address"
       },
       {
+        "name": "createdTime",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "voteAddress",
         "type": "bytes",
         "internalType": "bytes"
@@ -568,7 +604,7 @@
         "internalType": "address"
       },
       {
-        "name": "dayIndex",
+        "name": "index",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -592,7 +628,7 @@
         "internalType": "address"
       },
       {
-        "name": "dayIndex",
+        "name": "index",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1273,6 +1309,11 @@
   {
     "type": "error",
     "name": "InvalidMoniker",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "InvalidRequest",
     "inputs": []
   },
   {

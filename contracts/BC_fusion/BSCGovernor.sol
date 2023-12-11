@@ -28,10 +28,10 @@ contract BSCGovernor is
     using Utils for string;
 
     /*----------------- constants -----------------*/
-    /*
-        @dev caution:
-        INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
-    */
+    /**
+     * @dev caution:
+     * INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
+     */
     uint256 private constant BLOCK_INTERVAL = 3 seconds;
     uint256 private constant INIT_VOTING_DELAY = 24 hours / BLOCK_INTERVAL;
     uint256 private constant INIT_VOTING_PERIOD = 14 days / BLOCK_INTERVAL;
@@ -88,7 +88,7 @@ contract BSCGovernor is
         // BSCGovernor => Timelock => GovHub => system contracts
         whitelistTargets[GOV_HUB_ADDR] = true;
 
-        governorProtector = address(0x000000000000000000000000000000000000dEaD); // TODO
+        governorProtector = address(0xdEaD); // TODO
     }
 
     /*----------------- onlyGovernorProtector -----------------*/

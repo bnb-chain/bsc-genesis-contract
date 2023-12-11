@@ -69,9 +69,9 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @notice only accept BNB from `StakeHub`
      */
     receive() external payable onlyStakeHub {
-        uint256 dayIndex = block.timestamp / 1 days;
-        totalPooledBNBRecord[dayIndex] = totalPooledBNB;
-        rewardRecord[dayIndex] += msg.value;
+        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATH_BLOCK_INTERVAL();
+        totalPooledBNBRecord[index] = totalPooledBNB;
+        rewardRecord[index] += msg.value;
         totalPooledBNB += msg.value;
     }
 
@@ -182,9 +182,9 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         uint256 _commission = (bnbAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 _reward = bnbAmount - _commission;
 
-        uint256 dayIndex = block.timestamp / 1 days;
-        totalPooledBNBRecord[dayIndex] = totalPooledBNB;
-        rewardRecord[dayIndex] += _reward;
+        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATH_BLOCK_INTERVAL();
+        totalPooledBNBRecord[index] = totalPooledBNB;
+        rewardRecord[index] += _reward;
         totalPooledBNB += _reward;
 
         // mint commission to the validator
@@ -300,7 +300,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     /*----------------- internal functions -----------------*/
     function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
         // check before mint
-        uint256 toLock = IStakeHub(STAKE_HUB_ADDR).INIT_LOCK_AMOUNT();
+        uint256 toLock = IStakeHub(STAKE_HUB_ADDR).LOCK_AMOUNT();
         if (initAmount <= toLock || validator == address(0) || totalSupply() != 0) revert WrongInitContext();
 
         // mint initial tokens to the validator and lock some of them

@@ -59,7 +59,7 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 3. Edit system contracts setting as needed.
 4. Run `node scripts/generate-genesis.js` will generate genesis.json
 
-## How to generate mainnet/testnet/QA/local genesis file
+## How to generate mainnet/testnet/QA/dev genesis file
 
 ```shell 
 poetry run python -m scripts.generate ${network}

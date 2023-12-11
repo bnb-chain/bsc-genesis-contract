@@ -48,10 +48,10 @@ contract SlashIndicatorTest is Deployer {
         _updateParamByGovHub(key, value, address(slashIndicator));
         assertEq(slashIndicator.felonyThreshold(), 200);
 
-        key = "finalitySlashRewardRatio";
+        key = "felonySlashRewardRatio";
         value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000032"); // 50
         _updateParamByGovHub(key, value, address(slashIndicator));
-        assertEq(slashIndicator.finalitySlashRewardRatio(), 50);
+        assertEq(slashIndicator.felonySlashRewardRatio(), 50);
     }
 
     function testSlash() public {

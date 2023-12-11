@@ -135,6 +135,19 @@
   },
   {
     "type": "function",
+    "name": "GOV_TOKEN_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "INCENTIVIZE_ADDR",
     "inputs": [],
     "outputs": [
@@ -330,6 +343,19 @@
   },
   {
     "type": "function",
+    "name": "STAKE_CREDIT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "STAKE_HUB_ADDR",
     "inputs": [],
     "outputs": [
@@ -389,6 +415,19 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TIMELOCK_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
