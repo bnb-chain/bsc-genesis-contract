@@ -354,20 +354,20 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @notice the moniker of the validator will be ignored as it is not editable
      * @param description the new description of the validator
      */
-    function editDescription(Description calldata description)
+    function editDescription(Description memory description)
         external
         whenNotPaused
         notInBlackList
         validatorExist(msg.sender)
     {
-        if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
-
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
+        description.moniker = valInfo.description.moniker;
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
 
