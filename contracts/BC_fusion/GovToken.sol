@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20BurnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./System.sol";
 import "./interface/IStakeCredit.sol";
@@ -30,9 +31,14 @@ contract GovToken is
     /*----------------- storage -----------------*/
     // validator StakeCredit contract => user => amount
     mapping(address => mapping(address => uint256)) public mintedMap;
+    address public owner;
 
-    /*----------------- init -----------------*/
-    function initialize() public initializer onlyCoinbase onlyZeroGasPrice {
+    modifier onlyOwner() {
+        require(msg.sender == owner, "only owner");
+        _;
+    }
+
+    function initialize() public initializer {
         __ERC20_init(NAME, SYMBOL);
         __ERC20Burnable_init();
         __ERC20Permit_init(NAME);
@@ -40,26 +46,6 @@ contract GovToken is
     }
 
     /*----------------- external functions -----------------*/
-    /**
-     * @dev Sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
-     * @param stakeCredit the stakeCredit Token contract
-     * @param account the account to sync gov tokens to
-     */
-    function sync(address stakeCredit, address account) external onlyStakeHub {
-        _sync(stakeCredit, account);
-    }
-
-    /**
-     * @dev Batch sync the account's govBNB amount to the actual BNB value of the StakingCredit he holds
-     * @param stakeCredits the stakeCredit Token contracts
-     * @param account the account to sync gov tokens to
-     */
-    function syncBatch(address[] calldata stakeCredits, address account) external onlyStakeHub {
-        uint256 _length = stakeCredits.length;
-        for (uint256 i = 0; i < _length; ++i) {
-            _sync(stakeCredits[i], account);
-        }
-    }
 
     /**
      * @dev delegate govBNB votes to delegatee
@@ -70,20 +56,8 @@ contract GovToken is
         _delegate(delegator, delegatee);
     }
 
-    /*----------------- internal functions -----------------*/
-    function _sync(address stakeCredit, address account) internal {
-        uint256 latestBNBAmount = IStakeCredit(stakeCredit).getPooledBNB(account);
-        uint256 _mintedAmount = mintedMap[stakeCredit][account];
-
-        if (_mintedAmount < latestBNBAmount) {
-            uint256 _needMint = latestBNBAmount - _mintedAmount;
-            mintedMap[stakeCredit][account] = latestBNBAmount;
-            _mint(account, _needMint);
-        } else if (_mintedAmount > latestBNBAmount) {
-            uint256 _needBurn = _mintedAmount - latestBNBAmount;
-            mintedMap[stakeCredit][account] = latestBNBAmount;
-            _burn(account, _needBurn);
-        }
+    function mint(address to, uint256 amount) external onlyOwner {
+        _mint(to, amount);
     }
 
     function _transfer(address, address, uint256) internal pure override {

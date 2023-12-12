@@ -15,7 +15,7 @@ contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
         @dev caution:
         minDelay using second as unit
     */
-    uint256 private constant INIT_MINIMAL_DELAY = 24 hours;
+    uint256 private constant INIT_MINIMAL_DELAY = 5 minutes;
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {

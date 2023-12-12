@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-pragma solidity 0.8.17;
+pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorSettingsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/GovernorUpgradeable.sol";
@@ -9,13 +9,11 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelo
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 
-import "./System.sol";
-import "./lib/Utils.sol";
-import "./interface/IGovToken.sol";
+interface IGovToken {
+    function totalSupply() external view returns (uint256);
+}
 
 contract BSCGovernor is
-    System,
-    Initializable,
     GovernorUpgradeable,
     GovernorSettingsUpgradeable,
     GovernorCompatibilityBravoUpgradeable,
@@ -24,25 +22,26 @@ contract BSCGovernor is
     GovernorVotesQuorumFractionUpgradeable,
     GovernorPreventLateQuorumUpgradeable
 {
-    using Utils for bytes;
-    using Utils for string;
-
-    /*----------------- constants -----------------*/
-    /**
-     * @dev caution:
-     * INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
-     */
-    uint256 private constant BLOCK_INTERVAL = 3 seconds;
-    uint256 private constant INIT_VOTING_DELAY = 24 hours / BLOCK_INTERVAL;
-    uint256 private constant INIT_VOTING_PERIOD = 14 days / BLOCK_INTERVAL;
-    uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
-    uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
+    /*
+        @dev caution:
+        INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
+    */
+    // TODO
+    uint256 private constant INIT_VOTING_DELAY = 60 seconds / 3;
+    // TODO
+    uint256 private constant INIT_VOTING_PERIOD = 10 minutes / 3;
+    uint256 private constant INIT_PROPOSAL_THRESHOLD = 0.1 ether; //  = 100 BNB
+    uint256 private constant INIT_QUORUM_NUMERATOR = 20; // for >= 10%
 
     // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18
-    uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 10_000_000 ether;
+    uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD = 0.1 ether;
     // ensures there is a minimum voting period (1 days) after quorum is reached
-    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
+    uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM = uint64(10 minutes / 3);
 
+    // TODO modify these through deploy scripts
+    address private constant GOV_HUB_ADDR = address(0);
+    address private constant GOV_TOKEN_ADDR = address(0);
+    address private constant TIMELOCK_ADDR = address(0);
     /*----------------- errors -----------------*/
     // @notice signature: 0x584a7938
     error NotWhitelisted();
@@ -76,8 +75,8 @@ contract BSCGovernor is
     }
 
     /*----------------- init -----------------*/
-    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
-        __Governor_init("BSCGovernor");
+    function initialize() external initializer {
+        __Governor_init("B");
         __GovernorSettings_init(INIT_VOTING_DELAY, INIT_VOTING_PERIOD, INIT_PROPOSAL_THRESHOLD);
         __GovernorCompatibilityBravo_init();
         __GovernorVotes_init(IVotesUpgradeable(GOV_TOKEN_ADDR));
@@ -88,7 +87,7 @@ contract BSCGovernor is
         // BSCGovernor => Timelock => GovHub => system contracts
         whitelistTargets[GOV_HUB_ADDR] = true;
 
-        governorProtector = address(0xdEaD); // TODO
+        governorProtector = address(0); // TODO
     }
 
     /*----------------- onlyGovernorProtector -----------------*/
@@ -153,100 +152,6 @@ contract BSCGovernor is
         return GovernorCompatibilityBravoUpgradeable.cancel(targets, values, calldatas, descriptionHash);
     }
 
-    /*----------------- system functions -----------------*/
-    /**
-     * @param key the key of the param
-     * @param value the value of the param
-     */
-    function updateParam(string calldata key, bytes calldata value) external onlyGov {
-        if (key.compareStrings("votingDelay")) {
-            if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newVotingDelay = value.bytesToUint256(32);
-            if (newVotingDelay == 0) revert InvalidValue(key, value);
-            _setVotingDelay(newVotingDelay);
-        } else if (key.compareStrings("votingPeriod")) {
-            if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newVotingPeriod = value.bytesToUint256(32);
-            if (newVotingPeriod == 0) revert InvalidValue(key, value);
-            _setVotingPeriod(newVotingPeriod);
-        } else if (key.compareStrings("proposalThreshold")) {
-            if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newProposalThreshold = value.bytesToUint256(32);
-            if (newProposalThreshold == 0) revert InvalidValue(key, value);
-            _setProposalThreshold(newProposalThreshold);
-        } else if (key.compareStrings("quorumNumerator")) {
-            if (value.length != 32) revert InvalidValue(key, value);
-            uint256 newQuorumNumerator = value.bytesToUint256(32);
-            if (newQuorumNumerator == 0) revert InvalidValue(key, value);
-            _updateQuorumNumerator(newQuorumNumerator);
-        } else if (key.compareStrings("minPeriodAfterQuorum")) {
-            if (value.length != 8) revert InvalidValue(key, value);
-            uint64 newMinPeriodAfterQuorum = value.bytesToUint64(8);
-            if (newMinPeriodAfterQuorum == 0) revert InvalidValue(key, value);
-            _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
-        } else {
-            revert UnknownParam(key, value);
-        }
-        emit ParamChange(key, value);
-    }
-
-    /*----------------- view functions -----------------*/
-    /*
-     *@notice Query if a contract implements an interface
-     *@param interfaceID The interface identifier, as specified in ERC-165
-     *@dev Interface identification is specified in ERC-165. This function
-     *uses less than 30,000 gas.
-     *@return `true` if the contract implements `interfaceID` and
-     *`interfaceID` is not 0xffffffff, `false` otherwise
-     */
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable)
-        returns (bool)
-    {
-        return GovernorTimelockControlUpgradeable.supportsInterface(interfaceId);
-    }
-
-    /**
-     * @notice module:core
-     * @dev Current state of a proposal, following Compound's convention
-     */
-    function state(uint256 proposalId)
-        public
-        view
-        override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable)
-        returns (ProposalState)
-    {
-        return GovernorTimelockControlUpgradeable.state(proposalId);
-    }
-
-    /**
-     * @dev Part of the Governor Bravo's interface: _"The number of votes required in order for a voter to become a proposer"_.
-     */
-    function proposalThreshold()
-        public
-        view
-        override(GovernorSettingsUpgradeable, GovernorUpgradeable)
-        returns (uint256)
-    {
-        return GovernorSettingsUpgradeable.proposalThreshold();
-    }
-
-    /**
-     * @notice module:core
-     * @dev Timepoint at which votes close. If using block number, votes close at the end of this block, so it is
-     * possible to cast a vote during this block.
-     */
-    function proposalDeadline(uint256 proposalId)
-        public
-        view
-        override(IGovernorUpgradeable, GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
-        returns (uint256)
-    {
-        return GovernorPreventLateQuorumUpgradeable.proposalDeadline(proposalId);
-    }
-
     /*----------------- internal functions -----------------*/
     function _checkAndStartPropose() internal {
         if (!proposeStarted) {
@@ -297,5 +202,41 @@ contract BSCGovernor is
         returns (address)
     {
         return GovernorTimelockControlUpgradeable._executor();
+    }
+
+    function state(uint256 proposalId)
+    public
+    view
+    override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable)
+    returns (ProposalState)
+    {
+        return GovernorTimelockControlUpgradeable.state(proposalId);
+    }
+
+    function proposalThreshold()
+    public
+    view
+    override(GovernorSettingsUpgradeable, GovernorUpgradeable)
+    returns (uint256)
+    {
+        return GovernorSettingsUpgradeable.proposalThreshold();
+    }
+
+    function proposalDeadline(uint256 proposalId)
+    public
+    view
+    override(IGovernorUpgradeable, GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
+    returns (uint256)
+    {
+        return GovernorPreventLateQuorumUpgradeable.proposalDeadline(proposalId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable)
+    returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
     }
 }
