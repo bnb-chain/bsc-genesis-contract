@@ -67,30 +67,14 @@ contract StakeHubTest is Deployer {
         // 4. edit description
         vm.warp(block.timestamp + 1 days);
         StakeHub.Description memory description = stakeHub.getValidatorDescription(validator);
-        // invalid moniker
-        description.moniker = "test";
-        vm.expectRevert();
-        stakeHub.editDescription(description);
-
-        description.moniker = "T";
-        vm.expectRevert();
-        stakeHub.editDescription(description);
-
-        description.moniker = "Test;";
-        vm.expectRevert();
-        stakeHub.editDescription(description);
-
-        description.moniker = "Test ";
-        vm.expectRevert();
-        stakeHub.editDescription(description);
-
-        // valid moniker
         description.moniker = "Test";
+        description.website = "Test";
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit DescriptionEdited(validator);
         stakeHub.editDescription(description);
         StakeHub.Description memory realDesc = stakeHub.getValidatorDescription(validator);
-        assertEq(realDesc.moniker, "Test");
+        assertNotEq(realDesc.moniker, "Test"); // edit moniker is not allowed
+        assertEq(realDesc.website, "Test");
 
         // 5. edit vote address
         vm.warp(block.timestamp + 1 days);
