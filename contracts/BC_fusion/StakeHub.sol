@@ -49,6 +49,8 @@ contract StakeHub is System, Initializable {
     error DuplicateConsensusAddress();
     // @notice signature: 0x11fdb947
     error DuplicateVoteAddress();
+    // @notice signature: 0xc0bf4143
+    error DuplicateMoniker();
     // @notice signature: 0x2f64097e
     error SelfDelegationNotEnough();
     // @notice signature: 0xdc81db85
@@ -106,6 +108,8 @@ contract StakeHub is System, Initializable {
     EnumerableSet.AddressSet private _validatorSet;
     // validator operator address => validator info
     mapping(address => Validator) private _validators;
+    // validator moniker set(hash of the moniker)
+    mapping(bytes32 => bool) private _monikerSet;
     // validator consensus address => validator operator address
     mapping(address => address) public consensusToOperator;
     // validator consensus address => expiry date
@@ -277,6 +281,8 @@ contract StakeHub is System, Initializable {
         if (voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
             revert DuplicateVoteAddress();
         }
+        bytes32 monikerHash = keccak256(abi.encodePacked(description.moniker));
+        if (_monikerSet[monikerHash]) revert DuplicateMoniker();
 
         uint256 delegation = msg.value;
         if (delegation < minSelfDelegationBNB + LOCK_AMOUNT) revert SelfDelegationNotEnough();
@@ -294,6 +300,7 @@ contract StakeHub is System, Initializable {
         address creditContract = _deployStakeCredit(operatorAddress, description.moniker);
 
         _validatorSet.add(operatorAddress);
+        _monikerSet[monikerHash] = true;
         Validator storage valInfo = _validators[operatorAddress];
         valInfo.consensusAddress = consensusAddress;
         valInfo.operatorAddress = operatorAddress;
@@ -477,7 +484,7 @@ contract StakeHub is System, Initializable {
     /**
      * @param srcValidator the operator address of the validator to be redelegated from
      * @param dstValidator the operator address of the validator to be redelegated to
-     * @param shares the shares to be redeloperatorAddressegated
+     * @param shares the shares to be redelegated
      * @param delegateVotePower whether to delegate vote power to the dstValidator
      */
     function redelegate(
@@ -954,7 +961,7 @@ contract StakeHub is System, Initializable {
             return;
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
-            _jailValidator(valInfo, 0);
+            _jailValidator(valInfo, downtimeJailTime);
             // need to inform BSCValidatorSet contract to remove the validator
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
         }

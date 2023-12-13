@@ -2,15 +2,6 @@
 pragma solidity ^0.8.10;
 
 interface BSCValidatorSet {
-    struct Validator {
-        address consensusAddress;
-        address payable feeAddress;
-        address BBCFeeAddress;
-        uint64 votingPower;
-        bool jailed;
-        uint256 incoming;
-    }
-
     event batchTransfer(uint256 amount);
     event batchTransferFailed(uint256 indexed amount, string reason);
     event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
