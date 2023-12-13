@@ -24,7 +24,7 @@ contract StakeHub is System, Initializable {
     uint256 public constant LOCK_AMOUNT = 1 ether;
     uint256 public constant REDELEGATE_FEE_RATE_BASE = 10000; // 100%
 
-    uint256 public constant BREATH_BLOCK_INTERVAL = 1 days;
+    uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
 
     //TODO
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
@@ -71,14 +71,18 @@ contract StakeHub is System, Initializable {
     error ZeroShares();
     // @notice signature: 0xf0e3e629
     error SameValidator();
-    // @notice signature: 0x413361db
-    error NoMoreFelonyToday();
+    // @notice signature: 0xbd52fcdb
+    error NoMoreFelonyAllowed();
     // @notice signature: 0x37233762
     error AlreadySlashed();
     // @notice signature: 0x90b8ec18
     error TransferFailed();
     // @notice signature: 0x41abc801
     error InvalidRequest();
+    // @notice signature: 0x1898eb6b
+    error VoteAddressExpired();
+    // @notice signature: 0xc2aee074
+    error ConsensusAddressExpired();
 
     /*----------------- storage -----------------*/
     bool private _paused;
@@ -102,12 +106,14 @@ contract StakeHub is System, Initializable {
     EnumerableSet.AddressSet private _validatorSet;
     // validator operator address => validator info
     mapping(address => Validator) private _validators;
-    // validator vote address => validator operator address
-    mapping(bytes => address) private _voteToOperator;
     // validator consensus address => validator operator address
-    mapping(address => address) private _consensusToOperator;
-    // slash key => slash jail time
-    mapping(bytes32 => uint256) private _felonyRecords;
+    mapping(address => address) public consensusToOperator;
+    // validator consensus address => expiry date
+    mapping(address => uint256) public consensusExpiration;
+    // validator vote address => validator operator address
+    mapping(bytes => address) public voteToOperator;
+    // validator vote address => expiry date
+    mapping(bytes => uint256) public voteExpiration;
 
     // legacy addresses of BC
     mapping(address => bool) private _legacyConsensusAddress;
@@ -115,10 +121,12 @@ contract StakeHub is System, Initializable {
 
     // total number of current jailed validators
     uint256 public numOfJailed;
-    // max number of jailed validators per day(only for malicious vote and double sign)
-    uint256 private felonyPerDay;
-    // index(timestamp / 1 days) => number of malicious vote and double sign slash
+    // max number of jailed validators between breathe block(only for malicious vote and double sign)
+    uint256 public maxFelonyBetweenBreatheBlock;
+    // index(timestamp / breatheBlockInterval) => number of malicious vote and double sign slash
     mapping(uint256 => uint256) private _felonyMap;
+    // slash key => slash jail time
+    mapping(bytes32 => uint256) private _felonyRecords;
 
     address public assetProtector;
     mapping(address => bool) public blackList;
@@ -229,7 +237,7 @@ contract StakeHub is System, Initializable {
         felonySlashAmount = 200 ether;
         downtimeJailTime = 2 days;
         felonyJailTime = 30 days;
-        felonyPerDay = 2;
+        maxFelonyBetweenBreatheBlock = 2;
 
         address[] memory bcConsensusAddress;
         bytes[] memory bcVoteAddress;
@@ -263,10 +271,10 @@ contract StakeHub is System, Initializable {
         // basic check
         address operatorAddress = msg.sender;
         if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
-        if (_consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
+        if (consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
             revert DuplicateConsensusAddress();
         }
-        if (_voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
+        if (voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
             revert DuplicateVoteAddress();
         }
 
@@ -295,8 +303,8 @@ contract StakeHub is System, Initializable {
         valInfo.description = description;
         valInfo.commission = commission;
         valInfo.updateTime = block.timestamp;
-        _consensusToOperator[consensusAddress] = operatorAddress;
-        _voteToOperator[voteAddress] = operatorAddress;
+        consensusToOperator[consensusAddress] = operatorAddress;
+        voteToOperator[voteAddress] = operatorAddress;
 
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
 
@@ -313,17 +321,18 @@ contract StakeHub is System, Initializable {
         validatorExist(msg.sender)
     {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
-        if (_consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
+        if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
             revert DuplicateConsensusAddress();
         }
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
+        consensusExpiration[valInfo.consensusAddress] = block.timestamp;
         valInfo.consensusAddress = newConsensusAddress;
         valInfo.updateTime = block.timestamp;
-        _consensusToOperator[newConsensusAddress] = operatorAddress;
+        consensusToOperator[newConsensusAddress] = operatorAddress;
 
         emit ConsensusAddressEdited(operatorAddress, newConsensusAddress);
     }
@@ -339,7 +348,7 @@ contract StakeHub is System, Initializable {
     {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         if (commissionRate > valInfo.commission.maxRate) revert InvalidCommission();
         uint256 changeRate = commissionRate >= valInfo.commission.rate
@@ -365,7 +374,7 @@ contract StakeHub is System, Initializable {
     {
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         description.moniker = valInfo.description.moniker;
         valInfo.description = description;
@@ -384,17 +393,18 @@ contract StakeHub is System, Initializable {
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
         // proof-of-possession verify
         if (!_checkVoteAddress(newVoteAddress, blsProof)) revert InvalidVoteAddress();
-        if (_voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
+        if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
         }
 
         address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
-        if (valInfo.updateTime + BREATH_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
+        if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
+        voteExpiration[valInfo.voteAddress] = block.timestamp;
         valInfo.voteAddress = newVoteAddress;
         valInfo.updateTime = block.timestamp;
-        _voteToOperator[newVoteAddress] = operatorAddress;
+        voteToOperator[newVoteAddress] = operatorAddress;
 
         emit VoteAddressEdited(operatorAddress, newVoteAddress);
     }
@@ -563,7 +573,7 @@ contract StakeHub is System, Initializable {
      * @dev This function will be called by consensus engine. So it should never revert.
      */
     function distributeReward(address consensusAddress) external payable onlyValidatorContract {
-        address operatorAddress = _consensusToOperator[consensusAddress];
+        address operatorAddress = consensusToOperator[consensusAddress];
         Validator memory valInfo = _validators[operatorAddress];
         if (valInfo.creditContract == address(0) || valInfo.jailed) {
             emit RewardDistributeFailed(operatorAddress, "INVALID_VALIDATOR");
@@ -578,7 +588,7 @@ contract StakeHub is System, Initializable {
      * @dev Downtime slash. Only the `SlashIndicator` contract can call this function.
      */
     function downtimeSlash(address consensusAddress) external onlySlash {
-        address operatorAddress = _consensusToOperator[consensusAddress];
+        address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
@@ -595,15 +605,21 @@ contract StakeHub is System, Initializable {
     /**
      * @dev Malicious vote slash. Only the `SlashIndicator` contract can call this function.
      */
-    function maliciousVoteSlash(bytes calldata _voteAddr) external onlySlash {
-        address operatorAddress = _voteToOperator[_voteAddr];
+    function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash {
+        address operatorAddress = voteToOperator[voteAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
-        uint256 index = block.timestamp / BREATH_BLOCK_INTERVAL;
+        uint256 index = block.timestamp / BREATHE_BLOCK_INTERVAL;
         // This is to prevent many honest validators being slashed at the same time because of implementation bugs
-        if (_felonyMap[index] >= felonyPerDay) revert NoMoreFelonyToday();
+        if (_felonyMap[index] >= maxFelonyBetweenBreatheBlock) revert NoMoreFelonyAllowed();
         _felonyMap[index] += 1;
+
+        // check if the voteAddress has already expired
+        if (voteExpiration[voteAddress] != 0 && voteExpiration[voteAddress] + BREATHE_BLOCK_INTERVAL < block.timestamp)
+        {
+            revert VoteAddressExpired();
+        }
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.MaliciousVote);
@@ -620,14 +636,22 @@ contract StakeHub is System, Initializable {
      * @dev Double sign slash. Only the `SlashIndicator` contract can call this function.
      */
     function doubleSignSlash(address consensusAddress) external onlySlash {
-        address operatorAddress = _consensusToOperator[consensusAddress];
+        address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
-        uint256 index = block.timestamp / BREATH_BLOCK_INTERVAL;
+        uint256 index = block.timestamp / BREATHE_BLOCK_INTERVAL;
         // This is to prevent many honest validators being slashed at the same time because of implementation bugs
-        if (_felonyMap[index] >= felonyPerDay) revert NoMoreFelonyToday();
+        if (_felonyMap[index] >= maxFelonyBetweenBreatheBlock) revert NoMoreFelonyAllowed();
         _felonyMap[index] += 1;
+
+        // check if the consensusAddress has already expired
+        if (
+            consensusExpiration[consensusAddress] != 0
+                && consensusExpiration[consensusAddress] + BREATHE_BLOCK_INTERVAL < block.timestamp
+        ) {
+            revert ConsensusAddressExpired();
+        }
 
         // slash
         (bool canSlash, uint256 jailUntil) = _checkFelonyRecord(operatorAddress, SlashType.DoubleSign);
@@ -731,11 +755,11 @@ contract StakeHub is System, Initializable {
             uint256 newFelonyJailTime = value.bytesToUint256(32);
             if (newFelonyJailTime < 10 days || newFelonyJailTime <= downtimeJailTime) revert InvalidValue(key, value);
             felonyJailTime = newFelonyJailTime;
-        } else if (key.compareStrings("felonyPerDay")) {
+        } else if (key.compareStrings("maxFelonyBetweenBreatheBlock")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newJailedPerDay = value.bytesToUint256(32);
             if (newJailedPerDay == 0) revert InvalidValue(key, value);
-            felonyPerDay = newJailedPerDay;
+            maxFelonyBetweenBreatheBlock = newJailedPerDay;
         } else if (key.compareStrings("assetProtector")) {
             if (value.length != 20) revert InvalidValue(key, value);
             address newAssetProtector = value.bytesToAddress(20);
@@ -858,20 +882,6 @@ contract StakeHub is System, Initializable {
             votingPowers[i] = valInfo.jailed ? 0 : IStakeCredit(valInfo.creditContract).totalPooledBNB();
             voteAddrs[i] = valInfo.voteAddress;
         }
-    }
-
-    /**
-     * @return the operator address that ever used the vote address
-     */
-    function getOperatorAddressByVoteAddress(bytes calldata voteAddress) external view returns (address) {
-        return _voteToOperator[voteAddress];
-    }
-
-    /**
-     * @return the operator address that ever used the consensus address
-     */
-    function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address) {
-        return _consensusToOperator[consensusAddress];
     }
 
     /*----------------- internal functions -----------------*/

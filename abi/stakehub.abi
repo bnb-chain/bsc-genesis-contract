@@ -5,7 +5,7 @@
   },
   {
     "type": "function",
-    "name": "BREATH_BLOCK_INTERVAL",
+    "name": "BREATHE_BLOCK_INTERVAL",
     "inputs": [],
     "outputs": [
       {
@@ -135,6 +135,44 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "consensusExpiration",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "consensusToOperator",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -398,44 +436,6 @@
   },
   {
     "type": "function",
-    "name": "getOperatorAddressByConsensusAddress",
-    "inputs": [
-      {
-        "name": "consensusAddress",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "getOperatorAddressByVoteAddress",
-    "inputs": [
-      {
-        "name": "voteAddress",
-        "type": "bytes",
-        "internalType": "bytes"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getValidatorBasicInfo",
     "inputs": [
       {
@@ -667,7 +667,7 @@
     "name": "maliciousVoteSlash",
     "inputs": [
       {
-        "name": "_voteAddr",
+        "name": "voteAddress",
         "type": "bytes",
         "internalType": "bytes"
       }
@@ -678,6 +678,19 @@
   {
     "type": "function",
     "name": "maxElectedValidators",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "maxFelonyBetweenBreatheBlock",
     "inputs": [],
     "outputs": [
       {
@@ -887,6 +900,44 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "voteExpiration",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "voteToOperator",
+    "inputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "event",
@@ -1278,6 +1329,11 @@
   },
   {
     "type": "error",
+    "name": "ConsensusAddressExpired",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "DelegationAmountTooSmall",
     "inputs": []
   },
@@ -1344,7 +1400,7 @@
   },
   {
     "type": "error",
-    "name": "NoMoreFelonyToday",
+    "name": "NoMoreFelonyAllowed",
     "inputs": []
   },
   {
@@ -1432,6 +1488,11 @@
   {
     "type": "error",
     "name": "ValidatorNotJailed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "VoteAddressExpired",
     "inputs": []
   },
   {

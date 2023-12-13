@@ -300,7 +300,7 @@ contract SlashIndicatorTest is Deployer {
         );
         vm.mockCall(
             address(stakeHub),
-            abi.encodeCall(stakeHub.getOperatorAddressByConsensusAddress, (0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f)),
+            abi.encodeCall(stakeHub.consensusToOperator, (0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f)),
             hex"00000000000000000000000023618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f"
         );
         vm.prank(relayer);
