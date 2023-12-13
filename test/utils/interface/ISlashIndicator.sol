@@ -39,7 +39,7 @@ interface SlashIndicator {
     function GOV_TOKEN_ADDR() external view returns (address);
     function INCENTIVIZE_ADDR() external view returns (address);
     function INIT_FELONY_SLASH_REWARD_RATIO() external view returns (uint256);
-    function INIT_MALICIOUS_VOTE_SLASH_SCOPE() external view returns (uint256);
+    function INIT_FELONY_SLASH_SCOPE() external view returns (uint256);
     function LIGHT_CLIENT_ADDR() external view returns (address);
     function MISDEMEANOR_THRESHOLD() external view returns (uint256);
     function RELAYERHUB_CONTRACT_ADDR() external view returns (address);
@@ -63,6 +63,7 @@ interface SlashIndicator {
     function downtimeSlash(address validator, uint256 count) external;
     function enableMaliciousVoteSlash() external view returns (bool);
     function felonySlashRewardRatio() external view returns (uint256);
+    function felonySlashScope() external view returns (uint256);
     function felonyThreshold() external view returns (uint256);
     function getSlashIndicator(address validator) external view returns (uint256, uint256);
     function getSlashThresholds() external view returns (uint256, uint256);
@@ -71,7 +72,6 @@ interface SlashIndicator {
     function handleSynPackage(uint8, bytes memory) external returns (bytes memory);
     function indicators(address) external view returns (uint256 height, uint256 count, bool exist);
     function init() external;
-    function maliciousVoteSlashScope() external view returns (uint256);
     function misdemeanorThreshold() external view returns (uint256);
     function previousHeight() external view returns (uint256);
     function sendFelonyPackage(address validator) external;

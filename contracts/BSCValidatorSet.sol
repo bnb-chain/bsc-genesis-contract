@@ -426,7 +426,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       uint validatorsNum = currentValidatorSet.length;
       uint8[] memory isMigrated = new uint8[](validatorsNum);
       for (uint i; i<validatorsNum; ++i) {
-        if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(currentValidatorSet[i].consensusAddress) != address(0)) {
+        if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(currentValidatorSet[i].consensusAddress) != address(0)) {
           isMigrated[i] = 1;
           if (currentValidatorSet[i].incoming != 0) {
             ++ directSize;
@@ -1186,7 +1186,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     isFelony = false;
     if (slashCount >= felonyThreshold) {
       _felony(validator, index);
-      if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(validator) != address(0)) {
+      if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
         ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
       } else {
         ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);

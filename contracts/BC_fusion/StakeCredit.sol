@@ -69,7 +69,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @notice only accept BNB from `StakeHub`
      */
     receive() external payable onlyStakeHub {
-        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATH_BLOCK_INTERVAL();
+        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATHE_BLOCK_INTERVAL();
         totalPooledBNBRecord[index] = totalPooledBNB;
         rewardRecord[index] += msg.value;
         totalPooledBNB += msg.value;
@@ -182,7 +182,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         uint256 _commission = (bnbAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 _reward = bnbAmount - _commission;
 
-        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATH_BLOCK_INTERVAL();
+        uint256 index = block.timestamp / IStakeHub(STAKE_HUB_ADDR).BREATHE_BLOCK_INTERVAL();
         totalPooledBNBRecord[index] = totalPooledBNB;
         rewardRecord[index] += _reward;
         totalPooledBNB += _reward;

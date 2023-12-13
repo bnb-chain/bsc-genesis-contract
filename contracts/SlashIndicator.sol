@@ -44,9 +44,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public felonySlashRewardRatio;
   bool public enableMaliciousVoteSlash;
 
-  uint256 public constant INIT_MALICIOUS_VOTE_SLASH_SCOPE = 86400;  // 3 days
+  uint256 public constant INIT_FELONY_SLASH_SCOPE = 86400;  // 3 days
 
-  uint256 public maliciousVoteSlashScope;
+  uint256 public felonySlashScope;
 
   event validatorSlashed(address indexed validator);
   event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
@@ -135,7 +135,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (indicator.count % felonyThreshold == 0) {
       indicator.count = 0;
       IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-      if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(validator) != address(0)) {
+      if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
         _downtimeSlash(validator, indicator.count);
       } else {
         // send slash msg to bc if validator is not migrated
@@ -222,13 +222,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (felonySlashRewardRatio == 0) {
       felonySlashRewardRatio = INIT_FELONY_SLASH_REWARD_RATIO;
     }
-    if (maliciousVoteSlashScope == 0) {
-      maliciousVoteSlashScope = INIT_MALICIOUS_VOTE_SLASH_SCOPE;
+    if (felonySlashScope == 0) {
+      felonySlashScope = INIT_FELONY_SLASH_SCOPE;
     }
 
     // Basic check
-    require(_evidence.voteA.tarNum+maliciousVoteSlashScope > block.number &&
-      _evidence.voteB.tarNum+maliciousVoteSlashScope > block.number, "target block too old");
+    require(_evidence.voteA.tarNum+felonySlashScope > block.number &&
+      _evidence.voteB.tarNum+felonySlashScope > block.number, "target block too old");
     require(!(_evidence.voteA.srcHash == _evidence.voteB.srcHash &&
       _evidence.voteA.tarHash == _evidence.voteB.tarHash), "two identical votes");
     require(_evidence.voteA.srcNum < _evidence.voteA.tarNum &&
@@ -257,7 +257,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       }
     }
 
-    if (IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByVoteAddress(_evidence.voteAddr) != address(0)) {
+    if (IStakeHub(STAKE_HUB_ADDR).voteToOperator(_evidence.voteAddr) != address(0)) {
       IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
     } else {
       // send slash msg to bc if the validator not migrated
@@ -293,13 +293,13 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     }
 
     address signer;
-    uint256 evidenceTime;
+    uint256 evidenceHeight;
     assembly {
       signer := mload(add(output, 0x14))
-      evidenceTime := mload(add(output, 0x34))
+      evidenceHeight := mload(add(output, 0x34))
     }
-    require(IStakeHub(STAKE_HUB_ADDR).getOperatorAddressByConsensusAddress(signer) != address(0), "validator not migrated");
-    require(evidenceTime + 21 days >= block.timestamp, "evidence too old");
+    require(IStakeHub(STAKE_HUB_ADDR).consensusToOperator(signer) != address(0), "validator not migrated");
+    require(evidenceHeight + felonySlashScope >= block.number, "evidence too old");
 
     // reward sender and felony validator if validator found
     (address[] memory vals, ) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
@@ -383,11 +383,11 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     } else if (Memory.compareStrings(key, "enableMaliciousVoteSlash")) {
       require(value.length == 32, "length of enableMaliciousVoteSlash mismatch");
       enableMaliciousVoteSlash = BytesToTypes.bytesToBool(32, value);
-    } else if (Memory.compareStrings(key, "maliciousVoteSlashScope")) {
-      require(value.length == 32, "length of maliciousVoteSlashScope mismatch");
+    } else if (Memory.compareStrings(key, "felonySlashScope")) {
+      require(value.length == 32, "length of felonySlashScope mismatch");
       uint256 newMaliciousVoteSlashScope = BytesToTypes.bytesToUint256(32, value);
       require(newMaliciousVoteSlashScope >= 28800*1 && newMaliciousVoteSlashScope < 28800*30, "the malicious vote slash scope out of range");
-      maliciousVoteSlashScope = newMaliciousVoteSlashScope;
+      felonySlashScope = newMaliciousVoteSlashScope;
     } else {
       require(false, "unknown param");
     }

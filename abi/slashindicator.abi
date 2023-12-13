@@ -170,7 +170,7 @@
   },
   {
     "type": "function",
-    "name": "INIT_MALICIOUS_VOTE_SLASH_SCOPE",
+    "name": "INIT_FELONY_SLASH_SCOPE",
     "inputs": [],
     "outputs": [
       {
@@ -481,6 +481,19 @@
   },
   {
     "type": "function",
+    "name": "felonySlashScope",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "felonyThreshold",
     "inputs": [],
     "outputs": [
@@ -629,19 +642,6 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "maliciousVoteSlashScope",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",

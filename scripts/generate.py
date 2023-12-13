@@ -127,7 +127,7 @@ def generate_slash_indicator():
 
 
 def generate_stake_hub(
-    breath_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
+    breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
     felony_jail_time, asset_protector
 ):
     contract = "BC_fusion/StakeHub.sol"
@@ -135,7 +135,7 @@ def generate_stake_hub(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
-    replace_parameter(contract, "uint256 public constant BREATH_BLOCK_INTERVAL", f"{breath_block_interval}")
+    replace_parameter(contract, "uint256 public constant BREATHE_BLOCK_INTERVAL", f"{breathe_block_interval}")
     replace_parameter(contract, "bytes private constant INIT_BC_CONSENSUS_ADDRESSES", f"{init_bc_consensus_addresses}")
     replace_parameter(contract, "bytes private constant INIT_BC_VOTE_ADDRESSES", f"{init_bc_vote_addresses}")
 
@@ -348,7 +348,7 @@ def dev(
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
     source_chain_id: Annotated[
         str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
-    breath_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
+    breathe_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
     block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
     init_bc_consensus_addresses:
     str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
@@ -396,7 +396,7 @@ def dev(
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)
     generate_token_recover_portal(source_chain_id)
     generate_stake_hub(
-        breath_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
+        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
         felony_jail_time, asset_protector
     )
     generate_governor(

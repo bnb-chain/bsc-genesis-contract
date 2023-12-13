@@ -18,6 +18,7 @@ interface StakeHub {
     }
 
     error AlreadySlashed();
+    error ConsensusAddressExpired();
     error DelegationAmountTooSmall();
     error DuplicateConsensusAddress();
     error DuplicateVoteAddress();
@@ -29,7 +30,7 @@ interface StakeHub {
     error InvalidValue(string key, bytes value);
     error InvalidVoteAddress();
     error JailTimeNotExpired();
-    error NoMoreFelonyToday();
+    error NoMoreFelonyAllowed();
     error OnlyAssetProtector();
     error OnlyCoinbase();
     error OnlySelfDelegation();
@@ -44,6 +45,7 @@ interface StakeHub {
     error ValidatorExisted();
     error ValidatorNotExist();
     error ValidatorNotJailed();
+    error VoteAddressExpired();
     error ZeroShares();
 
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
@@ -82,7 +84,7 @@ interface StakeHub {
 
     receive() external payable;
 
-    function BREATH_BLOCK_INTERVAL() external view returns (uint256);
+    function BREATHE_BLOCK_INTERVAL() external view returns (uint256);
     function DEAD_ADDRESS() external view returns (address);
     function LOCK_AMOUNT() external view returns (uint256);
     function REDELEGATE_FEE_RATE_BASE() external view returns (uint256);
@@ -91,6 +93,8 @@ interface StakeHub {
     function blackList(address) external view returns (bool);
     function claim(address operatorAddress, uint256 requestNumber) external;
     function claimBatch(address[] memory operatorAddresses, uint256[] memory requestNumbers) external;
+    function consensusExpiration(address) external view returns (uint256);
+    function consensusToOperator(address) external view returns (address);
     function createValidator(
         address consensusAddress,
         bytes memory voteAddress,
@@ -110,8 +114,6 @@ interface StakeHub {
     function editVoteAddress(bytes memory newVoteAddress, bytes memory blsProof) external;
     function felonyJailTime() external view returns (uint256);
     function felonySlashAmount() external view returns (uint256);
-    function getOperatorAddressByConsensusAddress(address consensusAddress) external view returns (address);
-    function getOperatorAddressByVoteAddress(bytes memory voteAddress) external view returns (address);
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
@@ -138,8 +140,9 @@ interface StakeHub {
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256);
     function initialize() external;
     function isPaused() external view returns (bool);
-    function maliciousVoteSlash(bytes memory _voteAddr) external;
+    function maliciousVoteSlash(bytes memory voteAddress) external;
     function maxElectedValidators() external view returns (uint256);
+    function maxFelonyBetweenBreatheBlock() external view returns (uint256);
     function minDelegationBNBChange() external view returns (uint256);
     function minSelfDelegationBNB() external view returns (uint256);
     function numOfJailed() external view returns (uint256);
@@ -154,4 +157,6 @@ interface StakeHub {
     function undelegate(address operatorAddress, uint256 shares) external;
     function unjail(address operatorAddress) external;
     function updateParam(string memory key, bytes memory value) external;
+    function voteExpiration(bytes memory) external view returns (uint256);
+    function voteToOperator(bytes memory) external view returns (address);
 }
