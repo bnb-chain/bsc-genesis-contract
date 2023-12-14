@@ -116,13 +116,15 @@ def generate_relayer_hub(whitelist_1, whitelist_2):
         insert(contract, "alreadyInit = true;", "\t\twhitelistInit();")
 
 
-def generate_slash_indicator():
-    if network == "dev":
-        contract = "SlashIndicator.sol"
-        backup_file(
-            os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
-        )
+def generate_slash_indicator(init_felony_slash_scope):
+    contract = "SlashIndicator.sol"
+    backup_file(
+        os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
+    )
 
+    replace_parameter(contract, "uint256 public constant INIT_FELONY_SLASH_SCOPE", f"{init_felony_slash_scope}")
+
+    if network == "dev":
         insert(contract, "alreadyInit = true;", "\t\tenableMaliciousVoteSlash = true;")
 
 
@@ -348,6 +350,7 @@ def dev(
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
     source_chain_id: Annotated[
         str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
+    init_felony_slash_scope: str = "86400",
     breathe_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
     block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
     init_bc_consensus_addresses:
@@ -390,7 +393,7 @@ def dev(
     generate_system()
     generate_cross_chain()
     generate_system_reward()
-    generate_slash_indicator()
+    generate_slash_indicator(init_felony_slash_scope)
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_burn_ratio, init_validatorset_bytes)

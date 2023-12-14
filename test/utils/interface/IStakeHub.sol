@@ -21,6 +21,7 @@ interface StakeHub {
     error ConsensusAddressExpired();
     error DelegationAmountTooSmall();
     error DuplicateConsensusAddress();
+    error DuplicateMoniker();
     error DuplicateVoteAddress();
     error InBlackList();
     error InvalidCommission();

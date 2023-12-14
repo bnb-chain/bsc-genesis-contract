@@ -1344,6 +1344,11 @@
   },
   {
     "type": "error",
+    "name": "DuplicateMoniker",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "DuplicateVoteAddress",
     "inputs": []
   },

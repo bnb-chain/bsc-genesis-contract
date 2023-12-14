@@ -35,24 +35,69 @@ contract StakeHubTest is Deployer {
         stakeHub.initialize();
     }
 
-    function testCreateAndEditValidator() public {
-        // 1. create validator
+    function testCreateValidator() public {
+        // create validator success
+        (address validator,) = _createValidator(2000 ether);
+        (address consensusAddress,,, bytes memory voteAddress,,) = stakeHub.getValidatorBasicInfo(validator);
+
+        // create failed with duplicate consensus address
+        uint256 delegation = 2000 ether;
+        address operatorAddress = _getNextUserAddress();
+        StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
+        StakeHub.Description memory description = StakeHub.Description({
+            moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
+            identity: vm.toString(operatorAddress),
+            website: vm.toString(operatorAddress),
+            details: vm.toString(operatorAddress)
+        });
+        bytes memory blsPubKey = bytes.concat(
+            hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress)
+        );
+        bytes memory blsProof = new bytes(96);
+
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
+        vm.prank(operatorAddress);
+        vm.expectRevert();
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, blsPubKey, blsProof, commission, description
+        );
+
+        // create failed with duplicate vote address
+        consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
+        vm.prank(operatorAddress);
+        vm.expectRevert();
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, voteAddress, blsProof, commission, description
+        );
+
+        // create failed with duplicate moniker
+        description = stakeHub.getValidatorDescription(validator);
+        vm.prank(operatorAddress);
+        vm.expectRevert();
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, voteAddress, blsProof, commission, description
+        );
+    }
+
+    function testEditValidator() public {
+        // create validator
         (address validator,) = _createValidator(2000 ether);
         vm.startPrank(validator);
 
+        // edit failed because of `UpdateTooFrequently`
         vm.expectRevert();
         stakeHub.editConsensusAddress(address(1));
 
-        // 2. edit consensus address
+        // edit consensus address
         vm.warp(block.timestamp + 1 days);
         address newConsensusAddress = address(0x1234);
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit ConsensusAddressEdited(validator, newConsensusAddress);
         stakeHub.editConsensusAddress(newConsensusAddress);
-        (address realAddr,,,,,) = stakeHub.getValidatorBasicInfo(validator);
-        assertEq(realAddr, newConsensusAddress);
+        (address realConsensusAddr,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        assertEq(realConsensusAddr, newConsensusAddress);
 
-        // 3. edit commission rate
+        // edit commission rate
         vm.warp(block.timestamp + 1 days);
         vm.expectRevert();
         stakeHub.editCommissionRate(110);
@@ -64,7 +109,7 @@ contract StakeHubTest is Deployer {
         StakeHub.Commission memory realComm = stakeHub.getValidatorCommission(validator);
         assertEq(realComm.rate, 15);
 
-        // 4. edit description
+        // edit description
         vm.warp(block.timestamp + 1 days);
         StakeHub.Description memory description = stakeHub.getValidatorDescription(validator);
         description.moniker = "Test";
@@ -73,10 +118,10 @@ contract StakeHubTest is Deployer {
         emit DescriptionEdited(validator);
         stakeHub.editDescription(description);
         StakeHub.Description memory realDesc = stakeHub.getValidatorDescription(validator);
-        assertNotEq(realDesc.moniker, "Test"); // edit moniker is not allowed
+        assertNotEq(realDesc.moniker, "Test"); // edit moniker will be ignored
         assertEq(realDesc.website, "Test");
 
-        // 5. edit vote address
+        // edit vote address
         vm.warp(block.timestamp + 1 days);
         bytes memory newVoteAddress =
             hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001234";
