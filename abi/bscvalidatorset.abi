@@ -31,7 +31,7 @@
   },
   {
     "type": "function",
-    "name": "BURN_RATIO_SCALE",
+    "name": "BLOCK_FEES_RATIO_SCALE",
     "inputs": [],
     "outputs": [
       {
@@ -493,19 +493,6 @@
         "name": "",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "SYSTEM_REWARD_RATIO_SCALE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"

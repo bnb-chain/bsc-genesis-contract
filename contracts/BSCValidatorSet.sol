@@ -58,7 +58,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   mapping(address =>uint256) public currentValidatorSetMap;
   uint256 public numOfJailed;
 
-  uint256 public constant BURN_RATIO_SCALE = 10000;
+  uint256 public constant BLOCK_FEES_RATIO_SCALE = 10000;
   address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
   uint256 public constant INIT_BURN_RATIO = 1000;
   uint256 public burnRatio;
@@ -82,7 +82,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   // BEP-126 Fast Finality
   uint256 public constant INIT_SYSTEM_REWARD_RATIO = 625; // 625/10000 is 1/16
-  uint256 public constant SYSTEM_REWARD_RATIO_SCALE = 10000;
   uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
 
   uint256 public systemRewardRatio;
@@ -322,14 +321,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       isSystemRewardIncluded = true;
     }
 
-    uint256 toSystemReward = value.mul(systemRewardRatio).div(SYSTEM_REWARD_RATIO_SCALE);
-    if (toSystemReward > 0) {
-      address(uint160(SYSTEM_REWARD_ADDR)).transfer(toSystemReward);
-      emit systemTransfer(toSystemReward);
+    if (value > 0 && systemRewardRatio > 0) {
+      uint256 toSystemReward = msg.value.mul(systemRewardRatio).div(BLOCK_FEES_RATIO_SCALE);
+      if (toSystemReward > 0) {
+        address(uint160(SYSTEM_REWARD_ADDR)).transfer(toSystemReward);
+        emit systemTransfer(toSystemReward);
+
+        value = value.sub(toSystemReward);
+      }
     }
 
     if (value > 0 && burnRatio > 0) {
-      uint256 toBurn = value.mul(burnRatio).div(BURN_RATIO_SCALE);
+      uint256 toBurn = msg.value.mul(burnRatio).div(BLOCK_FEES_RATIO_SCALE);
       if (toBurn > 0) {
         address(uint160(BURN_ADDRESS)).transfer(toBurn);
         emit feeBurned(toBurn);
@@ -338,7 +341,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
-    value = value.sub(toSystemReward);
     if (index>0) {
       Validator storage validator = currentValidatorSet[index-1];
       if (validator.jailed) {
@@ -833,7 +835,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "burnRatio")) {
       require(value.length == 32, "length of burnRatio mismatch");
       uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newBurnRatio <= BURN_RATIO_SCALE, "the burnRatio must be no greater than 10000");
+      require(newBurnRatio + systemRewardRatio <= BLOCK_FEES_RATIO_SCALE, "the burnRatio plus systemRewardRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
     } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
       require(value.length == 32, "length of maxNumOfMaintaining mismatch");
@@ -870,7 +872,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "systemRewardRatio")) {
       require(value.length == 32, "length of systemRewardRatio mismatch");
       uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newSystemRewardRatio >= 1 && newSystemRewardRatio <= SYSTEM_REWARD_RATIO_SCALE, "the systemRewardRatio must be no greater than 10000");
+      require(newSystemRewardRatio + burnRatio <= BLOCK_FEES_RATIO_SCALE, "the systemRewardRatio plus burnRatio must be no greater than 10000");
       systemRewardRatio = newSystemRewardRatio;
     } else {
       require(false, "unknown param");

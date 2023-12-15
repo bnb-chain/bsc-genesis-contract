@@ -28,7 +28,7 @@ interface BSCValidatorSet {
 
     function BIND_CHANNELID() external view returns (uint8);
     function BURN_ADDRESS() external view returns (address);
-    function BURN_RATIO_SCALE() external view returns (uint256);
+    function BLOCK_FEES_RATIO_SCALE() external view returns (uint256);
     function CODE_OK() external view returns (uint32);
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function CROSS_STAKE_CHANNELID() external view returns (uint8);
@@ -64,7 +64,6 @@ interface BSCValidatorSet {
     function STAKING_CHANNELID() external view returns (uint8);
     function STAKING_CONTRACT_ADDR() external view returns (address);
     function SYSTEM_REWARD_ADDR() external view returns (address);
-    function SYSTEM_REWARD_RATIO_SCALE() external view returns (uint256);
     function TIMELOCK_ADDR() external view returns (address);
     function TOKEN_HUB_ADDR() external view returns (address);
     function TOKEN_MANAGER_ADDR() external view returns (address);

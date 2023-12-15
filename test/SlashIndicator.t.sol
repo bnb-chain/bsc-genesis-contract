@@ -17,12 +17,12 @@ contract SlashIndicatorTest is Deployer {
     function setUp() public {
         burnRatio =
             bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
-        burnRatioScale = bscValidatorSet.BURN_RATIO_SCALE();
+        burnRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
         systemRewardRatio = bscValidatorSet.isSystemRewardIncluded()
             ? bscValidatorSet.systemRewardRatio()
             : bscValidatorSet.INIT_SYSTEM_REWARD_RATIO();
-        systemRewardRatioScale = bscValidatorSet.SYSTEM_REWARD_RATIO_SCALE();
+        systemRewardRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
         address[] memory validators = bscValidatorSet.getValidators();
         validator0 = validators[0];
