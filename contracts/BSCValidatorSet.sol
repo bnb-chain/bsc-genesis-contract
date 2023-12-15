@@ -285,6 +285,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     for (uint i; i < currentValidatorSet.length; ++i) {
       if (currentValidatorSet[i].incoming != 0) {
         IStakeHub(STAKE_HUB_ADDR).distributeReward{value : currentValidatorSet[i].incoming}(currentValidatorSet[i].consensusAddress);
+        currentValidatorSet[i].incoming = 0;
       }
     }
 
@@ -524,6 +525,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             }
           }
         }
+      }
+    }
+
+    for (uint i; i < currentValidatorSet.length; ++i) {
+      if (currentValidatorSet[i].incoming != 0) {
+          currentValidatorSet[i].incoming = 0;
       }
     }
 
@@ -918,11 +925,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         validatorExtraSet[i].isMaintaining = false;
         validatorExtraSet[i].enterMaintenanceHeight = 0;
       } else {
-        // if the validator is the same, update the vote address if it is different
+        // update the vote address if it is different
         if (!BytesLib.equal(newVoteAddrs[i], validatorExtraSet[i].voteAddress)) {
           validatorExtraSet[i].voteAddress = newVoteAddrs[i];
         }
-        currentValidatorSet[i].incoming = 0;
         currentValidatorSet[i].jailed = newValidatorSet[i].jailed;
       }
     }
