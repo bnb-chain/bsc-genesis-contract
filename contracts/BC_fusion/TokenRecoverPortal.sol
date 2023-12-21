@@ -164,7 +164,25 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         // Perform the approvalSignature recovery and ensure the recovered signer is the approval account
         bytes32 hash =
             keccak256(abi.encodePacked(SOURCE_CHAIN_ID, account, ownerSignature, leafHash, merkleRoot, buffer));
-        if (ECDSA.recover(hash, approvalSignature) != approvalAddress) revert InvalidApprovalSignature();
+
+        if (recover(approvalSignature,hash) != approvalAddress) revert InvalidApprovalSignature();
+    }
+
+    function recover(bytes memory sig, bytes32 hash) internal pure returns (address) {
+        // Ensure the signature length is correct
+        if (sig.length != 65) revert InvalidApprovalSignature();
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+        assembly {
+            r := mload(add(sig, 32))
+            s := mload(add(sig, 64))
+            v := byte(0, mload(add(sig, 96)))
+        }
+        if (v < 27) v += 27;
+        if (v < 27 || v > 28) revert InvalidApprovalSignature();
+        (address signer,) = ECDSA.tryRecover(hash, v, r, s);
+        return signer;
     }
 
     /**
@@ -182,11 +200,11 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         if (signature.length != 64) revert InvalidOwnerSignatureLength();
 
         // assemble input data
-        bytes memory input = new bytes(129);
-        Utils.bytesConcat(input, pubKey, 0, 33);
-        Utils.bytesConcat(input, signature, 33, 64);
-        Utils.bytesConcat(input, abi.encodePacked(messageHash), 97, 32);
-
+        bytes memory msgBz = new bytes(32);
+        assembly {
+            mstore(add(msgBz, 32), messageHash)
+        }
+        bytes memory input = bytes.concat(pubKey, signature, msgBz);
         bytes memory output = new bytes(20);
         /* solium-disable-next-line */
         assembly {
@@ -199,7 +217,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
             // | recovered address  |
             // | 20 bytes |
             let len := mload(input)
-            if iszero(staticcall(not(0), 0x69, input, len, output, 20)) { revert(0, 0) }
+            if iszero(staticcall(not(0), 0x69, add(input, 0x20), len, add(output, 0x20), 20)) { revert(0, 0) }
         }
 
         // return the recovered address
@@ -241,8 +259,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         } else if (key.compareStrings("merkleRoot")) {
             if (merkleRootAlreadyInit) revert MerkleRootAlreadyInitiated();
             if (value.length != 32) revert InvalidValue(key, value);
-            bytes32 newMerkleRoot = 0;
-            Utils.bytesToBytes32(32, value, newMerkleRoot);
+            bytes32 newMerkleRoot = value.bytesToBytes32(32);
             if (newMerkleRoot == bytes32(0)) revert InvalidValue(key, value);
             merkleRoot = newMerkleRoot;
             merkleRootAlreadyInit = true;
