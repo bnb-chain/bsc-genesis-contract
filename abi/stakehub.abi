@@ -644,6 +644,40 @@
   },
   {
     "type": "function",
+    "name": "getValidators",
+    "inputs": [
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "operatorAddrs",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "creditAddrs",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "totalLength",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "initialize",
     "inputs": [],
     "outputs": [],

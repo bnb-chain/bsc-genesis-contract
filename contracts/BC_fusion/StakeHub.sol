@@ -233,7 +233,7 @@ contract StakeHub is System, Initializable {
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 5000;
         minSelfDelegationBNB = 2_000 ether;
-        minDelegationBNBChange = 1 ether;
+        minDelegationBNBChange = 1 ether - 1; // minus 1 to be more user-friendly when precision loss happens
         maxElectedValidators = 29;
         unbondPeriod = 7 days;
         redelegateFeeRate = 2;
@@ -314,6 +314,7 @@ contract StakeHub is System, Initializable {
         voteToOperator[voteAddress] = operatorAddress;
 
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
+        emit Delegated(operatorAddress, operatorAddress, delegation, delegation);
 
         IGovToken(GOV_TOKEN_ADDR).sync(creditContract, operatorAddress);
     }
@@ -780,7 +781,7 @@ contract StakeHub is System, Initializable {
 
     /*----------------- view functions -----------------*/
     /**
-     * @return is the system paused
+     * @return whether the system is paused
      */
     function isPaused() external view returns (bool) {
         return _paused;
@@ -803,8 +804,38 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @notice pagination query all validators' operator address and credit contract address
+     * @return operatorAddrs operator addresses
+     * @return creditAddrs credit contract addresses
+     * @return totalLength total number of validators
+     */
+    function getValidators(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory operatorAddrs, address[] memory creditAddrs, uint256 totalLength) {
+        totalLength = _validatorSet.length();
+        if (offset >= totalLength) {
+            return (operatorAddrs, creditAddrs, totalLength);
+        }
+
+        limit = limit == 0 ? totalLength : limit;
+        uint256 count = (totalLength - offset) > limit ? limit : (totalLength - offset);
+        operatorAddrs = new address[](count);
+        creditAddrs = new address[](count);
+        for (uint256 i; i < count; ++i) {
+            operatorAddrs[i] = _validatorSet.at(offset + i);
+            creditAddrs[i] = _validators[operatorAddrs[i]].creditContract;
+        }
+    }
+
+    /**
      * @notice get the basic info of a validator
-     * including consensus address, credit contract, created time, vote address, jailed and jailUntil
+     * @return consensusAddress the consensus address of the validator
+     * @return creditContract the credit contract address of the validator
+     * @return createdTime the creation time of the validator
+     * @return voteAddress the vote address of the validator
+     * @return jailed whether the validator is jailed
+     * @return jailUntil the jail time of the validator
      */
     function getValidatorBasicInfo(address operatorAddress)
         external
@@ -853,11 +884,12 @@ contract StakeHub is System, Initializable {
     }
 
     /**
-     * @dev this function will be invoked by Parlia consensus engine.
+     * @dev this function will be used by Parlia consensus engine.
      * @notice get the election info of a validator
-     * including consensus address, voting power and vote address.
-     * The voting power will be 0 if the validator is jailed.
-     * This function is for the consensus engine.
+     * @return consensusAddrs the consensus addresses of the validators
+     * @return votingPowers the voting powers of the validators. The voting power will be 0 if the validator is jailed.
+     * @return voteAddrs the vote addresses of the validators
+     * @return totalLength the total number of validators
      */
     function getValidatorElectionInfo(
         uint256 offset,

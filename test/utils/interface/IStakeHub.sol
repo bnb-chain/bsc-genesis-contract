@@ -139,6 +139,10 @@ interface StakeHub {
         );
     function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256);
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256);
+    function getValidators(uint256 offset, uint256 limit)
+        external
+        view
+        returns (address[] memory operatorAddrs, address[] memory creditAddrs, uint256 totalLength);
     function initialize() external;
     function isPaused() external view returns (bool);
     function maliciousVoteSlash(bytes memory voteAddress) external;

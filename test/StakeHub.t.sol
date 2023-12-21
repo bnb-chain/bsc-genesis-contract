@@ -40,9 +40,12 @@ contract StakeHubTest is Deployer {
         (address validator,) = _createValidator(2000 ether);
         (address consensusAddress,,, bytes memory voteAddress,,) = stakeHub.getValidatorBasicInfo(validator);
 
+        address operatorAddress = _getNextUserAddress();
+        vm.startPrank(operatorAddress);
+
         // create failed with duplicate consensus address
         uint256 delegation = 2000 ether;
-        address operatorAddress = _getNextUserAddress();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
         StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
         StakeHub.Description memory description = StakeHub.Description({
             moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
@@ -55,27 +58,23 @@ contract StakeHubTest is Deployer {
         );
         bytes memory blsProof = new bytes(96);
 
-        uint256 toLock = stakeHub.LOCK_AMOUNT();
-        vm.prank(operatorAddress);
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.DuplicateConsensusAddress.selector);
         stakeHub.createValidator{ value: delegation + toLock }(
             consensusAddress, blsPubKey, blsProof, commission, description
         );
 
         // create failed with duplicate vote address
         consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
-        vm.prank(operatorAddress);
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.DuplicateVoteAddress.selector);
         stakeHub.createValidator{ value: delegation + toLock }(
             consensusAddress, voteAddress, blsProof, commission, description
         );
 
         // create failed with duplicate moniker
         description = stakeHub.getValidatorDescription(validator);
-        vm.prank(operatorAddress);
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.DuplicateMoniker.selector);
         stakeHub.createValidator{ value: delegation + toLock }(
-            consensusAddress, voteAddress, blsProof, commission, description
+            consensusAddress, blsPubKey, blsProof, commission, description
         );
     }
 
@@ -85,7 +84,7 @@ contract StakeHubTest is Deployer {
         vm.startPrank(validator);
 
         // edit failed because of `UpdateTooFrequently`
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.UpdateTooFrequently.selector);
         stakeHub.editConsensusAddress(address(1));
 
         // edit consensus address
@@ -99,9 +98,9 @@ contract StakeHubTest is Deployer {
 
         // edit commission rate
         vm.warp(block.timestamp + 1 days);
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.InvalidCommission.selector);
         stakeHub.editCommissionRate(110);
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.InvalidCommission.selector);
         stakeHub.editCommissionRate(16);
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit CommissionRateEdited(validator, 15);
@@ -141,7 +140,7 @@ contract StakeHubTest is Deployer {
         vm.startPrank(delegator);
 
         // failed with too small delegation amount
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.DelegationAmountTooSmall.selector);
         stakeHub.delegate{ value: 1 }(validator, false);
 
         // success case
@@ -149,6 +148,8 @@ contract StakeHubTest is Deployer {
         stakeHub.delegate{ value: bnbAmount }(validator, false);
         uint256 shares = IStakeCredit(credit).balanceOf(delegator);
         assertEq(shares, bnbAmount);
+        uint256 pooledBNB = IStakeCredit(credit).getPooledBNBByShares(shares);
+        assertEq(pooledBNB, bnbAmount);
 
         vm.stopPrank();
     }
@@ -163,14 +164,14 @@ contract StakeHubTest is Deployer {
         uint256 shares = IStakeCredit(credit).balanceOf(delegator);
 
         // failed with not enough shares
-        vm.expectRevert();
+        vm.expectRevert(StakeCredit.InsufficientBalance.selector);
         stakeHub.undelegate(validator, shares + 1);
 
         // success case
         stakeHub.undelegate(validator, shares / 2);
 
         // claim failed
-        vm.expectRevert();
+        vm.expectRevert(StakeCredit.NoClaimableUnbondRequest.selector);
         stakeHub.claim(validator, 0);
 
         // claim success
@@ -224,11 +225,11 @@ contract StakeHubTest is Deployer {
         uint256 oldShares = IStakeCredit(credit1).balanceOf(delegator);
 
         // failed with too small redelegation amount
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.DelegationAmountTooSmall.selector);
         stakeHub.redelegate(validator1, validator2, 1, false);
 
         // failed with not enough shares
-        vm.expectRevert();
+        vm.expectRevert(StakeCredit.InsufficientBalance.selector);
         stakeHub.redelegate(validator1, validator2, oldShares + 1, false);
 
         // success case
@@ -243,10 +244,10 @@ contract StakeHubTest is Deployer {
 
         vm.stopPrank();
 
-        // self redelegate
-        vm.startPrank(validator1);
+        // self redelegate failed because of `SelfDelegationNotEnough`
         uint256 selfDelegation = 2000 ether;
-        vm.expectRevert();
+        vm.expectRevert(StakeHub.SelfDelegationNotEnough.selector);
+        vm.prank(validator1);
         stakeHub.redelegate(validator1, validator2, selfDelegation, false);
     }
 
