@@ -14,7 +14,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "commander": "^3.0.1",
+    "commander": "^11.1.0",
     "nunjucks": "^3.2.4",
     "openzeppelin-solidity": "v3.0.0-rc.0",
     "rlp": "^2.2.7",
