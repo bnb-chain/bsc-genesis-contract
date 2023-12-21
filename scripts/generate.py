@@ -209,7 +209,7 @@ def generate_tendermint_light_client(init_consensus_state_bytes, init_reward_for
     )
 
 
-def generate_token_hub(max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee):
+def generate_token_hub(max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee, lock_period_for_token_recover):
     contract = "TokenHub.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
@@ -219,6 +219,7 @@ def generate_token_hub(max_gas_for_transfer_bnb, max_gas_for_calling_bep20, rewa
     replace_parameter(contract, "uint256 constant public MAX_GAS_FOR_CALLING_BEP20", f"{max_gas_for_calling_bep20}")
     replace_parameter(contract, "uint256 constant public REWARD_UPPER_LIMIT", f"{reward_upper_limit}")
     replace_parameter(contract, "uint256 constant public INIT_MINIMUM_RELAY_FEE", f"{init_minimum_relay_fee}")
+    replace_parameter(contract, "uint256 constant public LOCK_PERIOD_FOR_TOKEN_RECOVER", f"{lock_period_for_token_recover}")
 
 
 def generate_token_recover_portal(source_chain_id):
@@ -368,7 +369,12 @@ def dev(
     init_min_period_after_quorum: Annotated[
         str, typer.Option(help="INIT_MIN_PERIOD_AFTER_QUORUM of BSCGovernor")] = "uint64(1 days / BLOCK_INTERVAL)",
     governor_protector: Annotated[str, typer.Option(help="governorProtector of BSCGovernor")] = "address(0xdEaD)",
-    init_minimal_delay: Annotated[str, typer.Option(help="INIT_MINIMAL_DELAY of BSCTimelock")] = "24 hours"
+    init_minimal_delay: Annotated[str, typer.Option(help="INIT_MINIMAL_DELAY of BSCTimelock")] = "24 hours",
+    max_gas_for_transfer_bnb: Annotated[str, typer.Option(help="MAX_GAS_FOR_TRANSFER_BNB of TokenHub")]  = "10000",
+    max_gas_for_calling_bep20: Annotated[str, typer.Option(help="MAX_GAS_FOR_CALLING_BEP20 of TokenHub")]  = "50000",
+    reward_upper_limit: Annotated[str, typer.Option(help="REWARD_UPPER_LIMIT of TokenHub")]  = "1e18",
+    init_minimum_relay_fee: Annotated[str, typer.Option(help="INIT_MINIMUM_RELAY_FEE of TokenHub")]  = "2e15",
+    lock_period_for_token_recover: Annotated[str, typer.Option(help="LOCK_PERIOD_FOR_TOKEN_RECOVER of TokenHub")] = "7 days"
 ):
     global network, chain_id, hex_chain_id
     network = "dev"
@@ -406,6 +412,7 @@ def dev(
         block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
     )
     generate_timelock(init_minimal_delay)
+    generate_token_hub(max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee, lock_period_for_token_recover)
 
     generate_genesis()
     print("Generate genesis of dev environment successfully")
