@@ -165,7 +165,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         bytes32 hash =
             keccak256(abi.encodePacked(SOURCE_CHAIN_ID, account, ownerSignature, leafHash, merkleRoot, buffer));
 
-        if (recover(approvalSignature,hash) != approvalAddress) revert InvalidApprovalSignature();
+        if (recover(approvalSignature, hash) != approvalAddress) revert InvalidApprovalSignature();
     }
 
     function recover(bytes memory sig, bytes32 hash) internal pure returns (address) {
