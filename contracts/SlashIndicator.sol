@@ -274,6 +274,9 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     if (felonySlashRewardRatio == 0) {
       felonySlashRewardRatio = INIT_FELONY_SLASH_REWARD_RATIO;
     }
+    if (felonySlashScope == 0) {
+      felonySlashScope = INIT_FELONY_SLASH_SCOPE;
+    }
 
     require(header1.length != 0 && header2.length != 0, "empty header");
 
