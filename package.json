@@ -17,7 +17,7 @@
     "commander": "^3.0.1",
     "nunjucks": "^3.2.4",
     "openzeppelin-solidity": "v3.0.0-rc.0",
-    "rlp": "^2.2.7",
+    "rlp": "^3.0.0",
     "truffle-flattener": "1.6.0",
     "web3": "^4.0.1"
   },
