@@ -50,7 +50,7 @@ interface StakeHub {
     error ZeroShares();
 
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
+    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event DescriptionEdited(address indexed operatorAddress);

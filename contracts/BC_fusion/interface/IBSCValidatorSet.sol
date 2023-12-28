@@ -2,5 +2,6 @@
 pragma solidity 0.8.17;
 
 interface IBSCValidatorSet {
-    function jailValidator(address consensusAddress) external;
+    function felony(address consensusAddress) external;
+    function removeTmpMigratedValidator(address consensusAddress) external;
 }

@@ -1009,7 +1009,7 @@
         "internalType": "address"
       },
       {
-        "name": "commissionRate",
+        "name": "newCommissionRate",
         "type": "uint64",
         "indexed": false,
         "internalType": "uint64"

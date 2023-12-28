@@ -176,7 +176,7 @@ contract StakeHub is System, Initializable {
         bytes voteAddress
     );
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
-    event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
+    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
@@ -994,8 +994,8 @@ contract StakeHub is System, Initializable {
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, downtimeJailTime);
-            // need to inform BSCValidatorSet contract to remove the validator
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         }
     }
 

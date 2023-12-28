@@ -18,7 +18,6 @@ interface SlashIndicator {
 
     event crashResponse();
     event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
-    event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
     event indicatorCleaned();
     event knownResponse(uint32 code);
     event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);

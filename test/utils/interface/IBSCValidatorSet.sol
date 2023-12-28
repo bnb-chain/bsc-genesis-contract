@@ -110,7 +110,6 @@ interface BSCValidatorSet {
     function isMonitoredForMaliciousVote(bytes memory voteAddr) external view returns (bool);
     function isSystemRewardIncluded() external view returns (bool);
     function isWorkingValidator(uint256 index) external view returns (bool);
-    function jailValidator(address consensusAddress) external;
     function maintainSlashScale() external view returns (uint256);
     function maxNumOfCandidates() external view returns (uint256);
     function maxNumOfMaintaining() external view returns (uint256);
@@ -122,6 +121,7 @@ interface BSCValidatorSet {
     function previousBalanceOfSystemReward() external view returns (uint256);
     function previousHeight() external view returns (uint256);
     function previousVoteAddrFullSet(uint256) external view returns (bytes memory);
+    function removeTmpMigratedValidator(address validator) external;
     function systemRewardRatio() external view returns (uint256);
     function totalInComing() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;

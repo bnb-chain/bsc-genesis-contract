@@ -595,8 +595,8 @@ contract ValidatorSetTest is Deployer {
         bscValidatorSet.distributeFinalityReward(addrs, weights);
         assertEq(address(systemReward).balance, ceil);
 
-        // cannot exceed MAX_REWARDS_FOR_FINALITY
-        uint256 cap = systemReward.MAX_REWARDS_FOR_FINALITY();
+        // cannot exceed MAX_REWARDS
+        uint256 cap = systemReward.MAX_REWARDS();
         vm.deal(address(systemReward), ceil + cap * 2);
         vm.roll(block.number + 1);
 

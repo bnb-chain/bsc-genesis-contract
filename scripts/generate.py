@@ -116,12 +116,14 @@ def generate_relayer_hub(whitelist_1, whitelist_2):
         insert(contract, "alreadyInit = true;", "\t\twhitelistInit();")
 
 
-def generate_slash_indicator(init_felony_slash_scope):
+def generate_slash_indicator(misdemeanor_threshold, felony_threshold, init_felony_slash_scope):
     contract = "SlashIndicator.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
+    replace_parameter(contract, "uint256 public constant MISDEMEANOR_THRESHOLD", f"{misdemeanor_threshold}")
+    replace_parameter(contract, "uint256 public constant FELONY_THRESHOLD", f"{felony_threshold}")
     replace_parameter(contract, "uint256 public constant INIT_FELONY_SLASH_SCOPE", f"{init_felony_slash_scope}")
 
     if network == "dev":
@@ -231,7 +233,7 @@ def generate_token_recover_portal(source_chain_id):
     replace_parameter(contract, "string public constant SOURCE_CHAIN_ID", f"\"{source_chain_id}\"")
 
 
-def generate_validator_set(init_burn_ratio, init_validatorset_bytes):
+def generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch):
     contract = "BSCValidatorSet.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
@@ -239,6 +241,7 @@ def generate_validator_set(init_burn_ratio, init_validatorset_bytes):
 
     replace_parameter(contract, "uint256 public constant INIT_BURN_RATIO", f"{init_burn_ratio}")
     replace_parameter(contract, "bytes public constant INIT_VALIDATORSET_BYTES", f"hex\"{init_validatorset_bytes}\"")
+    replace_parameter(contract, "uint256 public constant EPOCH", f"{epoch}")
 
     if network == "dev":
         insert(
@@ -253,6 +256,17 @@ def generate_validator_set(init_burn_ratio, init_validatorset_bytes):
             contract, r"currentValidatorSet\.push\(validatorSetPkg.validatorSet\[i\]\);",
             "\t\t\tvalidatorExtraSet[i].voteAddress=validatorSetPkg.voteAddrs[i];"
         )
+        replace(contract, r"handleSynPackage\(uint8, bytes calldata msgBytes\) onlyInit onlyCrossChainContract initValidatorExtraSet", "handleSynPackage(uint8, bytes calldata msgBytes) onlyInit initValidatorExtraSet")
+
+
+def generate_gov_hub():
+    contract = "GovHub.sol"
+    backup_file(
+        os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
+    )
+
+    if network == "dev":
+        replace(contract, r"handleSynPackage\(uint8, bytes calldata msgBytes\) external onlyCrossChainContract override", "handleSynPackage(uint8, bytes calldata msgBytes) external override")
 
 
 def generate_genesis():
@@ -345,12 +359,15 @@ def dev(
     init_consensus_bytes:
     str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
     init_burn_ratio: Annotated[str, typer.Option(help="init burn ratio of BscValidatorSet")] = "1000",
+    epoch: str = "200",
     whitelist_1: Annotated[
         str, typer.Option(help="whitelist relayer1's address")] = "0xA904540818AC9c47f2321F97F1069B9d8746c6DB",
     whitelist_2: Annotated[
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
     source_chain_id: Annotated[
         str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
+    misdemeanor_threshold: str = "50",
+    felony_threshold: str = "150",
     init_felony_slash_scope: str = "86400",
     breathe_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
     block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
@@ -399,10 +416,11 @@ def dev(
     generate_system()
     generate_cross_chain()
     generate_system_reward()
-    generate_slash_indicator(init_felony_slash_scope)
+    generate_gov_hub()
+    generate_slash_indicator(misdemeanor_threshold, felony_threshold, init_felony_slash_scope)
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
-    generate_validator_set(init_burn_ratio, init_validatorset_bytes)
+    generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
     generate_token_recover_portal(source_chain_id)
     generate_stake_hub(
         breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,

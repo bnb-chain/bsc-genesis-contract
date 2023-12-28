@@ -27,8 +27,7 @@ contract GovHub is System, IApplication{
     address  target;
   }
 
-  //TODO: add onlyCrossChainContract
-  function handleSynPackage(uint8, bytes calldata msgBytes) external override returns(bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract override returns(bytes memory responsePayload) {
     (ParamChangePackage memory proposal, bool success) = decodeSynPackage(msgBytes);
     if (!success) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);

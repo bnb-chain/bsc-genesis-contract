@@ -167,10 +167,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return actualAmount;
   }
 
-  function claimRewardsforFinality(address payable, uint256) onlyInit onlyRelayerIncentivize external override returns(uint256) {
-    revert("CLAIM_REWARDS_FOR_FINALITY_NOT_ALLOWED");
-  }
-
   function getMiniRelayFee() external view override returns(uint256) {
     return relayFee;
   }

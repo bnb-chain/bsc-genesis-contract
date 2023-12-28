@@ -296,15 +296,9 @@ contract SlashIndicatorTest is Deployer {
 
         uint256 mockEvidenceHeight = block.number - 1;
         bytes memory mockOutput = bytes.concat(abi.encodePacked(mockValidator), abi.encodePacked(mockEvidenceHeight));
+        vm.mockCall(address(0x68), "", mockOutput);
         vm.mockCall(
-            address(0x68),
-            "",
-            mockOutput
-        );
-        vm.mockCall(
-            address(stakeHub),
-            abi.encodeCall(stakeHub.consensusToOperator, (mockValidator)),
-            abi.encode(mockValidator)
+            address(stakeHub), abi.encodeCall(stakeHub.consensusToOperator, (mockValidator)), abi.encode(mockValidator)
         );
 
         vm.prank(relayer);

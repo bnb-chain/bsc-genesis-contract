@@ -1064,19 +1064,6 @@
   },
   {
     "type": "function",
-    "name": "jailValidator",
-    "inputs": [
-      {
-        "name": "consensusAddress",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "maintainSlashScale",
     "inputs": [],
     "outputs": [
@@ -1223,6 +1210,19 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "removeTmpMigratedValidator",
+    "inputs": [
+      {
+        "name": "validator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
