@@ -2,5 +2,5 @@
 pragma solidity 0.8.17;
 
 interface ICrossChain {
-  function registeredContractChannelMap(address, uint8) external view returns (bool);
+    function registeredContractChannelMap(address, uint8) external view returns (bool);
 }
