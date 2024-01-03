@@ -188,8 +188,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   receive() external payable {}
 
   /*********************** Cross Chain App Implement **************************/
-  // TODO: add `onlyCrossChainContract`
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit initValidatorExtraSet external override returns(bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) onlyInit onlyCrossChainContract initValidatorExtraSet external override returns(bytes memory responsePayload) {
     (IbcValidatorSetPackage memory validatorSetPackage, bool ok) = decodeValidatorSetSynPackage(msgBytes);
     if (!ok) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
@@ -202,13 +201,18 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit failReasonWithStr("length of jail validators must be one");
         resCode = ERROR_LEN_OF_VAL_MISMATCH;
       } else {
-        uint256 index = currentValidatorSetMap[validatorSetPackage.validatorSet[0].consensusAddress];
-        if (index==0 || currentValidatorSet[index-1].jailed) {
-          emit validatorEmptyJailed(validatorSetPackage.validatorSet[0].consensusAddress);
-          resCode = CODE_OK;
+        address validator = validatorSetPackage.validatorSet[0].consensusAddress;
+        uint256 index = currentValidatorSetMap[validator];
+        if (index == 0 || currentValidatorSet[index-1].jailed) {
+          emit validatorEmptyJailed(validator);
         } else {
-          resCode = _jailValidator(index);
+          // felony will failed if the validator is the only one in the validator set
+          bool success = _felony(validator, index-1);
+          if (!success) {
+            emit validatorEmptyJailed(validator);
+          }
         }
+        resCode = CODE_OK;
       }
     } else {
       resCode = ERROR_UNKNOWN_PACKAGE_TYPE;
@@ -355,36 +359,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // get incoming from deprecated validator;
       emit deprecatedDeposit(valAddr,value);
     }
-  }
-
-  function jailValidator(address consensusAddress) external onlyStakeHub {
-    for (uint256 i; i < _tmpMigratedValidatorSet.length; ++i) {
-      if (_tmpMigratedValidatorSet[i].consensusAddress == consensusAddress) {
-        _tmpMigratedValidatorSet[i].jailed = true;
-        break;
-      }
-    }
-
-    uint256 index = currentValidatorSetMap[consensusAddress];
-    if (index==0 || currentValidatorSet[index-1].jailed) {
-      emit validatorEmptyJailed(consensusAddress);
-    } else {
-      _jailValidator(index);
-    }
-  }
-
-  function _jailValidator(uint256 index) internal returns (uint32) {
-    uint n = currentValidatorSet.length;
-    bool shouldKeep = (numOfJailed >= n-1);
-    // will not jail if it is the last valid validator
-    if (shouldKeep) {
-      emit validatorEmptyJailed(currentValidatorSet[index-1].consensusAddress);
-      return CODE_OK;
-    }
-    ++numOfJailed;
-    currentValidatorSet[index-1].jailed = true;
-    emit validatorJailed(currentValidatorSet[index-1].consensusAddress);
-    return CODE_OK;
   }
 
   function updateValidatorSet(Validator[] memory validatorSet, bytes[] memory voteAddrs) internal returns (uint32) {
@@ -701,7 +675,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       return;
     }
 
-    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(payable(address(this)), totalValue);
+    totalValue = ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(payable(address(this)), totalValue);
     if (totalValue == 0) {
       return;
     }
@@ -758,7 +732,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
-  function felony(address validator)external onlySlash initValidatorExtraSet override{
+  function felony(address validator) external initValidatorExtraSet override {
+    require(msg.sender == SLASH_CONTRACT_ADDR || msg.sender == STAKE_HUB_ADDR, "only slash or stakeHub contract");
+
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
       return;
@@ -769,6 +745,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool isMaintaining = validatorExtraSet[index].isMaintaining;
     if (_felony(validator, index) && isMaintaining) {
       --numOfMaintaining;
+    }
+  }
+
+  function removeTmpMigratedValidator(address validator) external onlyStakeHub {
+    for (uint256 i; i < _tmpMigratedValidatorSet.length; ++i) {
+      if (_tmpMigratedValidatorSet[i].consensusAddress == validator) {
+        _tmpMigratedValidatorSet[i].jailed = true;
+        break;
+      }
     }
   }
 
@@ -1064,6 +1049,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // should not happen, but still protect
       return index;
     }
+
+    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
     uint256 averageDistribute = income / rest;
     if (averageDistribute != 0) {
       for (uint i; i<index; ++i) {
@@ -1074,12 +1061,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
       }
     }
-    // averageDistribute*rest may less than income, but it is ok, the dust income will go to system reward eventually.
 
     return index;
   }
 
-  function _felony(address validator, uint256 index) private returns (bool){
+  function _felony(address validator, uint256 index) private returns (bool) {
     uint256 income = currentValidatorSet[index].incoming;
     uint256 rest = currentValidatorSet.length - 1;
     if (getValidators().length <= 1) {

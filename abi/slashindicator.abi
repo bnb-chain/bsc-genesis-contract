@@ -867,25 +867,6 @@
   },
   {
     "type": "event",
-    "name": "failedMaliciousVoteSlash",
-    "inputs": [
-      {
-        "name": "voteAddrSlice",
-        "type": "bytes32",
-        "indexed": true,
-        "internalType": "bytes32"
-      },
-      {
-        "name": "failReason",
-        "type": "bytes",
-        "indexed": false,
-        "internalType": "bytes"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "indicatorCleaned",
     "inputs": [],
     "anonymous": false

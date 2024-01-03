@@ -19,11 +19,8 @@ import "./lib/RLPEncode.sol";
 contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication{
   using RLPEncode for *;
 
-  // TODO: revert to 50 and 150
-  // uint256 public constant MISDEMEANOR_THRESHOLD = 50;
-  // uint256 public constant FELONY_THRESHOLD = 150;
-  uint256 public constant MISDEMEANOR_THRESHOLD = 5;
-  uint256 public constant FELONY_THRESHOLD = 10;
+  uint256 public constant MISDEMEANOR_THRESHOLD = 50;
+  uint256 public constant FELONY_THRESHOLD = 150;
   uint256 public constant DECREASE_RATE = 4;
 
   // State of the contract
@@ -58,7 +55,6 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   event crashResponse();
 
   event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
-  event failedMaliciousVoteSlash(bytes32 indexed voteAddrSlice, bytes failReason);
 
   struct Indicator {
     uint256 height;
@@ -247,11 +243,12 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       _verifyBLSSignature(_evidence.voteB, _evidence.voteAddr), "verify signature failed");
 
     // reward sender and felony validator if validator found
+    // TODO: after BC-fusion, we don't need to check if validator is living
     (address[] memory vals, bytes[] memory voteAddrs) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
     for (uint i; i < voteAddrs.length; ++i) {
       if (BytesLib.equal(voteAddrs[i],  _evidence.voteAddr)) {
         uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewardsforFinality(msg.sender, amount);
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
         break;
       }
@@ -261,12 +258,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
       IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
     } else {
       // send slash msg to bc if the validator not migrated
-      bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr,0);
-      try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0) {
-        emit maliciousVoteSlashed(voteAddrSlice);
-      } catch (bytes memory reason) {
-        emit failedMaliciousVoteSlash(voteAddrSlice, reason);
-      }
+      ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0);
+
+      bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr, 0);
+      emit maliciousVoteSlashed(voteAddrSlice);
     }
   }
 
@@ -304,18 +299,12 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
     require(IStakeHub(STAKE_HUB_ADDR).consensusToOperator(signer) != address(0), "validator not migrated");
     require(evidenceHeight + felonySlashScope >= block.number, "evidence too old");
 
-    // reward sender and felony validator if validator found
-    (address[] memory vals, ) = IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
-    for (uint i; i < vals.length; ++i) {
-      if (signer == vals[i]) {
-        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
-        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
-        break;
-      }
-    }
-
+    // reward sender and felony validator
     IStakeHub(STAKE_HUB_ADDR).doubleSignSlash(signer);
+    IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(signer);
+
+    uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
+    ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
   }
 
   /**

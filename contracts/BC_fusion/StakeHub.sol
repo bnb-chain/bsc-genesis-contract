@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./System.sol";
 import "./lib/Utils.sol";
 import "./interface/IBSCValidatorSet.sol";
+import "./interface/ICrossChain.sol";
 import "./interface/IGovToken.sol";
 import "./interface/IStakeCredit.sol";
 
@@ -176,7 +177,7 @@ contract StakeHub is System, Initializable {
         bytes voteAddress
     );
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
-    event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
+    event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
     event DescriptionEdited(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
@@ -994,8 +995,8 @@ contract StakeHub is System, Initializable {
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, downtimeJailTime);
-            // need to inform BSCValidatorSet contract to remove the validator
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).jailValidator(valInfo.consensusAddress);
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         }
     }
 
@@ -1016,8 +1017,11 @@ contract StakeHub is System, Initializable {
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
-            emit ValidatorEmptyJailed(valInfo.operatorAddress);
-            return;
+            // 0x08 is the staking channel id. If this channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
+            if (!ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, 0x08)) {
+                emit ValidatorEmptyJailed(valInfo.operatorAddress);
+                return;
+            }
         }
 
         if (jailUntil > valInfo.jailUntil) {
