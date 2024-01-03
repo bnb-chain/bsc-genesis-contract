@@ -1016,13 +1016,12 @@ contract StakeHub is System, Initializable {
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
-        // 0x08 is the staking channel id. If this channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
-        if (
-            !ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, 0x08)
-                && isLast
-        ) {
-            emit ValidatorEmptyJailed(valInfo.operatorAddress);
-            return;
+        if (isLast) {
+            // 0x08 is the staking channel id. If this channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
+            if (!ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, 0x08)) {
+                emit ValidatorEmptyJailed(valInfo.operatorAddress);
+                return;
+            }
         }
 
         if (jailUntil > valInfo.jailUntil) {
