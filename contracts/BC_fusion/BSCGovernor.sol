@@ -134,6 +134,14 @@ contract BSCGovernor is
         return GovernorCompatibilityBravoUpgradeable.propose(targets, values, calldatas, description);
     }
 
+
+    /**
+     * @dev Function to queue a proposal to the timelock.
+     * @param targets target contracts to call
+     * @param values msg.value for each contract call
+     * @param calldatas calldata for each contract call
+     * @param descriptionHash the description hash
+     */
     function queue(
         address[] memory targets,
         uint256[] memory values,
