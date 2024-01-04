@@ -11,6 +11,7 @@ interface TokenManager {
     event syncSuccess(address indexed bep20Addr);
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BEP2_TOKEN_DECIMALS() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function BIND_PACKAGE() external view returns (uint8);

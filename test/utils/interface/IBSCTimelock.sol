@@ -29,10 +29,12 @@ interface BSCTimelock {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function CANCELLER_ROLE() external view returns (bytes32);
     function DEFAULT_ADMIN_ROLE() external view returns (bytes32);
     function EXECUTOR_ROLE() external view returns (bytes32);
     function PROPOSER_ROLE() external view returns (bytes32);
+    function STAKING_CHANNELID() external view returns (uint8);
     function TIMELOCK_ADMIN_ROLE() external view returns (bytes32);
     function cancel(bytes32 id) external;
     function execute(address target, uint256 value, bytes memory payload, bytes32 predecessor, bytes32 salt)

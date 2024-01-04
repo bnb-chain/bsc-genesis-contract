@@ -27,6 +27,7 @@ interface TokenHub {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BEP2_TOKEN_DECIMALS() external view returns (uint8);
     function BEP2_TOKEN_SYMBOL_FOR_BNB() external view returns (bytes32);
     function BIND_CHANNELID() external view returns (uint8);
@@ -84,6 +85,7 @@ interface TokenHub {
     function bscChainID() external view returns (uint16);
     function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) external;
     function cancelTransferIn(address tokenAddress, address attacker) external;
+    function claimMigrationFund(uint256 amount) external returns (bool);
     function claimRewards(address payable to, uint256 amount) external returns (uint256);
     function getBep2SymbolByContractAddr(address contractAddr) external view returns (bytes32);
     function getBoundBep2Symbol(address contractAddr) external view returns (string memory);

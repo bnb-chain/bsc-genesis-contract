@@ -23,8 +23,10 @@ interface GovToken {
     event ParamChange(string key, bytes value);
     event Transfer(address indexed from, address indexed to, uint256 value);
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function CLOCK_MODE() external view returns (string memory);
     function DOMAIN_SEPARATOR() external view returns (bytes32);
+    function STAKING_CHANNELID() external view returns (uint8);
     function allowance(address owner, address spender) external view returns (uint256);
     function approve(address spender, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);

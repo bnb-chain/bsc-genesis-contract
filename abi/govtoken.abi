@@ -1,6 +1,19 @@
 [
   {
     "type": "function",
+    "name": "BC_FUSION_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "CLOCK_MODE",
     "inputs": [],
     "outputs": [
@@ -21,6 +34,19 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "STAKING_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
       }
     ],
     "stateMutability": "view"

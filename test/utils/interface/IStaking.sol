@@ -29,6 +29,7 @@ interface Staking {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_FAILED() external view returns (uint8);
     function CODE_OK() external view returns (uint32);

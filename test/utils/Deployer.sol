@@ -51,6 +51,7 @@ contract Deployer is Test {
     uint8 public constant GOV_CHANNELID = 0x09;
     uint8 public constant SLASH_CHANNELID = 0x0b;
     uint8 public constant CROSS_STAKE_CHANNELID = 0x10;
+    uint8 public constant BC_FUSION_CHANNELID = 0x11;
 
     BSCValidatorSet public bscValidatorSet;
     SlashIndicator public slashIndicator;

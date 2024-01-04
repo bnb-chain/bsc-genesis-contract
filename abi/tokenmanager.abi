@@ -6,6 +6,19 @@
   },
   {
     "type": "function",
+    "name": "BC_FUSION_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "BEP2_TOKEN_DECIMALS",
     "inputs": [],
     "outputs": [

@@ -28,6 +28,7 @@ interface CrossChain {
     event unsupportedPackage(uint64 indexed packageSequence, uint8 indexed channelId, bytes payload);
 
     function ACK_PACKAGE() external view returns (uint8);
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function CANCEL_TRANSFER_PROPOSAL() external view returns (bytes32);
     function CODE_OK() external view returns (uint32);
