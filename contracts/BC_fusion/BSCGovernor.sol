@@ -135,6 +135,27 @@ contract BSCGovernor is
     }
 
     /**
+     * @dev Function to queue a proposal to the timelock.
+     * @param targets target contracts to call
+     * @param values msg.value for each contract call
+     * @param calldatas calldata for each contract call
+     * @param descriptionHash the description hash
+     */
+    function queue(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    )
+        public
+        override(GovernorTimelockControlUpgradeable, IGovernorTimelockUpgradeable)
+        whenNotPaused
+        returns (uint256 proposalId)
+    {
+        return GovernorTimelockControlUpgradeable.queue(targets, values, calldatas, descriptionHash);
+    }
+
+    /**
      * @dev Cancel a proposal. A proposal is cancellable by the proposer, but only while it is Pending state, i.e.
      * before the vote starts.
      *
