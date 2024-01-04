@@ -13,7 +13,7 @@ import "./lib/Utils.sol";
 /**
  * @title TokenRecoverPortal is used to recover the token from BC users.
  * @dev This is designed for the BC users to recover the token from TokenHub.
- * The BC will chain will stop and generate a merkle tree root after BC-fusion plan was started.
+ * The BC chain will stop and generate a merkle tree root after BC-fusion plan was started.
  * The BC users can recover the token from TokenHub after the merkle tree root is generated.
  * For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
  */
@@ -88,7 +88,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     /*----------------- events -----------------*/
     // This event is triggered whenever a call to #pause succeeds.
     event Paused();
-    // This event is triggered whenever a call to #pause succeeds.
+    // This event is triggered whenever a call to #resumed succeeds.
     event Resumed();
     // This event is triggered whenever a call to #recover succeeds.
     event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
