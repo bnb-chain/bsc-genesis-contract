@@ -139,7 +139,12 @@ contract BSCGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) public override(GovernorTimelockControlUpgradeable, IGovernorTimelockUpgradeable) whenNotPaused returns (uint256 proposalId) {
+    )
+        public
+        override(GovernorTimelockControlUpgradeable, IGovernorTimelockUpgradeable)
+        whenNotPaused
+        returns (uint256 proposalId)
+    {
         return GovernorTimelockControlUpgradeable.queue(targets, values, calldatas, descriptionHash);
     }
 
