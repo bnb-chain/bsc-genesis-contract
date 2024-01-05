@@ -146,7 +146,6 @@ contract StakeHub is System, Initializable {
         address delegator; // the beneficiary of the delegation
         address refundAddress; // the BC address to refund the fund if migration failed
         uint256 amount; // the amount of BNB to be migrated(decimal: 18)
-        bool delegateVotePower; // whether to delegate vote power to the target validator
     }
 
     enum StakeMigrationStatus {
@@ -1009,8 +1008,6 @@ contract StakeHub is System, Initializable {
                 migrationPackage.refundAddress = address(uint160(iter.next().toAddress()));
             } else if (idx == 3) {
                 migrationPackage.amount = iter.next().toUint();
-            } else if (idx == 4) {
-                migrationPackage.delegateVotePower = iter.next().toBoolean();
                 success = true;
             } else {
                 break;
@@ -1046,11 +1043,6 @@ contract StakeHub is System, Initializable {
             IStakeCredit(valInfo.creditContract).delegate{ value: migrationPkg.amount }(migrationPkg.delegator);
         emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
         emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
-
-        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, migrationPkg.delegator);
-        if (migrationPkg.delegateVotePower) {
-            IGovToken(GOV_TOKEN_ADDR).delegateVote(migrationPkg.delegator, migrationPkg.operatorAddress);
-        }
 
         return StakeMigrationStatus.MIGRATE_SUCCESS;
     }

@@ -23,9 +23,7 @@ contract StakeHubTest is Deployer {
     event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event MigrateSuccess(
-        address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount
-    );
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationStatus status
     );
@@ -535,16 +533,14 @@ contract StakeHubTest is Deployer {
     function testHandleMigrationSynPackage() public {
         address delegator = _getNextUserAddress();
         uint256 delegation = 1 ether;
-        bool delegateVotingPower = true;
         (address validator, address credit) = _createValidator(2000 ether);
 
         // failed for validator not existed
-        bytes[] memory elements = new bytes[](5);
+        bytes[] memory elements = new bytes[](4);
         elements[0] = delegator.encodeAddress();
         elements[1] = delegator.encodeAddress();
         elements[2] = delegator.encodeAddress();
         elements[3] = delegation.encodeUint();
-        elements[4] = delegateVotingPower.encodeBool();
 
         vm.expectEmit(true, true, true, true, address(stakeHub));
         emit MigrateFailed(delegator, delegator, delegation, StakeMigrationStatus.VALIDATOR_NOT_EXISTED);
