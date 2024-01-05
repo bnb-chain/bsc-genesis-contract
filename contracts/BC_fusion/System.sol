@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 contract System {
     /*----------------- constants -----------------*/
     uint8 public constant STAKING_CHANNELID = 0x08;
-    uint8 public constant BC_FUSION_CHANNELID = 0x11; // new channel id for cross-chain stake migration after BC-fusion
+    uint8 public constant BC_FUSION_CHANNELID = 0x11; // new channel id for cross-chain redelegate from Beacon Chain to Smart Chain after Feynman upgrade
 
     address internal constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address internal constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
