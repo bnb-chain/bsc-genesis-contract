@@ -1,4 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+
+/**
+ * @dev This library provides a RLP decoder.
+ * This lib is copied from `contracts/lib/RLPDecode.sol`. Some necessary modifications are made to make it compatible with solidity 0.8.17.
+ * And we also applied this lib in greenfield(https://github.com/bnb-chain/greenfield) project.
+ * This is unnecessary to be audited again.
+ */
 pragma solidity 0.8.17;
 
 library RLPDecode {
