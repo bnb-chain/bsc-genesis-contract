@@ -5,19 +5,6 @@
   },
   {
     "type": "function",
-    "name": "BALANCE_NOT_ENOUGH",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "BC_FUSION_CHANNELID",
     "inputs": [],
     "outputs": [
@@ -38,19 +25,6 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "CLAIM_FUND_FAILED",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
       }
     ],
     "stateMutability": "view"
@@ -83,19 +57,6 @@
   },
   {
     "type": "function",
-    "name": "MIGRATION_SUCCESS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "REDELEGATE_FEE_RATE_BASE",
     "inputs": [],
     "outputs": [
@@ -110,32 +71,6 @@
   {
     "type": "function",
     "name": "STAKING_CHANNELID",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "VALIDATOR_JAILED",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint8",
-        "internalType": "uint8"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "VALIDATOR_NOT_EXISTED",
     "inputs": [],
     "outputs": [
       {
@@ -1246,7 +1181,7 @@
   },
   {
     "type": "event",
-    "name": "MigrationFailed",
+    "name": "MigrateFailed",
     "inputs": [
       {
         "name": "operatorAddress",
@@ -1267,17 +1202,17 @@
         "internalType": "uint256"
       },
       {
-        "name": "resCode",
+        "name": "status",
         "type": "uint8",
         "indexed": false,
-        "internalType": "uint8"
+        "internalType": "enum StakeHub.StakeMigrationStatus"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "MigrationSucceed",
+    "name": "MigrateSuccess",
     "inputs": [
       {
         "name": "operatorAddress",

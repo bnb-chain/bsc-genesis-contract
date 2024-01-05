@@ -88,10 +88,11 @@ interface CrossChain {
         external
         view
         returns (uint16 quorum, uint128 expiredAt, bytes32 contentHash);
-    function encodePayload(uint8 packageType, uint256 relayFee, bytes memory msgBytes)
-        external
-        pure
-        returns (bytes memory);
+    function encodePayload(
+        uint8 packageType,
+        uint256 relayFee,
+        bytes memory msgBytes
+    ) external pure returns (bytes memory);
     function handlePackage(
         bytes memory payload,
         bytes memory proof,

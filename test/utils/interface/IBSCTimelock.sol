@@ -37,9 +37,13 @@ interface BSCTimelock {
     function STAKING_CHANNELID() external view returns (uint8);
     function TIMELOCK_ADMIN_ROLE() external view returns (bytes32);
     function cancel(bytes32 id) external;
-    function execute(address target, uint256 value, bytes memory payload, bytes32 predecessor, bytes32 salt)
-        external
-        payable;
+    function execute(
+        address target,
+        uint256 value,
+        bytes memory payload,
+        bytes32 predecessor,
+        bytes32 salt
+    ) external payable;
     function executeBatch(
         address[] memory targets,
         uint256[] memory values,
@@ -52,10 +56,13 @@ interface BSCTimelock {
     function getTimestamp(bytes32 id) external view returns (uint256);
     function grantRole(bytes32 role, address account) external;
     function hasRole(bytes32 role, address account) external view returns (bool);
-    function hashOperation(address target, uint256 value, bytes memory data, bytes32 predecessor, bytes32 salt)
-        external
-        pure
-        returns (bytes32);
+    function hashOperation(
+        address target,
+        uint256 value,
+        bytes memory data,
+        bytes32 predecessor,
+        bytes32 salt
+    ) external pure returns (bytes32);
     function hashOperationBatch(
         address[] memory targets,
         uint256[] memory values,
@@ -68,9 +75,13 @@ interface BSCTimelock {
     function isOperationDone(bytes32 id) external view returns (bool);
     function isOperationPending(bytes32 id) external view returns (bool);
     function isOperationReady(bytes32 id) external view returns (bool);
-    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory)
-        external
-        returns (bytes4);
+    function onERC1155BatchReceived(
+        address,
+        address,
+        uint256[] memory,
+        uint256[] memory,
+        bytes memory
+    ) external returns (bytes4);
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external returns (bytes4);
     function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4);
     function renounceRole(bytes32 role, address account) external;

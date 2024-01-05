@@ -3,6 +3,7 @@ pragma solidity ^0.8.10;
 
 interface StakeHub {
     type SlashType is uint8;
+    type StakeMigrationStatus is uint8;
 
     struct Commission {
         uint64 rate;
@@ -56,10 +57,10 @@ interface StakeHub {
     event Delegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event DescriptionEdited(address indexed operatorAddress);
     event Initialized(uint8 version);
-    event MigrationFailed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, uint8 resCode);
-    event MigrationSucceed(
-        address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount
+    event MigrateFailed(
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationStatus status
     );
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ParamChange(string key, bytes value);
     event Paused();
     event Redelegated(
@@ -91,17 +92,12 @@ interface StakeHub {
 
     receive() external payable;
 
-    function BALANCE_NOT_ENOUGH() external view returns (uint8);
     function BC_FUSION_CHANNELID() external view returns (uint8);
     function BREATHE_BLOCK_INTERVAL() external view returns (uint256);
-    function CLAIM_FUND_FAILED() external view returns (uint8);
     function DEAD_ADDRESS() external view returns (address);
     function LOCK_AMOUNT() external view returns (uint256);
-    function MIGRATION_SUCCESS() external view returns (uint8);
     function REDELEGATE_FEE_RATE_BASE() external view returns (uint256);
     function STAKING_CHANNELID() external view returns (uint8);
-    function VALIDATOR_JAILED() external view returns (uint8);
-    function VALIDATOR_NOT_EXISTED() external view returns (uint8);
     function addToBlackList(address account) external;
     function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
@@ -141,7 +137,10 @@ interface StakeHub {
         );
     function getValidatorCommission(address operatorAddress) external view returns (Commission memory);
     function getValidatorDescription(address operatorAddress) external view returns (Description memory);
-    function getValidatorElectionInfo(uint256 offset, uint256 limit)
+    function getValidatorElectionInfo(
+        uint256 offset,
+        uint256 limit
+    )
         external
         view
         returns (
@@ -152,10 +151,10 @@ interface StakeHub {
         );
     function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256);
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256);
-    function getValidators(uint256 offset, uint256 limit)
-        external
-        view
-        returns (address[] memory operatorAddrs, address[] memory creditAddrs, uint256 totalLength);
+    function getValidators(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory operatorAddrs, address[] memory creditAddrs, uint256 totalLength);
     function handleAckPackage(uint8 channelId, bytes memory msgBytes) external;
     function handleFailAckPackage(uint8 channelId, bytes memory msgBytes) external;
     function handleSynPackage(uint8, bytes memory msgBytes) external returns (bytes memory);

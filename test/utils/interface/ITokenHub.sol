@@ -102,10 +102,12 @@ interface TokenHub {
     function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external;
     function relayFee() external view returns (uint256);
     function setLargeTransferLimit(address bep20Token, uint256 largeTransferLimit) external;
-    function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime)
-        external
-        payable
-        returns (bool);
+    function transferOut(
+        address contractAddr,
+        address recipient,
+        uint256 amount,
+        uint64 expireTime
+    ) external payable returns (bool);
     function unbindToken(bytes32 bep2Symbol, address contractAddr) external;
     function updateParam(string memory key, bytes memory value) external;
     function withdrawStakingBNB(uint256 amount) external returns (bool);

@@ -61,8 +61,15 @@ interface GovToken {
     function name() external view returns (string memory);
     function nonces(address owner) external view returns (uint256);
     function numCheckpoints(address account) external view returns (uint32);
-    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
-        external;
+    function permit(
+        address owner,
+        address spender,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
     function symbol() external view returns (string memory);
     function sync(address stakeCredit, address account) external;
     function syncBatch(address[] memory stakeCredits, address account) external;
