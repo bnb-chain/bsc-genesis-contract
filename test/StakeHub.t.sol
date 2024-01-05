@@ -25,10 +25,10 @@ contract StakeHubTest is Deployer {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event MigrateFailed(
-        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationStatus status
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
 
-    enum StakeMigrationStatus {
+    enum StakeMigrationRespCode {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
         ILLEGAL_DELEGATOR,
@@ -543,7 +543,7 @@ contract StakeHubTest is Deployer {
         elements[3] = delegation.encodeUint();
 
         vm.expectEmit(true, true, true, true, address(stakeHub));
-        emit MigrateFailed(delegator, delegator, delegation, StakeMigrationStatus.VALIDATOR_NOT_EXISTED);
+        emit MigrateFailed(delegator, delegator, delegation, StakeMigrationRespCode.VALIDATOR_NOT_EXISTED);
         vm.prank(address(crossChain));
         stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
 
@@ -552,7 +552,7 @@ contract StakeHubTest is Deployer {
         vm.deal(TOKEN_HUB_ADDR, 0);
 
         vm.expectEmit(true, true, true, true, address(stakeHub));
-        emit MigrateFailed(validator, delegator, delegation, StakeMigrationStatus.CLAIM_FUND_FAILED);
+        emit MigrateFailed(validator, delegator, delegation, StakeMigrationRespCode.CLAIM_FUND_FAILED);
         vm.prank(address(crossChain));
         stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
 

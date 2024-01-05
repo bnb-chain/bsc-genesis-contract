@@ -144,11 +144,11 @@ contract StakeHub is System, Initializable {
     struct StakeMigrationPackage {
         address operatorAddress; // the operator address of the target validator to delegate to
         address delegator; // the beneficiary of the delegation
-        address refundAddress; // the BC address to refund the fund if migration failed
+        address refundAddress; // the Beacon Chain address to refund the fund if migration failed
         uint256 amount; // the amount of BNB to be migrated(decimal: 18)
     }
 
-    enum StakeMigrationStatus {
+    enum StakeMigrationRespCode {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
         ILLEGAL_DELEGATOR,
@@ -223,7 +223,7 @@ contract StakeHub is System, Initializable {
     event Resumed();
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event MigrateFailed(
-        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationStatus status
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
@@ -288,6 +288,10 @@ contract StakeHub is System, Initializable {
         (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
         if (!decodeSuccess) revert InvalidSynPackage();
 
+        if (migrationPkg.amount == 0) {
+            return new bytes(0);
+        }
+
         // claim fund from TokenHub
         _isReceivingFund = 1;
         bool claimSuccess = ITokenHub(TOKEN_HUB_ADDR).claimMigrationFund(migrationPkg.amount);
@@ -296,18 +300,19 @@ contract StakeHub is System, Initializable {
                 migrationPkg.operatorAddress,
                 migrationPkg.delegator,
                 migrationPkg.amount,
-                StakeMigrationStatus.CLAIM_FUND_FAILED
+                StakeMigrationRespCode.CLAIM_FUND_FAILED
             );
+            _isReceivingFund = 0;
             return msgBytes;
         }
         _isReceivingFund = 0;
 
-        StakeMigrationStatus status = _doMigration(migrationPkg);
+        StakeMigrationRespCode respCode = _doMigration(migrationPkg);
 
-        if (status == StakeMigrationStatus.MIGRATE_SUCCESS) {
+        if (respCode == StakeMigrationRespCode.MIGRATE_SUCCESS) {
             return new bytes(0);
         } else {
-            emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, status);
+            emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, respCode);
             return msgBytes;
         }
     }
@@ -1021,22 +1026,22 @@ contract StakeHub is System, Initializable {
     function _doMigration(StakeMigrationPackage memory migrationPkg)
         internal
         whenNotPaused
-        returns (StakeMigrationStatus)
+        returns (StakeMigrationRespCode)
     {
         if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
-            return StakeMigrationStatus.ILLEGAL_DELEGATOR;
+            return StakeMigrationRespCode.ILLEGAL_DELEGATOR;
         }
 
         if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
-            return StakeMigrationStatus.VALIDATOR_NOT_EXISTED;
+            return StakeMigrationRespCode.VALIDATOR_NOT_EXISTED;
         }
         Validator memory valInfo = _validators[migrationPkg.operatorAddress];
         if (valInfo.jailed && migrationPkg.delegator != migrationPkg.operatorAddress) {
-            return StakeMigrationStatus.VALIDATOR_JAILED;
+            return StakeMigrationRespCode.VALIDATOR_JAILED;
         }
 
         if (address(this).balance < migrationPkg.amount) {
-            return StakeMigrationStatus.BALANCE_NOT_ENOUGH;
+            return StakeMigrationRespCode.BALANCE_NOT_ENOUGH;
         }
 
         uint256 shares =
@@ -1044,7 +1049,7 @@ contract StakeHub is System, Initializable {
         emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
         emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
 
-        return StakeMigrationStatus.MIGRATE_SUCCESS;
+        return StakeMigrationRespCode.MIGRATE_SUCCESS;
     }
 
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
