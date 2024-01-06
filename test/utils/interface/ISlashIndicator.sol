@@ -25,6 +25,7 @@ interface SlashIndicator {
     event unKnownResponse(uint32 code);
     event validatorSlashed(address indexed validator);
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);

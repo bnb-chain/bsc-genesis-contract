@@ -29,6 +29,7 @@ interface Staking {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function CODE_FAILED() external view returns (uint8);
     function CODE_OK() external view returns (uint32);
@@ -78,10 +79,11 @@ interface Staking {
     function getDelegated(address delegator, address validator) external view returns (uint256);
     function getDistributedReward(address delegator) external view returns (uint256);
     function getMinDelegation() external view returns (uint256);
-    function getPendingRedelegateTime(address delegator, address valSrc, address valDst)
-        external
-        view
-        returns (uint256);
+    function getPendingRedelegateTime(
+        address delegator,
+        address valSrc,
+        address valDst
+    ) external view returns (uint256);
     function getPendingUndelegateTime(address delegator, address validator) external view returns (uint256);
     function getRelayerFee() external view returns (uint256);
     function getRequestInFly(address delegator) external view returns (uint256[3] memory);

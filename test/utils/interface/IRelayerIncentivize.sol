@@ -10,6 +10,7 @@ interface RelayerIncentivize {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function CALLER_COMPENSATION_DENOMINATOR() external view returns (uint256);
     function CALLER_COMPENSATION_MOLECULE() external view returns (uint256);

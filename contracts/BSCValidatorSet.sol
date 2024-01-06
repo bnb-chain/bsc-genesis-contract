@@ -389,7 +389,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       Validator[] memory bscValidatorSet = _tmpMigratedValidatorSet;
       bytes[] memory bscVoteAddrs = _tmpMigratedVoteAddrs;
       for (uint256 i; i < bscValidatorSet.length; ++i) {
-        bscValidatorSet[i].votingPower = bscValidatorSet[i].votingPower * 2; // double the voting power
+        bscValidatorSet[i].votingPower = bscValidatorSet[i].votingPower * 3; // amplify the voting power for BSC validators
       }
       (Validator[] memory mergedValidators, bytes[] memory mergedVoteAddrs) = _mergeValidatorSet(validatorSet, voteAddrs, bscValidatorSet, bscVoteAddrs);
 

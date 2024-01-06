@@ -26,6 +26,7 @@ interface BSCValidatorSet {
 
     receive() external payable;
 
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function BIND_CHANNELID() external view returns (uint8);
     function BLOCK_FEES_RATIO_SCALE() external view returns (uint256);
     function BURN_ADDRESS() external view returns (address);

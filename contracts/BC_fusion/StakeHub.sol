@@ -11,8 +11,11 @@ import "./interface/IBSCValidatorSet.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IGovToken.sol";
 import "./interface/IStakeCredit.sol";
+import "./interface/ITokenHub.sol";
+import "./lib/RLPDecode.sol";
 
 contract StakeHub is System, Initializable {
+    using RLPDecode for *;
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -86,10 +89,11 @@ contract StakeHub is System, Initializable {
     error VoteAddressExpired();
     // @notice signature: 0xc2aee074
     error ConsensusAddressExpired();
+    error InvalidSynPackage();
 
     /*----------------- storage -----------------*/
     bool private _paused;
-    uint8 private _isRedelegating;
+    uint8 private _isReceivingFund;
     uint256 public transferGasLimit;
 
     // stake params
@@ -137,6 +141,22 @@ contract StakeHub is System, Initializable {
     mapping(address => bool) public blackList;
 
     /*----------------- structs and events -----------------*/
+    struct StakeMigrationPackage {
+        address operatorAddress; // the operator address of the target validator to delegate to
+        address delegator; // the beneficiary of the delegation
+        address refundAddress; // the Beacon Chain address to refund the fund if migration failed
+        uint256 amount; // the amount of BNB to be migrated(decimal: 18)
+    }
+
+    enum StakeMigrationRespCode {
+        MIGRATE_SUCCESS,
+        CLAIM_FUND_FAILED,
+        ILLEGAL_DELEGATOR,
+        VALIDATOR_NOT_EXISTED,
+        VALIDATOR_JAILED,
+        BALANCE_NOT_ENOUGH
+    }
+
     struct Validator {
         address consensusAddress;
         address operatorAddress;
@@ -201,6 +221,11 @@ contract StakeHub is System, Initializable {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event Paused();
     event Resumed();
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event MigrateFailed(
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
+    );
+    event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
@@ -225,7 +250,7 @@ contract StakeHub is System, Initializable {
 
     receive() external payable {
         // to prevent BNB from being lost
-        if (_isRedelegating != 1) revert();
+        if (_isReceivingFund != 1) revert();
     }
 
     /**
@@ -234,8 +259,8 @@ contract StakeHub is System, Initializable {
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         transferGasLimit = 5000;
         minSelfDelegationBNB = 2_000 ether;
-        minDelegationBNBChange = 1 ether - 1; // minus 1 to be more user-friendly when precision loss happens
-        maxElectedValidators = 29;
+        minDelegationBNBChange = 1 ether;
+        maxElectedValidators = 45;
         unbondPeriod = 7 days;
         redelegateFeeRate = 2;
         downtimeSlashAmount = 10 ether;
@@ -256,6 +281,50 @@ contract StakeHub is System, Initializable {
         }
 
         assetProtector = DEAD_ADDRESS; // TODO
+    }
+
+    /*----------------- Implement cross chain app -----------------*/
+    function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract returns (bytes memory) {
+        (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
+        if (!decodeSuccess) revert InvalidSynPackage();
+
+        if (migrationPkg.amount == 0) {
+            return new bytes(0);
+        }
+
+        // claim fund from TokenHub
+        _isReceivingFund = 1;
+        bool claimSuccess = ITokenHub(TOKEN_HUB_ADDR).claimMigrationFund(migrationPkg.amount);
+        if (!claimSuccess) {
+            emit MigrateFailed(
+                migrationPkg.operatorAddress,
+                migrationPkg.delegator,
+                migrationPkg.amount,
+                StakeMigrationRespCode.CLAIM_FUND_FAILED
+            );
+            _isReceivingFund = 0;
+            return msgBytes;
+        }
+        _isReceivingFund = 0;
+
+        StakeMigrationRespCode respCode = _doMigration(migrationPkg);
+
+        if (respCode == StakeMigrationRespCode.MIGRATE_SUCCESS) {
+            return new bytes(0);
+        } else {
+            emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, respCode);
+            return msgBytes;
+        }
+    }
+
+    function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
+        // should not happen
+        emit unexpectedPackage(channelId, msgBytes);
+    }
+
+    function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
+        // should not happen
+        emit unexpectedPackage(channelId, msgBytes);
     }
 
     /*----------------- external functions -----------------*/
@@ -503,7 +572,7 @@ contract StakeHub is System, Initializable {
         Validator memory dstValInfo = _validators[dstValidator];
         if (dstValInfo.jailed && delegator != dstValidator) revert OnlySelfDelegation();
 
-        _isRedelegating = 1;
+        _isReceivingFund = 1;
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
         // check if the srcValidator has enough self delegation
@@ -520,7 +589,7 @@ contract StakeHub is System, Initializable {
 
         bnbAmount -= feeCharge;
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
-        _isRedelegating = 0;
+        _isReceivingFund = 0;
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
         address[] memory stakeCredits = new address[](2);
@@ -925,6 +994,64 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- internal functions -----------------*/
+    function _decodeMigrationSynPackage(bytes memory msgBytes)
+        internal
+        pure
+        returns (StakeMigrationPackage memory, bool)
+    {
+        StakeMigrationPackage memory migrationPackage;
+
+        RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
+        bool success = false;
+        uint256 idx = 0;
+        while (iter.hasNext()) {
+            if (idx == 0) {
+                migrationPackage.operatorAddress = address(uint160(iter.next().toAddress()));
+            } else if (idx == 1) {
+                migrationPackage.delegator = address(uint160(iter.next().toAddress()));
+            } else if (idx == 2) {
+                migrationPackage.refundAddress = address(uint160(iter.next().toAddress()));
+            } else if (idx == 3) {
+                migrationPackage.amount = iter.next().toUint();
+                success = true;
+            } else {
+                break;
+            }
+            ++idx;
+        }
+
+        return (migrationPackage, success);
+    }
+
+    function _doMigration(StakeMigrationPackage memory migrationPkg)
+        internal
+        whenNotPaused
+        returns (StakeMigrationRespCode)
+    {
+        if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
+            return StakeMigrationRespCode.ILLEGAL_DELEGATOR;
+        }
+
+        if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
+            return StakeMigrationRespCode.VALIDATOR_NOT_EXISTED;
+        }
+        Validator memory valInfo = _validators[migrationPkg.operatorAddress];
+        if (valInfo.jailed && migrationPkg.delegator != migrationPkg.operatorAddress) {
+            return StakeMigrationRespCode.VALIDATOR_JAILED;
+        }
+
+        if (address(this).balance < migrationPkg.amount) {
+            return StakeMigrationRespCode.BALANCE_NOT_ENOUGH;
+        }
+
+        uint256 shares =
+            IStakeCredit(valInfo.creditContract).delegate{ value: migrationPkg.amount }(migrationPkg.delegator);
+        emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
+        emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
+
+        return StakeMigrationRespCode.MIGRATE_SUCCESS;
+    }
+
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
@@ -1017,8 +1144,12 @@ contract StakeHub is System, Initializable {
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
-            // 0x08 is the staking channel id. If this channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
-            if (!ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, 0x08)) {
+            // If staking channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
+            if (
+                !ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(
+                    VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID
+                )
+            ) {
                 emit ValidatorEmptyJailed(valInfo.operatorAddress);
                 return;
             }

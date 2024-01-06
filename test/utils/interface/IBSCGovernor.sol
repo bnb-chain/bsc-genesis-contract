@@ -55,9 +55,11 @@ interface BSCGovernor {
     receive() external payable;
 
     function BALLOT_TYPEHASH() external view returns (bytes32);
+    function BC_FUSION_CHANNELID() external view returns (uint8);
     function CLOCK_MODE() external view returns (string memory);
     function COUNTING_MODE() external pure returns (string memory);
     function EXTENDED_BALLOT_TYPEHASH() external view returns (bytes32);
+    function STAKING_CHANNELID() external view returns (uint8);
     function cancel(uint256 proposalId) external;
     function cancel(
         address[] memory targets,
@@ -66,13 +68,20 @@ interface BSCGovernor {
         bytes32 descriptionHash
     ) external returns (uint256);
     function castVote(uint256 proposalId, uint8 support) external returns (uint256);
-    function castVoteBySig(uint256 proposalId, uint8 support, uint8 v, bytes32 r, bytes32 s)
-        external
-        returns (uint256);
+    function castVoteBySig(
+        uint256 proposalId,
+        uint8 support,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external returns (uint256);
     function castVoteWithReason(uint256 proposalId, uint8 support, string memory reason) external returns (uint256);
-    function castVoteWithReasonAndParams(uint256 proposalId, uint8 support, string memory reason, bytes memory params)
-        external
-        returns (uint256);
+    function castVoteWithReasonAndParams(
+        uint256 proposalId,
+        uint8 support,
+        string memory reason,
+        bytes memory params
+    ) external returns (uint256);
     function castVoteWithReasonAndParamsBySig(
         uint256 proposalId,
         uint8 support,
@@ -113,10 +122,11 @@ interface BSCGovernor {
         );
     function getReceipt(uint256 proposalId, address voter) external view returns (Receipt memory);
     function getVotes(address account, uint256 timepoint) external view returns (uint256);
-    function getVotesWithParams(address account, uint256 timepoint, bytes memory params)
-        external
-        view
-        returns (uint256);
+    function getVotesWithParams(
+        address account,
+        uint256 timepoint,
+        bytes memory params
+    ) external view returns (uint256);
     function governorProtector() external view returns (address);
     function hasVoted(uint256 proposalId, address account) external view returns (bool);
     function hashProposal(
@@ -128,9 +138,13 @@ interface BSCGovernor {
     function initialize() external;
     function lateQuorumVoteExtension() external view returns (uint64);
     function name() external view returns (string memory);
-    function onERC1155BatchReceived(address, address, uint256[] memory, uint256[] memory, bytes memory)
-        external
-        returns (bytes4);
+    function onERC1155BatchReceived(
+        address,
+        address,
+        uint256[] memory,
+        uint256[] memory,
+        bytes memory
+    ) external returns (bytes4);
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external returns (bytes4);
     function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4);
     function pause() external;
@@ -169,9 +183,12 @@ interface BSCGovernor {
         string memory description
     ) external returns (uint256);
     function proposeStarted() external view returns (bool);
-    function queue(address[] memory targets, uint256[] memory values, bytes[] memory calldatas, bytes32 descriptionHash)
-        external
-        returns (uint256);
+    function queue(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        bytes32 descriptionHash
+    ) external returns (uint256);
     function queue(uint256 proposalId) external;
     function quorum(uint256 timepoint) external view returns (uint256);
     function quorumDenominator() external view returns (uint256);

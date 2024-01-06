@@ -23,6 +23,19 @@ contract StakeHubTest is Deployer {
     event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event MigrateFailed(
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
+    );
+
+    enum StakeMigrationRespCode {
+        MIGRATE_SUCCESS,
+        CLAIM_FUND_FAILED,
+        ILLEGAL_DELEGATOR,
+        VALIDATOR_NOT_EXISTED,
+        VALIDATOR_JAILED,
+        BALANCE_NOT_ENOUGH
+    }
 
     receive() external payable { }
 
@@ -515,6 +528,43 @@ contract StakeHubTest is Deployer {
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
         bscValidatorSet.updateValidatorSetV2(newConsensusAddrs, newVotingPower, newVoteAddrs);
+    }
+
+    function testHandleMigrationSynPackage() public {
+        address delegator = _getNextUserAddress();
+        uint256 delegation = 1 ether;
+        (address validator, address credit) = _createValidator(2000 ether);
+
+        // failed for validator not existed
+        bytes[] memory elements = new bytes[](4);
+        elements[0] = delegator.encodeAddress();
+        elements[1] = delegator.encodeAddress();
+        elements[2] = delegator.encodeAddress();
+        elements[3] = delegation.encodeUint();
+
+        vm.expectEmit(true, true, true, true, address(stakeHub));
+        emit MigrateFailed(delegator, delegator, delegation, StakeMigrationRespCode.VALIDATOR_NOT_EXISTED);
+        vm.prank(address(crossChain));
+        stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
+
+        // failed for claim fund failed
+        elements[0] = validator.encodeAddress();
+        vm.deal(TOKEN_HUB_ADDR, 0);
+
+        vm.expectEmit(true, true, true, true, address(stakeHub));
+        emit MigrateFailed(validator, delegator, delegation, StakeMigrationRespCode.CLAIM_FUND_FAILED);
+        vm.prank(address(crossChain));
+        stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
+
+        // success case
+        vm.deal(TOKEN_HUB_ADDR, 100 ether);
+        vm.expectEmit(true, true, true, true, address(stakeHub));
+        emit MigrateSuccess(validator, delegator, delegation, delegation);
+        vm.prank(address(crossChain));
+        stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
+
+        uint256 shares = IStakeCredit(credit).balanceOf(delegator);
+        assertEq(shares, delegation);
     }
 
     function testEncodeLegacyBytes() public {
