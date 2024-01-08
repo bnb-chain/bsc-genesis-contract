@@ -280,7 +280,9 @@ contract StakeHub is System, Initializable {
             _legacyVoteAddress[bcVoteAddress[i]] = true;
         }
 
-        assetProtector = DEAD_ADDRESS; // TODO
+        // TODO
+        // Different address will be set depending on the environment
+        assetProtector = DEAD_ADDRESS;
     }
 
     /*----------------- Implement cross chain app -----------------*/
