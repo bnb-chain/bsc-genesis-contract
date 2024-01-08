@@ -88,7 +88,9 @@ contract BSCGovernor is
         // BSCGovernor => Timelock => GovHub => system contracts
         whitelistTargets[GOV_HUB_ADDR] = true;
 
-        governorProtector = address(0xdEaD); // TODO
+        // TODO
+        // Different address will be set depending on the environment
+        governorProtector = address(0xdEaD);
     }
 
     /*----------------- onlyGovernorProtector -----------------*/
