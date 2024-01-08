@@ -1202,10 +1202,10 @@
         "internalType": "uint256"
       },
       {
-        "name": "status",
+        "name": "respCode",
         "type": "uint8",
         "indexed": false,
-        "internalType": "enum StakeHub.StakeMigrationStatus"
+        "internalType": "enum StakeHub.StakeMigrationRespCode"
       }
     ],
     "anonymous": false

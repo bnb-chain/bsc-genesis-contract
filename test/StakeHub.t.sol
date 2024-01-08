@@ -31,7 +31,6 @@ contract StakeHubTest is Deployer {
     enum StakeMigrationRespCode {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
-        ILLEGAL_DELEGATOR,
         VALIDATOR_NOT_EXISTED,
         VALIDATOR_JAILED,
         BALANCE_NOT_ENOUGH

@@ -151,7 +151,6 @@ contract StakeHub is System, Initializable {
     enum StakeMigrationRespCode {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
-        ILLEGAL_DELEGATOR,
         VALIDATOR_NOT_EXISTED,
         VALIDATOR_JAILED,
         BALANCE_NOT_ENOUGH
@@ -1031,12 +1030,13 @@ contract StakeHub is System, Initializable {
         returns (StakeMigrationRespCode)
     {
         if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
-            return StakeMigrationRespCode.ILLEGAL_DELEGATOR;
+            revert InBlackList();
         }
 
         if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
             return StakeMigrationRespCode.VALIDATOR_NOT_EXISTED;
         }
+
         Validator memory valInfo = _validators[migrationPkg.operatorAddress];
         if (valInfo.jailed && migrationPkg.delegator != migrationPkg.operatorAddress) {
             return StakeMigrationRespCode.VALIDATOR_JAILED;

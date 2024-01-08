@@ -188,7 +188,7 @@ interface BSCGovernor {
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) external returns (uint256);
+    ) external returns (uint256 proposalId);
     function queue(uint256 proposalId) external;
     function quorum(uint256 timepoint) external view returns (uint256);
     function quorumDenominator() external view returns (uint256);
