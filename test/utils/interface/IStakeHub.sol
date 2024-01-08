@@ -3,7 +3,7 @@ pragma solidity ^0.8.10;
 
 interface StakeHub {
     type SlashType is uint8;
-    type StakeMigrationStatus is uint8;
+    type StakeMigrationRespCode is uint8;
 
     struct Commission {
         uint64 rate;
@@ -58,7 +58,7 @@ interface StakeHub {
     event DescriptionEdited(address indexed operatorAddress);
     event Initialized(uint8 version);
     event MigrateFailed(
-        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationStatus status
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ParamChange(string key, bytes value);

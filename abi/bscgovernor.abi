@@ -1036,7 +1036,7 @@
     ],
     "outputs": [
       {
-        "name": "",
+        "name": "proposalId",
         "type": "uint256",
         "internalType": "uint256"
       }
