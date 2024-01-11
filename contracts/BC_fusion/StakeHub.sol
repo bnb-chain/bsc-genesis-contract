@@ -1051,6 +1051,8 @@ contract StakeHub is System, Initializable {
         emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
         emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
 
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, migrationPkg.delegator);
+
         return StakeMigrationRespCode.MIGRATE_SUCCESS;
     }
 
