@@ -14,6 +14,7 @@ interface BSCValidatorSet {
     event finalityRewardDeposit(address indexed validator, uint256 amount);
     event paramChange(string key, bytes value);
     event systemTransfer(uint256 amount);
+    event tmpValidatorSetUpdated(uint256 validatorsNum);
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
     event validatorDeposit(address indexed validator, uint256 amount);
     event validatorEmptyJailed(address indexed validator);
