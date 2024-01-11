@@ -172,6 +172,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   event validatorExitMaintenance(address indexed validator);
   event finalityRewardDeposit(address indexed validator, uint256 amount);
   event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
+  event tmpValidatorSetUpdated(uint256 validatorsNum);
 
   /*********************** init **************************/
   function init() external onlyNotInit{
@@ -276,6 +277,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
           _tmpMigratedVoteAddrs[i] = _voteAddrs[i];
         }
       }
+
+      emit tmpValidatorSetUpdated(newLength);
       return;
     }
 
