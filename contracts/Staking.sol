@@ -646,6 +646,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     pendingUndelegateTime[recipient][validator] = 0;
     undelegated[recipient] = undelegated[recipient].add(amount);
 
+    // this is to address the issue that the contract state will not being updated
+    // when the Beacon Chain system undelegate all the funds after second sunset upgrade
     if (isAutoUndelegate) {
       delegated[recipient] = delegated[recipient].sub(amount);
       delegatedOfValidator[recipient][validator] = delegatedOfValidator[recipient][validator].sub(amount);
