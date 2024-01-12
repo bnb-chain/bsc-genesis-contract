@@ -620,6 +620,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     address recipient;
     address validator;
     uint256 amount;
+    bool isAutoUndelegate;
     while (iter.hasNext()) {
       if (idx == 0) {
         recipient = address(uint160(iter.next().toAddress()));
@@ -628,6 +629,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
       } else if (idx == 2) {
         amount = uint256(iter.next().toUint());
         success = true;
+      } else if (idx == 3) {
+        isAutoUndelegate = iter.next().toBoolean();
       } else {
         break;
       }
@@ -642,6 +645,13 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
 
     pendingUndelegateTime[recipient][validator] = 0;
     undelegated[recipient] = undelegated[recipient].add(amount);
+
+    // this is to address the issue that the contract state will not being updated
+    // when the Beacon Chain system undelegate all the funds after second sunset upgrade
+    if (isAutoUndelegate) {
+      delegated[recipient] = delegated[recipient].sub(amount);
+      delegatedOfValidator[recipient][validator] = delegatedOfValidator[recipient][validator].sub(amount);
+    }
 
     emit undelegatedReceived(recipient, validator, amount);
     return (CODE_OK, new bytes(0));
