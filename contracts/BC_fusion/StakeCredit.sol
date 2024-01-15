@@ -31,6 +31,8 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     error TransferFailed();
     // @notice signature: 0x1f2a2005
     error ZeroAmount();
+    // @notice signature: 0x9811e0c7
+    error ZeroShares();
     // @notice signature: 0xf4d678b8
     error InsufficientBalance();
     // @notice signature: 0xad418937
@@ -98,6 +100,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
         if (msg.value == 0) revert ZeroAmount();
         shares = _mintAndSync(delegator, msg.value);
+        if (shares == 0) revert ZeroShares();
     }
 
     /**
@@ -106,7 +109,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @return bnbAmount the amount of BNB to be unlocked
      */
     function undelegate(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
-        if (shares == 0) revert ZeroAmount();
+        if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
         // add to the queue
@@ -128,7 +131,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
      * @return bnbAmount the amount of BNB unlocked
      */
     function unbond(address delegator, uint256 shares) external onlyStakeHub returns (uint256 bnbAmount) {
-        if (shares == 0) revert ZeroAmount();
+        if (shares == 0) revert ZeroShares();
         if (shares > balanceOf(delegator)) revert InsufficientBalance();
 
         bnbAmount = _burnAndSync(delegator, shares);
@@ -314,6 +317,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
     }
 
     function _mintAndSync(address account, uint256 bnbAmount) internal returns (uint256 shares) {
+        // shares here could be zero
         shares = getSharesByPooledBNB(bnbAmount);
         _mint(account, shares);
         totalPooledBNB += bnbAmount;

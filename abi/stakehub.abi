@@ -1355,6 +1355,25 @@
   },
   {
     "type": "event",
+    "name": "StakeCreditInitialized",
+    "inputs": [
+      {
+        "name": "operatorAddress",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "creditContract",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Undelegated",
     "inputs": [
       {

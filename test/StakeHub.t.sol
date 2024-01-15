@@ -32,8 +32,7 @@ contract StakeHubTest is Deployer {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
         VALIDATOR_NOT_EXISTED,
-        VALIDATOR_JAILED,
-        BALANCE_NOT_ENOUGH
+        VALIDATOR_JAILED
     }
 
     receive() external payable { }
