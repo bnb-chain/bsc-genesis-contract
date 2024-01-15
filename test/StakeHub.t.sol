@@ -300,6 +300,7 @@ contract StakeHubTest is Deployer {
         (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit RewardDistributed(validator, reward);
+        vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -347,6 +348,7 @@ contract StakeHubTest is Deployer {
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
         (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -399,6 +401,7 @@ contract StakeHubTest is Deployer {
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
         (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
@@ -430,6 +433,7 @@ contract StakeHubTest is Deployer {
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
         (address consensusAddress,,, bytes memory voteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
+        vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
 
