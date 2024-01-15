@@ -593,6 +593,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
   /**
    * @dev request a cross-chain transfer from BSC to BC
+   * @notice this function is deprecated after Feynman upgrade
    *
    * @param contractAddr The token contract which is transferred
    * @param recipient The destination address of the cross-chain transfer on BC.
@@ -600,46 +601,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
    * @param expireTime The expire time for the cross-chain transfer
    */
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
-    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    require(msg.value%TEN_DECIMALS==0, "invalid received BNB amount: precision loss in amount conversion");
-    bytes32 bep2TokenSymbol;
-    uint256 convertedAmount;
-    uint256 rewardForRelayer;
-    if (contractAddr==address(0x0)) {
-      require(msg.value>=amount.add(relayFee), "received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee");
-      require(amount%TEN_DECIMALS==0, "invalid transfer amount: precision loss in amount conversion");
-      rewardForRelayer=msg.value.sub(amount);
-      convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
-    } else {
-      bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
-      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
-      require(msg.value>=relayFee, "received BNB amount should be no less than the minimum relayFee");
-      rewardForRelayer=msg.value;
-      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
-      require(bep20TokenDecimals<=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
-      convertedAmount = convertToBep2Amount(amount, bep20TokenDecimals);// convert to bep2 amount
-      if (isMiniBEP2Token(bep2TokenSymbol)) {
-        require(convertedAmount >= 1e8 , "For miniToken, the transfer amount must not be less than 1");
-      }
-      require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
-      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
-      require(IBEP20(contractAddr).transferFrom(msg.sender, address(this), amount));
-    }
-    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
-      bep2TokenSymbol: bep2TokenSymbol,
-      contractAddr: contractAddr,
-      amounts: new uint256[](1),
-      recipients: new address[](1),
-      refundAddrs: new address[](1),
-      expireTime: expireTime
-    });
-    transOutSynPkg.amounts[0]=convertedAmount;
-    transOutSynPkg.recipients[0]=recipient;
-    transOutSynPkg.refundAddrs[0]=msg.sender;
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(TEN_DECIMALS));
-    emit transferOutSuccess(contractAddr, msg.sender, amount, rewardForRelayer);
-    return true;
+    return false;
   }
 
   /**
