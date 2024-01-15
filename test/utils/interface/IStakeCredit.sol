@@ -24,6 +24,7 @@ interface StakeCredit {
     error UnknownParam(string key, bytes value);
     error WrongInitContext();
     error ZeroAmount();
+    error ZeroShares();
     error ZeroTotalPooledBNB();
     error ZeroTotalShares();
 

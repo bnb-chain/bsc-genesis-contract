@@ -89,6 +89,7 @@ contract StakeHub is System, Initializable {
     error VoteAddressExpired();
     // @notice signature: 0xc2aee074
     error ConsensusAddressExpired();
+    // @notice signature: 0x0d7b78d4
     error InvalidSynPackage();
 
     /*----------------- storage -----------------*/
@@ -152,8 +153,7 @@ contract StakeHub is System, Initializable {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
         VALIDATOR_NOT_EXISTED,
-        VALIDATOR_JAILED,
-        BALANCE_NOT_ENOUGH
+        VALIDATOR_JAILED
     }
 
     struct Validator {
@@ -195,6 +195,7 @@ contract StakeHub is System, Initializable {
         address indexed creditContract,
         bytes voteAddress
     );
+    event StakeCreditInitialized(address indexed operatorAddress, address indexed creditContract);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
     event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
     event DescriptionEdited(address indexed operatorAddress);
@@ -491,7 +492,7 @@ contract StakeHub is System, Initializable {
     /**
      * @param operatorAddress the operator address of the validator to be unjailed
      */
-    function unjail(address operatorAddress) external whenNotPaused validatorExist(operatorAddress) {
+    function unjail(address operatorAddress) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         if (!valInfo.jailed) revert ValidatorNotJailed();
 
@@ -1042,10 +1043,6 @@ contract StakeHub is System, Initializable {
             return StakeMigrationRespCode.VALIDATOR_JAILED;
         }
 
-        if (address(this).balance < migrationPkg.amount) {
-            return StakeMigrationRespCode.BALANCE_NOT_ENOUGH;
-        }
-
         uint256 shares =
             IStakeCredit(valInfo.creditContract).delegate{ value: migrationPkg.amount }(migrationPkg.delegator);
         emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
@@ -1115,6 +1112,7 @@ contract StakeHub is System, Initializable {
     function _deployStakeCredit(address operatorAddress, string memory moniker) internal returns (address) {
         address creditProxy = address(new TransparentUpgradeableProxy(STAKE_CREDIT_ADDR, DEAD_ADDRESS, ""));
         IStakeCredit(creditProxy).initialize{ value: msg.value }(operatorAddress, moniker);
+        emit StakeCreditInitialized(operatorAddress, creditProxy);
 
         return creditProxy;
     }

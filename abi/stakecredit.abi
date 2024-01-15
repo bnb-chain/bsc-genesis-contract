@@ -844,6 +844,11 @@
   },
   {
     "type": "error",
+    "name": "ZeroShares",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "ZeroTotalPooledBNB",
     "inputs": []
   },

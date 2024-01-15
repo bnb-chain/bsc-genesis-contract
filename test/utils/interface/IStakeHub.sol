@@ -74,6 +74,7 @@ interface StakeHub {
     event Resumed();
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
+    event StakeCreditInitialized(address indexed operatorAddress, address indexed creditContract);
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ValidatorCreated(
         address indexed consensusAddress,
