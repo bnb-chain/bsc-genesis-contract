@@ -98,7 +98,7 @@ interface BSCValidatorSet {
     function exitMaintenance() external;
     function expireTimeSecondGap() external view returns (uint256);
     function felony(address validator) external;
-    function getCurrentValidatorIndex(address _validator) external view returns (uint256);
+    function getCurrentValidatorIndex(address validator) external view returns (uint256);
     function getIncoming(address validator) external view returns (uint256);
     function getLivingValidators() external view returns (address[] memory, bytes[] memory);
     function getMiningValidators() external view returns (address[] memory, bytes[] memory);

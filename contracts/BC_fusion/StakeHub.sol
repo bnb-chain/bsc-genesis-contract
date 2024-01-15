@@ -860,6 +860,9 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     * @param index the index of the day to query(timestamp / 1 days)
+     *
      * @return the validator's reward of the day
      */
     function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256) {
@@ -868,6 +871,9 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     * @param index the index of the day to query(timestamp / 1 days)
+     *
      * @return the validator's total pooled BNB of the day
      */
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256) {
@@ -877,6 +883,10 @@ contract StakeHub is System, Initializable {
 
     /**
      * @notice pagination query all validators' operator address and credit contract address
+     *
+     * @param offset the offset of the query
+     * @param limit the limit of the query
+     *
      * @return operatorAddrs operator addresses
      * @return creditAddrs credit contract addresses
      * @return totalLength total number of validators
@@ -902,6 +912,9 @@ contract StakeHub is System, Initializable {
 
     /**
      * @notice get the basic info of a validator
+     *
+     * @param operatorAddress the operator address of the validator
+     *
      * @return consensusAddress the consensus address of the validator
      * @return creditContract the credit contract address of the validator
      * @return createdTime the creation time of the validator
@@ -932,6 +945,8 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
      * @return the description of a validator
      */
     function getValidatorDescription(address operatorAddress)
@@ -944,6 +959,8 @@ contract StakeHub is System, Initializable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
      * @return the commission of a validator
      */
     function getValidatorCommission(address operatorAddress)
@@ -957,7 +974,12 @@ contract StakeHub is System, Initializable {
 
     /**
      * @dev this function will be used by Parlia consensus engine.
+     *
      * @notice get the election info of a validator
+     *
+     * @param offset the offset of the query
+     * @param limit the limit of the query
+     *
      * @return consensusAddrs the consensus addresses of the validators
      * @return votingPowers the voting powers of the validators. The voting power will be 0 if the validator is jailed.
      * @return voteAddrs the vote addresses of the validators

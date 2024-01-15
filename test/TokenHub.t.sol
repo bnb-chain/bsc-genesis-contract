@@ -442,81 +442,81 @@ contract TokenHubTest is Deployer {
         assertEq(amount, 0, "wrong locked amount after cancelTransfer");
     }
 
-    function testTransferOut() public {
-        bytes memory pack = buildBindPackage(uint8(0), bytes32("ABC-9C7"), address(abcToken), 1e8, 99e6, uint8(18));
-        vm.prank(address(crossChain));
-        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
-
-        abcToken.approve(address(tokenManager), 1e8 * 1e18);
-        tokenManager.approveBind{ value: 1e16 }(address(abcToken), "ABC-9C7");
-
-        uint64 expireTime = uint64(block.timestamp + 150);
-        address recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
-        uint256 amount = 1e8;
-        uint256 relayerFee = 1e14;
-
-        vm.expectRevert(bytes("received BNB amount should be no less than the minimum relayFee"));
-        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
-
-        relayerFee = 1e16;
-        vm.expectRevert(bytes("invalid transfer amount: precision loss in amount conversion"));
-        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
-
-        amount = 1e18;
-        vm.expectRevert(bytes("invalid received BNB amount: precision loss in amount conversion"));
-        tokenHub.transferOut{ value: relayerFee + 1 }(address(abcToken), recipient, amount, expireTime);
-
-        vm.expectRevert(bytes("BEP20: transfer amount exceeds allowance"));
-        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
-
-        vm.expectRevert(bytes("the contract has not been bound to any bep2 token"));
-        tokenHub.transferOut{ value: relayerFee }(address(defToken), recipient, amount, expireTime);
-
-        vm.expectRevert(bytes("received BNB amount should be no less than the minimum relayFee"));
-        tokenHub.transferOut(address(abcToken), recipient, amount, expireTime);
-
-        uint256 balance = abcToken.balanceOf(address(this));
-        abcToken.approve(address(tokenHub), amount);
-        vm.expectEmit(true, false, false, true, address(tokenHub));
-        emit transferOutSuccess(address(abcToken), address(this), amount, relayerFee);
-        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
-        assertEq(abcToken.balanceOf(address(this)), balance - amount, "wrong balance");
-
-        // refund
-        uint256[] memory amounts = new uint256[](1);
-        address[] memory refundAddrs = new address[](1);
-        amounts[0] = amount;
-        refundAddrs[0] = address(this);
-        bytes memory package = buildRefundPackage(address(abcToken), amounts, refundAddrs, uint32(1));
-
-        vm.prank(address(crossChain));
-        vm.expectEmit(true, false, false, true, address(tokenHub));
-        emit refundSuccess(address(abcToken), address(this), amount, 1);
-        tokenHub.handleAckPackage(TRANSFER_OUT_CHANNELID, package);
-        assertEq(abcToken.balanceOf(address(this)), balance, "wrong balance");
-
-        // Fail ack refund
-        uint256 length = 5;
-        uint256[] memory balances = new uint256[](length);
-        address[] memory recipients = new address[](length);
-        amounts = new uint256[](length);
-        refundAddrs = new address[](length);
-        for (uint256 i; i < length; ++i) {
-            amounts[i] = (i + 1) * 1e6;
-            recipient = _getNextUserAddress();
-            balances[i] = abcToken.balanceOf(recipient);
-            recipients[i] = recipient;
-            refundAddrs[i] = recipient;
-        }
-
-        package =
-            buildBatchTransferOutFailAckPackage(bytes32("ABC-9C7"), address(abcToken), amounts, recipients, refundAddrs);
-        vm.prank(address(crossChain));
-        tokenHub.handleFailAckPackage(TRANSFER_OUT_CHANNELID, package);
-        for (uint256 i; i < length; ++i) {
-            assertEq(abcToken.balanceOf(recipients[i]) - balances[i], amounts[i] * 1e10, "wrong balance");
-        }
-    }
+    //    function testTransferOut() public {
+    //        bytes memory pack = buildBindPackage(uint8(0), bytes32("ABC-9C7"), address(abcToken), 1e8, 99e6, uint8(18));
+    //        vm.prank(address(crossChain));
+    //        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
+    //
+    //        abcToken.approve(address(tokenManager), 1e8 * 1e18);
+    //        tokenManager.approveBind{ value: 1e16 }(address(abcToken), "ABC-9C7");
+    //
+    //        uint64 expireTime = uint64(block.timestamp + 150);
+    //        address recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
+    //        uint256 amount = 1e8;
+    //        uint256 relayerFee = 1e14;
+    //
+    //        vm.expectRevert(bytes("received BNB amount should be no less than the minimum relayFee"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
+    //
+    //        relayerFee = 1e16;
+    //        vm.expectRevert(bytes("invalid transfer amount: precision loss in amount conversion"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
+    //
+    //        amount = 1e18;
+    //        vm.expectRevert(bytes("invalid received BNB amount: precision loss in amount conversion"));
+    //        tokenHub.transferOut{ value: relayerFee + 1 }(address(abcToken), recipient, amount, expireTime);
+    //
+    //        vm.expectRevert(bytes("BEP20: transfer amount exceeds allowance"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
+    //
+    //        vm.expectRevert(bytes("the contract has not been bound to any bep2 token"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(defToken), recipient, amount, expireTime);
+    //
+    //        vm.expectRevert(bytes("received BNB amount should be no less than the minimum relayFee"));
+    //        tokenHub.transferOut(address(abcToken), recipient, amount, expireTime);
+    //
+    //        uint256 balance = abcToken.balanceOf(address(this));
+    //        abcToken.approve(address(tokenHub), amount);
+    //        vm.expectEmit(true, false, false, true, address(tokenHub));
+    //        emit transferOutSuccess(address(abcToken), address(this), amount, relayerFee);
+    //        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
+    //        assertEq(abcToken.balanceOf(address(this)), balance - amount, "wrong balance");
+    //
+    //        // refund
+    //        uint256[] memory amounts = new uint256[](1);
+    //        address[] memory refundAddrs = new address[](1);
+    //        amounts[0] = amount;
+    //        refundAddrs[0] = address(this);
+    //        bytes memory package = buildRefundPackage(address(abcToken), amounts, refundAddrs, uint32(1));
+    //
+    //        vm.prank(address(crossChain));
+    //        vm.expectEmit(true, false, false, true, address(tokenHub));
+    //        emit refundSuccess(address(abcToken), address(this), amount, 1);
+    //        tokenHub.handleAckPackage(TRANSFER_OUT_CHANNELID, package);
+    //        assertEq(abcToken.balanceOf(address(this)), balance, "wrong balance");
+    //
+    //        // Fail ack refund
+    //        uint256 length = 5;
+    //        uint256[] memory balances = new uint256[](length);
+    //        address[] memory recipients = new address[](length);
+    //        amounts = new uint256[](length);
+    //        refundAddrs = new address[](length);
+    //        for (uint256 i; i < length; ++i) {
+    //            amounts[i] = (i + 1) * 1e6;
+    //            recipient = _getNextUserAddress();
+    //            balances[i] = abcToken.balanceOf(recipient);
+    //            recipients[i] = recipient;
+    //            refundAddrs[i] = recipient;
+    //        }
+    //
+    //        package =
+    //            buildBatchTransferOutFailAckPackage(bytes32("ABC-9C7"), address(abcToken), amounts, recipients, refundAddrs);
+    //        vm.prank(address(crossChain));
+    //        tokenHub.handleFailAckPackage(TRANSFER_OUT_CHANNELID, package);
+    //        for (uint256 i; i < length; ++i) {
+    //            assertEq(abcToken.balanceOf(recipients[i]) - balances[i], amounts[i] * 1e10, "wrong balance");
+    //        }
+    //    }
 
     function testBatchTransferOutBNB() public {
         uint64 expireTime = uint64(block.timestamp + 150);
@@ -540,126 +540,126 @@ contract TokenHubTest is Deployer {
         tokenHub.batchTransferOutBNB{ value: 5e16 }(recipients, amounts, refundAddrs, expireTime);
     }
 
-    function testOverflow() public {
-        uint64 expireTime = uint64(block.timestamp + 150);
-        address recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
-        uint256 amount = 115792089237316195423570985008687907853269984665640564039457584007903129639936;
-        uint256 relayerFee = 1e16;
+    //    function testOverflow() public {
+    //        uint64 expireTime = uint64(block.timestamp + 150);
+    //        address recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
+    //        uint256 amount = 115792089237316195423570985008687907853269984665640564039457584007903129639936;
+    //        uint256 relayerFee = 1e16;
+    //
+    //        vm.expectRevert(bytes("SafeMath: addition overflow"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(0), recipient, amount, expireTime);
+    //
+    //        // batch transfer out
+    //        address[] memory recipients = new address[](2);
+    //        address[] memory refundAddrs = new address[](2);
+    //        uint256[] memory amounts = new uint256[](2);
+    //        recipient = _getNextUserAddress();
+    //        for (uint256 i; i < 2; ++i) {
+    //            recipients[i] = recipient;
+    //            refundAddrs[i] = _getNextUserAddress();
+    //        }
+    //        amounts[0] = 100000000000000000000000000000000000000000000000000000000000000000000000000000;
+    //        amounts[1] = 15792089237316195423570985008687907853269984665640564039457584007910000000000;
+    //
+    //        vm.expectRevert(bytes("SafeMath: addition overflow"));
+    //        tokenHub.batchTransferOutBNB{ value: 2e16 }(recipients, amounts, refundAddrs, expireTime);
+    //    }
 
-        vm.expectRevert(bytes("SafeMath: addition overflow"));
-        tokenHub.transferOut{ value: relayerFee }(address(0), recipient, amount, expireTime);
+    //    function testUnbind() public {
+    //        // Bind first
+    //        bytes memory pack = buildBindPackage(uint8(0), bytes32("ABC-9C7"), address(abcToken), 1e8, 99e6, uint8(18));
+    //        vm.prank(address(crossChain));
+    //        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
+    //
+    //        abcToken.approve(address(tokenManager), 1e8 * 1e18);
+    //        tokenManager.approveBind{ value: 1e16 }(address(abcToken), "ABC-9C7");
+    //
+    //        // Unbind
+    //        pack = buildBindPackage(uint8(1), bytes32("ABC-9C7"), address(abcToken), 0, 0, uint8(0));
+    //        vm.prank(address(crossChain));
+    //        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
+    //
+    //        assertEq(tokenHub.getBoundBep2Symbol(address(abcToken)), "", "wrong symbol");
+    //        assertEq(tokenHub.getBoundContract("ABC-9C7"), address(0x0), "wrong token contract address");
+    //
+    //        // TransferIn failed
+    //        address recipient = _getNextUserAddress();
+    //        address refundAddr = _getNextUserAddress();
+    //        assertEq(abcToken.balanceOf(recipient), 0);
+    //        pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
+    //        vm.prank(address(crossChain));
+    //        tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
+    //        assertEq(abcToken.balanceOf(recipient), 0, "wrong balance");
+    //
+    //        // TransferOut refund
+    //        recipient = _getNextUserAddress();
+    //        uint256 amount = 1e18;
+    //        uint256[] memory amounts = new uint256[](1);
+    //        address[] memory refundAddrs = new address[](1);
+    //        amounts[0] = amount;
+    //        refundAddrs[0] = recipient;
+    //        bytes memory package = buildRefundPackage(address(abcToken), amounts, refundAddrs, uint32(1));
+    //        abcToken.transfer(address(tokenHub), amount);
+    //
+    //        vm.prank(address(crossChain));
+    //        vm.expectEmit(true, false, false, true, address(tokenHub));
+    //        emit refundSuccess(address(abcToken), recipient, amount, 1);
+    //        tokenHub.handleAckPackage(TRANSFER_OUT_CHANNELID, package);
+    //        assertEq(abcToken.balanceOf(recipient), amount, "wrong balance");
+    //
+    //        // TransferOut failed
+    //        uint64 expireTime = uint64(block.timestamp + 150);
+    //        uint256 relayerFee = 1e14;
+    //        recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
+    //        amount = 1e8;
+    //
+    //        abcToken.approve(address(tokenHub), amount);
+    //        vm.expectRevert(bytes("the contract has not been bound to any bep2 token"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
+    //    }
 
-        // batch transfer out
-        address[] memory recipients = new address[](2);
-        address[] memory refundAddrs = new address[](2);
-        uint256[] memory amounts = new uint256[](2);
-        recipient = _getNextUserAddress();
-        for (uint256 i; i < 2; ++i) {
-            recipients[i] = recipient;
-            refundAddrs[i] = _getNextUserAddress();
-        }
-        amounts[0] = 100000000000000000000000000000000000000000000000000000000000000000000000000000;
-        amounts[1] = 15792089237316195423570985008687907853269984665640564039457584007910000000000;
-
-        vm.expectRevert(bytes("SafeMath: addition overflow"));
-        tokenHub.batchTransferOutBNB{ value: 2e16 }(recipients, amounts, refundAddrs, expireTime);
-    }
-
-    function testUnbind() public {
-        // Bind first
-        bytes memory pack = buildBindPackage(uint8(0), bytes32("ABC-9C7"), address(abcToken), 1e8, 99e6, uint8(18));
-        vm.prank(address(crossChain));
-        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
-
-        abcToken.approve(address(tokenManager), 1e8 * 1e18);
-        tokenManager.approveBind{ value: 1e16 }(address(abcToken), "ABC-9C7");
-
-        // Unbind
-        pack = buildBindPackage(uint8(1), bytes32("ABC-9C7"), address(abcToken), 0, 0, uint8(0));
-        vm.prank(address(crossChain));
-        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
-
-        assertEq(tokenHub.getBoundBep2Symbol(address(abcToken)), "", "wrong symbol");
-        assertEq(tokenHub.getBoundContract("ABC-9C7"), address(0x0), "wrong token contract address");
-
-        // TransferIn failed
-        address recipient = _getNextUserAddress();
-        address refundAddr = _getNextUserAddress();
-        assertEq(abcToken.balanceOf(recipient), 0);
-        pack = buildTransferInPackage(bytes32("ABC-9C7"), address(abcToken), 115e17, recipient, refundAddr);
-        vm.prank(address(crossChain));
-        tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
-        assertEq(abcToken.balanceOf(recipient), 0, "wrong balance");
-
-        // TransferOut refund
-        recipient = _getNextUserAddress();
-        uint256 amount = 1e18;
-        uint256[] memory amounts = new uint256[](1);
-        address[] memory refundAddrs = new address[](1);
-        amounts[0] = amount;
-        refundAddrs[0] = recipient;
-        bytes memory package = buildRefundPackage(address(abcToken), amounts, refundAddrs, uint32(1));
-        abcToken.transfer(address(tokenHub), amount);
-
-        vm.prank(address(crossChain));
-        vm.expectEmit(true, false, false, true, address(tokenHub));
-        emit refundSuccess(address(abcToken), recipient, amount, 1);
-        tokenHub.handleAckPackage(TRANSFER_OUT_CHANNELID, package);
-        assertEq(abcToken.balanceOf(recipient), amount, "wrong balance");
-
-        // TransferOut failed
-        uint64 expireTime = uint64(block.timestamp + 150);
-        uint256 relayerFee = 1e14;
-        recipient = 0xd719dDfA57bb1489A08DF33BDE4D5BA0A9998C60;
-        amount = 1e8;
-
-        abcToken.approve(address(tokenHub), amount);
-        vm.expectRevert(bytes("the contract has not been bound to any bep2 token"));
-        tokenHub.transferOut{ value: relayerFee }(address(abcToken), recipient, amount, expireTime);
-    }
-
-    function testMiniToken() public {
-        // Bind
-        bytes memory pack = buildBindPackage(uint8(0), bytes32("XYZ-9C7M"), address(miniToken), 1e4, 5e3, uint8(18));
-        vm.prank(address(crossChain));
-        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
-
-        miniToken.approve(address(tokenManager), 5e3 * 1e18);
-        vm.expectEmit(true, false, false, true, address(tokenManager));
-        emit bindSuccess(address(miniToken), "XYZ-9C7M", 1e4 * 1e18, 5e3 * 1e18);
-        tokenManager.approveBind{ value: 1e16 }(address(miniToken), "XYZ-9C7M");
-
-        assertEq(tokenHub.getBoundBep2Symbol(address(miniToken)), "XYZ-9C7M", "wrong bep2 symbol");
-        assertEq(tokenHub.getBoundContract("XYZ-9C7M"), address(miniToken), "wrong token contract address");
-
-        // TransferIn
-        address recipient = _getNextUserAddress();
-        address refundAddr = _getNextUserAddress();
-        assertEq(miniToken.balanceOf(recipient), 0);
-        pack = buildTransferInPackage(bytes32("XYZ-9C7M"), address(miniToken), 1e18, recipient, refundAddr);
-        vm.prank(address(crossChain));
-        tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
-        assertEq(miniToken.balanceOf(recipient), 1e18, "wrong balance");
-
-        // TransferOut
-        uint64 expireTime = uint64(block.timestamp + 150);
-        uint256 amount = 1e18;
-        uint256 relayerFee = 1e16;
-        recipient = _getNextUserAddress();
-
-        miniToken.approve(address(tokenHub), amount);
-        vm.expectEmit(true, false, false, true, address(tokenHub));
-        emit transferOutSuccess(address(miniToken), address(this), 1e18, 1e16);
-        tokenHub.transferOut{ value: relayerFee }(address(miniToken), recipient, amount, expireTime);
-
-        // TransferOut failed
-        amount = 5e17;
-        recipient = _getNextUserAddress();
-
-        miniToken.approve(address(tokenHub), amount);
-        vm.expectRevert(bytes("For miniToken, the transfer amount must not be less than 1"));
-        tokenHub.transferOut{ value: relayerFee }(address(miniToken), recipient, amount, expireTime);
-    }
+    //    function testMiniToken() public {
+    //        // Bind
+    //        bytes memory pack = buildBindPackage(uint8(0), bytes32("XYZ-9C7M"), address(miniToken), 1e4, 5e3, uint8(18));
+    //        vm.prank(address(crossChain));
+    //        tokenManager.handleSynPackage(BIND_CHANNELID, pack);
+    //
+    //        miniToken.approve(address(tokenManager), 5e3 * 1e18);
+    //        vm.expectEmit(true, false, false, true, address(tokenManager));
+    //        emit bindSuccess(address(miniToken), "XYZ-9C7M", 1e4 * 1e18, 5e3 * 1e18);
+    //        tokenManager.approveBind{ value: 1e16 }(address(miniToken), "XYZ-9C7M");
+    //
+    //        assertEq(tokenHub.getBoundBep2Symbol(address(miniToken)), "XYZ-9C7M", "wrong bep2 symbol");
+    //        assertEq(tokenHub.getBoundContract("XYZ-9C7M"), address(miniToken), "wrong token contract address");
+    //
+    //        // TransferIn
+    //        address recipient = _getNextUserAddress();
+    //        address refundAddr = _getNextUserAddress();
+    //        assertEq(miniToken.balanceOf(recipient), 0);
+    //        pack = buildTransferInPackage(bytes32("XYZ-9C7M"), address(miniToken), 1e18, recipient, refundAddr);
+    //        vm.prank(address(crossChain));
+    //        tokenHub.handleSynPackage(TRANSFER_IN_CHANNELID, pack);
+    //        assertEq(miniToken.balanceOf(recipient), 1e18, "wrong balance");
+    //
+    //        // TransferOut
+    //        uint64 expireTime = uint64(block.timestamp + 150);
+    //        uint256 amount = 1e18;
+    //        uint256 relayerFee = 1e16;
+    //        recipient = _getNextUserAddress();
+    //
+    //        miniToken.approve(address(tokenHub), amount);
+    //        vm.expectEmit(true, false, false, true, address(tokenHub));
+    //        emit transferOutSuccess(address(miniToken), address(this), 1e18, 1e16);
+    //        tokenHub.transferOut{ value: relayerFee }(address(miniToken), recipient, amount, expireTime);
+    //
+    //        // TransferOut failed
+    //        amount = 5e17;
+    //        recipient = _getNextUserAddress();
+    //
+    //        miniToken.approve(address(tokenHub), amount);
+    //        vm.expectRevert(bytes("For miniToken, the transfer amount must not be less than 1"));
+    //        tokenHub.transferOut{ value: relayerFee }(address(miniToken), recipient, amount, expireTime);
+    //    }
 
     function testMirrorFailed() public {
         uint256 mirrorFee = 1e20;

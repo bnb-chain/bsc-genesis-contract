@@ -532,7 +532,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /**
    * @dev With each epoch, there will be a partial rotation between cabinets and candidates. Rotation is determined by this function
-   *
    */
   function shuffle(address[] memory validators, bytes[] memory voteAddrs, uint256 epochNumber, uint startIdx, uint offset, uint limit, uint modNumber) internal pure {
     for (uint i; i<limit; ++i) {
@@ -548,6 +547,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
   }
 
+  /**
+   * @notice Return the vote address and consensus address of the validators in `currentValidatorSet` that are not jailed
+   */
   function getLivingValidators() external view override returns (address[] memory, bytes[] memory) {
     uint n = currentValidatorSet.length;
     uint living;
@@ -579,14 +581,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /**
-   * @dev Get mining validators that are block producers in the current epoch, including most of the cabinets and a few of the candidates
+   * @notice Return the vote address and consensus address of mining validators
+   *
+   * Mining validators are block producers in the current epoch
+   * including most of the cabinets and a few of the candidates
    */
   function getMiningValidators() external view override returns(address[] memory, bytes[] memory) {
     uint256 _maxNumOfWorkingCandidates = maxNumOfWorkingCandidates;
-    uint256 _numOfCabinets = numOfCabinets;
-    if (_numOfCabinets == 0 ){
-      _numOfCabinets = INIT_NUM_OF_CABINETS;
-    }
+    uint256 _numOfCabinets = numOfCabinets > 0 ? numOfCabinets : INIT_NUM_OF_CABINETS;
 
     address[] memory validators = getValidators();
     bytes[] memory voteAddrs = getVoteAddresses(validators);
@@ -613,8 +615,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /**
-   * @dev Get all validators, including all of the cabinets and all of the candidates
-   *
+   * @notice Return the consensus address of the validators in `currentValidatorSet` that are not jailed and not maintaining
    */
   function getValidators() public view returns(address[] memory) {
     uint n = currentValidatorSet.length;
@@ -635,6 +636,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return consensusAddrs;
   }
 
+  /**
+   * @notice Return whether the validator is a working validator(not jailed or maintaining) by index
+   *
+   * @param index The index of the validator in `currentValidatorSet`(from 0 to `currentValidatorSet.length-1`)
+   */
   function isWorkingValidator(uint index) public view returns (bool) {
     if (index >= currentValidatorSet.length) {
       return false;
@@ -648,6 +654,9 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return !currentValidatorSet[index].jailed && !validatorExtraSet[index].isMaintaining;
   }
 
+  /**
+   * @notice Return the current incoming of the validator
+   */
   function getIncoming(address validator)external view returns(uint256) {
     uint256 index = currentValidatorSetMap[validator];
     if (index<=0) {
@@ -656,6 +665,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     return currentValidatorSet[index-1].incoming;
   }
 
+  /**
+   * @notice Return whether the validator is a working validator(not jailed or maintaining) by consensus address
+   * Will return false if the validator is not in `currentValidatorSet`
+   */
   function isCurrentValidator(address validator) external view override returns (bool) {
     uint256 index = currentValidatorSetMap[validator];
     if (index <= 0) {
@@ -761,14 +774,20 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
   }
 
   /*********************** For Temporary Maintenance **************************/
-  function getCurrentValidatorIndex(address _validator) public view returns (uint256) {
-    uint256 index = currentValidatorSetMap[_validator];
+  /**
+   * @notice Return the index of the validator in `currentValidatorSet`(from 0 to `currentValidatorSet.length-1`)
+   */
+  function getCurrentValidatorIndex(address validator) public view returns (uint256) {
+    uint256 index = currentValidatorSetMap[validator];
     require(index > 0, "only current validators");
 
     // the actual index
     return index - 1;
   }
 
+  /**
+   * @notice Return whether the validator at index could enter maintenance
+   */
   function canEnterMaintenance(uint256 index) public view returns (bool) {
     if (index >= currentValidatorSet.length) {
       return false;
@@ -791,7 +810,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /**
    * @dev Enter maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
-   *
    */
   function enterMaintenance() external initValidatorExtraSet {
     // check maintain config
@@ -809,7 +827,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
   /**
    * @dev Exit maintenance for current validators. refer to https://github.com/bnb-chain/BEPs/blob/master/BEP127.md
-   *
    */
   function exitMaintenance() external {
     uint256 index = getCurrentValidatorIndex(msg.sender);
