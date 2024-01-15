@@ -601,7 +601,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
    * @param expireTime The expire time for the cross-chain transfer
    */
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
-    return false;
+    revert("deprecated");
   }
 
   /**
