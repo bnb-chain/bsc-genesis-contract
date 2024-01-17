@@ -1145,7 +1145,7 @@ contract StakeHub is System, Initializable {
             return;
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
-            _jailValidator(valInfo, downtimeJailTime);
+            _jailValidator(valInfo, block.timestamp + downtimeJailTime);
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         }
