@@ -685,7 +685,7 @@ contract StakeHub is System, Initializable {
     /**
      * @dev Malicious vote slash. Only the `SlashIndicator` contract can call this function.
      */
-    function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash {
+    function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash whenNotPaused {
         address operatorAddress = voteToOperator[voteAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -715,7 +715,7 @@ contract StakeHub is System, Initializable {
     /**
      * @dev Double sign slash. Only the `SlashIndicator` contract can call this function.
      */
-    function doubleSignSlash(address consensusAddress) external onlySlash {
+    function doubleSignSlash(address consensusAddress) external onlySlash whenNotPaused {
         address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
