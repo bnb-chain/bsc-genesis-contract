@@ -30,7 +30,7 @@ contract StakeHub is System, Initializable {
 
     uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
 
-    //TODO
+    //TODO: set to the correct bytes of abi.encode({{BCExistingConsensusAddresses}}) and abi.encode({{BCExistingVoteAddresses}}) when landing on mainnet and testnet
     bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
     bytes private constant INIT_BC_VOTE_ADDRESSES =
