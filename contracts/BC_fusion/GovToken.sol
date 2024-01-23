@@ -26,7 +26,7 @@ contract GovToken is
     error TransferNotAllowed();
     // @notice signature: 0x20287471
     error ApproveNotAllowed();
-    // @notice signature:
+    // @notice signature: 0xe5d87767
     error BurnNotAllowed();
 
     /*----------------- storage -----------------*/
