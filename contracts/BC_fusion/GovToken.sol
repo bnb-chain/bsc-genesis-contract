@@ -26,6 +26,8 @@ contract GovToken is
     error TransferNotAllowed();
     // @notice signature: 0x20287471
     error ApproveNotAllowed();
+    // @notice signature:
+    error BurnNotAllowed();
 
     /*----------------- storage -----------------*/
     // validator StakeCredit contract => user => amount
@@ -68,6 +70,14 @@ contract GovToken is
      */
     function delegateVote(address delegator, address delegatee) external onlyStakeHub {
         _delegate(delegator, delegatee);
+    }
+
+    function burn(uint256) public pure override {
+        revert BurnNotAllowed();
+    }
+
+    function burnFrom(address, uint256) public pure override {
+        revert BurnNotAllowed();
     }
 
     /*----------------- internal functions -----------------*/
