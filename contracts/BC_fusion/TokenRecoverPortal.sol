@@ -53,6 +53,11 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         _;
     }
 
+    modifier approverlAddressInit() {
+        if (approvalAddress == address(0)) revert ApprovalAddressNotInitialize();
+        _;
+    }
+
     function pause() external onlyAssetProtector {
         _paused = true;
         emit Paused();
@@ -84,6 +89,8 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     error InBlackList();
     // @notice signature: 0xf2771a99
     error OnlyAssetProtector();
+    // @notice signature: 0x79028fde
+    error ApprovalAddressNotInitialize();
 
     /*----------------- events -----------------*/
     // This event is triggered whenever a call to #pause succeeds.
@@ -121,7 +128,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         bytes calldata ownerSignature,
         bytes calldata approvalSignature,
         bytes32[] calldata merkleProof
-    ) external merkelRootReady whenNotPaused nonReentrant {
+    ) external merkelRootReady approverlAddressInit whenNotPaused nonReentrant {
         // Recover the owner address and check signature.
         bytes memory ownerAddr =
             _verifySecp256k1Sig(ownerPubKey, ownerSignature, _tmSignatureHash(tokenSymbol, amount, msg.sender));
