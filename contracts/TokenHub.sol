@@ -550,6 +550,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
       address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
       if (contractAddr == address(0x00)) {
+        // if the token is not bound, just emit an event
+        // please notify the token owner to handle the token recovery
         emit NotBoundToken(tokenSymbol, recipient, amount);
         return;
       }
