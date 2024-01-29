@@ -122,6 +122,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   // BEP-299: Token Migration after BC Fusion
   event TokenRecoverLocked(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
   event CancelTokenRecoverLock(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed attacker, uint256 amount);
+  event NotBoundToken(bytes32 indexed tokenSymbol, address indexed recipient, uint256 amount);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -548,7 +549,13 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 convertedAmount;
     if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
       address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
-      require(contractAddr != address(0x00), "invalid symbol");
+      if (contractAddr == address(0x00)) {
+        // if the token is not bound, just emit an event
+        // please notify the token owner to handle the token recovery
+        emit NotBoundToken(tokenSymbol, recipient, amount);
+        return;
+      }
+
       uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
       convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep20 amount
       require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
