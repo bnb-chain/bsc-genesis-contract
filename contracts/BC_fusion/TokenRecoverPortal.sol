@@ -22,7 +22,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     using Utils for bytes;
 
     /*----------------- constants -----------------*/
-    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Ganges";
+    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Tigris";
 
     /*----------------- storage -----------------*/
     address public approvalAddress;
@@ -53,7 +53,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         _;
     }
 
-    modifier approverlAddressInit() {
+    modifier approvalAddressInit() {
         if (approvalAddress == address(0)) revert ApprovalAddressNotInitialize();
         _;
     }
@@ -128,7 +128,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         bytes calldata ownerSignature,
         bytes calldata approvalSignature,
         bytes32[] calldata merkleProof
-    ) external merkelRootReady approverlAddressInit whenNotPaused nonReentrant {
+    ) external merkelRootReady approvalAddressInit whenNotPaused nonReentrant {
         // Recover the owner address and check signature.
         bytes memory ownerAddr =
             _verifySecp256k1Sig(ownerPubKey, ownerSignature, _tmSignatureHash(tokenSymbol, amount, msg.sender));
