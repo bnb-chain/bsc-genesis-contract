@@ -33,9 +33,9 @@ contract BSCGovernor is
      * INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
      */
     uint256 private constant BLOCK_INTERVAL = 3 seconds;
-    uint256 private constant INIT_VOTING_DELAY = 24 hours / BLOCK_INTERVAL;
-    uint256 private constant INIT_VOTING_PERIOD = 14 days / BLOCK_INTERVAL;
-    uint256 private constant INIT_PROPOSAL_THRESHOLD = 100 ether; //  = 100 BNB
+    uint256 private constant INIT_VOTING_DELAY = 0 hours / BLOCK_INTERVAL;
+    uint256 private constant INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
+    uint256 private constant INIT_PROPOSAL_THRESHOLD = 200 ether; //  = 200 BNB
     uint256 private constant INIT_QUORUM_NUMERATOR = 10; // for >= 10%
 
     // starting propose requires totalSupply of GovBNB >= 10000000 * 1e18

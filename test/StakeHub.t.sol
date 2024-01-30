@@ -44,6 +44,8 @@ contract StakeHubTest is Deployer {
         vm.prank(block.coinbase);
         vm.txGasPrice(0);
         stakeHub.initialize();
+        vm.prank(block.coinbase);
+        governor.initialize();
     }
 
     function testCreateValidator() public {
@@ -588,6 +590,16 @@ contract StakeHubTest is Deployer {
         bytes memory vBz = abi.encode(vAddresses);
         emit log_named_bytes("consensus address bytes", cBz);
         emit log_named_bytes("vote address bytes", vBz);
+    }
+
+    function testVotingDelay() public {
+        uint256 votingDelay = governor.votingDelay();
+        emit log_named_uint("voting delay", votingDelay);
+
+        uint256 clock = governor.clock();
+        emit log_named_uint("clock", clock);
+
+        emit log_named_uint("block number", block.number);
     }
 
     function _createValidator(uint256 delegation) internal returns (address operatorAddress, address credit) {

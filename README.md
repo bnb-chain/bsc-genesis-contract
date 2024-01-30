@@ -59,13 +59,15 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 3. Edit system contracts setting as needed.
 4. Run `node scripts/generate-genesis.js` will generate genesis.json
 
-## How to generate mainnet/testnet/QA/dev genesis file
+## How to generate mainnet/testnet/dev genesis file
 
 ```shell 
 poetry run python -m scripts.generate ${network}
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
 (`poetry run python -m scripts.generate --help ` for more details)
+
+You can refer to `generate:dev` in `package.json` for more details about how to custom params for local dev-net.
 
 ## How to update contract interface for test
 
