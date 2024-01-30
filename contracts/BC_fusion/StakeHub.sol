@@ -788,12 +788,16 @@ contract StakeHub is System, Initializable {
         } else if (key.compareStrings("minSelfDelegationBNB")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinSelfDelegationBNB = value.bytesToUint256(32);
-            if (newMinSelfDelegationBNB < 1000 ether || newMinSelfDelegationBNB > 100_000 ether) revert InvalidValue(key, value);
+            if (newMinSelfDelegationBNB < 1000 ether || newMinSelfDelegationBNB > 100_000 ether) {
+                revert InvalidValue(key, value);
+            }
             minSelfDelegationBNB = newMinSelfDelegationBNB;
         } else if (key.compareStrings("minDelegationBNBChange")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinDelegationBNBChange = value.bytesToUint256(32);
-            if (newMinDelegationBNBChange < 0.1 ether || newMinDelegationBNBChange > 10 ether) revert InvalidValue(key, value);
+            if (newMinDelegationBNBChange < 0.1 ether || newMinDelegationBNBChange > 10 ether) {
+                revert InvalidValue(key, value);
+            }
             minDelegationBNBChange = newMinDelegationBNBChange;
         } else if (key.compareStrings("maxElectedValidators")) {
             if (value.length != 32) revert InvalidValue(key, value);
