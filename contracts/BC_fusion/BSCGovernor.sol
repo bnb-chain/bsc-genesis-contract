@@ -185,27 +185,27 @@ contract BSCGovernor is
         if (key.compareStrings("votingDelay")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newVotingDelay = value.bytesToUint256(32);
-            if (newVotingDelay == 0) revert InvalidValue(key, value);
+            if (newVotingDelay == 0 || newVotingDelay > 24 hours) revert InvalidValue(key, value);
             _setVotingDelay(newVotingDelay);
         } else if (key.compareStrings("votingPeriod")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newVotingPeriod = value.bytesToUint256(32);
-            if (newVotingPeriod == 0) revert InvalidValue(key, value);
+            if (newVotingPeriod == 0 || newVotingPeriod > 30 days) revert InvalidValue(key, value);
             _setVotingPeriod(newVotingPeriod);
         } else if (key.compareStrings("proposalThreshold")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newProposalThreshold = value.bytesToUint256(32);
-            if (newProposalThreshold == 0) revert InvalidValue(key, value);
+            if (newProposalThreshold == 0 || newProposalThreshold > 10_000 ether) revert InvalidValue(key, value);
             _setProposalThreshold(newProposalThreshold);
         } else if (key.compareStrings("quorumNumerator")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newQuorumNumerator = value.bytesToUint256(32);
-            if (newQuorumNumerator == 0) revert InvalidValue(key, value);
+            if (newQuorumNumerator < 5 || newQuorumNumerator > 20) revert InvalidValue(key, value);
             _updateQuorumNumerator(newQuorumNumerator);
         } else if (key.compareStrings("minPeriodAfterQuorum")) {
             if (value.length != 8) revert InvalidValue(key, value);
             uint64 newMinPeriodAfterQuorum = value.bytesToUint64(8);
-            if (newMinPeriodAfterQuorum == 0) revert InvalidValue(key, value);
+            if (newMinPeriodAfterQuorum == 0 || newMinPeriodAfterQuorum > 2 days) revert InvalidValue(key, value);
             _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
         } else {
             revert UnknownParam(key, value);

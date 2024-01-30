@@ -783,27 +783,31 @@ contract StakeHub is System, Initializable {
         if (key.compareStrings("transferGasLimit")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newTransferGasLimit = value.bytesToUint256(32);
-            if (newTransferGasLimit < 2300) revert InvalidValue(key, value);
+            if (newTransferGasLimit < 2300 || newTransferGasLimit > 10_000) revert InvalidValue(key, value);
             transferGasLimit = newTransferGasLimit;
         } else if (key.compareStrings("minSelfDelegationBNB")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinSelfDelegationBNB = value.bytesToUint256(32);
-            if (newMinSelfDelegationBNB < 1000 ether) revert InvalidValue(key, value);
+            if (newMinSelfDelegationBNB < 1000 ether || newMinSelfDelegationBNB > 100_000 ether) {
+                revert InvalidValue(key, value);
+            }
             minSelfDelegationBNB = newMinSelfDelegationBNB;
         } else if (key.compareStrings("minDelegationBNBChange")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMinDelegationBNBChange = value.bytesToUint256(32);
-            if (newMinDelegationBNBChange < 0.1 ether) revert InvalidValue(key, value);
+            if (newMinDelegationBNBChange < 0.1 ether || newMinDelegationBNBChange > 10 ether) {
+                revert InvalidValue(key, value);
+            }
             minDelegationBNBChange = newMinDelegationBNBChange;
         } else if (key.compareStrings("maxElectedValidators")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMaxElectedValidators = value.bytesToUint256(32);
-            if (newMaxElectedValidators < 1 || newMaxElectedValidators > 500) revert InvalidValue(key, value);
+            if (newMaxElectedValidators == 0 || newMaxElectedValidators > 500) revert InvalidValue(key, value);
             maxElectedValidators = newMaxElectedValidators;
         } else if (key.compareStrings("unbondPeriod")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newUnbondPeriod = value.bytesToUint256(32);
-            if (newUnbondPeriod < 3 days) revert InvalidValue(key, value);
+            if (newUnbondPeriod < 3 days || newUnbondPeriod > 30 days) revert InvalidValue(key, value);
             unbondPeriod = newUnbondPeriod;
         } else if (key.compareStrings("redelegateFeeRate")) {
             if (value.length != 32) revert InvalidValue(key, value);
