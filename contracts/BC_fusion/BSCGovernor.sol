@@ -52,6 +52,10 @@ contract BSCGovernor is
     error GovernorPaused();
     // @notice signature: 0x286300de
     error OnlyGovernorProtector();
+    // @notice signature: 0xb1d02c3d
+    error InBlackList();
+    // @notice signature: 0x867f3ee5
+    error OneLiveProposalPerProposer();
 
     /*----------------- events -----------------*/
     event Paused();
@@ -60,9 +64,15 @@ contract BSCGovernor is
     /*----------------- storage -----------------*/
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;
+
     bool public proposeStarted;
     bool public paused;
+
     address public governorProtector;
+    mapping(address => bool) public blackList;
+
+    // @notice The latest proposal for each proposer
+    mapping(address => uint256) public latestProposalIds;
 
     /*----------------- modifier -----------------*/
     modifier whenNotPaused() {
@@ -72,6 +82,11 @@ contract BSCGovernor is
 
     modifier onlyGovernorProtector() {
         if (msg.sender != governorProtector) revert OnlyGovernorProtector();
+        _;
+    }
+
+    modifier notInBlackList() {
+        if (blackList[msg.sender]) revert InBlackList();
         _;
     }
 
@@ -110,6 +125,20 @@ contract BSCGovernor is
         emit Resumed();
     }
 
+    /**
+     * @dev Add an address to the black list
+     */
+    function addToBlackList(address account) external onlyGovernorProtector {
+        blackList[account] = true;
+    }
+
+    /**
+     * @dev Remove an address from the black list
+     */
+    function removeFromBlackList(address account) external onlyGovernorProtector {
+        blackList[account] = false;
+    }
+
     /*----------------- external functions -----------------*/
     /**
      * @dev Create a new proposal. Vote start after a delay specified by {IGovernor-votingDelay} and lasts for a
@@ -125,6 +154,8 @@ contract BSCGovernor is
     )
         public
         override(GovernorUpgradeable, GovernorCompatibilityBravoUpgradeable, IGovernorUpgradeable)
+        whenNotPaused
+        notInBlackList
         returns (uint256)
     {
         _checkAndStartPropose();
@@ -132,6 +163,21 @@ contract BSCGovernor is
         for (uint256 i = 0; i < targets.length; i++) {
             if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
+
+        uint256 latestProposalId = latestProposalIds[msg.sender];
+        if (latestProposalId != 0) {
+            ProposalState proposersLatestProposalState = state(latestProposalId);
+            if (
+                proposersLatestProposalState == ProposalState.Active
+                    || proposersLatestProposalState == ProposalState.Pending
+            ) {
+                revert OneLiveProposalPerProposer();
+            }
+        }
+
+        bytes32 descriptionHash = keccak256(bytes(description));
+        uint256 proposalId = hashProposal(targets, values, calldatas, descriptionHash);
+        latestProposalIds[msg.sender] = proposalId;
 
         return GovernorCompatibilityBravoUpgradeable.propose(targets, values, calldatas, description);
     }
@@ -152,6 +198,7 @@ contract BSCGovernor is
         public
         override(GovernorTimelockControlUpgradeable, IGovernorTimelockUpgradeable)
         whenNotPaused
+        notInBlackList
         returns (uint256 proposalId)
     {
         return GovernorTimelockControlUpgradeable.queue(targets, values, calldatas, descriptionHash);
@@ -286,7 +333,7 @@ contract BSCGovernor is
         uint256[] memory values,
         bytes[] memory calldatas,
         bytes32 descriptionHash
-    ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) whenNotPaused {
+    ) internal override(GovernorUpgradeable, GovernorTimelockControlUpgradeable) whenNotPaused notInBlackList {
         for (uint256 i = 0; i < targets.length; i++) {
             if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
         }
@@ -309,7 +356,13 @@ contract BSCGovernor is
         uint8 support,
         string memory reason,
         bytes memory params
-    ) internal override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable) returns (uint256) {
+    )
+        internal
+        override(GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)
+        whenNotPaused
+        notInBlackList
+        returns (uint256)
+    {
         return GovernorPreventLateQuorumUpgradeable._castVote(proposalId, account, support, reason, params);
     }
 

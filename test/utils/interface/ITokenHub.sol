@@ -8,6 +8,7 @@ interface TokenHub {
     event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
     event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
     event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+    event NotBoundToken(bytes32 indexed tokenSymbol, address indexed recipient, uint256 amount);
     event TokenRecoverLocked(
         bytes32 indexed tokenSymbol,
         address indexed tokenAddr,

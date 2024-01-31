@@ -30,9 +30,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber{
   event syncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
   event paramChange(string key, bytes value);
 
-  /* solium-disable-next-line */
-  constructor() public {}
-
   function init() external onlyNotInit {
     uint256 pointer;
     uint256 length;

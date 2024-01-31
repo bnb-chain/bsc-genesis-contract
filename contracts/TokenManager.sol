@@ -124,8 +124,6 @@ contract TokenManager is System, IApplication, IParamSubscriber {
   event syncSuccess(address indexed bep20Addr);
   event syncFailure(address indexed bep20Addr, uint8 errCode);
 
-  constructor() public {}
-
   function handleSynPackage(uint8 channelId, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory) {
     if (channelId == BIND_CHANNELID) {
       return handleBindSynPackage(msgBytes);

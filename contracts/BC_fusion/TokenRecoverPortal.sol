@@ -89,7 +89,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     error InBlackList();
     // @notice signature: 0xf2771a99
     error OnlyAssetProtector();
-    // @notice signature: 0x79028fde
+    // @notice signature: 0x459e3e99
     error ApprovalAddressNotInitialize();
 
     /*----------------- events -----------------*/
