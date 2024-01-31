@@ -1,1555 +1,1556 @@
-[  
-  {
-      "type": "receive",
-      "stateMutability": "payable"
-  },
-  {
-      "type": "function",
-      "name": "BC_FUSION_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "BEP2_TOKEN_DECIMALS",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "BEP2_TOKEN_SYMBOL_FOR_BNB",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "BIND_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "CODE_OK",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint32",
-              "internalType": "uint32"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "CROSS_CHAIN_CONTRACT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "CROSS_STAKE_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "ERROR_FAIL_DECODE",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint32",
-              "internalType": "uint32"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "GOVERNOR_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "GOV_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "GOV_HUB_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "GOV_TOKEN_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "INCENTIVIZE_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "INIT_BNB_LARGE_TRANSFER_LIMIT",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "INIT_LOCK_PERIOD",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "INIT_MINIMUM_RELAY_FEE",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "LIGHT_CLIENT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "LOCK_PERIOD_FOR_TOKEN_RECOVER",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "MAXIMUM_BEP20_SYMBOL_LEN",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "MAX_BEP2_TOTAL_SUPPLY",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "MAX_GAS_FOR_CALLING_BEP20",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "MAX_GAS_FOR_TRANSFER_BNB",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "MINIMUM_BEP20_SYMBOL_LEN",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "RELAYERHUB_CONTRACT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "REWARD_UPPER_LIMIT",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "SLASH_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "SLASH_CONTRACT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "STAKE_CREDIT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "STAKE_HUB_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "STAKING_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "STAKING_CONTRACT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "SYSTEM_REWARD_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TEN_DECIMALS",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TIMELOCK_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TOKEN_HUB_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TOKEN_MANAGER_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TOKEN_RECOVER_PORTAL_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_FAILURE_TIMEOUT",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_FAILURE_UNBOUND_TOKEN",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_FAILURE_UNKNOWN",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_IN_SUCCESS",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "TRANSFER_OUT_CHANNELID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint8",
-              "internalType": "uint8"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "VALIDATOR_CONTRACT_ADDR",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "alreadyInit",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bool",
-              "internalType": "bool"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "batchTransferOutBNB",
-      "inputs": [
-          {
-              "name": "recipientAddrs",
-              "type": "address[]",
-              "internalType": "address[]"
-          },
-          {
-              "name": "amounts",
-              "type": "uint256[]",
-              "internalType": "uint256[]"
-          },
-          {
-              "name": "refundAddrs",
-              "type": "address[]",
-              "internalType": "address[]"
-          },
-          {
-              "name": "expireTime",
-              "type": "uint64",
-              "internalType": "uint64"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bool",
-              "internalType": "bool"
-          }
-      ],
-      "stateMutability": "payable"
-  },
-  {
-      "type": "function",
-      "name": "bep20ContractDecimals",
-      "inputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "bindToken",
-      "inputs": [
-          {
-              "name": "bep2Symbol",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          },
-          {
-              "name": "contractAddr",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "decimals",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "bscChainID",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint16",
-              "internalType": "uint16"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "cancelTokenRecoverLock",
-      "inputs": [
-          {
-              "name": "tokenSymbol",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          },
-          {
-              "name": "attacker",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "cancelTransferIn",
-      "inputs": [
-          {
-              "name": "tokenAddress",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "attacker",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "claimMigrationFund",
-      "inputs": [
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bool",
-              "internalType": "bool"
-          }
-      ],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "claimRewards",
-      "inputs": [
-          {
-              "name": "to",
-              "type": "address",
-              "internalType": "address payable"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "getBep2SymbolByContractAddr",
-      "inputs": [
-          {
-              "name": "contractAddr",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "getBoundBep2Symbol",
-      "inputs": [
-          {
-              "name": "contractAddr",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "string",
-              "internalType": "string"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "getBoundContract",
-      "inputs": [
-          {
-              "name": "bep2Symbol",
-              "type": "string",
-              "internalType": "string"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "getContractAddrByBEP2Symbol",
-      "inputs": [
-          {
-              "name": "bep2Symbol",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "getMiniRelayFee",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "handleAckPackage",
-      "inputs": [
-          {
-              "name": "channelId",
-              "type": "uint8",
-              "internalType": "uint8"
-          },
-          {
-              "name": "msgBytes",
-              "type": "bytes",
-              "internalType": "bytes"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "handleFailAckPackage",
-      "inputs": [
-          {
-              "name": "channelId",
-              "type": "uint8",
-              "internalType": "uint8"
-          },
-          {
-              "name": "msgBytes",
-              "type": "bytes",
-              "internalType": "bytes"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "handleSynPackage",
-      "inputs": [
-          {
-              "name": "channelId",
-              "type": "uint8",
-              "internalType": "uint8"
-          },
-          {
-              "name": "msgBytes",
-              "type": "bytes",
-              "internalType": "bytes"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bytes",
-              "internalType": "bytes"
-          }
-      ],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "init",
-      "inputs": [],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "largeTransferLimitMap",
-      "inputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "lockInfoMap",
-      "inputs": [
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          },
-          {
-              "name": "unlockAt",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "lockPeriod",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "recoverBCAsset",
-      "inputs": [
-          {
-              "name": "tokenSymbol",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "relayFee",
-      "inputs": [],
-      "outputs": [
-          {
-              "name": "",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "stateMutability": "view"
-  },
-  {
-      "type": "function",
-      "name": "setLargeTransferLimit",
-      "inputs": [
-          {
-              "name": "bep20Token",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "largeTransferLimit",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "transferOut",
-      "inputs": [
-          {
-              "name": "contractAddr",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          },
-          {
-              "name": "expireTime",
-              "type": "uint64",
-              "internalType": "uint64"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bool",
-              "internalType": "bool"
-          }
-      ],
-      "stateMutability": "payable"
-  },
-  {
-      "type": "function",
-      "name": "unbindToken",
-      "inputs": [
-          {
-              "name": "bep2Symbol",
-              "type": "bytes32",
-              "internalType": "bytes32"
-          },
-          {
-              "name": "contractAddr",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "updateParam",
-      "inputs": [
-          {
-              "name": "key",
-              "type": "string",
-              "internalType": "string"
-          },
-          {
-              "name": "value",
-              "type": "bytes",
-              "internalType": "bytes"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "withdrawStakingBNB",
-      "inputs": [
-          {
-              "name": "amount",
-              "type": "uint256",
-              "internalType": "uint256"
-          }
-      ],
-      "outputs": [
-          {
-              "name": "",
-              "type": "bool",
-              "internalType": "bool"
-          }
-      ],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "function",
-      "name": "withdrawUnlockedToken",
-      "inputs": [
-          {
-              "name": "tokenAddress",
-              "type": "address",
-              "internalType": "address"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "internalType": "address"
-          }
-      ],
-      "outputs": [],
-      "stateMutability": "nonpayable"
-  },
-  {
-      "type": "event",
-      "name": "CancelTokenRecoverLock",
-      "inputs": [
-          {
-              "name": "tokenSymbol",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-          },
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "attacker",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "CancelTransfer",
-      "inputs": [
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "attacker",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "LargeTransferLimitSet",
-      "inputs": [
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "owner",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "largeTransferLimit",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "LargeTransferLocked",
-      "inputs": [
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          },
-          {
-              "name": "unlockAt",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "NotBoundToken",
-      "inputs": [
-          {
-              "name": "tokenSymbol",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "TokenRecoverLocked",
-      "inputs": [
-          {
-              "name": "tokenSymbol",
-              "type": "bytes32",
-              "indexed": true,
-              "internalType": "bytes32"
-          },
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          },
-          {
-              "name": "unlockAt",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "WithdrawUnlockedToken",
-      "inputs": [
-          {
-              "name": "tokenAddr",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "recipient",
-              "type": "address",
-              "indexed": true,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "paramChange",
-      "inputs": [
-          {
-              "name": "key",
-              "type": "string",
-              "indexed": false,
-              "internalType": "string"
-          },
-          {
-              "name": "value",
-              "type": "bytes",
-              "indexed": false,
-              "internalType": "bytes"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "receiveDeposit",
-      "inputs": [
-          {
-              "name": "from",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "refundFailure",
-      "inputs": [
-          {
-              "name": "bep20Addr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "refundAddr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          },
-          {
-              "name": "status",
-              "type": "uint32",
-              "indexed": false,
-              "internalType": "uint32"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "refundSuccess",
-      "inputs": [
-          {
-              "name": "bep20Addr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "refundAddr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          },
-          {
-              "name": "status",
-              "type": "uint32",
-              "indexed": false,
-              "internalType": "uint32"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "rewardTo",
-      "inputs": [
-          {
-              "name": "to",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "transferInSuccess",
-      "inputs": [
-          {
-              "name": "bep20Addr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "refundAddr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "transferOutSuccess",
-      "inputs": [
-          {
-              "name": "bep20Addr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "senderAddr",
-              "type": "address",
-              "indexed": false,
-              "internalType": "address"
-          },
-          {
-              "name": "amount",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          },
-          {
-              "name": "relayFee",
-              "type": "uint256",
-              "indexed": false,
-              "internalType": "uint256"
-          }
-      ],
-      "anonymous": false
-  },
-  {
-      "type": "event",
-      "name": "unexpectedPackage",
-      "inputs": [
-          {
-              "name": "channelId",
-              "type": "uint8",
-              "indexed": false,
-              "internalType": "uint8"
-          },
-          {
-              "name": "msgBytes",
-              "type": "bytes",
-              "indexed": false,
-              "internalType": "bytes"
-          }
-      ],
-      "anonymous": false
+[
+  {
+    "type": "receive",
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "BC_FUSION_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BEP2_TOKEN_DECIMALS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BEP2_TOKEN_SYMBOL_FOR_BNB",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BIND_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "CODE_OK",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "CROSS_CHAIN_CONTRACT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "CROSS_STAKE_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "ERROR_FAIL_DECODE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint32",
+        "internalType": "uint32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "GOVERNOR_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "GOV_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "GOV_HUB_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "GOV_TOKEN_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "INCENTIVIZE_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "INIT_BNB_LARGE_TRANSFER_LIMIT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "INIT_LOCK_PERIOD",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "INIT_MINIMUM_RELAY_FEE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "LIGHT_CLIENT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "LOCK_PERIOD_FOR_TOKEN_RECOVER",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAXIMUM_BEP20_SYMBOL_LEN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_BEP2_TOTAL_SUPPLY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_GAS_FOR_CALLING_BEP20",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MAX_GAS_FOR_TRANSFER_BNB",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MINIMUM_BEP20_SYMBOL_LEN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "RELAYERHUB_CONTRACT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "REWARD_UPPER_LIMIT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SLASH_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SLASH_CONTRACT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "STAKE_CREDIT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "STAKE_HUB_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "STAKING_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "STAKING_CONTRACT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "SYSTEM_REWARD_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TEN_DECIMALS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TIMELOCK_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOKEN_HUB_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOKEN_MANAGER_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TOKEN_RECOVER_PORTAL_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_FAILURE_TIMEOUT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_FAILURE_UNBOUND_TOKEN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_FAILURE_UNKNOWN",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_IN_SUCCESS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "TRANSFER_OUT_CHANNELID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "VALIDATOR_CONTRACT_ADDR",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "alreadyInit",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "batchTransferOutBNB",
+    "inputs": [
+      {
+        "name": "recipientAddrs",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "amounts",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      },
+      {
+        "name": "refundAddrs",
+        "type": "address[]",
+        "internalType": "address[]"
+      },
+      {
+        "name": "expireTime",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "bep20ContractDecimals",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "bindToken",
+    "inputs": [
+      {
+        "name": "bep2Symbol",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "contractAddr",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "decimals",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "bscChainID",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint16",
+        "internalType": "uint16"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "cancelTokenRecoverLock",
+    "inputs": [
+      {
+        "name": "tokenSymbol",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "attacker",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cancelTransferIn",
+    "inputs": [
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "attacker",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimMigrationFund",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimRewards",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address payable"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getBep2SymbolByContractAddr",
+    "inputs": [
+      {
+        "name": "contractAddr",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBoundBep2Symbol",
+    "inputs": [
+      {
+        "name": "contractAddr",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBoundContract",
+    "inputs": [
+      {
+        "name": "bep2Symbol",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getContractAddrByBEP2Symbol",
+    "inputs": [
+      {
+        "name": "bep2Symbol",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getMiniRelayFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "handleAckPackage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "msgBytes",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "handleFailAckPackage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "msgBytes",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "handleSynPackage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "msgBytes",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "init",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "largeTransferLimitMap",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lockInfoMap",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "unlockAt",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "lockPeriod",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "recoverBCAsset",
+    "inputs": [
+      {
+        "name": "tokenSymbol",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "relayFee",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setLargeTransferLimit",
+    "inputs": [
+      {
+        "name": "bep20Token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "largeTransferLimit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "transferOut",
+    "inputs": [
+      {
+        "name": "contractAddr",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "expireTime",
+        "type": "uint64",
+        "internalType": "uint64"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "unbindToken",
+    "inputs": [
+      {
+        "name": "bep2Symbol",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "contractAddr",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "updateParam",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "bytes",
+        "internalType": "bytes"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawStakingBNB",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "withdrawUnlockedToken",
+    "inputs": [
+      {
+        "name": "tokenAddress",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "CancelTokenRecoverLock",
+    "inputs": [
+      {
+        "name": "tokenSymbol",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "attacker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CancelTransfer",
+    "inputs": [
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "attacker",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LargeTransferLimitSet",
+    "inputs": [
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "owner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "largeTransferLimit",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "LargeTransferLocked",
+    "inputs": [
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "unlockAt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NotBoundToken",
+    "inputs": [
+      {
+        "name": "tokenSymbol",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TokenRecoverLocked",
+    "inputs": [
+      {
+        "name": "tokenSymbol",
+        "type": "bytes32",
+        "indexed": true,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "unlockAt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "WithdrawUnlockedToken",
+    "inputs": [
+      {
+        "name": "tokenAddr",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "recipient",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "paramChange",
+    "inputs": [
+      {
+        "name": "key",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "value",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "receiveDeposit",
+    "inputs": [
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "refundFailure",
+    "inputs": [
+      {
+        "name": "bep20Addr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "refundAddr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "refundSuccess",
+    "inputs": [
+      {
+        "name": "bep20Addr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "refundAddr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint32",
+        "indexed": false,
+        "internalType": "uint32"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "rewardTo",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "transferInSuccess",
+    "inputs": [
+      {
+        "name": "bep20Addr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "refundAddr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "transferOutSuccess",
+    "inputs": [
+      {
+        "name": "bep20Addr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "senderAddr",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "relayFee",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "unexpectedPackage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "msgBytes",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
   }
+]

@@ -123,31 +123,31 @@
     "name": "burn",
     "inputs": [
       {
-        "name": "amount",
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "pure"
   },
   {
     "type": "function",
     "name": "burnFrom",
     "inputs": [
       {
-        "name": "account",
+        "name": "",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "amount",
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
     "outputs": [],
-    "stateMutability": "nonpayable"
+    "stateMutability": "pure"
   },
   {
     "type": "function",
@@ -833,6 +833,11 @@
   {
     "type": "error",
     "name": "ApproveNotAllowed",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "BurnNotAllowed",
     "inputs": []
   },
   {

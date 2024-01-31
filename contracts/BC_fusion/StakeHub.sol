@@ -357,8 +357,8 @@ contract StakeHub is System, Initializable {
         bytes32 monikerHash = keccak256(abi.encodePacked(description.moniker));
         if (_monikerSet[monikerHash]) revert DuplicateMoniker();
 
-        uint256 delegation = msg.value;
-        if (delegation < minSelfDelegationBNB + LOCK_AMOUNT) revert SelfDelegationNotEnough();
+        uint256 delegation = msg.value - LOCK_AMOUNT; // create validator need to lock 1 BNB
+        if (delegation < minSelfDelegationBNB) revert SelfDelegationNotEnough();
 
         if (consensusAddress == address(0)) revert InvalidConsensusAddress();
         if (
@@ -388,6 +388,7 @@ contract StakeHub is System, Initializable {
 
         emit ValidatorCreated(consensusAddress, operatorAddress, creditContract, voteAddress);
         emit Delegated(operatorAddress, operatorAddress, delegation, delegation);
+        emit Delegated(operatorAddress, DEAD_ADDRESS, LOCK_AMOUNT, LOCK_AMOUNT);
 
         IGovToken(GOV_TOKEN_ADDR).sync(creditContract, operatorAddress);
     }
@@ -657,6 +658,7 @@ contract StakeHub is System, Initializable {
         address operatorAddress = consensusToOperator[consensusAddress];
         Validator memory valInfo = _validators[operatorAddress];
         if (valInfo.creditContract == address(0) || valInfo.jailed) {
+            SYSTEM_REWARD_ADDR.call{ value: msg.value }("");
             emit RewardDistributeFailed(operatorAddress, "INVALID_VALIDATOR");
             return;
         }

@@ -313,7 +313,10 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
    * @param validator Who will be jailed
    */
   function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0);
+    try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) {}
+    catch (bytes memory reason) {
+      emit failedFelony(validator, 0, reason);
+    }
   }
 
   function _verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns(bool) {
