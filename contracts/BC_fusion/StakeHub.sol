@@ -227,6 +227,8 @@ contract StakeHub is System, Initializable {
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
+    event BlackListed(address indexed target);
+    event UnBlackListed(address indexed target);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
@@ -665,6 +667,8 @@ contract StakeHub is System, Initializable {
 
         IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
         emit RewardDistributed(operatorAddress, msg.value);
+
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
     /**
@@ -679,6 +683,10 @@ contract StakeHub is System, Initializable {
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(downtimeSlashAmount);
         uint256 jailUntil = block.timestamp + downtimeJailTime;
         _jailValidator(valInfo, jailUntil);
+
+        if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
+        }
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DownTime);
 
@@ -709,6 +717,7 @@ contract StakeHub is System, Initializable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
@@ -741,6 +750,7 @@ contract StakeHub is System, Initializable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
@@ -768,6 +778,7 @@ contract StakeHub is System, Initializable {
      */
     function addToBlackList(address account) external onlyAssetProtector {
         blackList[account] = true;
+        emit BlackListed(account);
     }
 
     /**
@@ -775,6 +786,7 @@ contract StakeHub is System, Initializable {
      */
     function removeFromBlackList(address account) external onlyAssetProtector {
         blackList[account] = false;
+        emit UnBlackListed(account);
     }
 
     /**

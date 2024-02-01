@@ -58,16 +58,6 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
         _;
     }
 
-    function pause() external onlyAssetProtector {
-        _paused = true;
-        emit Paused();
-    }
-
-    function resume() external onlyAssetProtector {
-        _paused = false;
-        emit Resumed();
-    }
-
     /*----------------- errors -----------------*/
     // @notice signature: 0x3e493100
     error AlreadyRecovered();
@@ -99,6 +89,21 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     event Resumed();
     // This event is triggered whenever a call to #recover succeeds.
     event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
+
+    /*----------------- init -----------------*/
+    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
+        __ReentrancyGuard_init_unchained();
+    }
+
+    function pause() external onlyAssetProtector {
+        _paused = true;
+        emit Paused();
+    }
+
+    function resume() external onlyAssetProtector {
+        _paused = false;
+        emit Resumed();
+    }
 
     /**
      * isRecovered check if the token is recovered.

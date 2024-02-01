@@ -83,6 +83,38 @@
   },
   {
     "type": "function",
+    "name": "addToBlackList",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "blackList",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "cancel",
     "inputs": [
       {
@@ -627,6 +659,25 @@
   },
   {
     "type": "function",
+    "name": "latestProposalIds",
+    "inputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "name",
     "inputs": [],
     "outputs": [
@@ -1158,6 +1209,19 @@
   },
   {
     "type": "function",
+    "name": "removeFromBlackList",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "resume",
     "inputs": [],
     "outputs": [],
@@ -1380,6 +1444,19 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "BlackListed",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "event",
@@ -1634,6 +1711,19 @@
   },
   {
     "type": "event",
+    "name": "UnBlackListed",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "VoteCast",
     "inputs": [
       {
@@ -1762,6 +1852,11 @@
   },
   {
     "type": "error",
+    "name": "InBlackList",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "InvalidValue",
     "inputs": [
       {
@@ -1779,6 +1874,11 @@
   {
     "type": "error",
     "name": "NotWhitelisted",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "OneLiveProposalPerProposer",
     "inputs": []
   },
   {
