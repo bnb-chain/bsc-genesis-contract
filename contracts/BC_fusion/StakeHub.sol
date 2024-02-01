@@ -1177,8 +1177,6 @@ contract StakeHub is System, Initializable {
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
-
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
@@ -1192,6 +1190,8 @@ contract StakeHub is System, Initializable {
                 return;
             }
         }
+
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
 
         if (jailUntil > valInfo.jailUntil) {
             valInfo.jailUntil = jailUntil;
