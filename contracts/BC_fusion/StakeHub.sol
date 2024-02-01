@@ -684,10 +684,6 @@ contract StakeHub is System, Initializable {
         uint256 jailUntil = block.timestamp + downtimeJailTime;
         _jailValidator(valInfo, jailUntil);
 
-        if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
-        }
-
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DownTime);
 
         IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
@@ -717,7 +713,6 @@ contract StakeHub is System, Initializable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
@@ -750,7 +745,6 @@ contract StakeHub is System, Initializable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
@@ -1165,7 +1159,6 @@ contract StakeHub is System, Initializable {
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, block.timestamp + downtimeJailTime);
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         }
     }
@@ -1184,6 +1177,8 @@ contract StakeHub is System, Initializable {
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
+
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
