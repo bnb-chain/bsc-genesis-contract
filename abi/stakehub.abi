@@ -1061,6 +1061,19 @@
   },
   {
     "type": "event",
+    "name": "BlackListed",
+    "inputs": [
+      {
+        "name": "target",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Claimed",
     "inputs": [
       {
@@ -1365,6 +1378,19 @@
       },
       {
         "name": "creditContract",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "UnBlackListed",
+    "inputs": [
+      {
+        "name": "target",
         "type": "address",
         "indexed": true,
         "internalType": "address"

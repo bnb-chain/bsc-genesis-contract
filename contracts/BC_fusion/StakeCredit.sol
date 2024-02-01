@@ -86,6 +86,7 @@ contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20
         string memory name_ = string.concat("Stake ", _moniker, " Credit");
         string memory symbol_ = string.concat("st", _moniker);
         __ERC20_init_unchained(name_, symbol_);
+        __ReentrancyGuard_init_unchained();
 
         validator = _validator;
 

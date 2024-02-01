@@ -227,6 +227,8 @@ contract StakeHub is System, Initializable {
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
+    event BlackListed(address indexed target);
+    event UnBlackListed(address indexed target);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
@@ -665,6 +667,8 @@ contract StakeHub is System, Initializable {
 
         IStakeCredit(valInfo.creditContract).distributeReward{ value: msg.value }(valInfo.commission.rate);
         emit RewardDistributed(operatorAddress, msg.value);
+
+        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, operatorAddress);
     }
 
     /**
@@ -768,6 +772,7 @@ contract StakeHub is System, Initializable {
      */
     function addToBlackList(address account) external onlyAssetProtector {
         blackList[account] = true;
+        emit BlackListed(account);
     }
 
     /**
@@ -775,6 +780,7 @@ contract StakeHub is System, Initializable {
      */
     function removeFromBlackList(address account) external onlyAssetProtector {
         blackList[account] = false;
+        emit UnBlackListed(account);
     }
 
     /**
@@ -1153,7 +1159,6 @@ contract StakeHub is System, Initializable {
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, block.timestamp + downtimeJailTime);
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         }
     }
@@ -1172,6 +1177,8 @@ contract StakeHub is System, Initializable {
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
+
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {

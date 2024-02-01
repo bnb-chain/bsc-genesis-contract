@@ -60,6 +60,8 @@ contract BSCGovernor is
     /*----------------- events -----------------*/
     event Paused();
     event Resumed();
+    event BlackListed(address indexed target);
+    event UnBlackListed(address indexed target);
 
     /*----------------- storage -----------------*/
     // target contract => is whitelisted for governance
@@ -130,6 +132,7 @@ contract BSCGovernor is
      */
     function addToBlackList(address account) external onlyGovernorProtector {
         blackList[account] = true;
+        emit BlackListed(account);
     }
 
     /**
@@ -137,6 +140,7 @@ contract BSCGovernor is
      */
     function removeFromBlackList(address account) external onlyGovernorProtector {
         blackList[account] = false;
+        emit UnBlackListed(account);
     }
 
     /*----------------- external functions -----------------*/
