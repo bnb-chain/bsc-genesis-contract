@@ -5,9 +5,10 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
+import "./System.sol";
+import "./extension/Protectable.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/ITokenRecoverPortal.sol";
-import "./System.sol";
 import "./lib/Utils.sol";
 
 /**
@@ -17,7 +18,7 @@ import "./lib/Utils.sol";
  * The BC users can recover the token from TokenHub after the merkle tree root is generated.
  * For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
  */
-contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
+contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable, Protectable {
     using Utils for string;
     using Utils for bytes;
 
@@ -31,21 +32,6 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
 
     // recoveredMap is used to record the recovered token.
     mapping(bytes32 => bool) private recoveredMap;
-
-    // assetProtector is the address that is allowed to pause the #recover.
-    address public assetProtector;
-    // paused is used to pause the #recover.
-    bool private _paused;
-
-    modifier whenNotPaused() {
-        if (_paused) revert TokenRecoverPortalPaused();
-        _;
-    }
-
-    modifier onlyAssetProtector() {
-        if (msg.sender != assetProtector) revert OnlyAssetProtector();
-        _;
-    }
 
     modifier merkelRootReady() {
         if (!merkleRootAlreadyInit) revert MerkleRootNotInitialize();
@@ -75,34 +61,20 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
     error MerkleRootNotInitialize();
     // @notice signature: 0xc629ac81
     error TokenRecoverPortalPaused();
-    // @notice signature: 0xb1d02c3d
-    error InBlackList();
-    // @notice signature: 0xf2771a99
-    error OnlyAssetProtector();
     // @notice signature: 0x459e3e99
     error ApprovalAddressNotInitialize();
 
     /*----------------- events -----------------*/
-    // This event is triggered whenever a call to #pause succeeds.
-    event Paused();
-    // This event is triggered whenever a call to #resumed succeeds.
-    event Resumed();
     // This event is triggered whenever a call to #recover succeeds.
     event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         __ReentrancyGuard_init_unchained();
-    }
 
-    function pause() external onlyAssetProtector {
-        _paused = true;
-        emit Paused();
-    }
-
-    function resume() external onlyAssetProtector {
-        _paused = false;
-        emit Resumed();
+        // TODO
+        // Different address will be set depending on the environment
+        __Protectable_init_unchained(address(0xdEaD));
     }
 
     /**
@@ -275,11 +247,11 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
             if (newMerkleRoot == bytes32(0)) revert InvalidValue(key, value);
             merkleRoot = newMerkleRoot;
             merkleRootAlreadyInit = true;
-        } else if (key.compareStrings("assetProtector")) {
+        } else if (key.compareStrings("tokenRecoverPortalProtector")) {
             if (value.length != 20) revert InvalidValue(key, value);
-            address newAssetProtector = value.bytesToAddress(20);
-            if (newAssetProtector == address(0)) revert InvalidValue(key, value);
-            assetProtector = newAssetProtector;
+            address newTokenRecoverPortalProtector = value.bytesToAddress(20);
+            if (newTokenRecoverPortalProtector == address(0)) revert InvalidValue(key, value);
+            _setProtector(newTokenRecoverPortalProtector);
         } else {
             revert UnknownParam(key, value);
         }
@@ -292,7 +264,7 @@ contract TokenRecoverPortal is System, ReentrancyGuardUpgradeable {
      * @param tokenSymbol is the symbol of token.
      * @param attacker is the address of the attacker.
      */
-    function cancelTokenRecover(bytes32 tokenSymbol, address attacker) external onlyAssetProtector {
+    function cancelTokenRecover(bytes32 tokenSymbol, address attacker) external onlyProtector {
         ITokenHub(TOKEN_HUB_ADDR).cancelTokenRecoverLock(tokenSymbol, attacker);
     }
 }

@@ -18,6 +18,7 @@ interface StakeHub {
         string details;
     }
 
+    error AlreadyPaused();
     error AlreadySlashed();
     error ConsensusAddressExpired();
     error DelegationAmountTooSmall();
@@ -34,14 +35,13 @@ interface StakeHub {
     error InvalidVoteAddress();
     error JailTimeNotExpired();
     error NoMoreFelonyAllowed();
-    error OnlyAssetProtector();
     error OnlyCoinbase();
+    error OnlyProtector();
     error OnlySelfDelegation();
     error OnlySystemContract(address systemContract);
     error OnlyZeroGasPrice();
     error SameValidator();
     error SelfDelegationNotEnough();
-    error StakeHubPaused();
     error TransferFailed();
     error UnknownParam(string key, bytes value);
     error UpdateTooFrequently();
@@ -51,6 +51,7 @@ interface StakeHub {
     error VoteAddressExpired();
     error ZeroShares();
 
+    event BlackListed(address indexed target);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event CommissionRateEdited(address indexed operatorAddress, uint64 newCommissionRate);
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newConsensusAddress);
@@ -75,6 +76,7 @@ interface StakeHub {
     event RewardDistributeFailed(address indexed operatorAddress, bytes failReason);
     event RewardDistributed(address indexed operatorAddress, uint256 reward);
     event StakeCreditInitialized(address indexed operatorAddress, address indexed creditContract);
+    event UnBlackListed(address indexed target);
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ValidatorCreated(
         address indexed consensusAddress,
@@ -100,7 +102,6 @@ interface StakeHub {
     function REDELEGATE_FEE_RATE_BASE() external view returns (uint256);
     function STAKING_CHANNELID() external view returns (uint8);
     function addToBlackList(address account) external;
-    function assetProtector() external view returns (address);
     function blackList(address) external view returns (bool);
     function claim(address operatorAddress, uint256 requestNumber) external;
     function claimBatch(address[] memory operatorAddresses, uint256[] memory requestNumbers) external;

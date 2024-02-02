@@ -10,12 +10,14 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQ
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 
 import "./System.sol";
+import "./extension/Protectable.sol";
 import "./lib/Utils.sol";
 import "./interface/IGovToken.sol";
 
 contract BSCGovernor is
     System,
     Initializable,
+    Protectable,
     GovernorUpgradeable,
     GovernorSettingsUpgradeable,
     GovernorCompatibilityBravoUpgradeable,
@@ -48,49 +50,17 @@ contract BSCGovernor is
     error NotWhitelisted();
     // @notice signature: 0x11b6707f
     error TotalSupplyNotEnough();
-    // @notice signature: 0xe96776bf
-    error GovernorPaused();
-    // @notice signature: 0x286300de
-    error OnlyGovernorProtector();
-    // @notice signature: 0xb1d02c3d
-    error InBlackList();
     // @notice signature: 0x867f3ee5
     error OneLiveProposalPerProposer();
-
-    /*----------------- events -----------------*/
-    event Paused();
-    event Resumed();
-    event BlackListed(address indexed target);
-    event UnBlackListed(address indexed target);
 
     /*----------------- storage -----------------*/
     // target contract => is whitelisted for governance
     mapping(address => bool) public whitelistTargets;
 
     bool public proposeStarted;
-    bool public paused;
-
-    address public governorProtector;
-    mapping(address => bool) public blackList;
 
     // @notice The latest proposal for each proposer
     mapping(address => uint256) public latestProposalIds;
-
-    /*----------------- modifier -----------------*/
-    modifier whenNotPaused() {
-        if (paused) revert GovernorPaused();
-        _;
-    }
-
-    modifier onlyGovernorProtector() {
-        if (msg.sender != governorProtector) revert OnlyGovernorProtector();
-        _;
-    }
-
-    modifier notInBlackList() {
-        if (blackList[msg.sender]) revert InBlackList();
-        _;
-    }
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
@@ -107,40 +77,7 @@ contract BSCGovernor is
 
         // TODO
         // Different address will be set depending on the environment
-        governorProtector = address(0xdEaD);
-    }
-
-    /*----------------- onlyGovernorProtector -----------------*/
-    /**
-     * @dev Pause the whole system in emergency
-     */
-    function pause() external onlyGovernorProtector {
-        paused = true;
-        emit Paused();
-    }
-
-    /**
-     * @dev Resume the whole system
-     */
-    function resume() external onlyGovernorProtector {
-        paused = false;
-        emit Resumed();
-    }
-
-    /**
-     * @dev Add an address to the black list
-     */
-    function addToBlackList(address account) external onlyGovernorProtector {
-        blackList[account] = true;
-        emit BlackListed(account);
-    }
-
-    /**
-     * @dev Remove an address from the black list
-     */
-    function removeFromBlackList(address account) external onlyGovernorProtector {
-        blackList[account] = false;
-        emit UnBlackListed(account);
+        __Protectable_init_unchained(address(0xdEaD));
     }
 
     /*----------------- external functions -----------------*/
@@ -258,6 +195,11 @@ contract BSCGovernor is
             uint64 newMinPeriodAfterQuorum = value.bytesToUint64(8);
             if (newMinPeriodAfterQuorum == 0 || newMinPeriodAfterQuorum > 2 days) revert InvalidValue(key, value);
             _setLateQuorumVoteExtension(newMinPeriodAfterQuorum);
+        } else if (key.compareStrings("governorProtector")) {
+            if (value.length != 20) revert InvalidValue(key, value);
+            address newGovernorProtector = value.bytesToAddress(20);
+            if (newGovernorProtector == address(0)) revert InvalidValue(key, value);
+            _setProtector(newGovernorProtector);
         } else {
             revert UnknownParam(key, value);
         }
