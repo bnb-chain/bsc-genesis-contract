@@ -1653,6 +1653,11 @@
   },
   {
     "type": "error",
+    "name": "NotPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "OnlyCoinbase",
     "inputs": []
   },

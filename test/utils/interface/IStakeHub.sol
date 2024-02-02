@@ -35,6 +35,7 @@ interface StakeHub {
     error InvalidVoteAddress();
     error JailTimeNotExpired();
     error NoMoreFelonyAllowed();
+    error NotPaused();
     error OnlyCoinbase();
     error OnlyProtector();
     error OnlySelfDelegation();

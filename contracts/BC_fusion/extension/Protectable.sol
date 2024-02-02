@@ -12,6 +12,7 @@ abstract contract Protectable is Initializable {
     /*----------------- errors -----------------*/
     // @notice signature: 0x1785c681
     error AlreadyPaused();
+    error NotPaused();
     // @notice signature: 0xb1d02c3d
     error InBlackList();
     // @notice signature: 0x06fbb1e3
@@ -26,6 +27,11 @@ abstract contract Protectable is Initializable {
     /*----------------- modifier -----------------*/
     modifier whenNotPaused() {
         if (_paused) revert AlreadyPaused();
+        _;
+    }
+
+    modifier whenPaused() {
+        if (!_paused) revert NotPaused();
         _;
     }
 
@@ -67,7 +73,7 @@ abstract contract Protectable is Initializable {
     /**
      * @dev Resume the whole system
      */
-    function resume() external virtual onlyProtector {
+    function resume() external virtual onlyProtector whenPaused {
         _paused = false;
         emit Resumed();
     }
@@ -84,7 +90,7 @@ abstract contract Protectable is Initializable {
      * @dev Remove an address from the black list
      */
     function removeFromBlackList(address account) external virtual onlyProtector {
-        blackList[account] = false;
+        delete blackList[account];
         emit UnBlackListed(account);
     }
 

@@ -1860,6 +1860,11 @@
   },
   {
     "type": "error",
+    "name": "NotPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotWhitelisted",
     "inputs": []
   },

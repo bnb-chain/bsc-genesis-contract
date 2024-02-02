@@ -14,6 +14,7 @@ interface BSCGovernor {
     error Empty();
     error InBlackList();
     error InvalidValue(string key, bytes value);
+    error NotPaused();
     error NotWhitelisted();
     error OneLiveProposalPerProposer();
     error OnlyCoinbase();
