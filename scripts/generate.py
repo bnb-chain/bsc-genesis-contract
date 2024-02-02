@@ -236,7 +236,10 @@ def generate_token_recover_portal(source_chain_id, token_recover_portal_protecto
     )
 
     replace_parameter(contract, "string public constant SOURCE_CHAIN_ID", f"\"{source_chain_id}\"")
-    replace(contract, r"__Protectable_init_unchained\(.*\);", f"__Protectable_init_unchained({token_recover_portal_protector});")
+    replace(
+        contract, r"__Protectable_init_unchained\(.*\);",
+        f"__Protectable_init_unchained({token_recover_portal_protector});"
+    )
 
 
 def generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch):
