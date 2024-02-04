@@ -34,13 +34,13 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
     mapping(bytes32 => bool) private recoveredMap;
 
     modifier merkelRootReady() {
-        if (!merkleRootAlreadyInit) revert MerkleRootNotInitialize();
-        if (merkleRoot == bytes32(0)) revert MerkleRootNotInitialize();
+        if (!merkleRootAlreadyInit) revert MerkleRootNotInitialized();
+        if (merkleRoot == bytes32(0)) revert MerkleRootNotInitialized();
         _;
     }
 
     modifier approvalAddressInit() {
-        if (approvalAddress == address(0)) revert ApprovalAddressNotInitialize();
+        if (approvalAddress == address(0)) revert ApprovalAddressNotInitialized();
         _;
     }
 
@@ -57,12 +57,12 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
     error InvalidOwnerSignatureLength();
     // @notice signature: 0xf36660de
     error MerkleRootAlreadyInitiated();
-    // @notice signature: 0x57407297
-    error MerkleRootNotInitialize();
+    // @notice signature: 0xcf1ec32e
+    error MerkleRootNotInitialized();
     // @notice signature: 0xc629ac81
     error TokenRecoverPortalPaused();
-    // @notice signature: 0x459e3e99
-    error ApprovalAddressNotInitialize();
+    // @notice signature: 0xd0dcbbd8
+    error ApprovalAddressNotInitialized();
 
     /*----------------- events -----------------*/
     // This event is triggered whenever a call to #recover succeeds.
