@@ -41,8 +41,8 @@ contract StakeHub is System, Initializable, Protectable {
     /*----------------- errors -----------------*/
     // @notice signature: 0x5f28f62b
     error ValidatorExisted();
-    // @notice signature: 0xfdf4600b
-    error ValidatorNotExist();
+    // @notice signature: 0x056e8811
+    error ValidatorNotExisted();
     // @notice signature: 0x4b6b857d
     error ValidatorNotJailed();
     // @notice signature: 0x3cdeb0ea
@@ -215,12 +215,18 @@ contract StakeHub is System, Initializable, Protectable {
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
+    event UnexpectedPackage(uint8 channelId, bytes msgBytes);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted();
         _;
+    }
+
+    modifier receiveFund() {
+        _isReceivingFund == 1;
+        _;
+        _isReceivingFund == 0;
     }
 
     receive() external payable {
@@ -261,7 +267,10 @@ contract StakeHub is System, Initializable, Protectable {
     }
 
     /*----------------- Implement cross chain app -----------------*/
-    function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract returns (bytes memory) {
+    function handleSynPackage(
+        uint8,
+        bytes calldata msgBytes
+    ) external onlyCrossChainContract receiveFund returns (bytes memory) {
         (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
         if (!decodeSuccess) revert InvalidSynPackage();
 
@@ -270,7 +279,6 @@ contract StakeHub is System, Initializable, Protectable {
         }
 
         // claim fund from TokenHub
-        _isReceivingFund = 1;
         bool claimSuccess = ITokenHub(TOKEN_HUB_ADDR).claimMigrationFund(migrationPkg.amount);
         if (!claimSuccess) {
             emit MigrateFailed(
@@ -279,10 +287,8 @@ contract StakeHub is System, Initializable, Protectable {
                 migrationPkg.amount,
                 StakeMigrationRespCode.CLAIM_FUND_FAILED
             );
-            _isReceivingFund = 0;
             return msgBytes;
         }
-        _isReceivingFund = 0;
 
         StakeMigrationRespCode respCode = _doMigration(migrationPkg);
 
@@ -296,12 +302,12 @@ contract StakeHub is System, Initializable, Protectable {
 
     function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
         // should not happen
-        emit unexpectedPackage(channelId, msgBytes);
+        emit UnexpectedPackage(channelId, msgBytes);
     }
 
     function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
         // should not happen
-        emit unexpectedPackage(channelId, msgBytes);
+        emit UnexpectedPackage(channelId, msgBytes);
     }
 
     /*----------------- external functions -----------------*/
@@ -541,7 +547,7 @@ contract StakeHub is System, Initializable, Protectable {
         address dstValidator,
         uint256 shares,
         bool delegateVotePower
-    ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) {
+    ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) receiveFund {
         if (shares == 0) revert ZeroShares();
         if (srcValidator == dstValidator) revert SameValidator();
 
@@ -550,7 +556,6 @@ contract StakeHub is System, Initializable, Protectable {
         Validator memory dstValInfo = _validators[dstValidator];
         if (dstValInfo.jailed && delegator != dstValidator) revert OnlySelfDelegation();
 
-        _isReceivingFund = 1;
         uint256 bnbAmount = IStakeCredit(srcValInfo.creditContract).unbond(delegator, shares);
         if (bnbAmount < minDelegationBNBChange) revert DelegationAmountTooSmall();
         // check if the srcValidator has enough self delegation
@@ -567,7 +572,6 @@ contract StakeHub is System, Initializable, Protectable {
 
         bnbAmount -= feeCharge;
         uint256 newShares = IStakeCredit(dstValInfo.creditContract).delegate{ value: bnbAmount }(delegator);
-        _isReceivingFund = 0;
         emit Redelegated(srcValidator, dstValidator, delegator, shares, newShares, bnbAmount);
 
         address[] memory stakeCredits = new address[](2);
@@ -616,7 +620,7 @@ contract StakeHub is System, Initializable, Protectable {
         address[] memory stakeCredits = new address[](_length);
         address credit;
         for (uint256 i = 0; i < _length; ++i) {
-            if (!_validatorSet.contains(operatorAddresses[i])) revert ValidatorNotExist(); // should never happen
+            if (!_validatorSet.contains(operatorAddresses[i])) revert ValidatorNotExisted();
             credit = _validators[operatorAddresses[i]].creditContract;
             stakeCredits[i] = credit;
         }
@@ -648,7 +652,7 @@ contract StakeHub is System, Initializable, Protectable {
      */
     function downtimeSlash(address consensusAddress) external onlySlash {
         address operatorAddress = consensusToOperator[consensusAddress];
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         // slash
@@ -666,7 +670,7 @@ contract StakeHub is System, Initializable, Protectable {
      */
     function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash whenNotPaused {
         address operatorAddress = voteToOperator[voteAddress];
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         uint256 index = block.timestamp / BREATHE_BLOCK_INTERVAL;
@@ -696,7 +700,7 @@ contract StakeHub is System, Initializable, Protectable {
      */
     function doubleSignSlash(address consensusAddress) external onlySlash whenNotPaused {
         address operatorAddress = consensusToOperator[consensusAddress];
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist(); // should never happen
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
 
         uint256 index = block.timestamp / BREATHE_BLOCK_INTERVAL;
@@ -812,7 +816,7 @@ contract StakeHub is System, Initializable, Protectable {
      * @return the validator's reward of the day
      */
     function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256) {
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted();
         return IStakeCredit(_validators[operatorAddress].creditContract).rewardRecord(index);
     }
 
@@ -823,7 +827,7 @@ contract StakeHub is System, Initializable, Protectable {
      * @return the validator's total pooled BNB of the day
      */
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256) {
-        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
+        if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted();
         return IStakeCredit(_validators[operatorAddress].creditContract).totalPooledBNBRecord(index);
     }
 

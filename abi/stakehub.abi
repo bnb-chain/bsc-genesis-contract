@@ -1418,6 +1418,25 @@
   },
   {
     "type": "event",
+    "name": "UnexpectedPackage",
+    "inputs": [
+      {
+        "name": "channelId",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "msgBytes",
+        "type": "bytes",
+        "indexed": false,
+        "internalType": "bytes"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "ValidatorCreated",
     "inputs": [
       {
@@ -1529,25 +1548,6 @@
       },
       {
         "name": "newVoteAddress",
-        "type": "bytes",
-        "indexed": false,
-        "internalType": "bytes"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "unexpectedPackage",
-    "inputs": [
-      {
-        "name": "channelId",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      },
-      {
-        "name": "msgBytes",
         "type": "bytes",
         "indexed": false,
         "internalType": "bytes"
@@ -1730,7 +1730,7 @@
   },
   {
     "type": "error",
-    "name": "ValidatorNotExist",
+    "name": "ValidatorNotExisted",
     "inputs": []
   },
   {
