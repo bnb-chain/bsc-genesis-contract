@@ -568,19 +568,6 @@
   },
   {
     "type": "function",
-    "name": "governorProtector",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "hasVoted",
     "inputs": [
       {
@@ -643,6 +630,19 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "isPaused",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -807,19 +807,6 @@
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "paused",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -1842,12 +1829,12 @@
   },
   {
     "type": "error",
-    "name": "Empty",
+    "name": "AlreadyPaused",
     "inputs": []
   },
   {
     "type": "error",
-    "name": "GovernorPaused",
+    "name": "Empty",
     "inputs": []
   },
   {
@@ -1873,6 +1860,11 @@
   },
   {
     "type": "error",
+    "name": "NotPaused",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NotWhitelisted",
     "inputs": []
   },
@@ -1888,7 +1880,7 @@
   },
   {
     "type": "error",
-    "name": "OnlyGovernorProtector",
+    "name": "OnlyProtector",
     "inputs": []
   },
   {

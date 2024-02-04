@@ -10,17 +10,21 @@ interface BSCGovernor {
         uint96 votes;
     }
 
+    error AlreadyPaused();
     error Empty();
-    error GovernorPaused();
+    error InBlackList();
     error InvalidValue(string key, bytes value);
+    error NotPaused();
     error NotWhitelisted();
+    error OneLiveProposalPerProposer();
     error OnlyCoinbase();
-    error OnlyGovernorProtector();
+    error OnlyProtector();
     error OnlySystemContract(address systemContract);
     error OnlyZeroGasPrice();
     error TotalSupplyNotEnough();
     error UnknownParam(string key, bytes value);
 
+    event BlackListed(address indexed target);
     event EIP712DomainChanged();
     event Initialized(uint8 version);
     event LateQuorumVoteExtensionSet(uint64 oldVoteExtension, uint64 newVoteExtension);
@@ -45,6 +49,7 @@ interface BSCGovernor {
     event QuorumNumeratorUpdated(uint256 oldQuorumNumerator, uint256 newQuorumNumerator);
     event Resumed();
     event TimelockChange(address oldTimelock, address newTimelock);
+    event UnBlackListed(address indexed target);
     event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
     event VoteCastWithParams(
         address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason, bytes params
@@ -60,6 +65,8 @@ interface BSCGovernor {
     function COUNTING_MODE() external pure returns (string memory);
     function EXTENDED_BALLOT_TYPEHASH() external view returns (bytes32);
     function STAKING_CHANNELID() external view returns (uint8);
+    function addToBlackList(address account) external;
+    function blackList(address) external view returns (bool);
     function cancel(uint256 proposalId) external;
     function cancel(
         address[] memory targets,
@@ -127,7 +134,6 @@ interface BSCGovernor {
         uint256 timepoint,
         bytes memory params
     ) external view returns (uint256);
-    function governorProtector() external view returns (address);
     function hasVoted(uint256 proposalId, address account) external view returns (bool);
     function hashProposal(
         address[] memory targets,
@@ -136,7 +142,9 @@ interface BSCGovernor {
         bytes32 descriptionHash
     ) external pure returns (uint256);
     function initialize() external;
+    function isPaused() external view returns (bool);
     function lateQuorumVoteExtension() external view returns (uint64);
+    function latestProposalIds(address) external view returns (uint256);
     function name() external view returns (string memory);
     function onERC1155BatchReceived(
         address,
@@ -148,7 +156,6 @@ interface BSCGovernor {
     function onERC1155Received(address, address, uint256, uint256, bytes memory) external returns (bytes4);
     function onERC721Received(address, address, uint256, bytes memory) external returns (bytes4);
     function pause() external;
-    function paused() external view returns (bool);
     function proposalDeadline(uint256 proposalId) external view returns (uint256);
     function proposalEta(uint256 proposalId) external view returns (uint256);
     function proposalProposer(uint256 proposalId) external view returns (address);
@@ -196,6 +203,7 @@ interface BSCGovernor {
     function quorumNumerator() external view returns (uint256);
     function quorumVotes() external view returns (uint256);
     function relay(address target, uint256 value, bytes memory data) external payable;
+    function removeFromBlackList(address account) external;
     function resume() external;
     function setLateQuorumVoteExtension(uint64 newVoteExtension) external;
     function setProposalThreshold(uint256 newProposalThreshold) external;

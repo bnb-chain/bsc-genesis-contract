@@ -132,7 +132,7 @@ def generate_slash_indicator(misdemeanor_threshold, felony_threshold, init_felon
 
 def generate_stake_hub(
     breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-    felony_jail_time, asset_protector
+    felony_jail_time, stake_hub_protector
 ):
     contract = "BC_fusion/StakeHub.sol"
     backup_file(
@@ -146,7 +146,7 @@ def generate_stake_hub(
     replace(contract, r"unbondPeriod = .*;", f"unbondPeriod = {unbond_period};")
     replace(contract, r"downtimeJailTime = .*;", f"downtimeJailTime = {downtime_jail_time};")
     replace(contract, r"felonyJailTime = .*;", f"felonyJailTime = {felony_jail_time};")
-    replace(contract, r"assetProtector = .*;", f"assetProtector = {asset_protector};")
+    replace(contract, r"__Protectable_init_unchained\(.*\);", f"__Protectable_init_unchained({stake_hub_protector});")
 
 
 def generate_governor(
@@ -163,7 +163,7 @@ def generate_governor(
     replace_parameter(
         contract, "uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM", f"{init_min_period_after_quorum}"
     )
-    replace(contract, r"governorProtector = .*;", f"governorProtector = {governor_protector};")
+    replace(contract, r"__Protectable_init_unchained\(.*\);", f"__Protectable_init_unchained({governor_protector});")
 
 
 def generate_timelock(init_minimal_delay):
@@ -229,13 +229,17 @@ def generate_token_hub(
     )
 
 
-def generate_token_recover_portal(source_chain_id):
+def generate_token_recover_portal(source_chain_id, token_recover_portal_protector):
     contract = "BC_fusion/TokenRecoverPortal.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
     replace_parameter(contract, "string public constant SOURCE_CHAIN_ID", f"\"{source_chain_id}\"")
+    replace(
+        contract, r"__Protectable_init_unchained\(.*\);",
+        f"__Protectable_init_unchained({token_recover_portal_protector});"
+    )
 
 
 def generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch):
@@ -304,8 +308,9 @@ def mainnet():
     # TODO: update the following parameters
     init_bc_consensus_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     init_bc_vote_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
-    asset_protector = "address(0xdEaD)"
+    stake_hub_protector = "address(0xdEaD)"
     governor_protector = "address(0xdEaD)"
+    token_recover_portal_protector = "address(0xdEaD)"
 
     epoch = "200"
     misdemeanor_threshold = "50"
@@ -334,10 +339,10 @@ def mainnet():
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
-    generate_token_recover_portal(source_chain_id)
+    generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
         breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, asset_protector
+        felony_jail_time, stake_hub_protector
     )
     generate_governor(
         block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
@@ -370,8 +375,9 @@ def testnet():
     # TODO: update the following parameters
     init_bc_consensus_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     init_bc_vote_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
-    asset_protector = "address(0xdEaD)"
+    stake_hub_protector = "address(0xdEaD)"
     governor_protector = "address(0xdEaD)"
+    token_recover_portal_protector = "address(0xdEaD)"
 
     epoch = "200"
     misdemeanor_threshold = "50"
@@ -400,10 +406,10 @@ def testnet():
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
-    generate_token_recover_portal(source_chain_id)
+    generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
         breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, asset_protector
+        felony_jail_time, stake_hub_protector
     )
     generate_governor(
         block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
@@ -440,7 +446,7 @@ def dev(
     str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
     init_bc_vote_addresses:
     str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
-    asset_protector: Annotated[str, typer.Option(help="assetProtector of StakeHub")] = "address(0xdEaD)",
+    stake_hub_protector: Annotated[str, typer.Option(help="assetProtector of StakeHub")] = "address(0xdEaD)",
     unbond_period: Annotated[str, typer.Option(help="unbondPeriod of StakeHub")] = "7 days",
     downtime_jail_time: Annotated[str, typer.Option(help="downtimeJailTime of StakeHub")] = "2 days",
     felony_jail_time: Annotated[str, typer.Option(help="felonyJailTime of StakeHub")] = "30 days",
@@ -457,7 +463,9 @@ def dev(
     reward_upper_limit: Annotated[str, typer.Option(help="REWARD_UPPER_LIMIT of TokenHub")] = "1e18",
     init_minimum_relay_fee: Annotated[str, typer.Option(help="INIT_MINIMUM_RELAY_FEE of TokenHub")] = "2e15",
     lock_period_for_token_recover: Annotated[str,
-                                             typer.Option(help="LOCK_PERIOD_FOR_TOKEN_RECOVER of TokenHub")] = "7 days"
+                                             typer.Option(help="LOCK_PERIOD_FOR_TOKEN_RECOVER of TokenHub")] = "7 days",
+    token_recover_portal_protector: Annotated[str,
+                                              typer.Option(help="protector of TokenRecoverPortal")] = "address(0xdEaD)"
 ):
     global network, chain_id, hex_chain_id
     network = "dev"
@@ -487,10 +495,10 @@ def dev(
     generate_relayer_hub(whitelist_1, whitelist_2)
     generate_tendermint_light_client(init_consensus_bytes)
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
-    generate_token_recover_portal(source_chain_id)
+    generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
         breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, asset_protector
+        felony_jail_time, stake_hub_protector
     )
     generate_governor(
         block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector

@@ -2,19 +2,20 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./System.sol";
-import "./lib/Utils.sol";
+import "./extension/Protectable.sol";
 import "./interface/IBSCValidatorSet.sol";
 import "./interface/ICrossChain.sol";
 import "./interface/IGovToken.sol";
 import "./interface/IStakeCredit.sol";
 import "./interface/ITokenHub.sol";
 import "./lib/RLPDecode.sol";
+import "./lib/Utils.sol";
 
-contract StakeHub is System, Initializable {
+contract StakeHub is System, Initializable, Protectable {
     using RLPDecode for *;
     using Utils for string;
     using Utils for bytes;
@@ -38,12 +39,6 @@ contract StakeHub is System, Initializable {
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
     /*----------------- errors -----------------*/
-    // @notice signature: 0xd7485e8f
-    error StakeHubPaused();
-    // @notice signature: 0xb1d02c3d
-    error InBlackList();
-    // @notice signature: 0xf2771a99
-    error OnlyAssetProtector();
     // @notice signature: 0x5f28f62b
     error ValidatorExisted();
     // @notice signature: 0xfdf4600b
@@ -94,7 +89,6 @@ contract StakeHub is System, Initializable {
     error InvalidSynPackage();
 
     /*----------------- storage -----------------*/
-    bool private _paused;
     uint8 private _isReceivingFund;
     uint256 public transferGasLimit;
 
@@ -138,9 +132,6 @@ contract StakeHub is System, Initializable {
     mapping(uint256 => uint256) private _felonyMap;
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
-
-    address public assetProtector;
-    mapping(address => bool) public blackList;
 
     /*----------------- structs and events -----------------*/
     struct StakeMigrationPackage {
@@ -220,34 +211,15 @@ contract StakeHub is System, Initializable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event Paused();
-    event Resumed();
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event unexpectedPackage(uint8 channelId, bytes msgBytes);
-    event BlackListed(address indexed target);
-    event UnBlackListed(address indexed target);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExist();
-        _;
-    }
-
-    modifier whenNotPaused() {
-        if (_paused) revert StakeHubPaused();
-        _;
-    }
-
-    modifier onlyAssetProtector() {
-        if (msg.sender != assetProtector) revert OnlyAssetProtector();
-        _;
-    }
-
-    modifier notInBlackList() {
-        if (blackList[msg.sender]) revert InBlackList();
         _;
     }
 
@@ -285,7 +257,7 @@ contract StakeHub is System, Initializable {
 
         // TODO
         // Different address will be set depending on the environment
-        assetProtector = DEAD_ADDRESS;
+        __Protectable_init_unchained(DEAD_ADDRESS);
     }
 
     /*----------------- Implement cross chain app -----------------*/
@@ -752,38 +724,6 @@ contract StakeHub is System, Initializable {
     }
 
     /**
-     * @dev Pause the whole system in emergency
-     */
-    function pause() external onlyAssetProtector {
-        _paused = true;
-        emit Paused();
-    }
-
-    /**
-     * @dev Resume the whole system
-     */
-    function resume() external onlyAssetProtector {
-        _paused = false;
-        emit Resumed();
-    }
-
-    /**
-     * @dev Add an address to the black list
-     */
-    function addToBlackList(address account) external onlyAssetProtector {
-        blackList[account] = true;
-        emit BlackListed(account);
-    }
-
-    /**
-     * @dev Remove an address from the black list
-     */
-    function removeFromBlackList(address account) external onlyAssetProtector {
-        blackList[account] = false;
-        emit UnBlackListed(account);
-    }
-
-    /**
      * @param key the key of the param
      * @param value the value of the param
      */
@@ -853,11 +793,11 @@ contract StakeHub is System, Initializable {
             uint256 newJailedPerDay = value.bytesToUint256(32);
             if (newJailedPerDay == 0) revert InvalidValue(key, value);
             maxFelonyBetweenBreatheBlock = newJailedPerDay;
-        } else if (key.compareStrings("assetProtector")) {
+        } else if (key.compareStrings("stakeHubProtector")) {
             if (value.length != 20) revert InvalidValue(key, value);
-            address newAssetProtector = value.bytesToAddress(20);
-            if (newAssetProtector == address(0)) revert InvalidValue(key, value);
-            assetProtector = newAssetProtector;
+            address newStakeHubProtector = value.bytesToAddress(20);
+            if (newStakeHubProtector == address(0)) revert InvalidValue(key, value);
+            _setProtector(newStakeHubProtector);
         } else {
             revert UnknownParam(key, value);
         }
@@ -865,13 +805,6 @@ contract StakeHub is System, Initializable {
     }
 
     /*----------------- view functions -----------------*/
-    /**
-     * @return whether the system is paused
-     */
-    function isPaused() external view returns (bool) {
-        return _paused;
-    }
-
     /**
      * @param operatorAddress the operator address of the validator
      * @param index the index of the day to query(timestamp / 1 days)
