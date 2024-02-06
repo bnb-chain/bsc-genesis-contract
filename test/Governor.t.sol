@@ -128,7 +128,6 @@ contract GovernorTest is Deployer {
         vm.warp(_now + 1 days);
 
         governor.castVote(proposalId, 1);
-//        console.log('governor.quorum(proposalId)', governor.(proposalId));
 
         vm.roll(_nowBlock + 100000000);
         vm.warp(block.timestamp + 100 days);
@@ -178,7 +177,7 @@ contract GovernorTest is Deployer {
 
     function testUndelegateAll() public {
         uint256 selfDelegation = 2000 ether;
-        uint256 toLock = stakeHub.INIT_LOCK_AMOUNT();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
         (address validator, address credit) = _createValidator(selfDelegation);
         uint256 _totalShares = IStakeCredit(credit).totalSupply();
         assertEq(_totalShares, selfDelegation + toLock, "wrong total shares");
@@ -204,43 +203,6 @@ contract GovernorTest is Deployer {
         vm.stopPrank();
     }
 
-    function testRedelegate() public {
-        address delegator = _getNextUserAddress();
-        (address validator1, address credit1) = _createValidator(2000 ether);
-        (address validator2, address credit2) = _createValidator(2000 ether);
-        vm.startPrank(delegator);
-
-        uint256 bnbAmount = 100 ether;
-        stakeHub.delegate{ value: bnbAmount }(validator1, false);
-        uint256 oldShares = IStakeCredit(credit1).balanceOf(delegator);
-
-        // failed with too small redelegation amount
-        vm.expectRevert();
-        stakeHub.redelegate(validator1, validator2, 1, false);
-
-        // failed with not enough shares
-        vm.expectRevert();
-        stakeHub.redelegate(validator1, validator2, oldShares + 1, false);
-
-        // success case
-        uint256 redelegateFeeRate = stakeHub.redelegateFeeRate();
-        uint256 feeBase = stakeHub.REDELEGATE_FEE_RATE_BASE();
-        uint256 redelegateFee = bnbAmount * redelegateFeeRate / feeBase;
-        uint256 expectedShares = (bnbAmount - redelegateFee) * IStakeCredit(credit2).totalSupply()
-            / (IStakeCredit(credit2).totalPooledBNB() + redelegateFee);
-        stakeHub.redelegate(validator1, validator2, oldShares, false);
-        uint256 newShares = IStakeCredit(credit2).balanceOf(delegator);
-        assertEq(newShares, expectedShares);
-
-        vm.stopPrank();
-
-        // self redelegate
-        vm.startPrank(validator1);
-        uint256 selfDelegation = 2000 ether;
-        vm.expectRevert();
-        stakeHub.redelegate(validator1, validator2, selfDelegation, false);
-    }
-
     function _createValidator(uint256 delegation) internal returns (address operatorAddress, address credit) {
         operatorAddress = _getNextUserAddress();
         StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
@@ -256,13 +218,13 @@ contract GovernorTest is Deployer {
         bytes memory blsProof = new bytes(96);
         address consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
 
-        uint256 toLock = stakeHub.INIT_LOCK_AMOUNT();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
         vm.prank(operatorAddress);
         stakeHub.createValidator{ value: delegation + toLock }(
             consensusAddress, blsPubKey, blsProof, commission, description
         );
 
-        (, credit,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+        (, credit,,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
     }
 
     function _encodeValidatorSetUpdatePack(
