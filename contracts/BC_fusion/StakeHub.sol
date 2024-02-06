@@ -227,7 +227,7 @@ contract StakeHub is System, Initializable, Protectable {
         _;
     }
 
-    modifier enableReceiveFund() {
+    modifier enableReceivingFund() {
         _receiveFundStatus = _ENABLE;
         _;
         _receiveFundStatus = _DISABLE;
@@ -274,7 +274,7 @@ contract StakeHub is System, Initializable, Protectable {
     function handleSynPackage(
         uint8,
         bytes calldata msgBytes
-    ) external onlyCrossChainContract enableReceiveFund returns (bytes memory) {
+    ) external onlyCrossChainContract enableReceivingFund returns (bytes memory) {
         (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
         if (!decodeSuccess) revert InvalidSynPackage();
 
@@ -557,7 +557,7 @@ contract StakeHub is System, Initializable, Protectable {
         notInBlackList
         validatorExist(srcValidator)
         validatorExist(dstValidator)
-        enableReceiveFund
+        enableReceivingFund
     {
         if (shares == 0) revert ZeroShares();
         if (srcValidator == dstValidator) revert SameValidator();
