@@ -95,8 +95,8 @@ contract GovernorTest is Deployer {
         string memory description = "test";
 
         vm.roll(block.number + 1);
-        console.log('delegator', delegator);
-        console.log('govToken.getVotes(delegator)', govToken.getVotes(delegator));
+        console.log("delegator", delegator);
+        console.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
 
         // param proposal
         targets = new address[](1);
@@ -106,9 +106,11 @@ contract GovernorTest is Deployer {
         calldatas = new bytes[](1);
 
         uint256 newVotingDelay = 7;
-        calldatas[0] = abi.encodeWithSignature("updateParam(string,bytes,address)", "votingDelay", abi.encodePacked(newVotingDelay), GOVERNOR_ADDR);
+        calldatas[0] = abi.encodeWithSignature(
+            "updateParam(string,bytes,address)", "votingDelay", abi.encodePacked(newVotingDelay), GOVERNOR_ADDR
+        );
 
-        console.log('calldatas[0]');
+        console.log("calldatas[0]");
         console.logBytes(calldatas[0]);
 
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
@@ -118,9 +120,9 @@ contract GovernorTest is Deployer {
         console.logBytes32(descHash);
         assertEq(proposalId, governor.hashProposal(targets, values, calldatas, descHash), "hashProposal");
 
-        console.log('proposalId', proposalId);
-        console.log('proposalSnapshot', governor.proposalSnapshot(proposalId));
-        console.log('now', governor.clock());
+        console.log("proposalId", proposalId);
+        console.log("proposalSnapshot", governor.proposalSnapshot(proposalId));
+        console.log("now", governor.clock());
 
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;

@@ -38,6 +38,10 @@ contract StakeHub is System, Initializable, Protectable {
     bytes private constant INIT_BC_VOTE_ADDRESSES =
         hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000";
 
+    // receive fund status
+    uint8 private constant _DISABLE = 0;
+    uint8 private constant _ENABLE = 1;
+
     /*----------------- errors -----------------*/
     // @notice signature: 0x5f28f62b
     error ValidatorExisted();
@@ -89,7 +93,7 @@ contract StakeHub is System, Initializable, Protectable {
     error InvalidSynPackage();
 
     /*----------------- storage -----------------*/
-    uint8 private _isReceivingFund;
+    uint8 private _receiveFundStatus;
     uint256 public transferGasLimit;
 
     // stake params
@@ -223,15 +227,15 @@ contract StakeHub is System, Initializable, Protectable {
         _;
     }
 
-    modifier receiveFund() {
-        _isReceivingFund == 1;
+    modifier enableReceiveFund() {
+        _receiveFundStatus = _ENABLE;
         _;
-        _isReceivingFund == 0;
+        _receiveFundStatus = _DISABLE;
     }
 
     receive() external payable {
         // to prevent BNB from being lost
-        if (_isReceivingFund != 1) revert();
+        if (_receiveFundStatus != _ENABLE) revert();
     }
 
     /**
@@ -270,7 +274,7 @@ contract StakeHub is System, Initializable, Protectable {
     function handleSynPackage(
         uint8,
         bytes calldata msgBytes
-    ) external onlyCrossChainContract receiveFund returns (bytes memory) {
+    ) external onlyCrossChainContract enableReceiveFund returns (bytes memory) {
         (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
         if (!decodeSuccess) revert InvalidSynPackage();
 
@@ -547,7 +551,14 @@ contract StakeHub is System, Initializable, Protectable {
         address dstValidator,
         uint256 shares,
         bool delegateVotePower
-    ) external whenNotPaused notInBlackList validatorExist(srcValidator) validatorExist(dstValidator) receiveFund {
+    )
+        external
+        whenNotPaused
+        notInBlackList
+        validatorExist(srcValidator)
+        validatorExist(dstValidator)
+        enableReceiveFund
+    {
         if (shares == 0) revert ZeroShares();
         if (srcValidator == dstValidator) revert SameValidator();
 
