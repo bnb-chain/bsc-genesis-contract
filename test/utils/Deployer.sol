@@ -18,6 +18,7 @@ import "./interface/IStakeCredit.sol";
 import "./interface/IBSCGovernor.sol";
 import "./interface/IGovToken.sol";
 import "./interface/IBSCTimelock.sol";
+import "./interface/ITokenRecoverPortal.sol";
 import "./RLPEncode.sol";
 import "./RLPDecode.sol";
 
@@ -41,6 +42,7 @@ contract Deployer is Test {
     address payable public constant GOVERNOR_ADDR = payable(0x0000000000000000000000000000000000002004);
     address payable public constant GOV_TOKEN_ADDR = payable(0x0000000000000000000000000000000000002005);
     address payable public constant TIMELOCK_ADDR = payable(0x0000000000000000000000000000000000002006);
+    address payable public constant TOKEN_RECOVER_PORTAL_ADDR = payable(0x0000000000000000000000000000000000003000);
 
     uint8 public constant BIND_CHANNELID = 0x01;
     uint8 public constant TRANSFER_IN_CHANNELID = 0x02;
@@ -69,6 +71,7 @@ contract Deployer is Test {
     BSCGovernor public governor;
     GovToken public govToken;
     BSCTimelock public timelock;
+    TokenRecoverPortal public tokenRecoverPortal;
 
     address payable public relayer;
 
@@ -115,6 +118,8 @@ contract Deployer is Test {
         vm.label(address(govToken), "GovToken");
         timelock = BSCTimelock(TIMELOCK_ADDR);
         vm.label(address(timelock), "BSCTimelock");
+        tokenRecoverPortal = TokenRecoverPortal(TOKEN_RECOVER_PORTAL_ADDR);
+        vm.label(address(tokenRecoverPortal), "TokenRecoverPortal");
 
         // set the latest code
         bytes memory deployedCode = vm.getDeployedCode("BSCValidatorSet.sol");
@@ -149,6 +154,8 @@ contract Deployer is Test {
         vm.etch(GOV_TOKEN_ADDR, deployedCode);
         deployedCode = vm.getDeployedCode("BSCTimelock.sol");
         vm.etch(TIMELOCK_ADDR, deployedCode);
+        deployedCode = vm.getDeployedCode("TokenRecoverPortal.sol");
+        vm.etch(TOKEN_RECOVER_PORTAL_ADDR, deployedCode);
 
         relayer = payable(0xb005741528b86F5952469d80A8614591E3c5B632); // whitelabel relayer
         vm.label(relayer, "relayer");
