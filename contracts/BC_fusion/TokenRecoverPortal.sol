@@ -23,7 +23,12 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
     using Utils for bytes;
 
     /*----------------- constants -----------------*/
-    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Tigris";
+    // SOURCE_CHAIN_ID is the original chain ID of BC
+    // This will be replaced based on the deployment network
+    // Mainnet: "Binance-Chain-Tigris"
+    // Testnet: "Binance-Chain-Ganges"
+    // Rendering script: scripts/generate.py:238
+    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Ganges";
 
     /*----------------- storage -----------------*/
     address public approvalAddress;
