@@ -47,7 +47,7 @@ interface StakeHub {
     error UnknownParam(string key, bytes value);
     error UpdateTooFrequently();
     error ValidatorExisted();
-    error ValidatorNotExist();
+    error ValidatorNotExisted();
     error ValidatorNotJailed();
     error VoteAddressExpired();
     error ZeroShares();
@@ -79,6 +79,7 @@ interface StakeHub {
     event StakeCreditInitialized(address indexed operatorAddress, address indexed creditContract);
     event UnBlackListed(address indexed target);
     event Undelegated(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event UnexpectedPackage(uint8 channelId, bytes msgBytes);
     event ValidatorCreated(
         address indexed consensusAddress,
         address indexed operatorAddress,
@@ -92,7 +93,6 @@ interface StakeHub {
     );
     event ValidatorUnjailed(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
 
     receive() external payable;
 

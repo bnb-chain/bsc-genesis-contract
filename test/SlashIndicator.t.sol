@@ -302,7 +302,7 @@ contract SlashIndicatorTest is Deployer {
         );
 
         vm.prank(relayer);
-        vm.expectRevert(StakeHub.ValidatorNotExist.selector);
+        vm.expectRevert(StakeHub.ValidatorNotExisted.selector);
         slashIndicator.submitDoubleSignEvidence(headerA, headerB);
     }
 
