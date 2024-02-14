@@ -934,7 +934,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         if (!BytesLib.equal(newVoteAddrs[i], validatorExtraSet[i].voteAddress)) {
           validatorExtraSet[i].voteAddress = newVoteAddrs[i];
         }
-        currentValidatorSet[i].jailed = newValidatorSet[i].jailed;
       }
     }
 
@@ -1121,6 +1120,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 numOfFelony = 0;
     address validator;
     bool isFelony;
+
+    for (uint i; i<_validatorSet.length; ++i) {
+      if (_validatorSet[i].jailed) {
+        ++numOfFelony;
+      }
+    }
 
     // 1. validators exit maintenance
     uint256 i;
