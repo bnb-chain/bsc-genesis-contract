@@ -847,7 +847,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "burnRatio")) {
       require(value.length == 32, "length of burnRatio mismatch");
       uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newBurnRatio + systemRewardRatio <= BLOCK_FEES_RATIO_SCALE, "the burnRatio plus systemRewardRatio must be no greater than 10000");
+      require(newBurnRatio.add(systemRewardRatio) <= BLOCK_FEES_RATIO_SCALE, "the burnRatio plus systemRewardRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
     } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
       require(value.length == 32, "length of maxNumOfMaintaining mismatch");
@@ -884,7 +884,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "systemRewardRatio")) {
       require(value.length == 32, "length of systemRewardRatio mismatch");
       uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newSystemRewardRatio + burnRatio <= BLOCK_FEES_RATIO_SCALE, "the systemRewardRatio plus burnRatio must be no greater than 10000");
+      require(newSystemRewardRatio.add(burnRatio) <= BLOCK_FEES_RATIO_SCALE, "the systemRewardRatio plus burnRatio must be no greater than 10000");
       systemRewardRatio = newSystemRewardRatio;
     } else {
       require(false, "unknown param");
@@ -1073,11 +1073,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 averageDistribute = income / rest;
     if (averageDistribute != 0) {
       for (uint i; i<index; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
       uint n = currentValidatorSet.length;
       for (uint i=index+1; i<n; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
     }
 
@@ -1110,7 +1110,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (averageDistribute != 0) {
       uint n = currentValidatorSet.length;
       for (uint i; i<n; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
     }
     return true;
