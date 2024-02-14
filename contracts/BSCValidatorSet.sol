@@ -930,6 +930,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         validatorExtraSet[i].isMaintaining = false;
         validatorExtraSet[i].enterMaintenanceHeight = 0;
       } else {
+        currentValidatorSet[i].votingPower = newValidatorSet[i].votingPower;
         // update the vote address if it is different
         if (!BytesLib.equal(newVoteAddrs[i], validatorExtraSet[i].voteAddress)) {
           validatorExtraSet[i].voteAddress = newVoteAddrs[i];
@@ -967,7 +968,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    * Vote address is not considered
    */
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
-    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
+    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress;
   }
 
   function getVoteAddresses(address[] memory validators) internal view returns(bytes[] memory) {
