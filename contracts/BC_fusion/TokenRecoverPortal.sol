@@ -71,7 +71,7 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
 
     /*----------------- events -----------------*/
     // This event is triggered whenever a call to #recover succeeds.
-    event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
+    event TokenRecoverRequested(bytes ownerAddress, bytes32 tokenSymbol, address account, uint256 amount);
 
     /*----------------- init -----------------*/
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
@@ -132,7 +132,7 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
         // recover the token from TokenHub contract. it will be unlocked after 7 days.
         ITokenHub(TOKEN_HUB_ADDR).recoverBCAsset(tokenSymbol, msg.sender, amount);
 
-        emit TokenRecoverRequested(tokenSymbol, msg.sender, amount);
+        emit TokenRecoverRequested(ownerAddr, tokenSymbol, msg.sender, amount);
     }
 
     /**
