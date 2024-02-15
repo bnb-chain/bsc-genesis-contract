@@ -21,6 +21,7 @@ abstract contract Protectable is Initializable {
     /*----------------- events -----------------*/
     event Paused();
     event Resumed();
+    event ProtectorChanged(address indexed oldProtector, address indexed newProtector);
     event BlackListed(address indexed target);
     event UnBlackListed(address indexed target);
 
@@ -96,6 +97,7 @@ abstract contract Protectable is Initializable {
 
     /*----------------- internal functions -----------------*/
     function _setProtector(address protector) internal {
+        emit ProtectorChanged(_protector, protector);
         _protector = protector;
     }
 

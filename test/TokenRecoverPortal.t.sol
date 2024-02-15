@@ -32,7 +32,7 @@ contract TokenRecoverPortalTest is Deployer {
     address mockUser = address(0x2e9247B67ae885a8dcfBf77Eb6d0e93A32bea24C);
     bytes mockTokenOwner = hex"b713200f29effb427fb76a185b4ac73ea09a534b";
     bytes32 testTokenSymbol = hex"424e420000000000000000000000000000000000000000000000000000000000";
-    
+
     address protector = address(0x5C7c4b3ee76D1eD8a4341Ab07D87a2a88d81454A);
     address approvalAddress = address(0xb26859a7321AB7B2025E5E6a425D697e2eacbFB1);
     bytes merkleRoot = hex"59bb94f7047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554";
@@ -64,8 +64,10 @@ contract TokenRecoverPortalTest is Deployer {
         bytes32 tokenSymbol = testTokenSymbol;
         uint256 amount = 14188000000;
         bytes memory ownerPubKey = hex"036d5d41cd7da2e96d39bcbd0390bfed461a86382f7a2923436ff16c65cabc7719";
-        bytes memory ownerSignature = hex"5f5391ba7f2b002b4746025f7e803a43e57a397ea66f3939d05302eb7851bbbc0773cda87aae0fbb1e2a29367b606209ed47dc5cba6d1a83f6b79cb70e56efdb";
-        bytes memory approvalSignature = hex"52a0a5ca80beb068d82413cac31c1df0540dc6a61eddec9f31b94419e60b6c586e5342552f4c8034a00c876d640abea8c5ba9c4d72145d0e562fedd09fe1e00a01";
+        bytes memory ownerSignature =
+            hex"5f5391ba7f2b002b4746025f7e803a43e57a397ea66f3939d05302eb7851bbbc0773cda87aae0fbb1e2a29367b606209ed47dc5cba6d1a83f6b79cb70e56efdb";
+        bytes memory approvalSignature =
+            hex"52a0a5ca80beb068d82413cac31c1df0540dc6a61eddec9f31b94419e60b6c586e5342552f4c8034a00c876d640abea8c5ba9c4d72145d0e562fedd09fe1e00a01";
         bytes32[] memory merkleProof = new bytes32[](17);
         merkleProof[0] = hex"03719d7863e4aba727d7030e7a1916b9be2245d447eb71fc683d3ac0ded5eecd";
         merkleProof[1] = hex"7f9aa9d8246251cbab3cc642416dec81d074d39a85be6ca8326a05ac422e74ab";
@@ -86,8 +88,7 @@ contract TokenRecoverPortalTest is Deployer {
         merkleProof[16] = hex"a2d456e52facaa953bfbc79a5a6ed7647dda59872b9b35c20183887eeb4640eb";
 
         // recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
 
         // check if the token is recovered
         bytes32 node = keccak256(abi.encodePacked(mockTokenOwner, tokenSymbol, amount));

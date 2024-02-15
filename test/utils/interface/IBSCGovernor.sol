@@ -46,6 +46,7 @@ interface BSCGovernor {
     event ProposalExtended(uint256 indexed proposalId, uint64 extendedDeadline);
     event ProposalQueued(uint256 proposalId, uint256 eta);
     event ProposalThresholdSet(uint256 oldProposalThreshold, uint256 newProposalThreshold);
+    event ProtectorChanged(address indexed oldProtector, address indexed newProtector);
     event QuorumNumeratorUpdated(uint256 oldQuorumNumerator, uint256 newQuorumNumerator);
     event Resumed();
     event TimelockChange(address oldTimelock, address newTimelock);
