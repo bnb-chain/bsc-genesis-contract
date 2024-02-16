@@ -1065,7 +1065,11 @@ contract StakeHub is System, Initializable, Protectable {
         return true;
     }
 
-    function _checkVoteAddress(address operatorAddress, bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {
+    function _checkVoteAddress(
+        address operatorAddress,
+        bytes calldata voteAddress,
+        bytes calldata blsProof
+    ) internal view returns (bool) {
         if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
         }
