@@ -1122,6 +1122,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     address validator;
     bool isFelony;
 
+    // count the number of felony validators before forcing maintaining validators exit
     for (uint i; i<_validatorSet.length; ++i) {
       if (_validatorSet[i].jailed) {
         ++numOfFelony;
@@ -1153,8 +1154,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // record the jailed validator in validatorSet
       for (uint k; k<_validatorSet.length; ++k) {
         if (_validatorSet[k].consensusAddress == validator) {
-          _validatorSet[k].jailed = true;
-          ++numOfFelony;
+          if (!_validatorSet[k].jailed) {
+            _validatorSet[k].jailed = true;
+            ++numOfFelony;
+          }
           break;
         }
       }
