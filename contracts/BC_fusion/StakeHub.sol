@@ -351,7 +351,7 @@ contract StakeHub is System, Initializable, Protectable {
         ) revert InvalidCommission();
         if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
         // proof-of-possession verify
-        if (!_checkVoteAddress(voteAddress, blsProof)) revert InvalidVoteAddress();
+        if (!_checkVoteAddress(operatorAddress, voteAddress, blsProof)) revert InvalidVoteAddress();
 
         // deploy stake credit proxy contract
         address creditContract = _deployStakeCredit(operatorAddress, description.moniker);
@@ -458,12 +458,12 @@ contract StakeHub is System, Initializable, Protectable {
         bytes calldata blsProof
     ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
         // proof-of-possession verify
-        if (!_checkVoteAddress(newVoteAddress, blsProof)) revert InvalidVoteAddress();
+        address operatorAddress = msg.sender;
+        if (!_checkVoteAddress(operatorAddress, newVoteAddress, blsProof)) revert InvalidVoteAddress();
         if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
         }
 
-        address operatorAddress = msg.sender;
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -1065,13 +1065,13 @@ contract StakeHub is System, Initializable, Protectable {
         return true;
     }
 
-    function _checkVoteAddress(bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {
+    function _checkVoteAddress(address operatorAddress, bytes calldata voteAddress, bytes calldata blsProof) internal view returns (bool) {
         if (voteAddress.length != BLS_PUBKEY_LENGTH || blsProof.length != BLS_SIG_LENGTH) {
             return false;
         }
 
         // get msg hash
-        bytes32 msgHash = keccak256(abi.encodePacked(voteAddress, block.chainid));
+        bytes32 msgHash = keccak256(abi.encodePacked(operatorAddress, voteAddress, block.chainid));
         bytes memory msgBz = new bytes(32);
         assembly {
             mstore(add(msgBz, 32), msgHash)
