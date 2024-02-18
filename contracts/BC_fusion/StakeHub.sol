@@ -872,35 +872,57 @@ contract StakeHub is System, Initializable, Protectable {
     }
 
     /**
-     * @notice get the basic info of a validator
+     * @notice get the consensus address of a validator
      *
      * @param operatorAddress the operator address of the validator
      *
      * @return consensusAddress the consensus address of the validator
+     */
+    function getValidatorConsensusAddress(address operatorAddress) external view returns (address consensusAddress) {
+        Validator memory valInfo = _validators[operatorAddress];
+        consensusAddress = valInfo.consensusAddress;
+    }
+
+    /**
+     * @notice get the credit contract address of a validator
+     *
+     * @param operatorAddress the operator address of the validator
+     *
      * @return creditContract the credit contract address of the validator
-     * @return createdTime the creation time of the validator
+     */
+    function getValidatorCreditContract(address operatorAddress) external view returns (address creditContract) {
+        Validator memory valInfo = _validators[operatorAddress];
+        creditContract = valInfo.creditContract;
+    }
+
+    /**
+     * @notice get the vote address of a validator
+     *
+     * @param operatorAddress the operator address of the validator
+     *
      * @return voteAddress the vote address of the validator
+     */
+    function getValidatorVoteAddress(address operatorAddress) external view returns (bytes memory voteAddress) {
+        Validator memory valInfo = _validators[operatorAddress];
+        voteAddress = valInfo.voteAddress;
+    }
+
+    /**
+     * @notice get the basic info of a validator
+     *
+     * @param operatorAddress the operator address of the validator
+     *
+     * @return createdTime the creation time of the validator
      * @return jailed whether the validator is jailed
      * @return jailUntil the jail time of the validator
      */
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
-        validatorExist(operatorAddress)
-        returns (
-            address consensusAddress,
-            address creditContract,
-            uint256 createdTime,
-            bytes memory voteAddress,
-            bool jailed,
-            uint256 jailUntil
-        )
+        returns (uint256 createdTime, bool jailed, uint256 jailUntil)
     {
         Validator memory valInfo = _validators[operatorAddress];
-        consensusAddress = valInfo.consensusAddress;
-        creditContract = valInfo.creditContract;
         createdTime = valInfo.createdTime;
-        voteAddress = valInfo.voteAddress;
         jailed = valInfo.jailed;
         jailUntil = valInfo.jailUntil;
     }

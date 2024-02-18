@@ -49,7 +49,8 @@ contract StakeHubTest is Deployer {
     function testCreateValidator() public {
         // create validator success
         (address validator,) = _createValidator(2000 ether);
-        (address consensusAddress,,, bytes memory voteAddress,,) = stakeHub.getValidatorBasicInfo(validator);
+        address consensusAddress = stakeHub.getValidatorConsensusAddress(validator);
+        bytes memory voteAddress = stakeHub.getValidatorVoteAddress(validator);
 
         address operatorAddress = _getNextUserAddress();
         vm.startPrank(operatorAddress);
@@ -104,7 +105,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit ConsensusAddressEdited(validator, newConsensusAddress);
         stakeHub.editConsensusAddress(newConsensusAddress);
-        (address realConsensusAddr,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        address realConsensusAddr = stakeHub.getValidatorConsensusAddress(validator);
         assertEq(realConsensusAddr, newConsensusAddress);
 
         // edit commission rate
@@ -139,7 +140,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit VoteAddressEdited(validator, newVoteAddress);
         stakeHub.editVoteAddress(newVoteAddress, blsProof);
-        (,,, bytes memory realVoteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
+        bytes memory realVoteAddr = stakeHub.getValidatorVoteAddress(validator);
         assertEq(realVoteAddr, newVoteAddress);
 
         vm.stopPrank();
@@ -297,7 +298,7 @@ contract StakeHubTest is Deployer {
 
         // 2. distribute reward
         uint256 reward = 100 ether;
-        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        address consensusAddress = stakeHub.getValidatorConsensusAddress(validator);
         vm.expectEmit(true, true, false, true, address(stakeHub));
         emit RewardDistributed(validator, reward);
         vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
@@ -347,7 +348,7 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        address consensusAddress = stakeHub.getValidatorConsensusAddress(validator);
         vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
@@ -375,7 +376,7 @@ contract StakeHubTest is Deployer {
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
 
         // unjail
-        (,,,, bool jailed,) = stakeHub.getValidatorBasicInfo(validator);
+        (, bool jailed,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(jailed, true);
         vm.expectRevert();
         stakeHub.unjail(validator);
@@ -383,7 +384,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit ValidatorUnjailed(validator);
         stakeHub.unjail(validator);
-        (,,,, jailed,) = stakeHub.getValidatorBasicInfo(validator);
+        (, jailed,) = stakeHub.getValidatorBasicInfo(validator);
         assertEq(jailed, false);
 
         vm.stopPrank();
@@ -400,7 +401,7 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,,,,,) = stakeHub.getValidatorBasicInfo(validator);
+        address consensusAddress = stakeHub.getValidatorConsensusAddress(validator);
         vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
@@ -432,7 +433,8 @@ contract StakeHubTest is Deployer {
         vm.prank(delegator);
         stakeHub.delegate{ value: 100 ether }(validator, false);
 
-        (address consensusAddress,,, bytes memory voteAddr,,) = stakeHub.getValidatorBasicInfo(validator);
+        address consensusAddress = stakeHub.getValidatorConsensusAddress(validator);
+        bytes memory voteAddr = stakeHub.getValidatorVoteAddress(validator);
         vm.deal(VALIDATOR_CONTRACT_ADDR, VALIDATOR_CONTRACT_ADDR.balance + reward);
         vm.prank(VALIDATOR_CONTRACT_ADDR);
         stakeHub.distributeReward{ value: reward }(consensusAddress);
@@ -473,7 +475,8 @@ contract StakeHubTest is Deployer {
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
-            (consensusAddress,,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+            consensusAddress = stakeHub.getValidatorConsensusAddress(operatorAddress);
+            voteAddress = stakeHub.getValidatorVoteAddress(operatorAddress);
             newConsensusAddrs[length - i - 1] = consensusAddress;
             newVotingPower[length - i - 1] = votingPower;
             newVoteAddrs[length - i - 1] = voteAddress;
@@ -522,7 +525,8 @@ contract StakeHubTest is Deployer {
         for (uint256 i; i < length; ++i) {
             votingPower = (2000 + uint64(i) * 2 + 1) * 1e8;
             (operatorAddress,) = _createValidator(uint256(votingPower) * 1e10);
-            (consensusAddress,,, voteAddress,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+            consensusAddress = stakeHub.getValidatorConsensusAddress(operatorAddress);
+            voteAddress = stakeHub.getValidatorVoteAddress(operatorAddress);
             newConsensusAddrs[length - i - 1] = consensusAddress;
             newVotingPower[length - i - 1] = votingPower;
             newVoteAddrs[length - i - 1] = voteAddress;
@@ -611,7 +615,7 @@ contract StakeHubTest is Deployer {
             consensusAddress, blsPubKey, blsProof, commission, description
         );
 
-        (, credit,,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+        credit = stakeHub.getValidatorCreditContract(operatorAddress);
     }
 
     function _encodeValidatorSetUpdatePack(

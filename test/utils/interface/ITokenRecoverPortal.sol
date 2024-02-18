@@ -27,7 +27,7 @@ interface TokenRecoverPortal {
     event Paused();
     event ProtectorChanged(address indexed oldProtector, address indexed newProtector);
     event Resumed();
-    event TokenRecoverRequested(bytes32 tokenSymbol, address account, uint256 amount);
+    event TokenRecoverRequested(bytes ownerAddress, bytes32 tokenSymbol, address account, uint256 amount);
     event UnBlackListed(address indexed target);
 
     function BC_FUSION_CHANNELID() external view returns (uint8);
