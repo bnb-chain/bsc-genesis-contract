@@ -131,15 +131,10 @@ interface StakeHub {
     function getValidatorBasicInfo(address operatorAddress)
         external
         view
-        returns (
-            address consensusAddress,
-            address creditContract,
-            uint256 createdTime,
-            bytes memory voteAddress,
-            bool jailed,
-            uint256 jailUntil
-        );
+        returns (uint256 createdTime, bool jailed, uint256 jailUntil);
     function getValidatorCommission(address operatorAddress) external view returns (Commission memory);
+    function getValidatorConsensusAddress(address operatorAddress) external view returns (address consensusAddress);
+    function getValidatorCreditContract(address operatorAddress) external view returns (address creditContract);
     function getValidatorDescription(address operatorAddress) external view returns (Description memory);
     function getValidatorElectionInfo(
         uint256 offset,
@@ -155,6 +150,7 @@ interface StakeHub {
         );
     function getValidatorRewardRecord(address operatorAddress, uint256 index) external view returns (uint256);
     function getValidatorTotalPooledBNBRecord(address operatorAddress, uint256 index) external view returns (uint256);
+    function getValidatorVoteAddress(address operatorAddress) external view returns (bytes memory voteAddress);
     function getValidators(
         uint256 offset,
         uint256 limit

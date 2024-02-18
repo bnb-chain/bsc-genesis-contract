@@ -226,7 +226,7 @@ contract GovernorTest is Deployer {
             consensusAddress, blsPubKey, blsProof, commission, description
         );
 
-        (, credit,,,,) = stakeHub.getValidatorBasicInfo(operatorAddress);
+        credit = stakeHub.getValidatorCreditContract(operatorAddress);
     }
 
     function _encodeValidatorSetUpdatePack(

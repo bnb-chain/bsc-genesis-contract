@@ -46,7 +46,11 @@ contract TokenRecoverPortalTest is Deployer {
         tokenRecoverPortal.initialize();
     }
 
-    function setUpContractParams(address newApprovalAddress, bytes memory newMerkleRoot, address newProtector) internal {
+    function setUpContractParams(
+        address newApprovalAddress,
+        bytes memory newMerkleRoot,
+        address newProtector
+    ) internal {
         // set the approvalAddress, merkleRoot and tokenRecoverPortalProtector
         bytes memory key = "approvalAddress";
         bytes memory value = abi.encodePacked(newApprovalAddress);
@@ -66,14 +70,24 @@ contract TokenRecoverPortalTest is Deployer {
     }
 
     function setUpContractParamsWithWrongApprovelAddress() public {
-        setUpContractParams(address(0x561319e67357fa3d2b51E58d011a80EB6268A0f5), hex"11111111047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554", protector);
+        setUpContractParams(
+            address(0x561319e67357fa3d2b51E58d011a80EB6268A0f5),
+            hex"11111111047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554",
+            protector
+        );
     }
 
     function setUpContractParamsWithWrongMerkleRoot() public {
-        setUpContractParams(approvalAddress, hex"11111111047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554", protector);
+        setUpContractParams(
+            approvalAddress, hex"11111111047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554", protector
+        );
     }
 
-    function recoverParams() internal view returns (bytes32, uint256, bytes memory, bytes memory, bytes memory, bytes32[] memory) {
+    function recoverParams()
+        internal
+        view
+        returns (bytes32, uint256, bytes memory, bytes memory, bytes memory, bytes32[] memory)
+    {
         bytes32 tokenSymbol = testTokenSymbol;
         uint256 amount = 14188000000;
         bytes memory ownerPubKey = hex"036d5d41cd7da2e96d39bcbd0390bfed461a86382f7a2923436ff16c65cabc7719";
@@ -106,174 +120,186 @@ contract TokenRecoverPortalTest is Deployer {
     function testRecoverFaildWithWrongApprovalAddress() public {
         setUpContractParamsWithWrongApprovelAddress();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongMerkleRoot() public {
         setUpContractParamsWithWrongMerkleRoot();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongRecipient() public {
         setUpCorrectContractParams();
         vm.prank(address(0x561319e67357fa3d2b51E58d011a80EB6268A0f5));
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongTokenSymbol() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         tokenSymbol = hex"4241110000000000000000000000000000000000000000000000000000000000";
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongAmount() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         amount = 188000001;
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongOwnerPubKey() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
 
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         vm.expectRevert();
         vm.mockCall(address(0x69), "", hex"1111100f29effb427fb76a185b4ac73ea09a534b");
         ownerPubKey = hex"11111111cd7da2e96d39bcbd0390bfed461a86382f7a2923436ff16c65cabc7720";
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongOwnerSignature() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
 
-        ownerSignature = hex"111111117f2b002b4746025f7e803a43e57a397ea66f3939d05302eb7851bbbc0773cda87aae0fbb1e2a29367b606209ed47dc5cba6d1a83f6b79cb70e56efdb";
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
+
+        ownerSignature =
+            hex"111111117f2b002b4746025f7e803a43e57a397ea66f3939d05302eb7851bbbc0773cda87aae0fbb1e2a29367b606209ed47dc5cba6d1a83f6b79cb70e56efdb";
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongApprovalSignature() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
 
-        approvalSignature = hex"1111111180beb068d82413cac31c1df0540dc6a61eddec9f31b94419e60b6c586e5342552f4c8034a00c876d640abea8c5ba9c4d72145d0e562fedd09fe1e00a02";
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
+
+        approvalSignature =
+            hex"1111111180beb068d82413cac31c1df0540dc6a61eddec9f31b94419e60b6c586e5342552f4c8034a00c876d640abea8c5ba9c4d72145d0e562fedd09fe1e00a02";
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecoverFaildWithWrongMerkleProof() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         merkleProof[13] = hex"1111111190245e6a9e1e969ae3f6f0315ea073606fd6fabe9f3d7514c84fee98";
         vm.expectRevert();
         // failed to recover the token
-        tokenRecoverPortal.recover(
-            tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
+        tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
     }
 
     function testRecover() public {
         setUpCorrectContractParams();
         vm.prank(mockUser);
-        
-        (bytes32 tokenSymbol,
-         uint256 amount,
-         bytes memory ownerPubKey, 
-         bytes memory ownerSignature, 
-         bytes memory approvalSignature,
-         bytes32[] memory merkleProof) = recoverParams();
+
+        (
+            bytes32 tokenSymbol,
+            uint256 amount,
+            bytes memory ownerPubKey,
+            bytes memory ownerSignature,
+            bytes memory approvalSignature,
+            bytes32[] memory merkleProof
+        ) = recoverParams();
 
         // recover the token
         tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);

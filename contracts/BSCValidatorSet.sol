@@ -1144,9 +1144,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         continue;
       }
 
+      // get the latest consensus address
+      address latestConsensusAddress;
+      address operatorAddress = IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator);
+      if (operatorAddress != address(0)) {
+        latestConsensusAddress = IStakeHub(STAKE_HUB_ADDR).getValidatorConsensusAddress(operatorAddress);
+      }
+
       // record the jailed validator in validatorSet
       for (uint k; k<_validatorSet.length; ++k) {
-        if (_validatorSet[k].consensusAddress == validator) {
+        if (_validatorSet[k].consensusAddress == validator || _validatorSet[k].consensusAddress == latestConsensusAddress) {
           _validatorSet[k].jailed = true;
           break;
         }

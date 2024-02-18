@@ -459,24 +459,9 @@
     ],
     "outputs": [
       {
-        "name": "consensusAddress",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "creditContract",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "createdTime",
         "type": "uint256",
         "internalType": "uint256"
-      },
-      {
-        "name": "voteAddress",
-        "type": "bytes",
-        "internalType": "bytes"
       },
       {
         "name": "jailed",
@@ -523,6 +508,44 @@
             "internalType": "uint64"
           }
         ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatorConsensusAddress",
+    "inputs": [
+      {
+        "name": "operatorAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "consensusAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatorCreditContract",
+    "inputs": [
+      {
+        "name": "operatorAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "creditContract",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -651,6 +674,25 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidatorVoteAddress",
+    "inputs": [
+      {
+        "name": "operatorAddress",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "voteAddress",
+        "type": "bytes",
+        "internalType": "bytes"
       }
     ],
     "stateMutability": "view"
