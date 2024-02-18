@@ -41,7 +41,7 @@ contract SlashIndicator is ISlashIndicator,System,IParamSubscriber, IApplication
   uint256 public felonySlashRewardRatio;
   bool public enableMaliciousVoteSlash;
 
-  uint256 public constant INIT_FELONY_SLASH_SCOPE = 86400;  // 3 days
+  uint256 public constant INIT_FELONY_SLASH_SCOPE = 28800;  // 1 days(block number)
 
   uint256 public felonySlashScope;
 

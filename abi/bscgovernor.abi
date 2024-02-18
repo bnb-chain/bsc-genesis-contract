@@ -1654,6 +1654,25 @@
   },
   {
     "type": "event",
+    "name": "ProtectorChanged",
+    "inputs": [
+      {
+        "name": "oldProtector",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newProtector",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "QuorumNumeratorUpdated",
     "inputs": [
       {

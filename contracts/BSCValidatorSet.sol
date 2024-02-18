@@ -847,7 +847,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "burnRatio")) {
       require(value.length == 32, "length of burnRatio mismatch");
       uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newBurnRatio + systemRewardRatio <= BLOCK_FEES_RATIO_SCALE, "the burnRatio plus systemRewardRatio must be no greater than 10000");
+      require(newBurnRatio.add(systemRewardRatio) <= BLOCK_FEES_RATIO_SCALE, "the burnRatio plus systemRewardRatio must be no greater than 10000");
       burnRatio = newBurnRatio;
     } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
       require(value.length == 32, "length of maxNumOfMaintaining mismatch");
@@ -884,7 +884,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     } else if (Memory.compareStrings(key, "systemRewardRatio")) {
       require(value.length == 32, "length of systemRewardRatio mismatch");
       uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
-      require(newSystemRewardRatio + burnRatio <= BLOCK_FEES_RATIO_SCALE, "the systemRewardRatio plus burnRatio must be no greater than 10000");
+      require(newSystemRewardRatio.add(burnRatio) <= BLOCK_FEES_RATIO_SCALE, "the systemRewardRatio plus burnRatio must be no greater than 10000");
       systemRewardRatio = newSystemRewardRatio;
     } else {
       require(false, "unknown param");
@@ -930,11 +930,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         validatorExtraSet[i].isMaintaining = false;
         validatorExtraSet[i].enterMaintenanceHeight = 0;
       } else {
+        currentValidatorSet[i].votingPower = newValidatorSet[i].votingPower;
         // update the vote address if it is different
         if (!BytesLib.equal(newVoteAddrs[i], validatorExtraSet[i].voteAddress)) {
           validatorExtraSet[i].voteAddress = newVoteAddrs[i];
         }
-        currentValidatorSet[i].jailed = newValidatorSet[i].jailed;
       }
     }
 
@@ -968,7 +968,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
    * Vote address is not considered
    */
   function isSameValidator(Validator memory v1, Validator memory v2) private pure returns(bool) {
-    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress && v1.votingPower == v2.votingPower;
+    return v1.consensusAddress == v2.consensusAddress && v1.feeAddress == v2.feeAddress && v1.BBCFeeAddress == v2.BBCFeeAddress;
   }
 
   function getVoteAddresses(address[] memory validators) internal view returns(bytes[] memory) {
@@ -1074,11 +1074,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 averageDistribute = income / rest;
     if (averageDistribute != 0) {
       for (uint i; i<index; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
       uint n = currentValidatorSet.length;
       for (uint i=index+1; i<n; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
     }
 
@@ -1111,7 +1111,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     if (averageDistribute != 0) {
       uint n = currentValidatorSet.length;
       for (uint i; i<n; ++i) {
-        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming + averageDistribute;
+        currentValidatorSet[i].incoming = currentValidatorSet[i].incoming.add(averageDistribute);
       }
     }
     return true;
@@ -1121,6 +1121,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 numOfFelony = 0;
     address validator;
     bool isFelony;
+
+    // count the number of felony validators before forcing maintaining validators exit
+    for (uint i; i<_validatorSet.length; ++i) {
+      if (_validatorSet[i].jailed) {
+        ++numOfFelony;
+      }
+    }
 
     // 1. validators exit maintenance
     uint256 i;
@@ -1147,8 +1154,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       // record the jailed validator in validatorSet
       for (uint k; k<_validatorSet.length; ++k) {
         if (_validatorSet[k].consensusAddress == validator) {
-          _validatorSet[k].jailed = true;
-          ++numOfFelony;
+          if (!_validatorSet[k].jailed) {
+            _validatorSet[k].jailed = true;
+            ++numOfFelony;
+          }
           break;
         }
       }

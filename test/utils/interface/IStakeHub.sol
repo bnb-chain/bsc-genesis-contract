@@ -65,6 +65,7 @@ interface StakeHub {
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
     event ParamChange(string key, bytes value);
     event Paused();
+    event ProtectorChanged(address indexed oldProtector, address indexed newProtector);
     event Redelegated(
         address indexed srcValidator,
         address indexed dstValidator,

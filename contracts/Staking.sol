@@ -651,6 +651,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     if (isAutoUndelegate) {
       delegated[recipient] = delegated[recipient].sub(amount);
       delegatedOfValidator[recipient][validator] = delegatedOfValidator[recipient][validator].sub(amount);
+      emit undelegateSuccess(recipient, validator, amount);
     }
 
     emit undelegatedReceived(recipient, validator, amount);
