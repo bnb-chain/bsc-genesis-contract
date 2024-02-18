@@ -1153,7 +1153,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
     }
 
-    // count the number of felony validators before forcing maintaining validators exit
+    // count the number of felony validators
     for (uint i; i<_validatorSet.length; ++i) {
       if (_validatorSet[i].jailed) {
         ++numOfFelony;
