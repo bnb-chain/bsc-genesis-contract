@@ -392,9 +392,9 @@ def testnet():
     # TODO: update the following parameters
     init_bc_consensus_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     init_bc_vote_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
-    stake_hub_protector = "address(0xdEaD)"
-    governor_protector = "address(0xdEaD)"
-    token_recover_portal_protector = "address(0xdEaD)"
+    stake_hub_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
+    governor_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
+    token_recover_portal_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
 
     generate_system()
     generate_cross_chain()
