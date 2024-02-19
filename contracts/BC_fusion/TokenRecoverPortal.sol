@@ -28,7 +28,7 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
     // Mainnet: "Binance-Chain-Tigris"
     // Testnet: "Binance-Chain-Ganges"
     // Rendering script: scripts/generate.py:238
-    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Tigris";
+    string public constant SOURCE_CHAIN_ID = "Binance-Chain-Ganges";
 
     /*----------------- storage -----------------*/
     address public approvalAddress;
