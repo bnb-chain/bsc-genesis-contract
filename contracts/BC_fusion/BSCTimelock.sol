@@ -12,9 +12,8 @@ contract BSCTimelock is System, Initializable, TimelockControllerUpgradeable {
 
     /*----------------- constants -----------------*/
     /*
-        @dev caution:
-        minDelay using second as unit
-    */
+     * @dev caution: minDelay using second as unit
+     */
     uint256 private constant INIT_MINIMAL_DELAY = 24 hours;
 
     /*----------------- init -----------------*/
