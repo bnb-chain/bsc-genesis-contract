@@ -131,8 +131,8 @@ def generate_slash_indicator(misdemeanor_threshold, felony_threshold, init_felon
 
 
 def generate_stake_hub(
-    breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-    felony_jail_time, stake_hub_protector
+    breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, max_elected_validators, unbond_period,
+    downtime_jail_time, felony_jail_time, stake_hub_protector
 ):
     contract = "BC_fusion/StakeHub.sol"
     backup_file(
@@ -143,6 +143,7 @@ def generate_stake_hub(
     replace_parameter(contract, "bytes private constant INIT_BC_CONSENSUS_ADDRESSES", f"{init_bc_consensus_addresses}")
     replace_parameter(contract, "bytes private constant INIT_BC_VOTE_ADDRESSES", f"{init_bc_vote_addresses}")
 
+    replace(contract, r"maxElectedValidators = .*;", f"maxElectedValidators = {max_elected_validators};")
     replace(contract, r"unbondPeriod = .*;", f"unbondPeriod = {unbond_period};")
     replace(contract, r"downtimeJailTime = .*;", f"downtimeJailTime = {downtime_jail_time};")
     replace(contract, r"felonyJailTime = .*;", f"felonyJailTime = {felony_jail_time};")
@@ -150,7 +151,8 @@ def generate_stake_hub(
 
 
 def generate_governor(
-    block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+    block_interval, init_voting_delay, init_voting_period, init_proposal_threshold, init_quorum_numerator,
+    propose_start_threshold, init_min_period_after_quorum, governor_protector
 ):
     contract = "BC_fusion/BSCGovernor.sol"
     backup_file(
@@ -160,6 +162,11 @@ def generate_governor(
     replace_parameter(contract, "uint256 private constant BLOCK_INTERVAL", f"{block_interval}")
     replace_parameter(contract, "uint256 private constant INIT_VOTING_DELAY", f"{init_voting_delay}")
     replace_parameter(contract, "uint256 private constant INIT_VOTING_PERIOD", f"{init_voting_period}")
+    replace_parameter(contract, "uint256 private constant INIT_PROPOSAL_THRESHOLD", f"{init_proposal_threshold}")
+    replace_parameter(contract, "uint256 private constant INIT_QUORUM_NUMERATOR", f"{init_quorum_numerator}")
+    replace_parameter(
+        contract, "uint256 private constant PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD", f"{propose_start_threshold}"
+    )
     replace_parameter(
         contract, "uint64 private constant INIT_MIN_PERIOD_AFTER_QUORUM", f"{init_min_period_after_quorum}"
     )
@@ -211,19 +218,12 @@ def generate_tendermint_light_client(init_consensus_state_bytes, init_reward_for
     )
 
 
-def generate_token_hub(
-    max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee,
-    lock_period_for_token_recover
-):
+def generate_token_hub(lock_period_for_token_recover):
     contract = "TokenHub.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
-    replace_parameter(contract, "uint256 constant public MAX_GAS_FOR_TRANSFER_BNB", f"{max_gas_for_transfer_bnb}")
-    replace_parameter(contract, "uint256 constant public MAX_GAS_FOR_CALLING_BEP20", f"{max_gas_for_calling_bep20}")
-    replace_parameter(contract, "uint256 constant public REWARD_UPPER_LIMIT", f"{reward_upper_limit}")
-    replace_parameter(contract, "uint256 constant public INIT_MINIMUM_RELAY_FEE", f"{init_minimum_relay_fee}")
     replace_parameter(
         contract, "uint256 constant public LOCK_PERIOD_FOR_TOKEN_RECOVER", f"{lock_period_for_token_recover}"
     )
@@ -305,31 +305,31 @@ def mainnet():
     whitelist_2 = "0x446AA6E0DC65690403dF3F127750da1322941F3e"
     source_chain_id = "Binance-Chain-Tigris"
 
+    epoch = "200"
+    block_interval = "3 seconds"
+    breathe_block_interval = "1 days"
+    max_elected_validators = "45"
+    unbond_period = "7 days"
+    downtime_jail_time = "2 days"
+    felony_jail_time = "30 days"
+    init_felony_slash_scope = "28800"
+    misdemeanor_threshold = "50"
+    felony_threshold = "150"
+    init_voting_delay = "0 hours / BLOCK_INTERVAL"
+    init_voting_period = "7 days / BLOCK_INTERVAL"
+    init_proposal_threshold = "200 ether"
+    init_quorum_numerator = "10"
+    propose_start_threshold = "10_000_000 ether"
+    init_min_period_after_quorum = "uint64(1 days / BLOCK_INTERVAL)"
+    init_minimal_delay = "24 hours"
+    lock_period_for_token_recover = "7 days"
+
     # TODO: update the following parameters
     init_bc_consensus_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     init_bc_vote_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     stake_hub_protector = "address(0xdEaD)"
     governor_protector = "address(0xdEaD)"
     token_recover_portal_protector = "address(0xdEaD)"
-
-    epoch = "200"
-    misdemeanor_threshold = "50"
-    felony_threshold = "150"
-    init_felony_slash_scope = "86400"
-    breathe_block_interval = "1 days"
-    block_interval = "3 seconds"
-    unbond_period = "7 days"
-    downtime_jail_time = "2 days"
-    felony_jail_time = "30 days"
-    init_voting_delay = "0 hours / BLOCK_INTERVAL"
-    init_voting_period = "7 days / BLOCK_INTERVAL"
-    init_min_period_after_quorum = "uint64(1 days / BLOCK_INTERVAL)"
-    init_minimal_delay = "24 hours"
-    max_gas_for_transfer_bnb = "10000"
-    max_gas_for_calling_bep20 = "50000"
-    reward_upper_limit = "1e18"
-    init_minimum_relay_fee = "2e15"
-    lock_period_for_token_recover = "7 days"
 
     generate_system()
     generate_cross_chain()
@@ -341,17 +341,15 @@ def mainnet():
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
     generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
-        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, stake_hub_protector
+        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, max_elected_validators,
+        unbond_period, downtime_jail_time, felony_jail_time, stake_hub_protector
     )
     generate_governor(
-        block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+        block_interval, init_voting_delay, init_voting_period, init_proposal_threshold, init_quorum_numerator,
+        propose_start_threshold, init_min_period_after_quorum, governor_protector
     )
     generate_timelock(init_minimal_delay)
-    generate_token_hub(
-        max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee,
-        lock_period_for_token_recover
-    )
+    generate_token_hub(lock_period_for_token_recover)
 
     generate_genesis()
     print("Generate genesis of mainnet successfully")
@@ -372,31 +370,31 @@ def testnet():
     whitelist_2 = "0x37B8516a0F88E65D677229b402ec6C1e0E333004"
     source_chain_id = "Binance-Chain-Ganges"
 
+    epoch = "200"
+    block_interval = "3 seconds"
+    breathe_block_interval = "1 days"
+    max_elected_validators = "9"
+    unbond_period = "7 days"
+    downtime_jail_time = "2 days"
+    felony_jail_time = "5 days"
+    init_felony_slash_scope = "28800"
+    misdemeanor_threshold = "50"
+    felony_threshold = "150"
+    init_voting_delay = "10 hours / BLOCK_INTERVAL"
+    init_voting_period = "1 days / BLOCK_INTERVAL"
+    init_proposal_threshold = "100 ether"
+    init_quorum_numerator = "10"
+    propose_start_threshold = "10_000_000 ether"
+    init_min_period_after_quorum = "uint64(1 hours / BLOCK_INTERVAL)"
+    init_minimal_delay = "6 hours"
+    lock_period_for_token_recover = "1 days"
+
     # TODO: update the following parameters
     init_bc_consensus_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     init_bc_vote_addresses = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"'
     stake_hub_protector = "address(0xdEaD)"
     governor_protector = "address(0xdEaD)"
     token_recover_portal_protector = "address(0xdEaD)"
-
-    epoch = "200"
-    misdemeanor_threshold = "50"
-    felony_threshold = "150"
-    init_felony_slash_scope = "86400"
-    breathe_block_interval = "1 days"
-    block_interval = "3 seconds"
-    unbond_period = "7 days"
-    downtime_jail_time = "2 days"
-    felony_jail_time = "30 days"
-    init_voting_delay = "0 hours / BLOCK_INTERVAL"
-    init_voting_period = "7 days / BLOCK_INTERVAL"
-    init_min_period_after_quorum = "uint64(1 days / BLOCK_INTERVAL)"
-    init_minimal_delay = "24 hours"
-    max_gas_for_transfer_bnb = "10000"
-    max_gas_for_calling_bep20 = "50000"
-    reward_upper_limit = "1e18"
-    init_minimum_relay_fee = "2e15"
-    lock_period_for_token_recover = "7 days"
 
     generate_system()
     generate_cross_chain()
@@ -408,17 +406,15 @@ def testnet():
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
     generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
-        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, stake_hub_protector
+        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, max_elected_validators,
+        unbond_period, downtime_jail_time, felony_jail_time, stake_hub_protector
     )
     generate_governor(
-        block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+        block_interval, init_voting_delay, init_voting_period, init_proposal_threshold, init_quorum_numerator,
+        propose_start_threshold, init_min_period_after_quorum, governor_protector
     )
     generate_timelock(init_minimal_delay)
-    generate_token_hub(
-        max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee,
-        lock_period_for_token_recover
-    )
+    generate_token_hub(lock_period_for_token_recover)
 
     generate_genesis()
     print("Generate genesis of testnet successfully")
@@ -430,42 +426,43 @@ def dev(
     init_consensus_bytes:
     str = "42696e616e63652d436861696e2d4e696c650000000000000000000000000000000000000000000229eca254b3859bffefaf85f4c95da9fbd26527766b784272789c30ec56b380b6eb96442aaab207bc59978ba3dd477690f5c5872334fc39e627723daa97e441e88ba4515150ec3182bc82593df36f8abb25a619187fcfab7e552b94e64ed2deed000000e8d4a51000",
     init_burn_ratio: Annotated[str, typer.Option(help="init burn ratio of BscValidatorSet")] = "1000",
-    epoch: str = "200",
     whitelist_1: Annotated[
         str, typer.Option(help="whitelist relayer1's address")] = "0xA904540818AC9c47f2321F97F1069B9d8746c6DB",
     whitelist_2: Annotated[
         str, typer.Option(help="whitelist relayer2's address")] = "0x316b2Fa7C8a2ab7E21110a4B3f58771C01A71344",
     source_chain_id: Annotated[
         str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
-    misdemeanor_threshold: str = "50",
-    felony_threshold: str = "150",
-    init_felony_slash_scope: str = "86400",
-    breathe_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
-    block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
     init_bc_consensus_addresses:
     str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
     init_bc_vote_addresses:
     str = 'hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000"',
     stake_hub_protector: Annotated[str, typer.Option(help="assetProtector of StakeHub")] = "address(0xdEaD)",
+    governor_protector: Annotated[str, typer.Option(help="governorProtector of BSCGovernor")] = "address(0xdEaD)",
+    token_recover_portal_protector: Annotated[str,
+                                              typer.Option(help="protector of TokenRecoverPortal")] = "address(0xdEaD)",
+    epoch: str = "200",
+    block_interval: Annotated[str, typer.Option(help="block interval of Parlia")] = "3 seconds",
+    breathe_block_interval: Annotated[str, typer.Option(help="breath block interval of Parlia")] = "1 days",
+    max_elected_validators: Annotated[str, typer.Option(help="maxElectedValidators of StakeHub")] = "45",
     unbond_period: Annotated[str, typer.Option(help="unbondPeriod of StakeHub")] = "7 days",
     downtime_jail_time: Annotated[str, typer.Option(help="downtimeJailTime of StakeHub")] = "2 days",
     felony_jail_time: Annotated[str, typer.Option(help="felonyJailTime of StakeHub")] = "30 days",
+    init_felony_slash_scope: str = "28800",
+    misdemeanor_threshold: str = "50",
+    felony_threshold: str = "150",
     init_voting_delay: Annotated[str,
                                  typer.Option(help="INIT_VOTING_DELAY of BSCGovernor")] = "0 hours / BLOCK_INTERVAL",
     init_voting_period: Annotated[str,
                                   typer.Option(help="INIT_VOTING_PERIOD of BSCGovernor")] = "7 days / BLOCK_INTERVAL",
+    init_proposal_threshold: Annotated[str, typer.Option(help="INIT_PROPOSAL_THRESHOLD of BSCGovernor")] = "200 ether",
+    init_quorum_numerator: Annotated[str, typer.Option(help="INIT_QUORUM_NUMERATOR of BSCGovernor")] = "10",
+    propose_start_threshold: Annotated[
+        str, typer.Option(help="PROPOSE_START_GOVBNB_SUPPLY_THRESHOLD of BSCGovernor")] = "10_000_000 ether",
     init_min_period_after_quorum: Annotated[
         str, typer.Option(help="INIT_MIN_PERIOD_AFTER_QUORUM of BSCGovernor")] = "uint64(1 days / BLOCK_INTERVAL)",
-    governor_protector: Annotated[str, typer.Option(help="governorProtector of BSCGovernor")] = "address(0xdEaD)",
     init_minimal_delay: Annotated[str, typer.Option(help="INIT_MINIMAL_DELAY of BSCTimelock")] = "24 hours",
-    max_gas_for_transfer_bnb: Annotated[str, typer.Option(help="MAX_GAS_FOR_TRANSFER_BNB of TokenHub")] = "10000",
-    max_gas_for_calling_bep20: Annotated[str, typer.Option(help="MAX_GAS_FOR_CALLING_BEP20 of TokenHub")] = "50000",
-    reward_upper_limit: Annotated[str, typer.Option(help="REWARD_UPPER_LIMIT of TokenHub")] = "1e18",
-    init_minimum_relay_fee: Annotated[str, typer.Option(help="INIT_MINIMUM_RELAY_FEE of TokenHub")] = "2e15",
     lock_period_for_token_recover: Annotated[str,
                                              typer.Option(help="LOCK_PERIOD_FOR_TOKEN_RECOVER of TokenHub")] = "7 days",
-    token_recover_portal_protector: Annotated[str,
-                                              typer.Option(help="protector of TokenRecoverPortal")] = "address(0xdEaD)"
 ):
     global network, chain_id, hex_chain_id
     network = "dev"
@@ -497,17 +494,15 @@ def dev(
     generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch)
     generate_token_recover_portal(source_chain_id, token_recover_portal_protector)
     generate_stake_hub(
-        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, unbond_period, downtime_jail_time,
-        felony_jail_time, stake_hub_protector
+        breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, max_elected_validators,
+        unbond_period, downtime_jail_time, felony_jail_time, stake_hub_protector
     )
     generate_governor(
-        block_interval, init_voting_delay, init_voting_period, init_min_period_after_quorum, governor_protector
+        block_interval, init_voting_delay, init_voting_period, init_proposal_threshold, init_quorum_numerator,
+        propose_start_threshold, init_min_period_after_quorum, governor_protector
     )
     generate_timelock(init_minimal_delay)
-    generate_token_hub(
-        max_gas_for_transfer_bnb, max_gas_for_calling_bep20, reward_upper_limit, init_minimum_relay_fee,
-        lock_period_for_token_recover
-    )
+    generate_token_hub(lock_period_for_token_recover)
 
     generate_genesis()
     print("Generate genesis of dev environment successfully")
