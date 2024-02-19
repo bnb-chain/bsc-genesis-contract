@@ -101,10 +101,6 @@ contract BSCGovernor is
     {
         _checkAndStartPropose();
 
-        for (uint256 i = 0; i < targets.length; i++) {
-            if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
-        }
-
         uint256 latestProposalId = latestProposalIds[msg.sender];
         if (latestProposalId != 0) {
             ProposalState proposersLatestProposalState = state(latestProposalId);
@@ -142,6 +138,10 @@ contract BSCGovernor is
         notInBlackList
         returns (uint256 proposalId)
     {
+        for (uint256 i = 0; i < targets.length; i++) {
+            if (!whitelistTargets[targets[i]]) revert NotWhitelisted();
+        }
+
         return GovernorTimelockControlUpgradeable.queue(targets, values, calldatas, descriptionHash);
     }
 
