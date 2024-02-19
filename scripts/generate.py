@@ -380,7 +380,7 @@ def testnet():
     init_felony_slash_scope = "28800"
     misdemeanor_threshold = "50"
     felony_threshold = "150"
-    init_voting_delay = "10 hours / BLOCK_INTERVAL"
+    init_voting_delay = "0 hours / BLOCK_INTERVAL"
     init_voting_period = "1 days / BLOCK_INTERVAL"
     init_proposal_threshold = "100 ether"
     init_quorum_numerator = "10"
