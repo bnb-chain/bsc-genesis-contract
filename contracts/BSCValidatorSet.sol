@@ -1140,7 +1140,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
       // exit maintenance
       isFelony = _exitMaintenance(validator, i, workingValidatorCount);
-      if (!isFelony || numOfFelony >= _validatorSet.length - 1) {
+      if (!isFelony) {
         continue;
       }
 
@@ -1152,22 +1152,32 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       }
 
       // record the jailed validator in validatorSet
-      for (uint k; k<_validatorSet.length; ++k) {
-        if (_validatorSet[k].consensusAddress == validator || _validatorSet[k].consensusAddress == latestConsensusAddress) {
-          _validatorSet[k].jailed = true;
+      for (uint j; j<_validatorSet.length; ++j) {
+        if (_validatorSet[j].consensusAddress == validator || _validatorSet[j].consensusAddress == latestConsensusAddress) {
+          _validatorSet[j].jailed = true;
           break;
         }
       }
     }
 
     // count the number of felony validators
-    for (uint i; i<_validatorSet.length; ++i) {
-      if (_validatorSet[i].jailed) {
+    for (uint k; k<_validatorSet.length; ++k) {
+      if (_validatorSet[k].jailed) {
         ++numOfFelony;
       }
     }
 
     // 2. get unjailed validators from validatorSet
+    // make sure there is at least one validator
+    if (numOfFelony >= _validatorSet.length) {
+      unjailedValidatorSet = new Validator[](1);
+      unjailedVoteAddrs = new bytes[](1);
+      unjailedValidatorSet[0] = _validatorSet[0];
+      unjailedVoteAddrs[0] = _voteAddrs[0];
+      unjailedValidatorSet[0].jailed = false;
+      return (unjailedValidatorSet, unjailedVoteAddrs);
+    }
+
     unjailedValidatorSet = new Validator[](_validatorSet.length - numOfFelony);
     unjailedVoteAddrs = new bytes[](_validatorSet.length - numOfFelony);
     i = 0;
