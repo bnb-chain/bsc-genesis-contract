@@ -119,7 +119,6 @@ contract GovernorTest is Deployer {
         proposalId = governor.propose(targets, values, calldatas, description);
         assertEq(governor.proposeStarted(), true, "propose should start");
 
-
         bnbAmount = 10000000 ether - 2000 ether;
         govBNBBalance = govToken.balanceOf(delegator);
         console.log("govBNBBalance", govBNBBalance);
@@ -136,7 +135,7 @@ contract GovernorTest is Deployer {
 
     function testProposalNotApproved() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
@@ -171,7 +170,6 @@ contract GovernorTest is Deployer {
         vm.roll(block.number + 1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
         vm.roll(_nowBlock + 1);
@@ -179,7 +177,6 @@ contract GovernorTest is Deployer {
         // support vote
         governor.castVote(proposalId, 1);
         vm.stopPrank();
-
 
         vm.startPrank(delegator2);
         // against vote
@@ -196,7 +193,7 @@ contract GovernorTest is Deployer {
 
     function testProposalQuorumNotReached() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
@@ -231,13 +228,11 @@ contract GovernorTest is Deployer {
         vm.roll(block.number + 1);
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
 
-
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
         vm.roll(_nowBlock + 1);
         vm.warp(_now + 3);
         vm.stopPrank();
-
 
         vm.startPrank(delegator2);
         // support vote, support quorum < 10%
@@ -250,17 +245,7 @@ contract GovernorTest is Deployer {
         // quorum not reached
         uint256 quorumVote = governor.quorumVotes();
 
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            uint256 forVotes,
-            uint256 againstVotes,
-            ,
-            ,
-        ) = governor.proposals(proposalId);
+        (,,,,, uint256 forVotes, uint256 againstVotes,,,) = governor.proposals(proposalId);
 
         console.log("quorumVote", quorumVote);
         console.log("forVotes", forVotes);
@@ -328,9 +313,7 @@ contract GovernorTest is Deployer {
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
 
-
         uint256 BLOCK_INTERVAL = 3 seconds;
-        uint256 INIT_VOTING_DELAY = 0 hours / BLOCK_INTERVAL;
         uint256 INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
         uint64 INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
 
