@@ -1168,24 +1168,23 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     // 2. get unjailed validators from validatorSet
-    // make sure there is at least one validator
     if (numOfFelony >= _validatorSet.length) {
+      // make sure there is at least one validator
       unjailedValidatorSet = new Validator[](1);
       unjailedVoteAddrs = new bytes[](1);
       unjailedValidatorSet[0] = _validatorSet[0];
       unjailedVoteAddrs[0] = _voteAddrs[0];
       unjailedValidatorSet[0].jailed = false;
-      return (unjailedValidatorSet, unjailedVoteAddrs);
-    }
-
-    unjailedValidatorSet = new Validator[](_validatorSet.length - numOfFelony);
-    unjailedVoteAddrs = new bytes[](_validatorSet.length - numOfFelony);
-    i = 0;
-    for (uint index; index<_validatorSet.length; ++index) {
-      if (!_validatorSet[index].jailed) {
-        unjailedValidatorSet[i] = _validatorSet[index];
-        unjailedVoteAddrs[i] = _voteAddrs[index];
-        ++i;
+    } else {
+      unjailedValidatorSet = new Validator[](_validatorSet.length - numOfFelony);
+      unjailedVoteAddrs = new bytes[](_validatorSet.length - numOfFelony);
+      i = 0;
+      for (uint index; index<_validatorSet.length; ++index) {
+        if (!_validatorSet[index].jailed) {
+          unjailedValidatorSet[i] = _validatorSet[index];
+          unjailedVoteAddrs[i] = _voteAddrs[index];
+          ++i;
+        }
       }
     }
 
