@@ -27,7 +27,7 @@ contract GovHub is System, IApplication{
     address  target;
   }
 
-  function handleSynPackage(uint8, bytes calldata msgBytes) onlyCrossChainContract external override returns(bytes memory responsePayload) {
+  function handleSynPackage(uint8, bytes calldata msgBytes) external onlyCrossChainContract override returns(bytes memory responsePayload) {
     (ParamChangePackage memory proposal, bool success) = decodeSynPackage(msgBytes);
     if (!success) {
       return CmnPkg.encodeCommonAckPackage(ERROR_FAIL_DECODE);
@@ -48,6 +48,11 @@ contract GovHub is System, IApplication{
   // should not happen
   function handleFailAckPackage(uint8, bytes calldata) external onlyCrossChainContract override {
     require(false, "receive unexpected fail ack package");
+  }
+
+  function updateParam(string calldata key, bytes calldata value, address target) external onlyGovernorTimelock {
+    ParamChangePackage memory proposal = ParamChangePackage(key, value, target);
+    notifyUpdates(proposal);
   }
 
   function notifyUpdates(ParamChangePackage memory proposal) internal returns(uint32) {
