@@ -290,9 +290,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // step 1: distribute incoming
     for (uint i; i < currentValidatorSet.length; ++i) {
-      if (currentValidatorSet[i].incoming != 0) {
-        IStakeHub(STAKE_HUB_ADDR).distributeReward{value : currentValidatorSet[i].incoming}(currentValidatorSet[i].consensusAddress);
+      uint256 incoming = currentValidatorSet[i].incoming;
+      if (incoming != 0) {
         currentValidatorSet[i].incoming = 0;
+        IStakeHub(STAKE_HUB_ADDR).distributeReward{value : incoming}(currentValidatorSet[i].consensusAddress);
       }
     }
 
@@ -1162,7 +1163,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // count the number of felony validators
     for (uint k; k<_validatorSet.length; ++k) {
-      if (_validatorSet[k].jailed) {
+      if (_validatorSet[k].jailed || _validatorSet[k].consensusAddress == address(0)) {
         ++numOfFelony;
       }
     }
@@ -1180,7 +1181,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
       unjailedVoteAddrs = new bytes[](_validatorSet.length - numOfFelony);
       i = 0;
       for (uint index; index<_validatorSet.length; ++index) {
-        if (!_validatorSet[index].jailed) {
+        if (!_validatorSet[index].jailed && _validatorSet[index].consensusAddress != address(0)) {
           unjailedValidatorSet[i] = _validatorSet[index];
           unjailedVoteAddrs[i] = _voteAddrs[index];
           ++i;
