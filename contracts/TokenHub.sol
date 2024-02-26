@@ -78,11 +78,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint8 constant public   MAXIMUM_BEP20_SYMBOL_LEN = 8;
   uint8 constant public   BEP2_TOKEN_DECIMALS = 8;
   bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-  uint256 constant public MAX_GAS_FOR_CALLING_BEP20=50000;
-  uint256 constant public MAX_GAS_FOR_TRANSFER_BNB=10000;
+  uint256 constant public MAX_GAS_FOR_CALLING_BEP20 = 50000;
+  uint256 constant public MAX_GAS_FOR_TRANSFER_BNB = 10000;
 
-  uint256 constant public INIT_MINIMUM_RELAY_FEE =2e15;
-  uint256 constant public REWARD_UPPER_LIMIT =1e18;
+  uint256 constant public INIT_MINIMUM_RELAY_FEE = 2e15;
+  uint256 constant public REWARD_UPPER_LIMIT = 1e18;
   uint256 constant public TEN_DECIMALS = 1e10;
 
   uint256 public relayFee;
@@ -96,6 +96,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   uint256 constant public INIT_LOCK_PERIOD = 12 hours;
   // the lock period for large cross-chain transfer
   uint256 public lockPeriod;
+  // the lock Period for token recover
+  uint256 constant public LOCK_PERIOD_FOR_TOKEN_RECOVER = 7 days;
   // token address => largeTransferLimit amount, address(0) means BNB
   mapping(address => uint256) public largeTransferLimitMap;
   // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
@@ -116,6 +118,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
   event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
   event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
+
+  // BEP-299: Token Migration after BC Fusion
+  event TokenRecoverLocked(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+  event CancelTokenRecoverLock(bytes32 indexed tokenSymbol, address indexed tokenAddr, address indexed attacker, uint256 amount);
+  event NotBoundToken(bytes32 indexed tokenSymbol, address indexed recipient, uint256 amount);
 
   // BEP-171: Security Enhancement for Cross-Chain Module
   modifier onlyTokenOwner(address bep20Token) {
@@ -161,8 +168,12 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     return actualAmount;
   }
 
-  function claimRewardsforFinality(address payable, uint256) onlyInit onlyRelayerIncentivize external override returns(uint256) {
-    revert("CLAIM_REWARDS_FOR_FINALITY_NOT_ALLOWED");
+  function claimMigrationFund(uint256 amount) onlyStakeHub external returns(bool) {
+    if (address(this).balance >= amount) {
+      payable(STAKE_HUB_ADDR).transfer(amount);
+      return true;
+    }
+    return false;
   }
 
   function getMiniRelayFee() external view override returns(uint256) {
@@ -527,7 +538,69 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
   }
 
   /**
+   * @dev request a BC token recover from BSC
+   *
+   * @param tokenSymbol The token symbol on BSC.
+   * @param recipient The destination address of the transfer on BSC.
+   * @param amount The amount to transfer
+   */
+  function recoverBCAsset(bytes32 tokenSymbol, address recipient, uint256 amount) external override onlyInit onlyTokenRecoverPortal {
+    require(amount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
+    uint256 convertedAmount;
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      address contractAddr = bep2SymbolToContractAddr[tokenSymbol];
+      if (contractAddr == address(0x00)) {
+        // if the token is not bound, just emit an event
+        // please notify the token owner to handle the token recovery
+        emit NotBoundToken(tokenSymbol, recipient, amount);
+        return;
+      }
+
+      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
+      convertedAmount = convertFromBep2Amount(amount, bep20TokenDecimals);// convert to bep20 amount
+      require(IBEP20(contractAddr).balanceOf(address(this)) >= convertedAmount, "insufficient balance");
+      _lockRecoverToken(tokenSymbol, contractAddr, convertedAmount, recipient);
+    }else{
+      convertedAmount = amount.mul(TEN_DECIMALS); // native bnb decimals is 8 on BC, while the native bnb decimals on BSC is 18
+      require(address(this).balance >= convertedAmount, "insufficient balance");
+      address contractAddr = address(0x00);
+      _lockRecoverToken(tokenSymbol, contractAddr, convertedAmount, recipient);
+    }
+  }
+
+  // lock the token for 7 days to the recipient address
+  function _lockRecoverToken(bytes32 tokenSymbol, address contractAddr, uint256 amount, address recipient) internal {
+    LockInfo storage lockInfo = lockInfoMap[contractAddr][recipient];
+    lockInfo.amount = lockInfo.amount.add(amount);
+    lockInfo.unlockAt = block.timestamp + LOCK_PERIOD_FOR_TOKEN_RECOVER;
+
+    emit TokenRecoverLocked(
+      tokenSymbol,
+      contractAddr,
+      recipient,
+      amount,
+      lockInfo.unlockAt
+    );
+  }
+
+  function cancelTokenRecoverLock(bytes32 tokenSymbol, address attacker) override external onlyTokenRecoverPortal {
+    address tokenAddress = address(0x00);
+    if (tokenSymbol != BEP2_TOKEN_SYMBOL_FOR_BNB) {
+      tokenAddress = bep2SymbolToContractAddr[tokenSymbol];
+      require(tokenAddress != address(0x00), "invalid symbol");
+    }
+    LockInfo storage lockInfo = lockInfoMap[tokenAddress][attacker];
+    require(lockInfo.amount > 0, "no locked amount");
+
+    uint256 _amount = lockInfo.amount;
+    lockInfo.amount = 0;
+
+    emit CancelTokenRecoverLock(tokenSymbol, tokenAddress, attacker, _amount);
+  }
+
+  /**
    * @dev request a cross-chain transfer from BSC to BC
+   * @notice this function is deprecated after Feynman upgrade
    *
    * @param contractAddr The token contract which is transferred
    * @param recipient The destination address of the cross-chain transfer on BC.
@@ -535,46 +608,7 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
    * @param expireTime The expire time for the cross-chain transfer
    */
   function transferOut(address contractAddr, address recipient, uint256 amount, uint64 expireTime) external override onlyInit payable returns (bool) {
-    require(expireTime>=block.timestamp + 120, "expireTime must be two minutes later");
-    require(msg.value%TEN_DECIMALS==0, "invalid received BNB amount: precision loss in amount conversion");
-    bytes32 bep2TokenSymbol;
-    uint256 convertedAmount;
-    uint256 rewardForRelayer;
-    if (contractAddr==address(0x0)) {
-      require(msg.value>=amount.add(relayFee), "received BNB amount should be no less than the sum of transferOut BNB amount and minimum relayFee");
-      require(amount%TEN_DECIMALS==0, "invalid transfer amount: precision loss in amount conversion");
-      rewardForRelayer=msg.value.sub(amount);
-      convertedAmount = amount.div(TEN_DECIMALS); // native bnb decimals is 8 on BBC, while the native bnb decimals on BSC is 18
-      bep2TokenSymbol=BEP2_TOKEN_SYMBOL_FOR_BNB;
-    } else {
-      bep2TokenSymbol = contractAddrToBEP2Symbol[contractAddr];
-      require(bep2TokenSymbol!=bytes32(0x00), "the contract has not been bound to any bep2 token");
-      require(msg.value>=relayFee, "received BNB amount should be no less than the minimum relayFee");
-      rewardForRelayer=msg.value;
-      uint256 bep20TokenDecimals=bep20ContractDecimals[contractAddr];
-      require(bep20TokenDecimals<=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals>BEP2_TOKEN_DECIMALS && amount.mod(10**(bep20TokenDecimals-BEP2_TOKEN_DECIMALS))==0), "invalid transfer amount: precision loss in amount conversion");
-      convertedAmount = convertToBep2Amount(amount, bep20TokenDecimals);// convert to bep2 amount
-      if (isMiniBEP2Token(bep2TokenSymbol)) {
-        require(convertedAmount >= 1e8 , "For miniToken, the transfer amount must not be less than 1");
-      }
-      require(bep20TokenDecimals>=BEP2_TOKEN_DECIMALS || (bep20TokenDecimals<BEP2_TOKEN_DECIMALS && convertedAmount>amount), "amount is too large, uint256 overflow");
-      require(convertedAmount<=MAX_BEP2_TOTAL_SUPPLY, "amount is too large, exceed maximum bep2 token amount");
-      require(IBEP20(contractAddr).transferFrom(msg.sender, address(this), amount));
-    }
-    TransferOutSynPackage memory transOutSynPkg = TransferOutSynPackage({
-      bep2TokenSymbol: bep2TokenSymbol,
-      contractAddr: contractAddr,
-      amounts: new uint256[](1),
-      recipients: new address[](1),
-      refundAddrs: new address[](1),
-      expireTime: expireTime
-    });
-    transOutSynPkg.amounts[0]=convertedAmount;
-    transOutSynPkg.recipients[0]=recipient;
-    transOutSynPkg.refundAddrs[0]=msg.sender;
-    ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(TRANSFER_OUT_CHANNELID, encodeTransferOutSynPackage(transOutSynPkg), rewardForRelayer.div(TEN_DECIMALS));
-    emit transferOutSuccess(contractAddr, msg.sender, amount, rewardForRelayer);
-    return true;
+    revert("deprecated");
   }
 
   /**

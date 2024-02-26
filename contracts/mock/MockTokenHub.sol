@@ -6,6 +6,8 @@ contract MockTokenHub is ITokenHub {
 
   bool panicBatchTransferOut;
 
+  bytes32 constant public BEP2_TOKEN_SYMBOL_FOR_BNB = 0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
+
   function getMiniRelayFee() external view override(ITokenHub) returns (uint256) {
     return (1e16);
   }
@@ -21,6 +23,15 @@ contract MockTokenHub is ITokenHub {
   function bindToken(bytes32 bep2Symbol, address contractAddr, uint256 decimals) external override(ITokenHub) {}
 
   function unbindToken(bytes32 bep2Symbol, address contractAddr) external override(ITokenHub) {}
+
+  function recoverBCAsset(bytes32, address, uint256)
+  external override(ITokenHub) {
+  }
+
+  function cancelTokenRecoverLock(bytes32, address) external override {
+    address TOKEN_RECOVER_PORTAL_ADDR = address(0x0000000000000000000000000000000000003000);
+    require(msg.sender == TOKEN_RECOVER_PORTAL_ADDR, "only token reover portal contract can call this function");
+  }
 
   function transferOut(address, address, uint256, uint64)
   external override(ITokenHub) payable returns (bool) {

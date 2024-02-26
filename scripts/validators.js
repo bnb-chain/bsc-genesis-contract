@@ -14,7 +14,7 @@ const bLSPublicKeys = [
   '0x85e6972fc98cd3c81d64d40e325acfed44365b97a7567a27939c14dbc7512ddcf54cb1284eb637cfa308ae4e00cb5588',
 ];
 
-// ===============  Do not edit below ====
+// ======== Do not edit below ========
 function generateExtraData(validators) {
   let extraVanity = Buffer.alloc(32);
   let validatorsBytes = extraDataSerialize(validators);
@@ -50,8 +50,6 @@ function validatorUpdateRlpEncode(validators, bLSPublicKeys) {
 
 extraValidatorBytes = generateExtraData(validators);
 validatorSetBytes = validatorUpdateRlpEncode(validators, bLSPublicKeys);
-
-process.stdout.write(validatorSetBytes);
 
 exports = module.exports = {
   extraValidatorBytes: extraValidatorBytes,
