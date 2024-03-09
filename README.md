@@ -10,7 +10,7 @@ npm install
 ```
 
 Install foundry:
-```shell script
+```shell Install script
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 forge install --no-git --no-commit foundry-rs/forge-std@v1.1.1
