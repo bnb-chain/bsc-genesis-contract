@@ -275,7 +275,7 @@ contract StakeHub is System, Initializable, Protectable {
     function handleSynPackage(
         uint8,
         bytes calldata msgBytes
-    ) external onlyCrossChainContract enableReceivingFund returns (bytes memory) {
+    ) external onlyCrossChainContract whenNotPaused enableReceivingFund returns (bytes memory) {
         (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
         if (!decodeSuccess) revert InvalidSynPackage();
 
@@ -1033,11 +1033,7 @@ contract StakeHub is System, Initializable, Protectable {
         return (migrationPackage, success);
     }
 
-    function _doMigration(StakeMigrationPackage memory migrationPkg)
-        internal
-        whenNotPaused
-        returns (StakeMigrationRespCode)
-    {
+    function _doMigration(StakeMigrationPackage memory migrationPkg) internal returns (StakeMigrationRespCode) {
         if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
             return StakeMigrationRespCode.INVALID_DELEGATOR;
         }
