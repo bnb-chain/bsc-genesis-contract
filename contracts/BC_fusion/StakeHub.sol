@@ -149,7 +149,8 @@ contract StakeHub is System, Initializable, Protectable {
         MIGRATE_SUCCESS,
         CLAIM_FUND_FAILED,
         VALIDATOR_NOT_EXISTED,
-        VALIDATOR_JAILED
+        VALIDATOR_JAILED,
+        INVALID_DELEGATOR
     }
 
     struct Validator {
@@ -299,6 +300,8 @@ contract StakeHub is System, Initializable, Protectable {
         if (respCode == StakeMigrationRespCode.MIGRATE_SUCCESS) {
             return new bytes(0);
         } else {
+            (bool success,) = TOKEN_HUB_ADDR.call{ value: address(this).balance }("");
+            if (!success) revert TransferFailed();
             emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, respCode);
             return msgBytes;
         }
@@ -1036,7 +1039,7 @@ contract StakeHub is System, Initializable, Protectable {
         returns (StakeMigrationRespCode)
     {
         if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
-            revert InBlackList();
+            return StakeMigrationRespCode.INVALID_DELEGATOR;
         }
 
         if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
