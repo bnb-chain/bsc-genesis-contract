@@ -552,6 +552,7 @@ contract StakeHubTest is Deployer {
         emit MigrateFailed(delegator, delegator, delegation, StakeMigrationRespCode.VALIDATOR_NOT_EXISTED);
         vm.prank(address(crossChain));
         stakeHub.handleSynPackage(BC_FUSION_CHANNELID, elements.encodeList());
+        assertEq(address(stakeHub).balance, 0, "StakeHub balance should be 0");
 
         // failed for claim fund failed
         elements[0] = validator.encodeAddress();
