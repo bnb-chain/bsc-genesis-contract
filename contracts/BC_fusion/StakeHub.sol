@@ -27,7 +27,7 @@ contract StakeHub is System, Initializable, Protectable {
 
     address public constant DEAD_ADDRESS = address(0xdEaD);
     uint256 public constant LOCK_AMOUNT = 1 ether;
-    uint256 public constant REDELEGATE_FEE_RATE_BASE = 100000; // 100%
+    uint256 public constant REDELEGATE_FEE_RATE_BASE = 10000; // 100%
 
     uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
 
