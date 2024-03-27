@@ -82,8 +82,7 @@ contract Deployer is Test {
     constructor() {
         // create fork
         // you should modify this for your own test, which generally should be the bsc mainnet latest number
-        // TODO: wait for foundry to fix this
-        // vm.createSelectFork("bsc", 23839447);
+        vm.createSelectFork("bsc");
 
         // setup system contracts
         bscValidatorSet = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);

@@ -4,12 +4,10 @@ on:
     branches:
       - master
       - develop
-      - bc-fusion
   pull_request:
     branches:
       - master
       - develop
-      - bc-fusion
 permissions:
   contents: read
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
@@ -31,7 +29,7 @@ jobs:
             ${{ runner.os }}-yarn-
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@v1.2.0
 
       - name: Install Project Dependencies
         run: |
@@ -46,14 +44,9 @@ jobs:
         run: |
           forge build
 
-      - name: Start Local Chain
-        run: |
-          npm install pm2 -g
-          pm2 start --name local-chain "anvil -f https://bsc-dataseed1.ninicoin.io"
-          sleep 5
-        env:
-          PORT: 8545
+      - name: Set RPC Env
+        run: echo "RPC_BSC=https://bsc-dataseed.bnbchain.org" >> $GITHUB_ENV
 
       - name: Unit Test
         run: |
-          forge test --rpc-url http://127.0.0.1:8545
+          forge test
