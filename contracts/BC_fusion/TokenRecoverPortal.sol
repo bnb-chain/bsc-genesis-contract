@@ -77,9 +77,8 @@ contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable
     function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
         __ReentrancyGuard_init_unchained();
 
-        // TODO
         // Different address will be set depending on the environment
-        __Protectable_init_unchained(address(0xdEaD));
+        __Protectable_init_unchained(0x08E68Ec70FA3b629784fDB28887e206ce8561E08);
     }
 
     /**

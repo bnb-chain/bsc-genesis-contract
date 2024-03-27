@@ -575,19 +575,134 @@ contract StakeHubTest is Deployer {
     }
 
     function testEncodeLegacyBytes() public {
-        address[] memory cAddresses = new address[](3);
-        bytes[] memory vAddresses = new bytes[](3);
+        address[] memory cAddresses = new address[](56);
+        bytes[] memory vAddresses = new bytes[](34);
 
-        cAddresses[0] = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-        cAddresses[1] = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
-        cAddresses[2] = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC;
+        cAddresses[0] = 0x295e26495CEF6F69dFA69911d9D8e4F3bBadB89B;
+        cAddresses[1] = 0x72b61c6014342d914470eC7aC2975bE345796c2b;
+        cAddresses[2] = 0x2465176C461AfB316ebc773C61fAEe85A6515DAA;
+        cAddresses[3] = 0x7AE2F5B9e386cd1B50A4550696D957cB4900f03a;
+        cAddresses[4] = 0xb4dd66D7c2C7E57F628210187192fb89d4b99dD4;
+        cAddresses[5] = 0xE9AE3261a475a27Bb1028f140bc2a7c843318afD;
+        cAddresses[6] = 0xee226379dB83CfFC681495730c11fDDE79BA4c0C;
+        cAddresses[7] = 0x3f349bBaFEc1551819B8be1EfEA2fC46cA749aA1;
+        cAddresses[8] = 0x8b6C8fd93d6F4CeA42Bbb345DBc6F0DFdb5bEc73;
+        cAddresses[9] = 0xEF0274E31810C9Df02F98FAFDe0f841F4E66a1Cd;
+        cAddresses[10] = 0xa6f79B60359f141df90A0C745125B131cAAfFD12;
+        cAddresses[11] = 0xe2d3A739EFFCd3A99387d015E260eEFAc72EBea1;
+        cAddresses[12] = 0x61Dd481A114A2E761c554B641742C973867899D3;
+        cAddresses[13] = 0xCc8E6d00C17eB431350C6c50d8b8F05176b90b11;
+        cAddresses[14] = 0xea0A6E3c511bbD10f4519EcE37Dc24887e11b55d;
+        cAddresses[15] = 0x2D4C407BBe49438ED859fe965b140dcF1aaB71a9;
+        cAddresses[16] = 0x685B1ded8013785d6623CC18D214320b6Bb64759;
+        cAddresses[17] = 0xD1d6bF74282782B0b3eb1413c901D6eCF02e8e28;
+        cAddresses[18] = 0x70F657164e5b75689b64B7fd1fA275F334f28e18;
+        cAddresses[19] = 0xBe807Dddb074639cD9fA61b47676c064fc50D62C;
+        cAddresses[20] = 0xb218C5D6aF1F979aC42BC68d98A5A0D796C6aB01;
+        cAddresses[21] = 0x9F8cCdaFCc39F3c7D6EBf637c9151673CBc36b88;
+        cAddresses[22] = 0xd93DbfB27e027F5e9e6Da52B9E1C413CE35ADC11;
+        cAddresses[23] = 0xce2FD7544e0B2Cc94692d4A704deBEf7bcB61328;
+        cAddresses[24] = 0x0BAC492386862aD3dF4B666Bc096b0505BB694Da;
+        cAddresses[25] = 0x733fdA7714a05960B7536330Be4DBB135bef0Ed6;
+        cAddresses[26] = 0x35EBb5849518aFF370cA25E19e1072cC1a9FAbCa;
+        cAddresses[27] = 0xeBE0B55aD7Bb78309180Cada12427d120fdBcc3a;
+        cAddresses[28] = 0x6488Aa4D1955Ee33403f8ccB1d4dE5Fb97C7ade2;
+        cAddresses[29] = 0x4396e28197653d0C244D95f8C1E57da902A72b4e;
+        cAddresses[30] = 0x702Be18040aA2a9b1af9219941469f1a435854fC;
+        cAddresses[31] = 0x12D810C13e42811E9907c02e02d1faD46cfA18BA;
+        cAddresses[32] = 0x2a7cdd959bFe8D9487B2a43B33565295a698F7e2;
+        cAddresses[33] = 0xB8f7166496996A7da21cF1f1b04d9B3E26a3d077;
+        cAddresses[34] = 0x9bB832254BAf4E8B4cc26bD2B52B31389B56E98B;
+        cAddresses[35] = 0x4430b3230294D12c6AB2aAC5C2cd68E80B16b581;
+        cAddresses[36] = 0xc2Be4EC20253B8642161bC3f444F53679c1F3D47;
+        cAddresses[37] = 0xEe01C3b1283AA067C58eaB4709F85e99D46de5FE;
+        cAddresses[38] = 0x9ef9f4360c606c7AB4db26b016007d3ad0aB86a0;
+        cAddresses[39] = 0x2f7bE8361C80A4c1e7e9aAF001d0877F1CFdE218;
+        cAddresses[40] = 0x35E7a025f4da968De7e4D7E4004197917F4070F1;
+        cAddresses[41] = 0xd6caA02BBebaEbB5d7e581e4B66559e635F805fF;
+        cAddresses[42] = 0x8c4D90829CE8F72D0163c1D5Cf348a862d550630;
+        cAddresses[43] = 0x68Bf0B8b6FB4E317a0f9D6F03eAF8CE6675BC60D;
+        cAddresses[44] = 0x82012708DAfC9E1B880fd083B32182B869bE8E09;
+        cAddresses[45] = 0x6BBad7Cf34b5fA511d8e963dbba288B1960E75D6;
+        cAddresses[46] = 0x22B81f8E175FFde54d797FE11eB03F9E3BF75F1d;
+        cAddresses[47] = 0x78f3aDfC719C99674c072166708589033e2d9afe;
+        cAddresses[48] = 0x29a97C6EfFB8A411DABc6aDEEfaa84f5067C8bbe;
+        cAddresses[49] = 0xAAcF6a8119F7e11623b5A43DA638e91F669A130f;
+        cAddresses[50] = 0x2b3A6c089311b478Bf629C29D790A7A6db3fc1b9;
+        cAddresses[51] = 0xFE6E72b223f6d6Cf4edc6bFf92f30e84b8258249;
+        cAddresses[52] = 0xa6503279E8B5c7Bb5CF4deFD3ec8ABf3e009a80b;
+        cAddresses[53] = 0x4ee63a09170C3f2207aeCa56134Fc2Bee1b28e3C;
+        cAddresses[54] = 0xac0E15a038eedfc68ba3C35c73feD5bE4A07afB5;
+        cAddresses[55] = 0x69C77a677C40C7FBeA129d4b171a39B7A8DDaBfA;
 
         vAddresses[0] =
-            hex"b86b3146bdd2200b1dbdb1cea5e40d3451c028cbb4fb03b1826f7f2d82bee76bbd5cd68a74a16a7eceea093fd5826b92";
+            hex"977cf58294f7239d515e15b24cfeb82494056cf691eaf729b165f32c9757c429dba5051155903067e56ebe3698678e91";
         vAddresses[1] =
-            hex"87ce273bb9b51fd69e50de7a8d9a99cfb3b1a5c6a7b85f6673d137a5a2ce7df3d6ee4e6d579a142d58b0606c4a7a1c27";
+            hex"81db0422a5fd08e40db1fc2368d2245e4b18b1d0b85c921aaaafd2e341760e29fc613edd39f71254614e2055c3287a51";
         vAddresses[2] =
-            hex"a33ac14980d85c0d154c5909ebf7a11d455f54beb4d5d0dc1d8b3670b9c4a6b6c450ee3d623ecc48026f09ed1f0b5c12";
+            hex"8a923564c6ffd37fb2fe9f118ef88092e8762c7addb526ab7eb1e772baef85181f892c731be0c1891a50e6b06262c816";
+        vAddresses[3] =
+            hex"b84f83ff2df44193496793b847f64e9d6db1b3953682bb95edd096eb1e69bbd357c200992ca78050d0cbe180cfaa018e";
+        vAddresses[4] =
+            hex"b0de8472be0308918c8bdb369bf5a67525210daffa053c52224c1d2ef4f5b38e4ecfcd06a1cc51c39c3a7dccfcb6b507";
+        vAddresses[5] =
+            hex"ae7bc6faa3f0cc3e6093b633fd7ee4f86970926958d0b7ec80437f936acf212b78f0cd095f4565fff144fd458d233a5b";
+        vAddresses[6] =
+            hex"84248a459464eec1a21e7fc7b71a053d9644e9bb8da4853b8f872cd7c1d6b324bf1922829830646ceadfb658d3de009a";
+        vAddresses[7] =
+            hex"a8a257074e82b881cfa06ef3eb4efeca060c2531359abd0eab8af1e3edfa2025fca464ac9c3fd123f6c24a0d78869485";
+        vAddresses[8] =
+            hex"98cbf822e4bc29f1701ac0350a3d042cd0756e9f74822c6481773ceb000641c51b870a996fe0f6a844510b1061f38cd0";
+        vAddresses[9] =
+            hex"b772e180fbf38a051c97dabc8aaa0126a233a9e828cdafcc7422c4bb1f4030a56ba364c54103f26bad91508b5220b741";
+        vAddresses[10] =
+            hex"956c470ddff48cb49300200b5f83497f3a3ccb3aeb83c5edd9818569038e61d197184f4aa6939ea5e9911e3e98ac6d21";
+        vAddresses[11] =
+            hex"8a80967d39e406a0a9642d41e9007a27fc1150a267d143a9f786cd2b5eecbdcc4036273705225b956d5e2f8f5eb95d25";
+        vAddresses[12] =
+            hex"b3a3d4feb825ae9702711566df5dbf38e82add4dd1b573b95d2466fa6501ccb81e9d26a352b96150ccbf7b697fd0a419";
+        vAddresses[13] =
+            hex"b2d4c6283c44a1c7bd503aaba7666e9f0c830e0ff016c1c750a5e48757a713d0836b1cabfd5c281b1de3b77d1c192183";
+        vAddresses[14] =
+            hex"93c1f7f6929d1fe2a17b4e14614ef9fc5bdc713d6631d675403fbeefac55611bf612700b1b65f4744861b80b0f7d6ab0";
+        vAddresses[15] =
+            hex"8a60f82a7bcf74b4cb053b9bfe83d0ed02a84ebb10865dfdd8e26e7535c43a1cccd268e860f502216b379dfc9971d358";
+        vAddresses[16] =
+            hex"939e8fb41b682372335be8070199ad3e8621d1743bcac4cc9d8f0f6e10f41e56461385c8eb5daac804fe3f2bca6ce739";
+        vAddresses[17] =
+            hex"96a26afa1295da81418593bd12814463d9f6e45c36a0e47eb4cd3e5b6af29c41e2a3a5636430155a466e216585af3ba7";
+        vAddresses[18] =
+            hex"b1f2c71577def3144fabeb75a8a1c8cb5b51d1d1b4a05eec67988b8685008baa17459ec425dbaebc852f496dc92196cd";
+        vAddresses[19] =
+            hex"b659ad0fbd9f515893fdd740b29ba0772dbde9b4635921dd91bd2963a0fc855e31f6338f45b211c4e9dedb7f2eb09de7";
+        vAddresses[20] =
+            hex"8819ec5ec3e97e1f03bbb4bb6055c7a5feac8f4f259df58349a32bb5cb377e2cb1f362b77f1dd398cfd3e9dba46138c3";
+        vAddresses[21] =
+            hex"b313f9cba57c63a84edb4079140e6dbd7829e5023c9532fce57e9fe602400a2953f4bf7dab66cca16e97be95d4de7044";
+        vAddresses[22] =
+            hex"b64abe25614c9cfd32e456b4d521f29c8357f4af4606978296c9be93494072ac05fa86e3d27cc8d66e65000f8ba33fbb";
+        vAddresses[23] =
+            hex"b0bec348681af766751cb839576e9c515a09c8bffa30a46296ccc56612490eb480d03bf948e10005bbcc0421f90b3d4e";
+        vAddresses[24] =
+            hex"b0245c33bc556cfeb013cd3643b30dbdef6df61a0be3ba00cae104b3c587083852e28f8911689c7033f7021a8a1774c9";
+        vAddresses[25] =
+            hex"a7f3e2c0b4b16ad183c473bafe30a36e39fa4a143657e229cd23c77f8fbc8e4e4e241695dd3d248d1e51521eee661914";
+        vAddresses[26] =
+            hex"8fdf49777b22f927d460fa3fcdd7f2ba0cf200634a3dfb5197d7359f2f88aaf496ef8c93a065de0f376d164ff2b6db9a";
+        vAddresses[27] =
+            hex"8ab17a9148339ef40aed8c177379c4db0bb5efc6f5c57a5d1a6b58b84d4b562e227196c79bda9a136830ed0c09f37813";
+        vAddresses[28] =
+            hex"8dd20979bd63c14df617a6939c3a334798149151577dd3f1fadb2bd1c1b496bf84c25c879da5f0f9dfdb88c6dd17b1e6";
+        vAddresses[29] =
+            hex"b679cbab0276ac30ff5f198e5e1dedf6b84959129f70fe7a07fcdf13444ba45b5dbaa7b1f650adf8b0acbecd04e2675b";
+        vAddresses[30] =
+            hex"8974616fe8ab950a3cded19b1d16ff49c97bf5af65154b3b097d5523eb213f3d35fc5c57e7276c7f2d83be87ebfdcdf9";
+        vAddresses[31] =
+            hex"ab764a39ff81dad720d5691b852898041a3842e09ecbac8025812d51b32223d8420e6ae51a01582220a10f7722de67c1";
+        vAddresses[32] =
+            hex"9025b6715c8eaabac0bfccdb2f25d651c9b69b0a184011a4a486b0b2080319d2396e7ca337f2abdf01548b2de1b3ba06";
+        vAddresses[33] =
+            hex"b2317f59d86abfaf690850223d90e9e7593d91a29331dfc2f84d5adecc75fc39ecab4632c1b4400a3dd1e1298835bcca";
 
         bytes memory cBz = abi.encode(cAddresses);
         bytes memory vBz = abi.encode(vAddresses);
