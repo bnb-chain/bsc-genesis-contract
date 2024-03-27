@@ -7,17 +7,14 @@ import "./interface/IParamSubscriber.sol";
 import "./System.sol";
 import "./lib/SafeMath.sol";
 
-
 contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     using SafeMath for uint256;
 
     uint256 public constant INIT_REQUIRED_DEPOSIT = 1e20;
     uint256 public constant INIT_DUES = 1e17;
 
-    
-      address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
-      address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
-    
+    address public constant WHITELIST_1 = 0xb005741528b86F5952469d80A8614591E3c5B632;
+    address public constant WHITELIST_2 = 0x446AA6E0DC65690403dF3F127750da1322941F3e;
 
     uint256 internal requiredDeposit; // have to keep it to not break the storage layout
     uint256 internal dues;
@@ -38,7 +35,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     bool public whitelistInitDone;
 
-    modifier onlyManager(){
+    modifier onlyManager() {
         require(relayManagersExistMap[msg.sender], "manager does not exist");
         _;
     }
@@ -92,7 +89,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         emit relayerUpdated(address(0), addr);
     }
 
-    /*********************** Param update ********************************/
+    /*----------------- Param update -----------------*/
     function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {
         if (Memory.compareStrings(key, "addManager")) {
             require(value.length == 20, "length of manager address mismatch");
@@ -135,7 +132,7 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
 
     function addManagerByGov(address managerToBeAdded) internal {
         require(!relayManagersExistMap[managerToBeAdded], "manager already exists");
-        
+
         relayManagersExistMap[managerToBeAdded] = true;
 
         emit managerAdded(managerToBeAdded);
@@ -167,7 +164,6 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     // acceptBeingRelayer needs to be called by the relayer after being added provisionally.
     // This 2 step process of relayer updating is required to avoid having a contract as a relayer.
     function acceptBeingRelayer(address manager) external onlyProvisionalRelayer {
-
         // ensure msg.sender is not contract and it is not a proxy
         require(!isContract(msg.sender), "provisional relayer is a contract");
         require(tx.origin == msg.sender, "provisional relayer is a proxy");
@@ -182,18 +178,17 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
         delete managerToProvisionalRelayer[manager];
         delete currentRelayers[oldRelayer];
         emit relayerUpdated(oldRelayer, msg.sender);
-
     }
 
-    function isRelayer(address relayerAddress) external override view returns (bool){
+    function isRelayer(address relayerAddress) external view override returns (bool) {
         return currentRelayers[relayerAddress];
     }
 
-    function isProvisionalRelayer(address relayerAddress) external view returns (bool){
+    function isProvisionalRelayer(address relayerAddress) external view returns (bool) {
         return provisionalRelayers[relayerAddress];
     }
 
-    function isManager(address managerAddress) external view returns (bool){
+    function isManager(address managerAddress) external view returns (bool) {
         return relayManagersExistMap[managerAddress];
     }
 }

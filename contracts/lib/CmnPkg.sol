@@ -4,10 +4,8 @@ import "./RLPEncode.sol";
 import "./RLPDecode.sol";
 
 library CmnPkg {
-
     using RLPEncode for *;
     using RLPDecode for *;
-
 
     struct CommonAckPackage {
         uint32 code;
@@ -24,7 +22,7 @@ library CmnPkg {
         RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
 
         bool success = false;
-        uint256 idx=0;
+        uint256 idx = 0;
         while (iter.hasNext()) {
             if (idx == 0) {
                 ackPkg.code = uint32(iter.next().toUint());

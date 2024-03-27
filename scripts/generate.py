@@ -98,8 +98,8 @@ def generate_cross_chain(init_batch_size="50"):
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
-    replace_parameter(contract, "uint256 constant public CROSS_CHAIN_KEY_PREFIX", f"0x01{hex_chain_id}00")
-    replace_parameter(contract, "uint256 constant public INIT_BATCH_SIZE", f"{init_batch_size}")
+    replace_parameter(contract, "uint256 public constant CROSS_CHAIN_KEY_PREFIX", f"0x01{hex_chain_id}00")
+    replace_parameter(contract, "uint256 public constant INIT_BATCH_SIZE", f"{init_batch_size}")
 
 
 def generate_relayer_hub(whitelist_1, whitelist_2):
@@ -188,7 +188,7 @@ def generate_system():
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
-    replace_parameter(contract, "uint16 constant public bscChainID", f"0x{hex_chain_id}")
+    replace_parameter(contract, "uint16 public constant bscChainID", f"0x{hex_chain_id}")
 
 
 def generate_system_reward():
@@ -210,10 +210,10 @@ def generate_tendermint_light_client(init_consensus_state_bytes, init_reward_for
     )
 
     replace_parameter(
-        contract, "bytes constant public INIT_CONSENSUS_STATE_BYTES", f"hex\"{init_consensus_state_bytes}\""
+        contract, "bytes public constant INIT_CONSENSUS_STATE_BYTES", f"hex\"{init_consensus_state_bytes}\""
     )
     replace_parameter(
-        contract, "uint256 constant public INIT_REWARD_FOR_VALIDATOR_SER_CHANGE",
+        contract, "uint256 public constant INIT_REWARD_FOR_VALIDATOR_SER_CHANGE",
         f"{init_reward_for_validator_ser_change}"
     )
 
@@ -225,7 +225,7 @@ def generate_token_hub(lock_period_for_token_recover):
     )
 
     replace_parameter(
-        contract, "uint256 constant public LOCK_PERIOD_FOR_TOKEN_RECOVER", f"{lock_period_for_token_recover}"
+        contract, "uint256 public constant LOCK_PERIOD_FOR_TOKEN_RECOVER", f"{lock_period_for_token_recover}"
     )
 
 
