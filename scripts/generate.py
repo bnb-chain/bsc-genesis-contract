@@ -254,7 +254,7 @@ def generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch):
 
     if network == "dev":
         insert(
-            contract, r"for \(uint i; i<validatorSetPkg\.validatorSet\.length; \+\+i\)",
+            contract, r"for \(uint256 i; i < validatorSetPkg\.validatorSet\.length; \+\+i\)",
             "\t\tValidatorExtra memory validatorExtra;"
         )
         insert(
@@ -267,8 +267,8 @@ def generate_validator_set(init_validatorset_bytes, init_burn_ratio, epoch):
         )
         replace(
             contract,
-            r"handleSynPackage\(uint8, bytes calldata msgBytes\) onlyInit onlyCrossChainContract initValidatorExtraSet",
-            "handleSynPackage(uint8, bytes calldata msgBytes) onlyInit initValidatorExtraSet"
+            r"handleSynPackage\(\s*uint8,\s*bytes calldata msgBytes\s*\) external override onlyInit onlyCrossChainContract initValidatorExtraSet",
+            "handleSynPackage(uint8, bytes calldata msgBytes) external override onlyInit initValidatorExtraSet"
         )
 
 
@@ -280,7 +280,7 @@ def generate_gov_hub():
 
     if network == "dev":
         replace(
-            contract, r"handleSynPackage\(uint8, bytes calldata msgBytes\) external onlyCrossChainContract override",
+            contract, r"handleSynPackage\(\s*uint8,\s*bytes calldata msgBytes\s*\) external override onlyCrossChainContract",
             "handleSynPackage(uint8, bytes calldata msgBytes) external override"
         )
 
