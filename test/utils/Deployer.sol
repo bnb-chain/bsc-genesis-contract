@@ -121,39 +121,39 @@ contract Deployer is Test {
         vm.label(address(tokenRecoverPortal), "TokenRecoverPortal");
 
         // set the latest code
-        bytes memory deployedCode = vm.getDeployedCode("BSCValidatorSet.sol");
+        bytes memory deployedCode = vm.getDeployedCode("BSCValidatorSet.sol:BSCValidatorSet");
         vm.etch(VALIDATOR_CONTRACT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("SlashIndicator.sol");
+        deployedCode = vm.getDeployedCode("SlashIndicator.sol:SlashIndicator");
         vm.etch(SLASH_CONTRACT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("SystemReward.sol");
+        deployedCode = vm.getDeployedCode("SystemReward.sol:SystemReward");
         vm.etch(SYSTEM_REWARD_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("TendermintLightClient.sol");
+        deployedCode = vm.getDeployedCode("TendermintLightClient.sol:TendermintLightClient");
         vm.etch(LIGHT_CLIENT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("TokenHub.sol");
+        deployedCode = vm.getDeployedCode("TokenHub.sol:TokenHub");
         vm.etch(TOKEN_HUB_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("RelayerIncentivize.sol");
+        deployedCode = vm.getDeployedCode("RelayerIncentivize.sol:RelayerIncentivize");
         vm.etch(INCENTIVIZE_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("RelayerHub.sol");
+        deployedCode = vm.getDeployedCode("RelayerHub.sol:RelayerHub");
         vm.etch(RELAYERHUB_CONTRACT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("GovHub.sol");
+        deployedCode = vm.getDeployedCode("GovHub.sol:GovHub");
         vm.etch(GOV_HUB_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("TokenManager.sol");
+        deployedCode = vm.getDeployedCode("TokenManager.sol:TokenManager");
         vm.etch(TOKEN_MANAGER_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("CrossChain.sol");
+        deployedCode = vm.getDeployedCode("CrossChain.sol:CrossChain");
         vm.etch(CROSS_CHAIN_CONTRACT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("Staking.sol");
+        deployedCode = vm.getDeployedCode("Staking.sol:Staking");
         vm.etch(STAKING_CONTRACT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("StakeHub.sol");
+        deployedCode = vm.getDeployedCode("StakeHub.sol:StakeHub");
         vm.etch(STAKE_HUB_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("StakeCredit.sol");
+        deployedCode = vm.getDeployedCode("StakeCredit.sol:StakeCredit");
         vm.etch(STAKE_CREDIT_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("BSCGovernor.sol");
+        deployedCode = vm.getDeployedCode("BSCGovernor.sol:BSCGovernor");
         vm.etch(GOVERNOR_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("GovToken.sol");
+        deployedCode = vm.getDeployedCode("GovToken.sol:GovToken");
         vm.etch(GOV_TOKEN_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("BSCTimelock.sol");
+        deployedCode = vm.getDeployedCode("BSCTimelock.sol:BSCTimelock");
         vm.etch(TIMELOCK_ADDR, deployedCode);
-        deployedCode = vm.getDeployedCode("TokenRecoverPortal.sol");
+        deployedCode = vm.getDeployedCode("TokenRecoverPortal.sol:TokenRecoverPortal");
         vm.etch(TOKEN_RECOVER_PORTAL_ADDR, deployedCode);
 
         relayer = payable(0xb005741528b86F5952469d80A8614591E3c5B632); // whitelabel relayer
