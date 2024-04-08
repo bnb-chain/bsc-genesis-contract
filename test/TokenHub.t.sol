@@ -2,7 +2,10 @@ pragma solidity ^0.8.10;
 
 import "./utils/Deployer.sol";
 
-import "./utils/interface/ITestToken.sol";
+import "./utils/test_token/ABCToken.sol";
+import "./utils/test_token/DEFToken.sol";
+import "./utils/test_token/MaliciousToken.sol";
+import "./utils/test_token/MiniToken.sol";
 import "./utils/test_token/XYZToken.sol";
 
 contract TokenHubTest is Deployer {
@@ -16,34 +19,29 @@ contract TokenHubTest is Deployer {
     event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
     event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
 
-    ITestToken public abcToken;
-    ITestToken public defToken;
+    ABCToken public abcToken;
+    DEFToken public defToken;
     XYZToken public xyzToken;
-    ITestToken public maliciousToken;
-    ITestToken public miniToken;
+    MaliciousToken public maliciousToken;
+    MiniToken public miniToken;
 
     receive() external payable { }
 
     function setUp() public {
-        address abcAddr = deployCode("ABCToken.sol");
-        abcToken = ITestToken(abcAddr);
-        vm.label(abcAddr, "ABCToken");
+        abcToken = new ABCToken();
+        vm.label(address(abcToken), "ABCToken");
 
-        address defAddr = deployCode("DEFToken.sol");
-        defToken = ITestToken(defAddr);
-        vm.label(defAddr, "DEFToken");
+        defToken = new DEFToken();
+        vm.label(address(defToken), "DEFToken");
 
-        address xyzAddr = deployCode("XYZToken.sol");
-        xyzToken = XYZToken(xyzAddr);
-        vm.label(xyzAddr, "XYZToken");
+        xyzToken = new XYZToken();
+        vm.label(address(xyzToken), "XYZToken");
 
-        address maliciousAddr = deployCode("MaliciousToken.sol");
-        maliciousToken = ITestToken(maliciousAddr);
-        vm.label(maliciousAddr, "MaliciousToken");
+        maliciousToken = new MaliciousToken();
+        vm.label(address(maliciousToken), "MaliciousToken");
 
-        address miniAddr = deployCode("MiniToken.sol");
-        miniToken = ITestToken(miniAddr);
-        vm.label(miniAddr, "MiniToken");
+        miniToken = new MiniToken();
+        vm.label(address(miniToken), "MiniToken");
     }
 
     function testBindFailed() public {
