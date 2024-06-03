@@ -80,8 +80,7 @@ contract Deployer is Test {
     event paramChange(string key, bytes value);
 
     constructor() {
-        // create fork
-        // you should modify this for your own test, which generally should be the bsc mainnet latest number
+        // create fork of mainnet
         vm.createSelectFork("bsc");
 
         // setup system contracts

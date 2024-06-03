@@ -56,10 +56,8 @@ contract ValidatorSetTest is Deployer {
         coinbase = block.coinbase;
         vm.deal(coinbase, 100 ether);
 
-        // remove this after fusion fork launched
-        vm.prank(coinbase);
+        // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
-        stakeHub.initialize();
     }
 
     function testDeposit(uint256 amount) public {
@@ -278,28 +276,6 @@ contract ValidatorSetTest is Deployer {
         assertEq(deprecated.balance, balance);
     }
 
-    function testValidateSetChange() public {
-        address[][] memory newValSet = new address[][](5);
-        for (uint256 i; i < 5; ++i) {
-            address[] memory valSet = new address[](5 + i);
-            for (uint256 j; j < 5 + i; ++j) {
-                valSet[j] = _getNextUserAddress();
-            }
-            newValSet[i] = valSet;
-        }
-
-        vm.startPrank(address(crossChain));
-        for (uint256 k; k < 5; ++k) {
-            bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, newValSet[k]));
-            address[] memory valSet = bscValidatorSet.getValidators();
-            for (uint256 l; l < 5 + k; ++l) {
-                assertEq(valSet[l], newValSet[k][l], "consensusAddr not equal");
-                assertTrue(bscValidatorSet.isCurrentValidator(newValSet[k][l]), "the address should be a validator");
-            }
-        }
-        vm.stopPrank();
-    }
-
     function testCannotUpdateValidatorSet() public {
         address[][] memory newValSet = new address[][](4);
         newValSet[0] = new address[](3);
@@ -475,82 +451,105 @@ contract ValidatorSetTest is Deployer {
         assertEq(deprecated.balance, balance);
     }
 
-    function testJail() public {
-        address[] memory newValidators = new address[](3);
-        for (uint256 i; i < 3; ++i) {
-            newValidators[i] = _getNextUserAddress();
-        }
+    // todo: fix this after bc-fusion second sunset
+//  function testValidateSetChange() public {
+//        address[][] memory newValSet = new address[][](5);
+//        for (uint256 i; i < 5; ++i) {
+//            address[] memory valSet = new address[](5 + i);
+//            for (uint256 j; j < 5 + i; ++j) {
+//                valSet[j] = _getNextUserAddress();
+//            }
+//            newValSet[i] = valSet;
+//        }
+//
+//        vm.startPrank(address(crossChain));
+//        for (uint256 k; k < 5; ++k) {
+//            bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, newValSet[k]));
+//            address[] memory valSet = bscValidatorSet.getValidators();
+//            for (uint256 l; l < 5 + k; ++l) {
+//                assertEq(valSet[l], newValSet[k][l], "consensusAddr not equal");
+//                assertTrue(bscValidatorSet.isCurrentValidator(newValSet[k][l]), "the address should be a validator");
+//            }
+//        }
+//        vm.stopPrank();
+//    }
 
-        vm.startPrank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, newValidators));
+//    function testJail() public {
+//        address[] memory newValidators = new address[](3);
+//        for (uint256 i; i < 3; ++i) {
+//            newValidators[i] = _getNextUserAddress();
+//        }
+//
+//        vm.startPrank(address(crossChain));
+//        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, newValidators));
+//
+//        address[] memory remainVals = bscValidatorSet.getValidators();
+//        assertEq(remainVals.length, 3);
+//        for (uint256 i; i < 3; ++i) {
+//            assertEq(remainVals[i], newValidators[i]);
+//        }
+//
+//        vm.expectEmit(false, false, false, true, address(bscValidatorSet));
+//        emit failReasonWithStr("length of jail validators must be one");
+//        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, newValidators));
+//
+//        address[] memory jailVal = new address[](1);
+//        jailVal[0] = newValidators[0];
+//        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
+//
+//        remainVals = bscValidatorSet.getValidators();
+//        assertEq(remainVals.length, 2);
+//        for (uint256 i; i < 2; ++i) {
+//            assertEq(remainVals[i], newValidators[i + 1]);
+//        }
+//
+//        jailVal[0] = newValidators[1];
+//        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
+//        remainVals = bscValidatorSet.getValidators();
+//        assertEq(remainVals.length, 1);
+//        assertEq(remainVals[0], newValidators[2]);
+//
+//        jailVal[0] = newValidators[2];
+//        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
+//        remainVals = bscValidatorSet.getValidators();
+//        assertEq(remainVals.length, 1);
+//        assertEq(remainVals[0], newValidators[2]);
+//        vm.stopPrank();
+//    }
 
-        address[] memory remainVals = bscValidatorSet.getValidators();
-        assertEq(remainVals.length, 3);
-        for (uint256 i; i < 3; ++i) {
-            assertEq(remainVals[i], newValidators[i]);
-        }
-
-        vm.expectEmit(false, false, false, true, address(bscValidatorSet));
-        emit failReasonWithStr("length of jail validators must be one");
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, newValidators));
-
-        address[] memory jailVal = new address[](1);
-        jailVal[0] = newValidators[0];
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
-
-        remainVals = bscValidatorSet.getValidators();
-        assertEq(remainVals.length, 2);
-        for (uint256 i; i < 2; ++i) {
-            assertEq(remainVals[i], newValidators[i + 1]);
-        }
-
-        jailVal[0] = newValidators[1];
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
-        remainVals = bscValidatorSet.getValidators();
-        assertEq(remainVals.length, 1);
-        assertEq(remainVals[0], newValidators[2]);
-
-        jailVal[0] = newValidators[2];
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x01, jailVal));
-        remainVals = bscValidatorSet.getValidators();
-        assertEq(remainVals.length, 1);
-        assertEq(remainVals[0], newValidators[2]);
-        vm.stopPrank();
-    }
-
-    function testDecodeNewCrossChainPack() public {
-        uint256 maxElectedValidators = stakeHub.maxElectedValidators();
-
-        address[] memory newValidators = new address[](maxElectedValidators);
-        bytes[] memory newVoteAddrs = new bytes[](maxElectedValidators);
-        for (uint256 i; i < newValidators.length; ++i) {
-            newValidators[i] = _getNextUserAddress();
-            newVoteAddrs[i] = abi.encodePacked(newValidators[i]);
-        }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(
-            STAKING_CHANNELID, _encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs)
-        );
-
-        (address[] memory vals, bytes[] memory voteAddrs) = bscValidatorSet.getLivingValidators();
-        for (uint256 i; i < maxElectedValidators; ++i) {
-            assertEq(voteAddrs[i], abi.encodePacked(vals[i]));
-        }
-
-        // edit vote addr for existed validator
-        for (uint256 i; i < maxElectedValidators; ++i) {
-            newVoteAddrs[i] = abi.encodePacked(newValidators[i], "0x1234567890");
-        }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(
-            STAKING_CHANNELID, _encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs)
-        );
-
-        (vals, voteAddrs) = bscValidatorSet.getLivingValidators();
-        for (uint256 i; i < maxElectedValidators; ++i) {
-            assertEq(voteAddrs[i], abi.encodePacked(newValidators[i], "0x1234567890"));
-        }
-    }
+//    function testDecodeNewCrossChainPack() public {
+//        uint256 maxElectedValidators = stakeHub.maxElectedValidators();
+//
+//        address[] memory newValidators = new address[](maxElectedValidators);
+//        bytes[] memory newVoteAddrs = new bytes[](maxElectedValidators);
+//        for (uint256 i; i < newValidators.length; ++i) {
+//            newValidators[i] = _getNextUserAddress();
+//            newVoteAddrs[i] = abi.encodePacked(newValidators[i]);
+//        }
+//        vm.prank(address(crossChain));
+//        bscValidatorSet.handleSynPackage(
+//            STAKING_CHANNELID, _encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs)
+//        );
+//
+//        (address[] memory vals, bytes[] memory voteAddrs) = bscValidatorSet.getLivingValidators();
+//        for (uint256 i; i < maxElectedValidators; ++i) {
+//            assertEq(voteAddrs[i], abi.encodePacked(vals[i]));
+//        }
+//
+//        // edit vote addr for existed validator
+//        for (uint256 i; i < maxElectedValidators; ++i) {
+//            newVoteAddrs[i] = abi.encodePacked(newValidators[i], "0x1234567890");
+//        }
+//        vm.prank(address(crossChain));
+//        bscValidatorSet.handleSynPackage(
+//            STAKING_CHANNELID, _encodeNewValidatorSetUpdatePack(0x00, newValidators, newVoteAddrs)
+//        );
+//
+//        (vals, voteAddrs) = bscValidatorSet.getLivingValidators();
+//        for (uint256 i; i < maxElectedValidators; ++i) {
+//            assertEq(voteAddrs[i], abi.encodePacked(newValidators[i], "0x1234567890"));
+//        }
+//    }
 
     function testDistributeFinalityReward() public {
         address[] memory addrs = new address[](20);

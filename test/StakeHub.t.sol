@@ -39,11 +39,6 @@ contract StakeHubTest is Deployer {
 
     function setUp() public {
         vm.mockCall(address(0x66), "", hex"01");
-
-        // remove this after fusion fork launched
-        vm.prank(block.coinbase);
-        vm.txGasPrice(0);
-        stakeHub.initialize();
     }
 
     function testCreateValidator() public {
