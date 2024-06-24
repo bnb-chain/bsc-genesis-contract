@@ -205,7 +205,11 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         emit indicatorCleaned();
     }
 
-    function downtimeSlash(address validator, uint256 count, bool shouldRevert) external override onlyValidatorContract {
+    function downtimeSlash(
+        address validator,
+        uint256 count,
+        bool shouldRevert
+    ) external override onlyValidatorContract {
         _downtimeSlash(validator, count, shouldRevert);
     }
 

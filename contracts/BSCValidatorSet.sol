@@ -1282,7 +1282,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         uint256 slashCount = block.number.sub(validatorExtraSet[index].enterMaintenanceHeight).div(miningValidatorCount)
             .div(maintainSlashScale);
 
-        // step2: slash the validator
+        // step 2: clear isMaintaining info
+        validatorExtraSet[index].isMaintaining = false;
+
+        // step 3: slash the validator
         (uint256 misdemeanorThreshold, uint256 felonyThreshold) =
             ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
         isFelony = false;
@@ -1296,11 +1299,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             isFelony = true;
         } else if (slashCount >= misdemeanorThreshold) {
             _misdemeanor(validator);
-        }
-
-        // step 4: clear isMaintaining info
-        if (!isFelony) {
-            validatorExtraSet[index].isMaintaining = false;
         }
 
         emit validatorExitMaintenance(validator);
