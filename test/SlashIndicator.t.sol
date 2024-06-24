@@ -170,6 +170,11 @@ contract SlashIndicatorTest is Deployer {
             _voteAddrs[i] = bytes("11");
         }
 
+        // close STAKE channel
+        bytes memory value = abi.encodePacked(STAKING_CHANNELID, uint8(0));
+        vm.prank(GOV_HUB_ADDR);
+        crossChain.updateParam("enableOrDisableChannel", value);
+
         vm.prank(coinbase);
         bscValidatorSet.updateValidatorSetV2(_consensusAddrs, _votingPowers, _voteAddrs);
 
