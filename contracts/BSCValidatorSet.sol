@@ -1274,11 +1274,17 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             return false;
         }
 
+        // step 0: modify numOfMaintaining
+        --numOfMaintaining;
+
         // step 1: calculate slashCount
         uint256 slashCount = block.number.sub(validatorExtraSet[index].enterMaintenanceHeight).div(miningValidatorCount)
             .div(maintainSlashScale);
 
-        // step2: slash the validator
+        // step2: clear maintaining info of the validator
+        validatorExtraSet[index].isMaintaining = false;
+
+        // step3: slash the validator
         (uint256 misdemeanorThreshold, uint256 felonyThreshold) =
             ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
         isFelony = false;
@@ -1293,10 +1299,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         } else if (slashCount >= misdemeanorThreshold) {
             _misdemeanor(validator);
         }
-
-        // step 3: modify global storage
-        --numOfMaintaining;
-        validatorExtraSet[index].isMaintaining = false;
 
         emit validatorExitMaintenance(validator);
     }
