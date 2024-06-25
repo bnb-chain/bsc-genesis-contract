@@ -1,5 +1,9 @@
 pragma solidity ^0.8.10;
 
+/**
+ * @dev RLP encoding library.
+ * This file is a bit modified from the original version in `contracts/lib` because of different Solidity versions.
+ */
 library RLPEncode {
     uint8 constant STRING_OFFSET = 0x80;
     uint8 constant LIST_OFFSET = 0xc0;

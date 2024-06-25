@@ -79,7 +79,6 @@ contract GovernorTest is Deployer {
         address[] memory targets;
         uint256[] memory values;
         bytes[] memory calldatas;
-        string memory description = "test";
 
         vm.roll(block.number + 1);
 
@@ -98,22 +97,23 @@ contract GovernorTest is Deployer {
         assertEq(governor.proposeStarted(), false, "propose should not start");
 
         // mainnet totalSupply is already enough
-//        // govBNB totalSupply not enough
-//        vm.expectRevert();
-//        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-//        assertEq(governor.proposeStarted(), false, "propose should not start");
-//
-//        bnbAmount = 1 ether;
-//        stakeHub.delegate{ value: bnbAmount }(validator, false);
-//        proposalId = governor.propose(targets, values, calldatas, description);
-//        assertEq(governor.proposeStarted(), true, "propose should start");
-//
-//        bnbAmount = 10000000 ether - 2000 ether;
-//        govBNBBalance = govToken.balanceOf(delegator);
-//        console.log("govBNBBalance", govBNBBalance);
-//        assertEq(govBNBBalance, bnbAmount);
-//        assertEq(govToken.getVotes(delegator), govBNBBalance);
-//        console.log("voting power before undelegate", govToken.getVotes(delegator));
+        //            string memory description = "test";
+        //        // govBNB totalSupply not enough
+        //        vm.expectRevert();
+        //        uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        //        assertEq(governor.proposeStarted(), false, "propose should not start");
+        //
+        //        bnbAmount = 1 ether;
+        //        stakeHub.delegate{ value: bnbAmount }(validator, false);
+        //        proposalId = governor.propose(targets, values, calldatas, description);
+        //        assertEq(governor.proposeStarted(), true, "propose should start");
+        //
+        //        bnbAmount = 10000000 ether - 2000 ether;
+        //        govBNBBalance = govToken.balanceOf(delegator);
+        //        console.log("govBNBBalance", govBNBBalance);
+        //        assertEq(govBNBBalance, bnbAmount);
+        //        assertEq(govToken.getVotes(delegator), govBNBBalance);
+        //        console.log("voting power before undelegate", govToken.getVotes(delegator));
 
         // voting power changed after undelegating staking share
         bnbAmount = 1 ether;
