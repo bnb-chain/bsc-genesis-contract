@@ -44,9 +44,14 @@ jobs:
         run: |
           forge build
 
-      - name: Set RPC Env
-        run: echo "RPC_BSC=https://bsc-dataseed.bnbchain.org" >> $GITHUB_ENV
+      - name: Start Local Chain
+        run: |
+          npm install pm2 -g
+          pm2 start --name local-chain "anvil -f https://bsc-dataseed.bnbchain.org"
+          sleep 5
+        env:
+          PORT: 8545
 
       - name: Unit Test
         run: |
-          forge test
+          forge test --rpc-url http://127.0.0.1:8545

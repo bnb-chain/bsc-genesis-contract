@@ -80,8 +80,9 @@ contract Deployer is Test {
     event paramChange(string key, bytes value);
 
     constructor() {
-        // create fork of mainnet
-        vm.createSelectFork("bsc");
+        // please use the following command to run the test on mainnet fork instead: forge test --rpc-url ${fork_url}
+        // vm.createSelectFork("bsc");
+        assertEq(block.chainid, 56);
 
         // setup system contracts
         bscValidatorSet = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
@@ -160,7 +161,6 @@ contract Deployer is Test {
     }
 
     function _getNextUserAddress() internal returns (address payable) {
-        //bytes32 to address conversion
         address payable user = payable(address(uint160(uint256(nextUser))));
         nextUser = keccak256(abi.encodePacked(nextUser));
         vm.deal(user, 10_000 ether);
@@ -178,47 +178,60 @@ contract Deployer is Test {
         vm.stopPrank();
     }
 
-    function _encodeOldValidatorSetUpdatePack(
-        uint8 code,
-        address[] memory valSet
-    ) internal pure returns (bytes memory) {
-        bytes[] memory elements = new bytes[](2);
-        elements[0] = code.encodeUint();
+    function _createValidator(uint256 delegation)
+        internal
+        returns (address operatorAddress, address consensusAddress, address credit, bytes memory voteAddress)
+    {
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
 
-        bytes[] memory vals = new bytes[](valSet.length);
-        for (uint256 i; i < valSet.length; ++i) {
-            bytes[] memory tmp = new bytes[](4);
-            tmp[0] = valSet[i].encodeAddress();
-            tmp[1] = valSet[i].encodeAddress();
-            tmp[2] = valSet[i].encodeAddress();
-            tmp[3] = uint8(0x64).encodeUint();
-            vals[i] = tmp.encodeList();
-        }
+        operatorAddress = _getNextUserAddress();
+        StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
+        StakeHub.Description memory description = StakeHub.Description({
+            moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
+            identity: vm.toString(operatorAddress),
+            website: vm.toString(operatorAddress),
+            details: vm.toString(operatorAddress)
+        });
+        voteAddress = bytes.concat(
+            hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress)
+        );
+        bytes memory blsProof = new bytes(96);
+        consensusAddress = address(uint160(uint256(keccak256(voteAddress))));
 
-        elements[1] = vals.encodeList();
-        return elements.encodeList();
+        vm.prank(operatorAddress);
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, voteAddress, blsProof, commission, description
+        );
+
+        credit = stakeHub.getValidatorCreditContract(operatorAddress);
     }
 
-    function _encodeNewValidatorSetUpdatePack(
-        uint8 code,
-        address[] memory valSet,
-        bytes[] memory voteAddrs
-    ) internal pure returns (bytes memory) {
-        bytes[] memory elements = new bytes[](2);
-        elements[0] = code.encodeUint();
+    function _batchCreateValidators(uint256 number)
+        internal
+        returns (
+            address[] memory operatorAddrs,
+            address[] memory consensusAddrs,
+            uint64[] memory votingPowers,
+            bytes[] memory voteAddrs
+        )
+    {
+        operatorAddrs = new address[](number);
+        consensusAddrs = new address[](number);
+        votingPowers = new uint64[](number);
+        voteAddrs = new bytes[](number);
 
-        bytes[] memory vals = new bytes[](valSet.length);
-        for (uint256 i; i < valSet.length; ++i) {
-            bytes[] memory tmp = new bytes[](5);
-            tmp[0] = valSet[i].encodeAddress();
-            tmp[1] = valSet[i].encodeAddress();
-            tmp[2] = valSet[i].encodeAddress();
-            tmp[3] = uint8(0x64).encodeUint();
-            tmp[4] = voteAddrs[i].encodeBytes();
-            vals[i] = tmp.encodeList();
+        address operatorAddress;
+        address consensusAddress;
+        uint64 votingPower;
+        bytes memory voteAddress;
+        for (uint256 i; i < number; ++i) {
+            votingPower = 2000 * 1e8;
+            (operatorAddress, consensusAddress,, voteAddress) = _createValidator(uint256(votingPower) * 1e10);
+
+            operatorAddrs[i] = operatorAddress;
+            consensusAddrs[i] = consensusAddress;
+            votingPowers[i] = votingPower;
+            voteAddrs[i] = voteAddress;
         }
-
-        elements[1] = vals.encodeList();
-        return elements.encodeList();
     }
 }
