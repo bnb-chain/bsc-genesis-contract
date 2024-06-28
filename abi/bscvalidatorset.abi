@@ -914,6 +914,19 @@
   },
   {
     "type": "function",
+    "name": "getTurnLength",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getValidators",
     "inputs": [],
     "outputs": [
@@ -1239,7 +1252,20 @@
   },
   {
     "type": "function",
-    "name": "systemRewardRatio",
+    "name": "systemRewardAntiMEVRatio",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "systemRewardBaseRatio",
     "inputs": [],
     "outputs": [
       {
@@ -1253,6 +1279,19 @@
   {
     "type": "function",
     "name": "totalInComing",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "turnLength",
     "inputs": [],
     "outputs": [
       {

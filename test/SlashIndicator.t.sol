@@ -8,7 +8,7 @@ contract SlashIndicatorTest is Deployer {
 
     uint256 public burnRatio;
     uint256 public burnRatioScale;
-    uint256 public systemRewardRatio;
+    uint256 public systemRewardBaseRatio;
     uint256 public systemRewardRatioScale;
 
     address public coinbase;
@@ -19,8 +19,8 @@ contract SlashIndicatorTest is Deployer {
             bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
         burnRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
-        systemRewardRatio = bscValidatorSet.isSystemRewardIncluded()
-            ? bscValidatorSet.systemRewardRatio()
+        systemRewardBaseRatio = bscValidatorSet.isSystemRewardIncluded()
+            ? bscValidatorSet.systemRewardBaseRatio()
             : bscValidatorSet.INIT_SYSTEM_REWARD_RATIO();
         systemRewardRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
@@ -350,7 +350,13 @@ contract SlashIndicatorTest is Deployer {
     }
 
     function _calcIncoming(uint256 value) internal view returns (uint256 incoming) {
-        uint256 toSystemReward = (value * systemRewardRatio) / systemRewardRatioScale;
+        uint256 turnLength = bscValidatorSet.getTurnLength();
+        uint256 systemRewardAntiMEVRatio = bscValidatorSet.systemRewardAntiMEVRatio();
+        uint256 systemRewardRatio = systemRewardBaseRatio;
+        if (turnLength > 1 && systemRewardAntiMEVRatio > 0) {
+            systemRewardRatio += systemRewardAntiMEVRatio * (block.number % turnLength) / (turnLength - 1);
+        }
+        uint256 toSystemReward = (value * systemRewardBaseRatio) / systemRewardRatioScale;
         uint256 toBurn = (value * burnRatio) / burnRatioScale;
         incoming = value - toSystemReward - toBurn;
     }

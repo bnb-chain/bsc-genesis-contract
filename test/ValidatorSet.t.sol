@@ -20,7 +20,7 @@ contract ValidatorSetTest is Deployer {
     uint256 public burnRatioScale;
     uint256 public maxNumOfWorkingCandidates;
     uint256 public numOfCabinets;
-    uint256 public systemRewardRatio;
+    uint256 public systemRewardBaseRatio;
     uint256 public systemRewardRatioScale;
 
     address public coinbase;
@@ -39,8 +39,8 @@ contract ValidatorSetTest is Deployer {
         burnRatio =
             bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
         burnRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
-        systemRewardRatio = bscValidatorSet.isSystemRewardIncluded()
-            ? bscValidatorSet.systemRewardRatio()
+        systemRewardBaseRatio = bscValidatorSet.isSystemRewardIncluded()
+            ? bscValidatorSet.systemRewardBaseRatio()
             : bscValidatorSet.INIT_SYSTEM_REWARD_RATIO();
         systemRewardRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
         totalInComing = bscValidatorSet.totalInComing();
@@ -78,17 +78,35 @@ contract ValidatorSetTest is Deployer {
         vm.expectRevert("deposit value is zero");
         bscValidatorSet.deposit(validator0);
 
-        uint256 realAmount = _calcIncoming(amount);
+        uint256 realAmount0 = _calcIncoming(amount);
         vm.expectEmit(true, false, false, true, address(bscValidatorSet));
-        emit validatorDeposit(validator0, realAmount);
+        emit validatorDeposit(validator0, realAmount0);
+        bscValidatorSet.deposit{ value: amount }(validator0);
+
+        vm.stopPrank();
+        assertEq(bscValidatorSet.getTurnLength(), 1);
+        bytes memory key = "turnLength";
+        bytes memory value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000005"); // 5
+        _updateParamByGovHub(key, value, address(bscValidatorSet));
+        assertEq(bscValidatorSet.getTurnLength(), 5);
+
+        key = "systemRewardAntiMEVRatio";
+        value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000200"); // 512
+        _updateParamByGovHub(key, value, address(bscValidatorSet));
+        assertEq(bscValidatorSet.systemRewardAntiMEVRatio(), 512);
+        vm.startPrank(coinbase);
+
+        uint256 realAmount1 = _calcIncoming(amount);
+        vm.expectEmit(true, false, false, true, address(bscValidatorSet));
+        emit validatorDeposit(validator0, realAmount1);
         bscValidatorSet.deposit{ value: amount }(validator0);
 
         address newAccount = _getNextUserAddress();
         vm.expectEmit(true, false, false, true, address(bscValidatorSet));
-        emit deprecatedDeposit(newAccount, realAmount);
+        emit deprecatedDeposit(newAccount, realAmount1);
         bscValidatorSet.deposit{ value: amount }(newAccount);
 
-        assertEq(bscValidatorSet.totalInComing(), totalInComing + realAmount);
+        assertEq(bscValidatorSet.totalInComing(), totalInComing + realAmount0 + realAmount1);
         vm.stopPrank();
     }
 
@@ -109,6 +127,11 @@ contract ValidatorSetTest is Deployer {
         _updateParamByGovHub(key, value, address(bscValidatorSet));
         assertEq(bscValidatorSet.maxNumOfCandidates(), 5);
         assertEq(bscValidatorSet.maxNumOfWorkingCandidates(), 5);
+
+        key = "systemRewardBaseRatio";
+        value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000400"); // 1024
+        _updateParamByGovHub(key, value, address(bscValidatorSet));
+        assertEq(bscValidatorSet.systemRewardBaseRatio(), 1024);
     }
 
     function testValidateSetChange() public {
@@ -284,6 +307,12 @@ contract ValidatorSetTest is Deployer {
     }
 
     function _calcIncoming(uint256 value) internal view returns (uint256 incoming) {
+        uint256 turnLength = bscValidatorSet.getTurnLength();
+        uint256 systemRewardAntiMEVRatio = bscValidatorSet.systemRewardAntiMEVRatio();
+        uint256 systemRewardRatio = systemRewardBaseRatio;
+        if (turnLength > 1 && systemRewardAntiMEVRatio > 0) {
+            systemRewardRatio += systemRewardAntiMEVRatio * (block.number % turnLength) / (turnLength - 1);
+        }
         uint256 toSystemReward = (value * systemRewardRatio) / systemRewardRatioScale;
         uint256 toBurn = (value * burnRatio) / burnRatioScale;
         incoming = value - toSystemReward - toBurn;

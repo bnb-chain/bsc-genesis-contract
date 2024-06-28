@@ -84,7 +84,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     uint256 public constant INIT_SYSTEM_REWARD_RATIO = 625; // 625/10000 is 1/16
     uint256 public constant MAX_SYSTEM_REWARD_BALANCE = 100 ether;
 
-    uint256 public systemRewardRatio;
+    uint256 public systemRewardBaseRatio;
     uint256 public previousHeight;
     uint256 public previousBalanceOfSystemReward; // deprecated
     bytes[] public previousVoteAddrFullSet;
@@ -94,6 +94,10 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     // BEP-294 BC-fusion
     Validator[] private _tmpMigratedValidatorSet;
     bytes[] private _tmpMigratedVoteAddrs;
+
+    // BEP-341 Validators can produce consecutive blocks
+    uint256 public turnLength; // Consecutive number of blocks a validator receives priority for block production
+    uint256 public systemRewardAntiMEVRatio;
 
     struct Validator {
         address consensusAddress;
@@ -331,9 +335,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         uint256 index = currentValidatorSetMap[valAddr];
 
         if (isSystemRewardIncluded == false) {
-            systemRewardRatio = INIT_SYSTEM_REWARD_RATIO;
+            systemRewardBaseRatio = INIT_SYSTEM_REWARD_RATIO;
             burnRatio = INIT_BURN_RATIO;
             isSystemRewardIncluded = true;
+        }
+
+        uint256 systemRewardRatio = systemRewardBaseRatio;
+        if (turnLength > 1 && systemRewardAntiMEVRatio > 0) {
+            systemRewardRatio += systemRewardAntiMEVRatio * (block.number % turnLength) / (turnLength - 1);
         }
 
         if (value > 0 && systemRewardRatio > 0) {
@@ -697,8 +706,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             require(value.length == 32, "length of burnRatio mismatch");
             uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
             require(
-                newBurnRatio.add(systemRewardRatio) <= BLOCK_FEES_RATIO_SCALE,
-                "the burnRatio plus systemRewardRatio must be no greater than 10000"
+                newBurnRatio.add(systemRewardBaseRatio).add(systemRewardAntiMEVRatio) <= BLOCK_FEES_RATIO_SCALE,
+                "the burnRatio plus systemRewardBaseRatio and systemRewardAntiMEVRatio must be no greater than 10000"
             );
             burnRatio = newBurnRatio;
         } else if (Memory.compareStrings(key, "maxNumOfMaintaining")) {
@@ -741,14 +750,30 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
                 newNumOfCabinets <= MAX_NUM_OF_VALIDATORS, "the numOfCabinets must be less than MAX_NUM_OF_VALIDATORS"
             );
             numOfCabinets = newNumOfCabinets;
-        } else if (Memory.compareStrings(key, "systemRewardRatio")) {
-            require(value.length == 32, "length of systemRewardRatio mismatch");
-            uint256 newSystemRewardRatio = BytesToTypes.bytesToUint256(32, value);
+        } else if (Memory.compareStrings(key, "systemRewardBaseRatio")) {
+            require(value.length == 32, "length of systemRewardBaseRatio mismatch");
+            uint256 newSystemRewardBaseRatio = BytesToTypes.bytesToUint256(32, value);
             require(
-                newSystemRewardRatio.add(burnRatio) <= BLOCK_FEES_RATIO_SCALE,
-                "the systemRewardRatio plus burnRatio must be no greater than 10000"
+                newSystemRewardBaseRatio.add(burnRatio).add(systemRewardAntiMEVRatio) <= BLOCK_FEES_RATIO_SCALE,
+                "the systemRewardBaseRatio plus burnRatio and systemRewardAntiMEVRatio must be no greater than 10000"
             );
-            systemRewardRatio = newSystemRewardRatio;
+            systemRewardBaseRatio = newSystemRewardBaseRatio;
+        } else if (Memory.compareStrings(key, "systemRewardAntiMEVRatio")) {
+            require(value.length == 32, "length of systemRewardAntiMEVRatio mismatch");
+            uint256 newSystemRewardAntiMEVRatio = BytesToTypes.bytesToUint256(32, value);
+            require(
+                newSystemRewardAntiMEVRatio.add(burnRatio).add(systemRewardBaseRatio) <= BLOCK_FEES_RATIO_SCALE,
+                "the systemRewardAntiMEVRatio plus burnRatio and systemRewardBaseRatio must be no greater than 10000"
+            );
+            systemRewardAntiMEVRatio = newSystemRewardAntiMEVRatio;
+        } else if (Memory.compareStrings(key, "turnLength")) {
+            require(value.length == 32, "length of turnLength mismatch");
+            uint256 newTurnLength = BytesToTypes.bytesToUint256(32, value);
+            require(
+                newTurnLength >= 3 && newTurnLength <= 9 || newTurnLength == 1,
+                "the turnLength should be in [3,9] or equal to 1"
+            );
+            turnLength = newTurnLength;
         } else {
             require(false, "unknown param");
         }
@@ -1045,6 +1070,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             voteAddrs[i] = validatorExtraSet[currentValidatorSetMap[validators[i]] - 1].voteAddress;
         }
         return voteAddrs;
+    }
+
+    function getTurnLength() external view returns (uint256) {
+        if (turnLength == 0) {
+            return 1;
+        }
+        return turnLength;
     }
 
     function setPreviousVoteAddrFullSet() private {
