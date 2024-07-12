@@ -169,7 +169,6 @@ contract StakeHub is System, Initializable, Protectable {
         bool jailed;
         uint256 jailUntil;
         uint256 updateTime;
-
         // The agent can perform transactions on behalf of the operatorAddress in certain scenarios.
         address agent;
         uint256[19] __reservedSlots;
