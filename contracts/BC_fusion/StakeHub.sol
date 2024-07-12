@@ -91,6 +91,8 @@ contract StakeHub is System, Initializable, Protectable {
     error InvalidSynPackage();
     // @notice signature: 0xbebdc757
     error InvalidAgent();
+    // @notice signature: 0x682a6e7c
+    error InvalidValidator();
 
     /*----------------- storage -----------------*/
     uint8 private _receiveFundStatus;
@@ -359,7 +361,7 @@ contract StakeHub is System, Initializable, Protectable {
         // basic check
         address operatorAddress = msg.sender;
         if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
-        if (agentToOperator[operatorAddress] != address(0)) revert InvalidAgent();
+        if (agentToOperator[operatorAddress] != address(0)) revert InvalidValidator();
 
         if (consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
             revert DuplicateConsensusAddress();
