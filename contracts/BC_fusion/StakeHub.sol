@@ -335,7 +335,7 @@ contract StakeHub is System, Initializable, Protectable {
         if (oldAgent == newAgent) revert InvalidAgent();
 
         if (oldAgent != address(0)) {
-            agentToOperator[oldAgent] = address(0);
+            delete agentToOperator[oldAgent];
         }
 
         _validators[operatorAddress].agent = newAgent;
