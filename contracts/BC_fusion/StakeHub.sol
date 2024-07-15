@@ -414,14 +414,14 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(_getMsgSender())
+        validatorExist(_bep410MsgSender())
     {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
         if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
             revert DuplicateConsensusAddress();
         }
 
-        address operatorAddress = _getMsgSender();
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -440,9 +440,9 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(_getMsgSender())
+        validatorExist(_bep410MsgSender())
     {
-        address operatorAddress = _getMsgSender();
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -466,9 +466,9 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(_getMsgSender())
+        validatorExist(_bep410MsgSender())
     {
-        address operatorAddress = _getMsgSender();
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -486,9 +486,9 @@ contract StakeHub is System, Initializable, Protectable {
     function editVoteAddress(
         bytes calldata newVoteAddress,
         bytes calldata blsProof
-    ) external whenNotPaused notInBlackList validatorExist(_getMsgSender()) {
+    ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         // proof-of-possession verify
-        address operatorAddress = _getMsgSender();
+        address operatorAddress = _bep410MsgSender();
         if (!_checkVoteAddress(operatorAddress, newVoteAddress, blsProof)) revert InvalidVoteAddress();
         if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
@@ -1210,7 +1210,7 @@ contract StakeHub is System, Initializable, Protectable {
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
     }
 
-    function _getMsgSender() internal view returns (address) {
+    function _bep410MsgSender() internal view returns (address) {
         if (agentToOperator[msg.sender] != address(0)) {
             return agentToOperator[msg.sender];
         }
