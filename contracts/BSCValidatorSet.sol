@@ -680,7 +680,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         // jailed validators are allowed to exit maintenance
         require(validatorExtraSet[index].isMaintaining, "not in maintenance");
         uint256 miningValidatorCount = getWorkingValidatorCount();
-        _exitMaintenance(msg.sender, index, miningValidatorCount);
+        _exitMaintenance(msg.sender, index, miningValidatorCount, true);
     }
 
     /*----------------- Param update -----------------*/
@@ -1202,7 +1202,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
             validator = currentValidatorSet[i].consensusAddress;
 
             // exit maintenance
-            isFelony = _exitMaintenance(validator, i, miningValidatorCount);
+            isFelony = _exitMaintenance(validator, i, miningValidatorCount, false);
             if (!isFelony) {
                 continue;
             }
@@ -1267,25 +1267,32 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     function _exitMaintenance(
         address validator,
         uint256 index,
-        uint256 miningValidatorCount
+        uint256 miningValidatorCount,
+        bool shouldRevert
     ) private returns (bool isFelony) {
         if (maintainSlashScale == 0 || miningValidatorCount == 0 || numOfMaintaining == 0) {
             // should not happen, still protect
             return false;
         }
 
+        // step 0: modify numOfMaintaining
+        --numOfMaintaining;
+
         // step 1: calculate slashCount
         uint256 slashCount = block.number.sub(validatorExtraSet[index].enterMaintenanceHeight).div(miningValidatorCount)
             .div(maintainSlashScale);
 
-        // step2: slash the validator
+        // step 2: clear isMaintaining info
+        validatorExtraSet[index].isMaintaining = false;
+
+        // step 3: slash the validator
         (uint256 misdemeanorThreshold, uint256 felonyThreshold) =
             ISlashIndicator(SLASH_CONTRACT_ADDR).getSlashThresholds();
         isFelony = false;
         if (slashCount >= felonyThreshold) {
             _felony(validator, index);
             if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
-                ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount);
+                ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount, shouldRevert);
             } else {
                 ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
             }
@@ -1293,10 +1300,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         } else if (slashCount >= misdemeanorThreshold) {
             _misdemeanor(validator);
         }
-
-        // step 3: modify global storage
-        --numOfMaintaining;
-        validatorExtraSet[index].isMaintaining = false;
 
         emit validatorExitMaintenance(validator);
     }

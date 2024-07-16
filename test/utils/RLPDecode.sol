@@ -1,5 +1,9 @@
 pragma solidity ^0.8.10;
 
+/**
+ * @dev RLP decoding library.
+ * This file is a bit modified from the original version in `contracts/lib` because of different Solidity versions.
+ */
 library RLPDecode {
     uint8 constant STRING_SHORT_START = 0x80;
     uint8 constant STRING_LONG_START = 0xb8;
