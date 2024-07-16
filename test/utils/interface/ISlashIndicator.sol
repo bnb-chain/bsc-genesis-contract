@@ -60,7 +60,7 @@ interface SlashIndicator {
     function alreadyInit() external view returns (bool);
     function bscChainID() external view returns (uint16);
     function clean() external;
-    function downtimeSlash(address validator, uint256 count) external;
+    function downtimeSlash(address validator, uint256 count, bool shouldRevert) external;
     function enableMaliciousVoteSlash() external view returns (bool);
     function felonySlashRewardRatio() external view returns (uint256);
     function felonySlashScope() external view returns (uint256);
