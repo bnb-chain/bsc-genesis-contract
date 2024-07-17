@@ -27,6 +27,7 @@ contract StakeHubTest is Deployer {
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
+    event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     enum StakeMigrationRespCode {
         MIGRATE_SUCCESS,
@@ -725,5 +726,74 @@ contract StakeHubTest is Deployer {
 
         elements[1] = vals.encodeList();
         return elements.encodeList();
+    }
+
+    function testAgent() external {
+        // create validator
+        (address validator,,,) = _createValidator(2000 ether);
+        vm.startPrank(validator);
+
+        // edit failed because of `UpdateTooFrequently`
+        vm.expectRevert(StakeHub.UpdateTooFrequently.selector);
+        stakeHub.editConsensusAddress(address(1));
+
+        // update agent
+        address newAgent = validator;
+        vm.expectRevert(StakeHub.InvalidAgent.selector);
+        stakeHub.updateAgent(newAgent);
+
+        newAgent = address(0x1234);
+        vm.expectEmit(true, true, false, true, address(stakeHub));
+        emit AgentChanged(validator, address(0), newAgent);
+        stakeHub.updateAgent(newAgent);
+
+        vm.stopPrank();
+
+        vm.startPrank(newAgent);
+        // edit consensus address
+        vm.warp(block.timestamp + 1 days);
+        address newConsensusAddress = address(0x1234);
+        vm.expectEmit(true, true, false, true, address(stakeHub));
+        emit ConsensusAddressEdited(validator, newConsensusAddress);
+        stakeHub.editConsensusAddress(newConsensusAddress);
+        address realConsensusAddr = stakeHub.getValidatorConsensusAddress(validator);
+        assertEq(realConsensusAddr, newConsensusAddress);
+
+        // edit commission rate
+        vm.warp(block.timestamp + 1 days);
+        vm.expectRevert(StakeHub.InvalidCommission.selector);
+        stakeHub.editCommissionRate(110);
+        vm.expectRevert(StakeHub.InvalidCommission.selector);
+        stakeHub.editCommissionRate(16);
+        vm.expectEmit(true, false, false, true, address(stakeHub));
+        emit CommissionRateEdited(validator, 15);
+        stakeHub.editCommissionRate(15);
+        StakeHub.Commission memory realComm = stakeHub.getValidatorCommission(validator);
+        assertEq(realComm.rate, 15);
+
+        // edit description
+        vm.warp(block.timestamp + 1 days);
+        StakeHub.Description memory description = stakeHub.getValidatorDescription(validator);
+        description.moniker = "Test";
+        description.website = "Test";
+        vm.expectEmit(true, false, false, true, address(stakeHub));
+        emit DescriptionEdited(validator);
+        stakeHub.editDescription(description);
+        StakeHub.Description memory realDesc = stakeHub.getValidatorDescription(validator);
+        assertNotEq(realDesc.moniker, "Test"); // edit moniker will be ignored
+        assertEq(realDesc.website, "Test");
+
+        // edit vote address
+        vm.warp(block.timestamp + 1 days);
+        bytes memory newVoteAddress =
+        hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001234";
+        bytes memory blsProof = new bytes(96);
+        vm.expectEmit(true, false, false, true, address(stakeHub));
+        emit VoteAddressEdited(validator, newVoteAddress);
+        stakeHub.editVoteAddress(newVoteAddress, blsProof);
+        bytes memory realVoteAddr = stakeHub.getValidatorVoteAddress(validator);
+        assertEq(realVoteAddr, newVoteAddress);
+
+        vm.stopPrank();
     }
 }
