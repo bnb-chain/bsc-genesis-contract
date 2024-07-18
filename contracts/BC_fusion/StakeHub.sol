@@ -986,6 +986,20 @@ contract StakeHub is System, Initializable, Protectable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
+     * @return the agent of a validator
+     */
+    function getValidatorAgent(address operatorAddress)
+        external
+        view
+        validatorExist(operatorAddress)
+        returns (address)
+    {
+        return _validators[operatorAddress].agent;
+    }
+
+    /**
      * @dev this function will be used by Parlia consensus engine.
      *
      * @notice get the election info of a validator
