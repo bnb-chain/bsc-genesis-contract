@@ -325,7 +325,10 @@ contract StakeHub is System, Initializable, Protectable {
     }
 
     /*----------------- external functions -----------------*/
-    function updateAgent(address newAgent) external validatorExist(msg.sender) {
+    /**
+     * @param newAgent the new agent address of the validator, updating to address(0) means remove the old agent.
+     */
+    function updateAgent(address newAgent) external validatorExist(msg.sender) whenNotPaused notInBlackList {
         if (agentToOperator[newAgent] != address(0)) revert InvalidAgent();
         if (_validatorSet.contains(newAgent)) revert InvalidAgent();
 
