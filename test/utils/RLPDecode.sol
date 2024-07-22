@@ -140,7 +140,7 @@ library RLPDecode {
         assembly {
             result := mload(memPtr)
 
-            // shfit to the correct location if neccesary
+            // shift to the correct location if necessary
             if lt(len, 32) { result := div(result, exp(256, sub(32, len))) }
         }
 

@@ -1,7 +1,5 @@
 [tool.poetry]
 name = "bsc-genesis-contract"
-version = "0.1.0"
-description = ""
 authors = ["BNB Chain"]
 license = "Apache2.0"
 readme = "README.md"
@@ -16,5 +14,5 @@ typing-extensions = "4.8.0"
 setuptools = "^69.1.1"
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=1.8.0"]
 build-backend = "poetry.core.masonry.api"

@@ -32,7 +32,7 @@ contract GovernorTest is Deployer {
 
     function testDelegateVote() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
 
         // success case
@@ -58,7 +58,7 @@ contract GovernorTest is Deployer {
 
     function testProposeErrorCase() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
@@ -97,23 +97,23 @@ contract GovernorTest is Deployer {
         assertEq(governor.proposeStarted(), false, "propose should not start");
 
         // mainnet totalSupply is already enough
-        //            string memory description = "test";
-        //        // govBNB totalSupply not enough
-        //        vm.expectRevert();
-        //        uint256 proposalId = governor.propose(targets, values, calldatas, description);
-        //        assertEq(governor.proposeStarted(), false, "propose should not start");
+        // // govBNB totalSupply not enough
+        // string memory description = "test";
+        // vm.expectRevert();
+        // uint256 proposalId = governor.propose(targets, values, calldatas, description);
+        // assertEq(governor.proposeStarted(), false, "propose should not start");
         //
-        //        bnbAmount = 1 ether;
-        //        stakeHub.delegate{ value: bnbAmount }(validator, false);
-        //        proposalId = governor.propose(targets, values, calldatas, description);
-        //        assertEq(governor.proposeStarted(), true, "propose should start");
+        // bnbAmount = 1 ether;
+        // stakeHub.delegate{ value: bnbAmount }(validator, false);
+        // proposalId = governor.propose(targets, values, calldatas, description);
+        // assertEq(governor.proposeStarted(), true, "propose should start");
         //
-        //        bnbAmount = 10000000 ether - 2000 ether;
-        //        govBNBBalance = govToken.balanceOf(delegator);
-        //        console.log("govBNBBalance", govBNBBalance);
-        //        assertEq(govBNBBalance, bnbAmount);
-        //        assertEq(govToken.getVotes(delegator), govBNBBalance);
-        //        console.log("voting power before undelegate", govToken.getVotes(delegator));
+        // bnbAmount = 10000000 ether - 2000 ether;
+        // govBNBBalance = govToken.balanceOf(delegator);
+        // console.log("govBNBBalance", govBNBBalance);
+        // assertEq(govBNBBalance, bnbAmount);
+        // assertEq(govToken.getVotes(delegator), govBNBBalance);
+        // console.log("voting power before undelegate", govToken.getVotes(delegator));
 
         // voting power changed after undelegating staking share
         bnbAmount = 1 ether;
@@ -124,7 +124,7 @@ contract GovernorTest is Deployer {
 
     function testProposalNotApproved() public {
         address delegator = _getNextUserAddress();
-        (address validator,) = _createValidator(2000 ether);
+        (address validator,,,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
@@ -182,7 +182,7 @@ contract GovernorTest is Deployer {
 
     function testProposalQuorumNotReached() public {
         address delegator = _getNextUserAddress();
-        (address validator,) = _createValidator(2000 ether);
+        (address validator,,,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
@@ -248,7 +248,7 @@ contract GovernorTest is Deployer {
 
     function testProposeQuorumReached() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
 
@@ -325,7 +325,7 @@ contract GovernorTest is Deployer {
 
     function testPropose() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
         assert(!governor.proposeStarted());
 
@@ -402,7 +402,7 @@ contract GovernorTest is Deployer {
 
     function testUndelegate() public {
         address delegator = _getNextUserAddress();
-        (address validator, address credit) = _createValidator(2000 ether);
+        (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
 
         uint256 bnbAmount = 100 ether;
@@ -435,7 +435,7 @@ contract GovernorTest is Deployer {
     function testUndelegateAll() public {
         uint256 selfDelegation = 2000 ether;
         uint256 toLock = stakeHub.LOCK_AMOUNT();
-        (address validator, address credit) = _createValidator(selfDelegation);
+        (address validator,, address credit,) = _createValidator(selfDelegation);
         uint256 _totalShares = IStakeCredit(credit).totalSupply();
         assertEq(_totalShares, selfDelegation + toLock, "wrong total shares");
         uint256 _totalPooledBNB = IStakeCredit(credit).totalPooledBNB();
@@ -458,52 +458,5 @@ contract GovernorTest is Deployer {
         assertEq(_totalPooledBNB, selfDelegation + toLock, "wrong total pooled BNB");
 
         vm.stopPrank();
-    }
-
-    function _createValidator(uint256 delegation) internal returns (address operatorAddress, address credit) {
-        operatorAddress = _getNextUserAddress();
-        StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
-        StakeHub.Description memory description = StakeHub.Description({
-            moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
-            identity: vm.toString(operatorAddress),
-            website: vm.toString(operatorAddress),
-            details: vm.toString(operatorAddress)
-        });
-        bytes memory blsPubKey = bytes.concat(
-            hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress)
-        );
-        bytes memory blsProof = new bytes(96);
-        address consensusAddress = address(uint160(uint256(keccak256(blsPubKey))));
-
-        uint256 toLock = stakeHub.LOCK_AMOUNT();
-        vm.prank(operatorAddress);
-        stakeHub.createValidator{ value: delegation + toLock }(
-            consensusAddress, blsPubKey, blsProof, commission, description
-        );
-
-        credit = stakeHub.getValidatorCreditContract(operatorAddress);
-    }
-
-    function _encodeValidatorSetUpdatePack(
-        address[] memory valSet,
-        uint64[] memory votingPowers,
-        bytes[] memory voteAddrs
-    ) internal pure returns (bytes memory) {
-        bytes[] memory elements = new bytes[](2);
-        elements[0] = uint8(0).encodeUint();
-
-        bytes[] memory vals = new bytes[](valSet.length);
-        for (uint256 i; i < valSet.length; ++i) {
-            bytes[] memory tmp = new bytes[](5);
-            tmp[0] = valSet[i].encodeAddress();
-            tmp[1] = valSet[i].encodeAddress();
-            tmp[2] = valSet[i].encodeAddress();
-            tmp[3] = votingPowers[i].encodeUint();
-            tmp[4] = voteAddrs[i].encodeBytes();
-            vals[i] = tmp.encodeList();
-        }
-
-        elements[1] = vals.encodeList();
-        return elements.encodeList();
     }
 }

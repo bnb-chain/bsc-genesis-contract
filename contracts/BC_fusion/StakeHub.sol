@@ -89,6 +89,10 @@ contract StakeHub is System, Initializable, Protectable {
     error ConsensusAddressExpired();
     // @notice signature: 0x0d7b78d4
     error InvalidSynPackage();
+    // @notice signature: 0xbebdc757
+    error InvalidAgent();
+    // @notice signature: 0x682a6e7c
+    error InvalidValidator();
 
     /*----------------- storage -----------------*/
     uint8 private _receiveFundStatus;
@@ -135,6 +139,9 @@ contract StakeHub is System, Initializable, Protectable {
     // slash key => slash jail time
     mapping(bytes32 => uint256) private _felonyRecords;
 
+    // agent => validator operator address
+    mapping(address => address) public agentToOperator;
+
     /*----------------- structs and events -----------------*/
     struct StakeMigrationPackage {
         address operatorAddress; // the operator address of the target validator to delegate to
@@ -162,7 +169,9 @@ contract StakeHub is System, Initializable, Protectable {
         bool jailed;
         uint256 jailUntil;
         uint256 updateTime;
-        uint256[20] __reservedSlots;
+        // The agent can perform transactions on behalf of the operatorAddress in certain scenarios.
+        address agent;
+        uint256[19] __reservedSlots;
     }
 
     struct Description {
@@ -219,6 +228,7 @@ contract StakeHub is System, Initializable, Protectable {
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     );
     event UnexpectedPackage(uint8 channelId, bytes msgBytes);
+    event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
@@ -316,6 +326,27 @@ contract StakeHub is System, Initializable, Protectable {
 
     /*----------------- external functions -----------------*/
     /**
+     * @param newAgent the new agent address of the validator, updating to address(0) means remove the old agent.
+     */
+    function updateAgent(address newAgent) external validatorExist(msg.sender) whenNotPaused notInBlackList {
+        if (agentToOperator[newAgent] != address(0)) revert InvalidAgent();
+        if (_validatorSet.contains(newAgent)) revert InvalidAgent();
+
+        address operatorAddress = msg.sender;
+        address oldAgent = _validators[operatorAddress].agent;
+        if (oldAgent == newAgent) revert InvalidAgent();
+
+        if (oldAgent != address(0)) {
+            delete agentToOperator[oldAgent];
+        }
+
+        _validators[operatorAddress].agent = newAgent;
+        agentToOperator[newAgent] = operatorAddress;
+
+        emit AgentChanged(operatorAddress, oldAgent, newAgent);
+    }
+
+    /**
      * @param consensusAddress the consensus address of the validator
      * @param voteAddress the vote address of the validator
      * @param blsProof the bls proof of the vote address
@@ -332,6 +363,8 @@ contract StakeHub is System, Initializable, Protectable {
         // basic check
         address operatorAddress = msg.sender;
         if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
+        if (agentToOperator[operatorAddress] != address(0)) revert InvalidValidator();
+
         if (consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
             revert DuplicateConsensusAddress();
         }
@@ -384,14 +417,14 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(msg.sender)
+        validatorExist(_bep410MsgSender())
     {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
         if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
             revert DuplicateConsensusAddress();
         }
 
-        address operatorAddress = msg.sender;
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -410,9 +443,9 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(msg.sender)
+        validatorExist(_bep410MsgSender())
     {
-        address operatorAddress = msg.sender;
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -436,9 +469,9 @@ contract StakeHub is System, Initializable, Protectable {
         external
         whenNotPaused
         notInBlackList
-        validatorExist(msg.sender)
+        validatorExist(_bep410MsgSender())
     {
-        address operatorAddress = msg.sender;
+        address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
@@ -456,9 +489,9 @@ contract StakeHub is System, Initializable, Protectable {
     function editVoteAddress(
         bytes calldata newVoteAddress,
         bytes calldata blsProof
-    ) external whenNotPaused notInBlackList validatorExist(msg.sender) {
+    ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         // proof-of-possession verify
-        address operatorAddress = msg.sender;
+        address operatorAddress = _bep410MsgSender();
         if (!_checkVoteAddress(operatorAddress, newVoteAddress, blsProof)) revert InvalidVoteAddress();
         if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
             revert DuplicateVoteAddress();
@@ -956,6 +989,20 @@ contract StakeHub is System, Initializable, Protectable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
+     * @return the agent of a validator
+     */
+    function getValidatorAgent(address operatorAddress)
+        external
+        view
+        validatorExist(operatorAddress)
+        returns (address)
+    {
+        return _validators[operatorAddress].agent;
+    }
+
+    /**
      * @dev this function will be used by Parlia consensus engine.
      *
      * @notice get the election info of a validator
@@ -1178,5 +1225,13 @@ contract StakeHub is System, Initializable, Protectable {
     function _claim(address operatorAddress, uint256 requestNumber) internal validatorExist(operatorAddress) {
         uint256 bnbAmount = IStakeCredit(_validators[operatorAddress].creditContract).claim(msg.sender, requestNumber);
         emit Claimed(operatorAddress, msg.sender, bnbAmount);
+    }
+
+    function _bep410MsgSender() internal view returns (address) {
+        if (agentToOperator[msg.sender] != address(0)) {
+            return agentToOperator[msg.sender];
+        }
+
+        return msg.sender;
     }
 }

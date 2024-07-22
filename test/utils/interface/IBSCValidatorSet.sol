@@ -75,6 +75,7 @@ interface BSCValidatorSet {
     function VALIDATORS_UPDATE_MESSAGE_TYPE() external view returns (uint8);
     function VALIDATOR_CONTRACT_ADDR() external view returns (address);
     function alreadyInit() external view returns (bool);
+    function systemRewardAntiMEVRatio() external view returns (uint256);
     function bscChainID() external view returns (uint16);
     function burnRatio() external view returns (uint256);
     function burnRatioInitialized() external view returns (bool);
@@ -102,12 +103,14 @@ interface BSCValidatorSet {
     function getIncoming(address validator) external view returns (uint256);
     function getLivingValidators() external view returns (address[] memory, bytes[] memory);
     function getMiningValidators() external view returns (address[] memory, bytes[] memory);
+    function getTurnLength() external view returns (uint256);
     function getValidators() external view returns (address[] memory);
     function getWorkingValidatorCount() external view returns (uint256 workingValidatorCount);
     function handleAckPackage(uint8 channelId, bytes memory msgBytes) external;
     function handleFailAckPackage(uint8 channelId, bytes memory msgBytes) external;
     function handleSynPackage(uint8, bytes memory msgBytes) external returns (bytes memory responsePayload);
     function init() external;
+    function systemRewardBaseRatio() external view returns (uint256);
     function isCurrentValidator(address validator) external view returns (bool);
     function isMonitoredForMaliciousVote(bytes memory voteAddr) external view returns (bool);
     function isSystemRewardIncluded() external view returns (bool);
@@ -124,8 +127,8 @@ interface BSCValidatorSet {
     function previousHeight() external view returns (uint256);
     function previousVoteAddrFullSet(uint256) external view returns (bytes memory);
     function removeTmpMigratedValidator(address validator) external;
-    function systemRewardRatio() external view returns (uint256);
     function totalInComing() external view returns (uint256);
+    function turnLength() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
     function updateValidatorSetV2(
         address[] memory _consensusAddrs,

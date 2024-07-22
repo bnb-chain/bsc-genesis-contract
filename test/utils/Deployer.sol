@@ -80,8 +80,9 @@ contract Deployer is Test {
     event paramChange(string key, bytes value);
 
     constructor() {
-        // create fork of mainnet
-        vm.createSelectFork("bsc");
+        // please use the following command to run the test on mainnet fork instead: forge test --rpc-url ${fork_url}
+        // vm.createSelectFork("bsc");
+        assertEq(block.chainid, 56);
 
         // setup system contracts
         bscValidatorSet = BSCValidatorSet(VALIDATOR_CONTRACT_ADDR);
@@ -160,7 +161,6 @@ contract Deployer is Test {
     }
 
     function _getNextUserAddress() internal returns (address payable) {
-        //bytes32 to address conversion
         address payable user = payable(address(uint160(uint256(nextUser))));
         nextUser = keccak256(abi.encodePacked(nextUser));
         vm.deal(user, 10_000 ether);
@@ -176,5 +176,62 @@ contract Deployer is Test {
         vm.startPrank(address(crossChain));
         govHub.handleSynPackage(GOV_CHANNELID, elements.encodeList());
         vm.stopPrank();
+    }
+
+    function _createValidator(uint256 delegation)
+        internal
+        returns (address operatorAddress, address consensusAddress, address credit, bytes memory voteAddress)
+    {
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
+
+        operatorAddress = _getNextUserAddress();
+        StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
+        StakeHub.Description memory description = StakeHub.Description({
+            moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
+            identity: vm.toString(operatorAddress),
+            website: vm.toString(operatorAddress),
+            details: vm.toString(operatorAddress)
+        });
+        voteAddress = bytes.concat(
+            hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress)
+        );
+        bytes memory blsProof = new bytes(96);
+        consensusAddress = address(uint160(uint256(keccak256(voteAddress))));
+
+        vm.prank(operatorAddress);
+        stakeHub.createValidator{ value: delegation + toLock }(
+            consensusAddress, voteAddress, blsProof, commission, description
+        );
+
+        credit = stakeHub.getValidatorCreditContract(operatorAddress);
+    }
+
+    function _batchCreateValidators(uint256 number)
+        internal
+        returns (
+            address[] memory operatorAddrs,
+            address[] memory consensusAddrs,
+            uint64[] memory votingPowers,
+            bytes[] memory voteAddrs
+        )
+    {
+        operatorAddrs = new address[](number);
+        consensusAddrs = new address[](number);
+        votingPowers = new uint64[](number);
+        voteAddrs = new bytes[](number);
+
+        address operatorAddress;
+        address consensusAddress;
+        uint64 votingPower;
+        bytes memory voteAddress;
+        for (uint256 i; i < number; ++i) {
+            votingPower = 2000 * 1e8;
+            (operatorAddress, consensusAddress,, voteAddress) = _createValidator(uint256(votingPower) * 1e10);
+
+            operatorAddrs[i] = operatorAddress;
+            consensusAddrs[i] = consensusAddress;
+            votingPowers[i] = votingPower;
+            voteAddrs[i] = voteAddress;
+        }
     }
 }
