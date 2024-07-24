@@ -341,7 +341,10 @@ contract StakeHub is System, Initializable, Protectable {
         }
 
         _validators[operatorAddress].agent = newAgent;
-        agentToOperator[newAgent] = operatorAddress;
+
+        if (newAgent != address(0)) {
+            agentToOperator[newAgent] = operatorAddress;
+        }
 
         emit AgentChanged(operatorAddress, oldAgent, newAgent);
     }
