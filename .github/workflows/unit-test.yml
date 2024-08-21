@@ -30,6 +30,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        run: |
+          forge --version
 
       - name: Install Project Dependencies
         run: |
