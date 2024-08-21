@@ -30,13 +30,12 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        run: |
-          forge --version
 
       - name: Install Project Dependencies
         run: |
           npm install
           forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
+          forge --version
 
       - name: Lint Check
         run: |
