@@ -1,0 +1,51 @@
+name: Check If Genesis Is Latest
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    branches:
+      - master
+      - develop
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read
+jobs:
+  check-genesis:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Install Project Dependencies
+        run: |
+          npm install ts-node -g
+          npm install
+          poetry install
+          forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
+          forge --version
+
+      - name: Build
+        run: |
+          forge build
+
+      - name: Check Genesis Bytecode
+        run: |
+          ts-node scripts/check-genesis-bytecode.ts
