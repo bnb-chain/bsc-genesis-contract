@@ -5,7 +5,7 @@ import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import "./System.sol";
+import "../SystemV2.sol";
 import "./extension/Protectable.sol";
 import "./interface/ITokenHub.sol";
 import "./interface/ITokenRecoverPortal.sol";
@@ -18,7 +18,7 @@ import "./lib/Utils.sol";
  * The BC users can recover the token from TokenHub after the merkle tree root is generated.
  * For more details, please refer to the BEP-299(https://github.com/bnb-chain/BEPs/pull/299).
  */
-contract TokenRecoverPortal is System, Initializable, ReentrancyGuardUpgradeable, Protectable {
+contract TokenRecoverPortal is SystemV2, Initializable, ReentrancyGuardUpgradeable, Protectable {
     using Utils for string;
     using Utils for bytes;
 

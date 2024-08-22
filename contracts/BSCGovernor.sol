@@ -9,13 +9,13 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelo
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 
-import "./System.sol";
-import "./extension/Protectable.sol";
-import "./lib/Utils.sol";
-import "./interface/IGovToken.sol";
+import "./SystemV2.sol";
+import "./BC_fusion/extension/Protectable.sol";
+import "./BC_fusion/lib/Utils.sol";
+import "./BC_fusion/interface/IGovToken.sol";
 
 contract BSCGovernor is
-    System,
+    SystemV2,
     Initializable,
     Protectable,
     GovernorUpgradeable,
@@ -214,9 +214,7 @@ contract BSCGovernor is
      *@return `true` if the contract implements `interfaceID` and
      *`interfaceID` is not 0xffffffff, `false` otherwise
      */
-    function supportsInterface(
-        bytes4 interfaceId
-    )
+    function supportsInterface(bytes4 interfaceId)
         public
         view
         override(GovernorUpgradeable, IERC165Upgradeable, GovernorTimelockControlUpgradeable)
@@ -229,9 +227,7 @@ contract BSCGovernor is
      * @notice module:core
      * @dev Current state of a proposal, following Compound's convention
      */
-    function state(
-        uint256 proposalId
-    )
+    function state(uint256 proposalId)
         public
         view
         override(GovernorUpgradeable, IGovernorUpgradeable, GovernorTimelockControlUpgradeable)
@@ -257,9 +253,7 @@ contract BSCGovernor is
      * @dev Timepoint at which votes close. If using block number, votes close at the end of this block, so it is
      * possible to cast a vote during this block.
      */
-    function proposalDeadline(
-        uint256 proposalId
-    )
+    function proposalDeadline(uint256 proposalId)
         public
         view
         override(IGovernorUpgradeable, GovernorUpgradeable, GovernorPreventLateQuorumUpgradeable)

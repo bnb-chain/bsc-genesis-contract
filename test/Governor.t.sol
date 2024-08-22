@@ -94,7 +94,7 @@ contract GovernorTest is Deployer {
             "updateParam(string,bytes,address)", "votingDelay", abi.encodePacked(newVotingDelay), GOVERNOR_ADDR
         );
 
-//        assertEq(governor.proposeStarted(), true, "propose should not start");
+        //        assertEq(governor.proposeStarted(), true, "propose should not start");
 
         // mainnet totalSupply is already enough
         // // govBNB totalSupply not enough
