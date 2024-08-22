@@ -134,7 +134,7 @@ def generate_stake_hub(
     breathe_block_interval, init_bc_consensus_addresses, init_bc_vote_addresses, max_elected_validators, unbond_period,
     downtime_jail_time, felony_jail_time, stake_hub_protector
 ):
-    contract = "BC_fusion/StakeHub.sol"
+    contract = "StakeHub.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -154,7 +154,7 @@ def generate_governor(
     block_interval, init_voting_delay, init_voting_period, init_proposal_threshold, init_quorum_numerator,
     propose_start_threshold, init_min_period_after_quorum, governor_protector
 ):
-    contract = "BC_fusion/BSCGovernor.sol"
+    contract = "BSCGovernor.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
