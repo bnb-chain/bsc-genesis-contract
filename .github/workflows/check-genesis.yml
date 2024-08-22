@@ -13,7 +13,7 @@ permissions:
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   # pull-requests: read
 jobs:
-  unit-test:
+  check-genesis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
