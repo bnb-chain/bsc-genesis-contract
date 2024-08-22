@@ -17,7 +17,7 @@
     "commander": "^3.0.1",
     "nunjucks": "^3.2.0",
     "rlp": "^2.2.7",
-    "web3": "^1.7.0"
+    "web3": "^4.11.1"
   },
   "devDependencies": {
     "dotenv": "^16.0.3",
