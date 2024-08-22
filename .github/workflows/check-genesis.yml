@@ -1,4 +1,4 @@
-name: Unit Test
+name: Check If Genesis Is Latest
 on:
   push:
     branches:
@@ -13,7 +13,7 @@ permissions:
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   # pull-requests: read
 jobs:
-  unit-test:
+  check-genesis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -31,28 +31,21 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
       - name: Install Project Dependencies
         run: |
+          npm install ts-node -g
           npm install
+          poetry install
           forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
           forge --version
-
-      - name: Lint Check
-        run: |
-          npm run lint:check
 
       - name: Build
         run: |
           forge build
 
-      - name: Start Local Chain
+      - name: Check Genesis Bytecode
         run: |
-          npm install pm2 -g
-          pm2 start --name local-chain "anvil -f https://bsc-dataseed.bnbchain.org"
-          sleep 5
-        env:
-          PORT: 8545
-
-      - name: Unit Test
-        run: |
-          forge test --rpc-url http://127.0.0.1:8545
+          ts-node scripts/check-genesis-bytecode.ts

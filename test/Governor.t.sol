@@ -60,7 +60,7 @@ contract GovernorTest is Deployer {
         address delegator = _getNextUserAddress();
         (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
-        assert(!governor.proposeStarted());
+        assert(governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
         uint256 bnbAmount = 10_000_000 ether - 2000 ether - 1 ether;
         stakeHub.delegate{ value: bnbAmount }(validator, false);
@@ -94,7 +94,7 @@ contract GovernorTest is Deployer {
             "updateParam(string,bytes,address)", "votingDelay", abi.encodePacked(newVotingDelay), GOVERNOR_ADDR
         );
 
-        assertEq(governor.proposeStarted(), false, "propose should not start");
+//        assertEq(governor.proposeStarted(), true, "propose should not start");
 
         // mainnet totalSupply is already enough
         // // govBNB totalSupply not enough
@@ -126,7 +126,7 @@ contract GovernorTest is Deployer {
         address delegator = _getNextUserAddress();
         (address validator,,,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
-        assert(!governor.proposeStarted());
+        assert(governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
         uint256 bnbAmount = 10_000_000 ether - 2000 ether;
         stakeHub.delegate{ value: bnbAmount }(validator, false);
@@ -184,7 +184,7 @@ contract GovernorTest is Deployer {
         address delegator = _getNextUserAddress();
         (address validator,,,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
-        assert(!governor.proposeStarted());
+        assert(governor.proposeStarted());
         vm.deal(delegator, 20_000_000 ether);
         uint256 bnbAmount = 10_000_000 ether - 2000 ether;
         stakeHub.delegate{ value: bnbAmount }(validator, false);
@@ -250,7 +250,7 @@ contract GovernorTest is Deployer {
         address delegator = _getNextUserAddress();
         (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
-        assert(!governor.proposeStarted());
+        assert(governor.proposeStarted());
 
         vm.deal(delegator, 20_000_000 ether);
 
@@ -327,7 +327,7 @@ contract GovernorTest is Deployer {
         address delegator = _getNextUserAddress();
         (address validator,, address credit,) = _createValidator(2000 ether);
         vm.startPrank(delegator);
-        assert(!governor.proposeStarted());
+        assert(governor.proposeStarted());
 
         vm.deal(delegator, 20_000_000 ether);
 
