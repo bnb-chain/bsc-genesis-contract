@@ -416,12 +416,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @param newConsensusAddress the new consensus address of the validator
      */
-    function editConsensusAddress(address newConsensusAddress)
-        external
-        whenNotPaused
-        notInBlackList
-        validatorExist(_bep410MsgSender())
-    {
+    function editConsensusAddress(
+        address newConsensusAddress
+    ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
         if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
             revert DuplicateConsensusAddress();
@@ -442,12 +439,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @param commissionRate the new commission rate of the validator
      */
-    function editCommissionRate(uint64 commissionRate)
-        external
-        whenNotPaused
-        notInBlackList
-        validatorExist(_bep410MsgSender())
-    {
+    function editCommissionRate(
+        uint64 commissionRate
+    ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
@@ -468,12 +462,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      * @notice the moniker of the validator will be ignored as it is not editable
      * @param description the new description of the validator
      */
-    function editDescription(Description memory description)
-        external
-        whenNotPaused
-        notInBlackList
-        validatorExist(_bep410MsgSender())
-    {
+    function editDescription(
+        Description memory description
+    ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         address operatorAddress = _bep410MsgSender();
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
@@ -952,11 +943,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      * @return jailed whether the validator is jailed
      * @return jailUntil the jail time of the validator
      */
-    function getValidatorBasicInfo(address operatorAddress)
-        external
-        view
-        returns (uint256 createdTime, bool jailed, uint256 jailUntil)
-    {
+    function getValidatorBasicInfo(
+        address operatorAddress
+    ) external view returns (uint256 createdTime, bool jailed, uint256 jailUntil) {
         Validator memory valInfo = _validators[operatorAddress];
         createdTime = valInfo.createdTime;
         jailed = valInfo.jailed;
@@ -968,12 +957,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return the description of a validator
      */
-    function getValidatorDescription(address operatorAddress)
-        external
-        view
-        validatorExist(operatorAddress)
-        returns (Description memory)
-    {
+    function getValidatorDescription(
+        address operatorAddress
+    ) external view validatorExist(operatorAddress) returns (Description memory) {
         return _validators[operatorAddress].description;
     }
 
@@ -982,12 +968,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return the commission of a validator
      */
-    function getValidatorCommission(address operatorAddress)
-        external
-        view
-        validatorExist(operatorAddress)
-        returns (Commission memory)
-    {
+    function getValidatorCommission(
+        address operatorAddress
+    ) external view validatorExist(operatorAddress) returns (Commission memory) {
         return _validators[operatorAddress].commission;
     }
 
@@ -996,12 +979,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return the agent of a validator
      */
-    function getValidatorAgent(address operatorAddress)
-        external
-        view
-        validatorExist(operatorAddress)
-        returns (address)
-    {
+    function getValidatorAgent(
+        address operatorAddress
+    ) external view validatorExist(operatorAddress) returns (address) {
         return _validators[operatorAddress].agent;
     }
 
@@ -1051,11 +1031,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _decodeMigrationSynPackage(bytes memory msgBytes)
-        internal
-        pure
-        returns (StakeMigrationPackage memory, bool)
-    {
+    function _decodeMigrationSynPackage(
+        bytes memory msgBytes
+    ) internal pure returns (StakeMigrationPackage memory, bool) {
         StakeMigrationPackage memory migrationPackage;
 
         RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
