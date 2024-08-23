@@ -1,14 +1,14 @@
 pragma solidity 0.6.4;
 
-import "./interface/IBEP20.sol";
-import "./interface/ITokenHub.sol";
-import "./interface/IApplication.sol";
-import "./interface/ICrossChain.sol";
-import "./interface/IParamSubscriber.sol";
-import "./lib/SafeMath.sol";
-import "./lib/RLPEncode.sol";
-import "./lib/RLPDecode.sol";
-import "./System.sol";
+import "../interface/IBEP20.sol";
+import "../interface/ITokenHub.sol";
+import "../interface/IApplication.sol";
+import "../interface/ICrossChain.sol";
+import "../interface/IParamSubscriber.sol";
+import "../lib/SafeMath.sol";
+import "../lib/RLPEncode.sol";
+import "../lib/RLPDecode.sol";
+import "../System.sol";
 
 contract TokenManager is System, IApplication, IParamSubscriber {
     using SafeMath for uint256;

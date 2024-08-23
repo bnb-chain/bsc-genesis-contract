@@ -1,11 +1,11 @@
 pragma solidity 0.6.4;
 
-import "./lib/Memory.sol";
-import "./lib/BytesToTypes.sol";
-import "./interface/ILightClient.sol";
-import "./interface/ISystemReward.sol";
-import "./interface/IParamSubscriber.sol";
-import "./System.sol";
+import "../lib/Memory.sol";
+import "../lib/BytesToTypes.sol";
+import "../interface/ILightClient.sol";
+import "../interface/ISystemReward.sol";
+import "../interface/IParamSubscriber.sol";
+import "../System.sol";
 
 contract TendermintLightClient is ILightClient, System, IParamSubscriber {
     struct ConsensusState {

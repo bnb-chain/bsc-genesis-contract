@@ -1,6 +1,6 @@
 pragma solidity 0.6.4;
 
-import "./lib/Memory.sol";
+import "./Memory.sol";
 
 library MerkleProof {
     function validateMerkleProof(

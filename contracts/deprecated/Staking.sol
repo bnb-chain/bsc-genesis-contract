@@ -1,18 +1,18 @@
 pragma solidity 0.6.4;
 
-import "./System.sol";
-import "./interface/IApplication.sol";
-import "./interface/ICrossChain.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/IStaking.sol";
-import "./interface/ITokenHub.sol";
-import "./lib/BytesToTypes.sol";
-import "./lib/BytesLib.sol";
-import "./lib/CmnPkg.sol";
-import "./lib/Memory.sol";
-import "./lib/RLPEncode.sol";
-import "./lib/RLPDecode.sol";
-import "./lib/SafeMath.sol";
+import "../System.sol";
+import "../interface/IApplication.sol";
+import "../interface/ICrossChain.sol";
+import "../interface/IParamSubscriber.sol";
+import "../interface/IStaking.sol";
+import "../interface/ITokenHub.sol";
+import "../lib/BytesToTypes.sol";
+import "../lib/BytesLib.sol";
+import "../lib/CmnPkg.sol";
+import "../lib/Memory.sol";
+import "../lib/RLPEncode.sol";
+import "../lib/RLPDecode.sol";
+import "../lib/SafeMath.sol";
 
 contract Staking is IStaking, System, IParamSubscriber, IApplication {
     using SafeMath for uint256;
