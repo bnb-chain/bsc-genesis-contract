@@ -10,9 +10,9 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQ
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 
 import "./SystemV2.sol";
-import "./BC_fusion/extension/Protectable.sol";
-import "./BC_fusion/lib/Utils.sol";
-import "./BC_fusion/interface/IGovToken.sol";
+import "./extension/Protectable.sol";
+import "./libV2/Utils.sol";
+import "./interfaceV2/IGovToken.sol";
 
 contract BSCGovernor is
     SystemV2,

@@ -6,14 +6,14 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./SystemV2.sol";
-import "./BC_fusion/extension/Protectable.sol";
-import "./BC_fusion/interface/IBSCValidatorSet.sol";
-import "./BC_fusion/interface/ICrossChain.sol";
-import "./BC_fusion/interface/IGovToken.sol";
-import "./BC_fusion/interface/IStakeCredit.sol";
-import "./BC_fusion/interface/ITokenHub.sol";
-import "./BC_fusion/lib/RLPDecode.sol";
-import "./BC_fusion/lib/Utils.sol";
+import "./extension/Protectable.sol";
+import "./interfaceV2/IBSCValidatorSet.sol";
+import "./interfaceV2/ICrossChain.sol";
+import "./interfaceV2/IGovToken.sol";
+import "./interfaceV2/IStakeCredit.sol";
+import "./interfaceV2/ITokenHub.sol";
+import "./libV2/RLPDecode.sol";
+import "./libV2/Utils.sol";
 
 contract StakeHub is SystemV2, Initializable, Protectable {
     using RLPDecode for *;

@@ -6,8 +6,8 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20Burnable
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20VotesUpgradeable.sol";
 
-import "../SystemV2.sol";
-import "./interface/IStakeCredit.sol";
+import "./SystemV2.sol";
+import "./interfaceV2/IStakeCredit.sol";
 
 contract GovToken is
     SystemV2,
