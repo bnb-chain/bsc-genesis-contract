@@ -93,7 +93,7 @@ def generate_from_template(data, template_file, output_file):
 
 
 def generate_cross_chain(init_batch_size="50"):
-    contract = "CrossChain.sol"
+    contract = "deprecated/CrossChain.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -103,7 +103,7 @@ def generate_cross_chain(init_batch_size="50"):
 
 
 def generate_relayer_hub(whitelist_1, whitelist_2):
-    contract = "RelayerHub.sol"
+    contract = "deprecated/RelayerHub.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -204,7 +204,7 @@ def generate_system_reward():
 
 
 def generate_tendermint_light_client(init_consensus_state_bytes, init_reward_for_validator_ser_change="1e16"):
-    contract = "TendermintLightClient.sol"
+    contract = "deprecated/TendermintLightClient.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -516,6 +516,13 @@ def recover():
             os.remove(os.path.join(contracts_dir, file))
 
     contracts_dir = os.path.join(contracts_dir, "BC_fusion")
+    for file in os.listdir(contracts_dir):
+        if file.endswith(".bak"):
+            c_file = file[:-4] + ".sol"
+            shutil.copyfile(os.path.join(contracts_dir, file), os.path.join(contracts_dir, c_file))
+            os.remove(os.path.join(contracts_dir, file))
+
+    contracts_dir = os.path.join(contracts_dir, "deprecated")
     for file in os.listdir(contracts_dir):
         if file.endswith(".bak"):
             c_file = file[:-4] + ".sol"
