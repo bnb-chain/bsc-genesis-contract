@@ -6,10 +6,10 @@ import "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
-import "./System.sol";
-import "./interface/IStakeHub.sol";
+import "./SystemV2.sol";
+import "./interface/0.8.x/IStakeHub.sol";
 
-contract StakeCredit is System, Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable {
+contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;
     using DoubleEndedQueueUpgradeable for DoubleEndedQueueUpgradeable.Bytes32Deque;
 

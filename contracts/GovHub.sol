@@ -1,13 +1,13 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./lib/BytesToTypes.sol";
-import "./lib/Memory.sol";
-import "./lib/BytesLib.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/IApplication.sol";
-import "./lib/RLPDecode.sol";
-import "./lib/CmnPkg.sol";
+import "./lib/0.6.x/BytesToTypes.sol";
+import "./lib/0.6.x/Memory.sol";
+import "./lib/0.6.x/BytesLib.sol";
+import "./interface/0.6.x/IParamSubscriber.sol";
+import "./interface/0.6.x/IApplication.sol";
+import "./lib/0.6.x/RLPDecode.sol";
+import "./lib/0.6.x/CmnPkg.sol";
 
 contract GovHub is System, IApplication {
     using RLPDecode for *;

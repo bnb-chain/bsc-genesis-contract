@@ -1,11 +1,11 @@
 pragma solidity 0.6.4;
 
-import "./lib/BytesToTypes.sol";
-import "./lib/Memory.sol";
-import "./interface/IRelayerHub.sol";
-import "./interface/IParamSubscriber.sol";
-import "./System.sol";
-import "./lib/SafeMath.sol";
+import "../lib/0.6.x/BytesToTypes.sol";
+import "../lib/0.6.x/Memory.sol";
+import "../interface/0.6.x/IRelayerHub.sol";
+import "../interface/0.6.x/IParamSubscriber.sol";
+import "../System.sol";
+import "../lib/0.6.x/SafeMath.sol";
 
 contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     using SafeMath for uint256;

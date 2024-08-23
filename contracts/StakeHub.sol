@@ -5,17 +5,17 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
-import "./System.sol";
+import "./SystemV2.sol";
 import "./extension/Protectable.sol";
-import "./interface/IBSCValidatorSet.sol";
-import "./interface/ICrossChain.sol";
-import "./interface/IGovToken.sol";
-import "./interface/IStakeCredit.sol";
-import "./interface/ITokenHub.sol";
-import "./lib/RLPDecode.sol";
-import "./lib/Utils.sol";
+import "./interface/0.8.x/IBSCValidatorSet.sol";
+import "./interface/0.8.x/ICrossChain.sol";
+import "./interface/0.8.x/IGovToken.sol";
+import "./interface/0.8.x/IStakeCredit.sol";
+import "./interface/0.8.x/ITokenHub.sol";
+import "./lib/0.8.x/RLPDecode.sol";
+import "./lib/0.8.x/Utils.sol";
 
-contract StakeHub is System, Initializable, Protectable {
+contract StakeHub is SystemV2, Initializable, Protectable {
     using RLPDecode for *;
     using Utils for string;
     using Utils for bytes;

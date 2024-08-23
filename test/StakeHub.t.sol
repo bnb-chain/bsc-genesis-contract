@@ -786,7 +786,7 @@ contract StakeHubTest is Deployer {
         // edit vote address
         vm.warp(block.timestamp + 1 days);
         bytes memory newVoteAddress =
-        hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001234";
+            hex"000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001234";
         bytes memory blsProof = new bytes(96);
         vm.expectEmit(true, false, false, true, address(stakeHub));
         emit VoteAddressEdited(validator, newVoteAddress);
