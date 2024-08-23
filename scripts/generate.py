@@ -174,7 +174,7 @@ def generate_governor(
 
 
 def generate_timelock(init_minimal_delay):
-    contract = "BC_fusion/BSCTimelock.sol"
+    contract = "BSCTimelock.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -230,7 +230,7 @@ def generate_token_hub(lock_period_for_token_recover):
 
 
 def generate_token_recover_portal(source_chain_id, token_recover_portal_protector):
-    contract = "BC_fusion/TokenRecoverPortal.sol"
+    contract = "TokenRecoverPortal.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
@@ -515,13 +515,6 @@ def recover():
             shutil.copyfile(os.path.join(contracts_dir, file), os.path.join(contracts_dir, c_file))
             os.remove(os.path.join(contracts_dir, file))
 
-    contracts_dir = os.path.join(contracts_dir, "BC_fusion")
-    for file in os.listdir(contracts_dir):
-        if file.endswith(".bak"):
-            c_file = file[:-4] + ".sol"
-            shutil.copyfile(os.path.join(contracts_dir, file), os.path.join(contracts_dir, c_file))
-            os.remove(os.path.join(contracts_dir, file))
-
     contracts_dir = os.path.join(contracts_dir, "deprecated")
     for file in os.listdir(contracts_dir):
         if file.endswith(".bak"):
@@ -580,7 +573,7 @@ def generate_validators(
 
 
 @main.command(help="Generate errors signature")
-def generate_error_sig(dir_path: str = "./contracts/BC_fusion"):
+def generate_error_sig(dir_path: str = "./contracts"):
     dir_path = os.path.join(work_dir, dir_path)
 
     annotation_prefix = "    // @notice signature: "
