@@ -1,6 +1,6 @@
 pragma solidity 0.6.4;
 
-import "../interface/ITokenHub.sol";
+import "../interface/0.6.x/ITokenHub.sol";
 
 contract MockTokenHub is ITokenHub {
     bool panicBatchTransferOut;

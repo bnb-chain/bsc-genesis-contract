@@ -1,10 +1,10 @@
 pragma solidity 0.6.4;
 
-import "../lib/Memory.sol";
-import "../lib/BytesToTypes.sol";
-import "../interface/ILightClient.sol";
-import "../interface/ISystemReward.sol";
-import "../interface/IParamSubscriber.sol";
+import "../lib/0.6.x/Memory.sol";
+import "../lib/0.6.x/BytesToTypes.sol";
+import "../interface/0.6.x/ILightClient.sol";
+import "../interface/0.6.x/ISystemReward.sol";
+import "../interface/0.6.x/IParamSubscriber.sol";
 import "../System.sol";
 
 contract TendermintLightClient is ILightClient, System, IParamSubscriber {

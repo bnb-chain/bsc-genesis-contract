@@ -4,7 +4,7 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts-upgradeable/governance/TimelockControllerUpgradeable.sol";
 
 import "./SystemV2.sol";
-import "./libV2/Utils.sol";
+import "./lib/0.8.x/Utils.sol";
 
 contract BSCTimelock is SystemV2, Initializable, TimelockControllerUpgradeable {
     using Utils for bytes;

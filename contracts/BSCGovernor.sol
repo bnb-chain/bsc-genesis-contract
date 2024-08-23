@@ -11,8 +11,8 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreven
 
 import "./SystemV2.sol";
 import "./extension/Protectable.sol";
-import "./libV2/Utils.sol";
-import "./interfaceV2/IGovToken.sol";
+import "./lib/0.8.x/Utils.sol";
+import "./interface/0.8.x/IGovToken.sol";
 
 contract BSCGovernor is
     SystemV2,

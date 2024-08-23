@@ -1,8 +1,8 @@
 pragma solidity 0.6.4;
 
-import "./interface/ISystemReward.sol";
-import "./interface/IRelayerHub.sol";
-import "./interface/ILightClient.sol";
+import "./interface/0.6.x/ISystemReward.sol";
+import "./interface/0.6.x/IRelayerHub.sol";
+import "./interface/0.6.x/ILightClient.sol";
 
 contract System {
     bool public alreadyInit;

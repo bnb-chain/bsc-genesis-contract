@@ -7,9 +7,9 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./SystemV2.sol";
 import "./extension/Protectable.sol";
-import "./interfaceV2/ITokenHub.sol";
-import "./interfaceV2/ITokenRecoverPortal.sol";
-import "./libV2/Utils.sol";
+import "./interface/0.8.x/ITokenHub.sol";
+import "./interface/0.8.x/ITokenRecoverPortal.sol";
+import "./lib/0.8.x/Utils.sol";
 
 /**
  * @title TokenRecoverPortal is used to recover the token from BC users.

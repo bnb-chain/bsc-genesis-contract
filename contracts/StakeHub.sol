@@ -7,13 +7,13 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./SystemV2.sol";
 import "./extension/Protectable.sol";
-import "./interfaceV2/IBSCValidatorSet.sol";
-import "./interfaceV2/ICrossChain.sol";
-import "./interfaceV2/IGovToken.sol";
-import "./interfaceV2/IStakeCredit.sol";
-import "./interfaceV2/ITokenHub.sol";
-import "./libV2/RLPDecode.sol";
-import "./libV2/Utils.sol";
+import "./interface/0.8.x/IBSCValidatorSet.sol";
+import "./interface/0.8.x/ICrossChain.sol";
+import "./interface/0.8.x/IGovToken.sol";
+import "./interface/0.8.x/IStakeCredit.sol";
+import "./interface/0.8.x/ITokenHub.sol";
+import "./lib/0.8.x/RLPDecode.sol";
+import "./lib/0.8.x/Utils.sol";
 
 contract StakeHub is SystemV2, Initializable, Protectable {
     using RLPDecode for *;

@@ -1,12 +1,12 @@
 pragma solidity 0.6.4;
 
-import "../interface/IRelayerIncentivize.sol";
+import "../interface/0.6.x/IRelayerIncentivize.sol";
 import "../System.sol";
-import "../lib/SafeMath.sol";
-import "../lib/Memory.sol";
-import "../lib/BytesToTypes.sol";
-import "../interface/IParamSubscriber.sol";
-import "../interface/ISystemReward.sol";
+import "../lib/0.6.x/SafeMath.sol";
+import "../lib/0.6.x/Memory.sol";
+import "../lib/0.6.x/BytesToTypes.sol";
+import "../interface/0.6.x/IParamSubscriber.sol";
+import "../interface/0.6.x/ISystemReward.sol";
 
 contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     using SafeMath for uint256;

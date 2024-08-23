@@ -1,17 +1,17 @@
 pragma solidity 0.6.4;
 
-import "../interface/IApplication.sol";
-import "../interface/ICrossChain.sol";
-import "../interface/ITokenHub.sol";
-import "../interface/ILightClient.sol";
-import "../interface/IRelayerIncentivize.sol";
-import "../interface/IRelayerHub.sol";
-import "../interface/IBSCValidatorSetV2.sol";
-import "../lib/Memory.sol";
-import "../lib/BytesToTypes.sol";
-import "../interface/IParamSubscriber.sol";
+import "../interface/0.6.x/IApplication.sol";
+import "../interface/0.6.x/ICrossChain.sol";
+import "../interface/0.6.x/ITokenHub.sol";
+import "../interface/0.6.x/ILightClient.sol";
+import "../interface/0.6.x/IRelayerIncentivize.sol";
+import "../interface/0.6.x/IRelayerHub.sol";
+import "../interface/0.6.x/IBSCValidatorSetV2.sol";
+import "../lib/0.6.x/Memory.sol";
+import "../lib/0.6.x/BytesToTypes.sol";
+import "../interface/0.6.x/IParamSubscriber.sol";
 import "../System.sol";
-import "../lib/MerkleProof.sol";
+import "../lib/0.6.x/MerkleProof.sol";
 
 contract CrossChain is System, ICrossChain, IParamSubscriber {
     // constant variables

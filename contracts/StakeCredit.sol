@@ -7,7 +7,7 @@ import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/structs/DoubleEndedQueueUpgradeable.sol";
 
 import "./SystemV2.sol";
-import "./interfaceV2/IStakeHub.sol";
+import "./interface/0.8.x/IStakeHub.sol";
 
 contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC20Upgradeable {
     using CountersUpgradeable for CountersUpgradeable.Counter;

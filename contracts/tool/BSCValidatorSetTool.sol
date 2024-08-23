@@ -1,7 +1,7 @@
 pragma solidity 0.6.4;
 
-import "../lib/RLPDecode.sol";
-import "../lib/Memory.sol";
+import "../lib/0.6.x/RLPDecode.sol";
+import "../lib/0.6.x/Memory.sol";
 
 contract BSCValidatorSetTool {
     bytes public constant INIT_VALIDATORSET_BYTES =
