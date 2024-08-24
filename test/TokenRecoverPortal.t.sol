@@ -39,11 +39,6 @@ contract TokenRecoverPortalTest is Deployer {
 
     function setUp() public {
         vm.mockCall(address(0x69), "", mockTokenOwner);
-
-        // remove this after fusion fork launched
-        vm.prank(block.coinbase);
-        vm.txGasPrice(0);
-        tokenRecoverPortal.initialize();
     }
 
     function setUpContractParams(

@@ -135,7 +135,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             indicator.count = 0;
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
             if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
-                _downtimeSlash(validator, indicator.count);
+                _downtimeSlash(validator, indicator.count, false);
             } else {
                 // send slash msg to bc if validator is not migrated
                 try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(
@@ -205,16 +205,24 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         emit indicatorCleaned();
     }
 
-    function downtimeSlash(address validator, uint256 count) external override onlyValidatorContract {
-        _downtimeSlash(validator, count);
+    function downtimeSlash(
+        address validator,
+        uint256 count,
+        bool shouldRevert
+    ) external override onlyValidatorContract {
+        _downtimeSlash(validator, count, shouldRevert);
     }
 
-    function _downtimeSlash(address validator, uint256 count) internal {
-        try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) { }
-        catch Error(string memory reason) {
-            emit failedFelony(validator, count, bytes(reason));
-        } catch (bytes memory lowLevelData) {
-            emit failedFelony(validator, count, lowLevelData);
+    function _downtimeSlash(address validator, uint256 count, bool shouldRevert) internal {
+        if (shouldRevert) {
+            IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator);
+        } else {
+            try IStakeHub(STAKE_HUB_ADDR).downtimeSlash(validator) { }
+            catch Error(string memory reason) {
+                emit failedFelony(validator, count, bytes(reason));
+            } catch (bytes memory lowLevelData) {
+                emit failedFelony(validator, count, lowLevelData);
+            }
         }
     }
 

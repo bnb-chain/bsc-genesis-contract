@@ -51,6 +51,8 @@ interface StakeHub {
     error ValidatorNotJailed();
     error VoteAddressExpired();
     error ZeroShares();
+    error InvalidAgent();
+    error InvalidValidator();
 
     event BlackListed(address indexed target);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
@@ -94,6 +96,7 @@ interface StakeHub {
     );
     event ValidatorUnjailed(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
+    event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     receive() external payable;
 
@@ -179,4 +182,7 @@ interface StakeHub {
     function updateParam(string memory key, bytes memory value) external;
     function voteExpiration(bytes memory) external view returns (uint256);
     function voteToOperator(bytes memory) external view returns (address);
+
+    function agentToOperator(address) external view returns (address);
+    function updateAgent(address newAgent) external;
 }

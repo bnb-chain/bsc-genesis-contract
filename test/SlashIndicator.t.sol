@@ -4,37 +4,46 @@ import "./utils/Deployer.sol";
 
 contract SlashIndicatorTest is Deployer {
     event validatorSlashed(address indexed validator0);
-    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
+    event ValidatorSlashed(address indexed operatorAddress, uint256 jailUntil, uint256 slashAmount, uint8 slashType);
 
     uint256 public burnRatio;
     uint256 public burnRatioScale;
-    uint256 public systemRewardRatio;
+    uint256 public systemRewardBaseRatio;
     uint256 public systemRewardRatioScale;
 
     address public coinbase;
     address public validator0;
+    address public validatorLast;
 
     function setUp() public {
         burnRatio =
             bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
         burnRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
-        systemRewardRatio = bscValidatorSet.isSystemRewardIncluded()
-            ? bscValidatorSet.systemRewardRatio()
+        systemRewardBaseRatio = bscValidatorSet.isSystemRewardIncluded()
+            ? bscValidatorSet.systemRewardBaseRatio()
             : bscValidatorSet.INIT_SYSTEM_REWARD_RATIO();
         systemRewardRatioScale = bscValidatorSet.BLOCK_FEES_RATIO_SCALE();
 
         address[] memory validators = bscValidatorSet.getValidators();
         validator0 = validators[0];
+        validatorLast = validators[validators.length - 1];
 
         coinbase = block.coinbase;
         vm.deal(coinbase, 100 ether);
 
+        // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
+        vm.mockCall(address(0x66), "", hex"01");
 
-        // remove this after fusion fork launched
-        vm.prank(block.coinbase);
-        stakeHub.initialize();
+        // close staking channel
+        // remove this after final sunset hard fork
+        if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
+            bytes memory key = "enableOrDisableChannel";
+            bytes memory valueBytes = bytes(hex"0800");
+            _updateParamByGovHub(key, valueBytes, address(crossChain));
+            assertTrue(!crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
+        }
     }
 
     function testGov() public {
@@ -59,7 +68,6 @@ contract SlashIndicatorTest is Deployer {
         slashIndicator.slash(validator0);
 
         vm.startPrank(coinbase);
-        vm.txGasPrice(0);
         (, uint256 origin) = slashIndicator.getSlashIndicator(validator0);
         for (uint256 i = 1; i < 10; ++i) {
             vm.expectEmit(true, false, false, true, address(slashIndicator));
@@ -100,43 +108,124 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.enterMaintenance();
     }
 
-    function testMisdemeanor() public {
-        address[] memory vals = new address[](21);
-        for (uint256 i; i < vals.length; ++i) {
-            vals[i] = _getNextUserAddress();
+    function testMaintenanceFix() public {
+        assert(bscValidatorSet.isCurrentValidator(validatorLast));
+
+        (uint256 misdemeanorThreshold,) = slashIndicator.getSlashThresholds();
+        (, uint256 countBefore) = slashIndicator.getSlashIndicator(validatorLast);
+
+        uint256 height = block.number;
+        for (uint256 i = countBefore; i < misdemeanorThreshold; i++) {
+            vm.prank(coinbase);
+            slashIndicator.slash(validatorLast);
+            height++;
+            vm.roll(height);
         }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+
+        (, uint256 countAfter) = slashIndicator.getSlashIndicator(validatorLast);
+        assertEq(countAfter, misdemeanorThreshold);
+
+        // validatorLast already enter maintenance after misdemeanor
+        assert(!bscValidatorSet.isCurrentValidator(validatorLast));
+
+        // should felony
+        vm.roll(height + 1000000);
+
+        vm.prank(validatorLast);
+        vm.expectRevert(bytes("can not enter Temporary Maintenance"));
+        bscValidatorSet.enterMaintenance();
+
+        // exit maintenance
+        vm.prank(validatorLast);
+        // can not avoid downtime slash by reducing gasLimit
+        vm.expectRevert();
+        bscValidatorSet.exitMaintenance{gas: 550000 }();
+
+        vm.prank(validatorLast);
+        bscValidatorSet.exitMaintenance{gas: 1000000 }();
+    }
+
+    function testMaintenanceFix2() public {
+        address[] memory _consensusAddrs = bscValidatorSet.getValidators();
+        uint256 numOfMaintainingBefore = bscValidatorSet.numOfMaintaining();
+        assert(bscValidatorSet.isCurrentValidator(validatorLast));
+
+        (uint256 misdemeanorThreshold, ) = slashIndicator.getSlashThresholds();
+        (, uint256 countBefore) = slashIndicator.getSlashIndicator(validatorLast);
+
+        uint256 height = block.number;
+        for (uint256 i = countBefore; i < misdemeanorThreshold; i++) {
+            vm.prank(coinbase);
+            slashIndicator.slash(validatorLast);
+            height++;
+            vm.roll(height);
+        }
+
+        (, uint256 countAfter) = slashIndicator.getSlashIndicator(validatorLast);
+        assertEq(countAfter, misdemeanorThreshold);
+
+        // validatorLast already enter maintenance after misdemeanor
+        assert(!bscValidatorSet.isCurrentValidator(validatorLast));
+        assertEq(bscValidatorSet.numOfMaintaining(), numOfMaintainingBefore + 1);
+
+        // should felony
+        vm.roll(height + 1000000);
+
+        uint256 len = _consensusAddrs.length;
+        uint64[] memory _votingPowers = new uint64[](len);
+        bytes[] memory _voteAddrs = new bytes[](len);
+        for (uint256 i = 0; i < len; i++) {
+            _votingPowers[i] = uint64(1);
+            _voteAddrs[i] = bytes("11");
+        }
+
+        // close STAKE channel
+        bytes memory value = abi.encodePacked(STAKING_CHANNELID, uint8(0));
+        vm.prank(GOV_HUB_ADDR);
+        crossChain.updateParam("enableOrDisableChannel", value);
+
+        vm.prank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(_consensusAddrs, _votingPowers, _voteAddrs);
+
+        assertEq(bscValidatorSet.numOfMaintaining(), numOfMaintainingBefore);
+    }
+
+    function testMisdemeanor() public {
+        (, address[] memory consensusAddrs, uint64[] memory votingPowers, bytes[] memory voteAddrs) =
+            _batchCreateValidators(21);
 
         vm.startPrank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+
         uint256 _deposit = 1 ether;
         uint256 _incoming = _calcIncoming(_deposit);
-        bscValidatorSet.deposit{ value: _deposit }(vals[0]);
-        assertEq(_incoming, bscValidatorSet.getIncoming(vals[0]));
+        bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
+        assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
         for (uint256 i; i < 50; ++i) {
             vm.roll(block.number + 1);
-            slashIndicator.slash(vals[0]);
+            slashIndicator.slash(consensusAddrs[0]);
         }
-        (, uint256 count) = slashIndicator.getSlashIndicator(vals[0]);
+        (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
         assertEq(50, count);
-        assertEq(0, bscValidatorSet.getIncoming(vals[0]));
+        assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
         // enter maintenance, cannot be slashed
         vm.roll(block.number + 1);
-        slashIndicator.slash(vals[0]);
-        (, count) = slashIndicator.getSlashIndicator(vals[0]);
+        slashIndicator.slash(consensusAddrs[0]);
+        (, count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
         assertEq(50, count);
-        vm.stopPrank();
 
         address[] memory newVals = new address[](3);
-        for (uint256 i; i < newVals.length; ++i) {
-            newVals[i] = vals[i];
+        uint64[] memory newVotingPowers = new uint64[](3);
+        bytes[] memory newVoteAddrs = new bytes[](3);
+        for (uint256 i; i < 3; ++i) {
+            newVals[i] = consensusAddrs[i];
+            newVotingPowers[i] = votingPowers[i];
+            newVoteAddrs[i] = voteAddrs[i];
         }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, newVals));
+        bscValidatorSet.updateValidatorSetV2(newVals, newVotingPowers, newVoteAddrs);
 
-        vm.startPrank(coinbase);
         bscValidatorSet.deposit{ value: 2 ether }(newVals[0]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[0]));
 
@@ -172,118 +261,108 @@ contract SlashIndicatorTest is Deployer {
     }
 
     function testFelony() public {
-        address[] memory vals = new address[](3);
-        for (uint256 i; i < vals.length; ++i) {
-            vals[i] = _getNextUserAddress();
-        }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+        (, address[] memory consensusAddrs, uint64[] memory votingPowers, bytes[] memory voteAddrs) =
+            _batchCreateValidators(3);
 
         vm.startPrank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+
         uint256 _deposit = 1 ether;
         uint256 _incoming = _calcIncoming(_deposit);
-        bscValidatorSet.deposit{ value: _deposit }(vals[0]);
-        assertEq(_incoming, bscValidatorSet.getIncoming(vals[0]));
+        bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
+        assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
         for (uint256 i; i < 50; ++i) {
             vm.roll(block.number + 1);
-            slashIndicator.slash(vals[0]);
+            slashIndicator.slash(consensusAddrs[0]);
         }
-        (, uint256 count) = slashIndicator.getSlashIndicator(vals[0]);
+        (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
         assertEq(50, count);
-        assertEq(0, bscValidatorSet.getIncoming(vals[0]));
+        assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
         vm.stopPrank();
 
-        vm.prank(vals[0]);
+        vm.prank(consensusAddrs[0]);
         bscValidatorSet.exitMaintenance();
 
         vm.startPrank(coinbase);
-        bscValidatorSet.deposit{ value: _deposit }(vals[0]);
+        bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
         for (uint256 i; i < 100; ++i) {
             vm.roll(block.number + 1);
-            slashIndicator.slash(vals[0]);
+            slashIndicator.slash(consensusAddrs[0]);
         }
-        (, count) = slashIndicator.getSlashIndicator(vals[0]);
+        (, count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
         assertEq(0, count);
-        assertEq(0, bscValidatorSet.getIncoming(vals[0]));
-        assertEq(_incoming, bscValidatorSet.getIncoming(vals[1]));
-        assertEq(_incoming, bscValidatorSet.getIncoming(vals[2]));
+        assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
+        assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[1]));
+        assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[2]));
 
-        vals = bscValidatorSet.getValidators();
+        address[] memory vals = bscValidatorSet.getValidators();
         assertEq(2, vals.length);
         vm.stopPrank();
     }
 
     function testClean() public {
-        // case 1: all clean.
-        address[] memory vals = new address[](20);
-        for (uint256 i; i < vals.length; ++i) {
-            vals[i] = _getNextUserAddress();
-        }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+        (, address[] memory consensusAddrs, uint64[] memory votingPowers, bytes[] memory voteAddrs) =
+            _batchCreateValidators(20);
 
+        // case 1: all clean.
         vm.startPrank(coinbase);
-        for (uint256 i; i < vals.length; ++i) {
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+
+        for (uint256 i; i < consensusAddrs.length; ++i) {
             vm.roll(block.number + 1);
-            slashIndicator.slash(vals[i]);
+            slashIndicator.slash(consensusAddrs[i]);
         }
-        vm.stopPrank();
 
         // do clean
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
 
         uint256 count;
-        for (uint256 i; i < vals.length; ++i) {
-            (, count) = slashIndicator.getSlashIndicator(vals[i]);
+        for (uint256 i; i < consensusAddrs.length; ++i) {
+            (, count) = slashIndicator.getSlashIndicator(consensusAddrs[i]);
             assertEq(0, count);
         }
 
         // case 2: all stay.
         uint256 slashCount = 1 + slashIndicator.felonyThreshold() / slashIndicator.DECREASE_RATE();
-        vm.startPrank(coinbase);
-        for (uint256 i; i < vals.length; ++i) {
+        for (uint256 i; i < consensusAddrs.length; ++i) {
             for (uint256 j; j < slashCount; ++j) {
                 vm.roll(block.number + 1);
-                slashIndicator.slash(vals[i]);
+                slashIndicator.slash(consensusAddrs[i]);
             }
         }
-        vm.stopPrank();
 
         // do clean
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
 
-        for (uint256 i; i < vals.length; ++i) {
-            (, count) = slashIndicator.getSlashIndicator(vals[i]);
+        for (uint256 i; i < consensusAddrs.length; ++i) {
+            (, count) = slashIndicator.getSlashIndicator(consensusAddrs[i]);
             assertEq(1, count);
         }
 
         // case 3: partial stay.
-        vm.startPrank(coinbase);
         for (uint256 i; i < 10; ++i) {
             for (uint256 j; j < slashCount; ++j) {
                 vm.roll(block.number + 1);
-                slashIndicator.slash(vals[2 * i]);
+                slashIndicator.slash(consensusAddrs[2 * i]);
             }
             vm.roll(block.number + 1);
-            slashIndicator.slash(vals[2 * i + 1]);
+            slashIndicator.slash(consensusAddrs[2 * i + 1]);
         }
-        vm.stopPrank();
 
         // do clean
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeOldValidatorSetUpdatePack(0x00, vals));
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
 
         for (uint256 i; i < 10; ++i) {
-            (, count) = slashIndicator.getSlashIndicator(vals[i]);
+            (, count) = slashIndicator.getSlashIndicator(consensusAddrs[i]);
             if (i % 2 == 0) {
                 assertEq(2, count);
             } else {
                 assertEq(0, count);
             }
         }
+
+        vm.stopPrank();
     }
 
     function testDoubleSignSlash() public {
@@ -313,15 +392,14 @@ contract SlashIndicatorTest is Deployer {
             _updateParamByGovHub(key, value, address(slashIndicator));
         }
 
-        address[] memory vals = new address[](20);
-        bytes[] memory voteAddrs = new bytes[](20);
-        for (uint256 i; i < vals.length; ++i) {
-            vals[i] = _getNextUserAddress();
-            voteAddrs[i] =
-                bytes.concat(hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(vals[i])); // 28 + 20
-        }
-        vm.prank(address(crossChain));
-        bscValidatorSet.handleSynPackage(STAKING_CHANNELID, _encodeNewValidatorSetUpdatePack(0x00, vals, voteAddrs));
+        (
+            address[] memory operatorAddrs,
+            address[] memory consensusAddrs,
+            uint64[] memory votingPowers,
+            bytes[] memory voteAddrs
+        ) = _batchCreateValidators(20);
+        vm.prank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
 
         // case1: valid finality evidence: same target block
         uint256 srcNumA = block.number - 20;
@@ -349,16 +427,20 @@ contract SlashIndicatorTest is Deployer {
         evidence.voteB = voteB;
         evidence.voteAddr = voteAddrs[0];
 
-        vm.mockCall(address(0x66), "", hex"01");
-        bytes32 voteAddrSlice; // empty. don't check this
-        vm.expectEmit(false, false, false, false, address(slashIndicator));
-        emit maliciousVoteSlashed(voteAddrSlice);
+        vm.expectEmit(true, false, false, false, address(stakeHub));
+        emit ValidatorSlashed(operatorAddrs[0], 0, 0, 2); // only check operator address
         vm.prank(relayer);
         slashIndicator.submitFinalityViolationEvidence(evidence);
     }
 
     function _calcIncoming(uint256 value) internal view returns (uint256 incoming) {
-        uint256 toSystemReward = (value * systemRewardRatio) / systemRewardRatioScale;
+        uint256 turnLength = bscValidatorSet.getTurnLength();
+        uint256 systemRewardAntiMEVRatio = bscValidatorSet.systemRewardAntiMEVRatio();
+        uint256 systemRewardRatio = systemRewardBaseRatio;
+        if (turnLength > 1 && systemRewardAntiMEVRatio > 0) {
+            systemRewardRatio += systemRewardAntiMEVRatio * (block.number % turnLength) / (turnLength - 1);
+        }
+        uint256 toSystemReward = (value * systemRewardBaseRatio) / systemRewardRatioScale;
         uint256 toBurn = (value * burnRatio) / burnRatioScale;
         incoming = value - toSystemReward - toBurn;
     }

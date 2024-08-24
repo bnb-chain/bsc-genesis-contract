@@ -461,6 +461,11 @@
         "name": "count",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "shouldRevert",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "outputs": [],
