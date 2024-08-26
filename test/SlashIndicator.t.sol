@@ -139,10 +139,10 @@ contract SlashIndicatorTest is Deployer {
         vm.prank(validatorLast);
         // can not avoid downtime slash by reducing gasLimit
         vm.expectRevert();
-        bscValidatorSet.exitMaintenance{gas: 550000 }();
+        bscValidatorSet.exitMaintenance{ gas: 550000 }();
 
         vm.prank(validatorLast);
-        bscValidatorSet.exitMaintenance{gas: 1000000 }();
+        bscValidatorSet.exitMaintenance{ gas: 1000000 }();
     }
 
     function testMaintenanceFix2() public {
@@ -150,7 +150,7 @@ contract SlashIndicatorTest is Deployer {
         uint256 numOfMaintainingBefore = bscValidatorSet.numOfMaintaining();
         assert(bscValidatorSet.isCurrentValidator(validatorLast));
 
-        (uint256 misdemeanorThreshold, ) = slashIndicator.getSlashThresholds();
+        (uint256 misdemeanorThreshold,) = slashIndicator.getSlashThresholds();
         (, uint256 countBefore) = slashIndicator.getSlashIndicator(validatorLast);
 
         uint256 height = block.number;

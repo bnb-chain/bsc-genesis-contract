@@ -1,16 +1,16 @@
 pragma solidity 0.6.4;
 
-import "./interface/IBEP20.sol";
-import "./interface/ITokenHub.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/IApplication.sol";
-import "./interface/ICrossChain.sol";
-import "./interface/ISystemReward.sol";
-import "./lib/SafeMath.sol";
-import "./lib/RLPEncode.sol";
-import "./lib/RLPDecode.sol";
-import "./lib/BytesToTypes.sol";
-import "./lib/Memory.sol";
+import "./interface/0.6.x/IBEP20.sol";
+import "./interface/0.6.x/ITokenHub.sol";
+import "./interface/0.6.x/IParamSubscriber.sol";
+import "./interface/0.6.x/IApplication.sol";
+import "./interface/0.6.x/ICrossChain.sol";
+import "./interface/0.6.x/ISystemReward.sol";
+import "./lib/0.6.x/SafeMath.sol";
+import "./lib/0.6.x/RLPEncode.sol";
+import "./lib/0.6.x/RLPDecode.sol";
+import "./lib/0.6.x/BytesToTypes.sol";
+import "./lib/0.6.x/Memory.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {

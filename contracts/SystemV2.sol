@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
-contract System {
+contract SystemV2 {
     /*----------------- constants -----------------*/
     uint8 public constant STAKING_CHANNELID = 0x08;
     uint8 public constant BC_FUSION_CHANNELID = 0x11; // new channel id for cross-chain redelegate from Beacon Chain to Smart Chain after Feynman upgrade

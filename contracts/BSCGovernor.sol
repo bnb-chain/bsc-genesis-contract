@@ -9,13 +9,13 @@ import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorTimelo
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorVotesQuorumFractionUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/governance/extensions/GovernorPreventLateQuorumUpgradeable.sol";
 
-import "./System.sol";
+import "./SystemV2.sol";
 import "./extension/Protectable.sol";
-import "./lib/Utils.sol";
-import "./interface/IGovToken.sol";
+import "./lib/0.8.x/Utils.sol";
+import "./interface/0.8.x/IGovToken.sol";
 
 contract BSCGovernor is
-    System,
+    SystemV2,
     Initializable,
     Protectable,
     GovernorUpgradeable,

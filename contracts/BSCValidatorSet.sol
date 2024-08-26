@@ -2,20 +2,20 @@ pragma solidity 0.6.4;
 pragma experimental ABIEncoderV2;
 
 import "./System.sol";
-import "./lib/BytesLib.sol";
-import "./lib/BytesToTypes.sol";
-import "./lib/Memory.sol";
-import "./interface/ILightClient.sol";
-import "./interface/ISlashIndicator.sol";
-import "./interface/ITokenHub.sol";
-import "./interface/IRelayerHub.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/IBSCValidatorSet.sol";
-import "./interface/IApplication.sol";
-import "./interface/IStakeHub.sol";
-import "./lib/SafeMath.sol";
-import "./lib/RLPDecode.sol";
-import "./lib/CmnPkg.sol";
+import "./lib/0.6.x/BytesLib.sol";
+import "./lib/0.6.x/BytesToTypes.sol";
+import "./lib/0.6.x/Memory.sol";
+import "./interface/0.6.x/ILightClient.sol";
+import "./interface/0.6.x/ISlashIndicator.sol";
+import "./interface/0.6.x/ITokenHub.sol";
+import "./interface/0.6.x/IRelayerHub.sol";
+import "./interface/0.6.x/IParamSubscriber.sol";
+import "./interface/0.6.x/IBSCValidatorSet.sol";
+import "./interface/0.6.x/IApplication.sol";
+import "./interface/0.6.x/IStakeHub.sol";
+import "./lib/0.6.x/SafeMath.sol";
+import "./lib/0.6.x/RLPDecode.sol";
+import "./lib/0.6.x/CmnPkg.sol";
 
 interface ICrossChain {
     function registeredContractChannelMap(address, uint8) external view returns (bool);

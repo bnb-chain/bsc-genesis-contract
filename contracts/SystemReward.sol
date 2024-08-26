@@ -1,9 +1,9 @@
 pragma solidity 0.6.4;
 
 import "./System.sol";
-import "./lib/Memory.sol";
-import "./interface/IParamSubscriber.sol";
-import "./interface/ISystemReward.sol";
+import "./lib/0.6.x/Memory.sol";
+import "./interface/0.6.x/IParamSubscriber.sol";
+import "./interface/0.6.x/ISystemReward.sol";
 
 contract SystemReward is System, IParamSubscriber, ISystemReward {
     uint256 public constant MAX_REWARDS = 5e18;
