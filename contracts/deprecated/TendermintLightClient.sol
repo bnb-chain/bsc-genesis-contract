@@ -31,7 +31,27 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber {
     event paramChange(string key, bytes value);
 
     function init() external onlyNotInit {
-        revert("deprecated");
+        uint256 pointer;
+        uint256 length;
+        (pointer, length) = Memory.fromBytes(INIT_CONSENSUS_STATE_BYTES);
+
+        /* solium-disable-next-line */
+        assembly {
+            sstore(chainID_slot, mload(pointer))
+        }
+
+        ConsensusState memory cs;
+        uint64 height;
+        (cs, height) = decodeConsensusState(pointer, length, false);
+        cs.preValidatorSetChangeHeight = 0;
+        lightClientConsensusStates[height] = cs;
+
+        initialHeight = height;
+        latestHeight = height;
+        alreadyInit = true;
+        rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
+
+        emit initConsensusState(initialHeight, cs.appHash);
     }
 
     function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
@@ -71,6 +91,51 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber {
         }
 
         return string(chainIDStr);
+    }
+
+    // | chainID  | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
+    // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
+    /* solium-disable-next-line */
+    function decodeConsensusState(
+        uint256 ptr,
+        uint256 size,
+        bool leaveOutValidatorSet
+    ) internal pure returns (ConsensusState memory, uint64) {
+        ptr = ptr + 8;
+        uint64 height;
+        /* solium-disable-next-line */
+        assembly {
+            height := mload(ptr)
+        }
+
+        ptr = ptr + 32;
+        bytes32 appHash;
+        /* solium-disable-next-line */
+        assembly {
+            appHash := mload(ptr)
+        }
+
+        ptr = ptr + 32;
+        bytes32 curValidatorSetHash;
+        /* solium-disable-next-line */
+        assembly {
+            curValidatorSetHash := mload(ptr)
+        }
+
+        ConsensusState memory cs;
+        cs.appHash = appHash;
+        cs.curValidatorSetHash = curValidatorSetHash;
+
+        if (!leaveOutValidatorSet) {
+            uint256 dest;
+            uint256 length;
+            cs.nextValidatorSet = new bytes(size - 104);
+            (dest, length) = Memory.fromBytes(cs.nextValidatorSet);
+
+            Memory.copy(ptr + 32, dest, length);
+        }
+
+        return (cs, height);
     }
 
     function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {

@@ -47,7 +47,12 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     event rewardToRelayer(address relayer, uint256 amount);
 
     function init() external onlyNotInit {
-        revert("deprecated");
+        require(!alreadyInit, "already initialized");
+        headerRelayerRewardRateMolecule = HEADER_RELAYER_REWARD_RATE_MOLECULE;
+        headerRelayerRewardRateDenominator = HEADER_RELAYER_REWARD_RATE_DENOMINATOR;
+        callerCompensationMolecule = CALLER_COMPENSATION_MOLECULE;
+        callerCompensationDenominator = CALLER_COMPENSATION_DENOMINATOR;
+        alreadyInit = true;
     }
 
     receive() external payable {
@@ -64,7 +69,17 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     }
 
     function claimRelayerReward(address relayerAddr) external {
-        revert("deprecated");
+        uint256 reward = relayerRewardVault[relayerAddr];
+        require(reward > 0, "no relayer reward");
+        relayerRewardVault[relayerAddr] = 0;
+        address payable recipient = address(uint160(relayerAddr));
+        if (!recipient.send(reward)) {
+            address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
+            systemPayable.transfer(reward);
+            emit rewardToRelayer(SYSTEM_REWARD_ADDR, reward);
+            return;
+        }
+        emit rewardToRelayer(relayerAddr, reward);
     }
 
     function calculateTransferRelayerWeight(uint256 count) public pure returns (uint256) {

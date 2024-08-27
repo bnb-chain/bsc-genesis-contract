@@ -59,7 +59,9 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     event relayerAddedProvisionally(address _relayer);
 
     function init() external onlyNotInit {
-        revert("deprecated");
+        requiredDeposit = INIT_REQUIRED_DEPOSIT;
+        dues = INIT_DUES;
+        alreadyInit = true;
     }
 
     function unregister() external exist onlyInit {

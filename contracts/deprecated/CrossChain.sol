@@ -153,7 +153,13 @@ contract CrossChain is System, ICrossChain, IParamSubscriber {
     }
 
     function init() external onlyNotInit {
-        revert("deprecated");
+        batchSizeForOracle = INIT_BATCH_SIZE;
+
+        oracleSequence = -1;
+        previousTxHeight = 0;
+        txCounter = 0;
+
+        alreadyInit = true;
     }
 
     function encodePayload(

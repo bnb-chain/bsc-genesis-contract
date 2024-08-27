@@ -92,8 +92,8 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     bool public isSystemRewardIncluded;
 
     // BEP-294 BC-fusion
-    Validator[] private _tmpMigratedValidatorSet;
-    bytes[] private _tmpMigratedVoteAddrs;
+    Validator[] private _tmpMigratedValidatorSet; // @dev deprecated
+    bytes[] private _tmpMigratedVoteAddrs; // @dev deprecated
 
     // BEP-341 Validators can produce consecutive blocks
     uint256 public turnLength; // Consecutive number of blocks a validator receives priority for block production
@@ -226,35 +226,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
                 jailed: false,
                 incoming: 0
             });
-        }
-
-        // if staking channel is not closed, store the migrated validator set and return
-        if (
-            ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(
-                VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID
-            )
-        ) {
-            uint256 newLength = _validatorSet.length;
-            uint256 oldLength = _tmpMigratedValidatorSet.length;
-            if (oldLength > newLength) {
-                for (uint256 i = newLength; i < oldLength; ++i) {
-                    _tmpMigratedValidatorSet.pop();
-                    _tmpMigratedVoteAddrs.pop();
-                }
-            }
-
-            for (uint256 i; i < newLength; ++i) {
-                if (i >= oldLength) {
-                    _tmpMigratedValidatorSet.push(_validatorSet[i]);
-                    _tmpMigratedVoteAddrs.push(_voteAddrs[i]);
-                } else {
-                    _tmpMigratedValidatorSet[i] = _validatorSet[i];
-                    _tmpMigratedVoteAddrs[i] = _voteAddrs[i];
-                }
-            }
-
-            emit tmpValidatorSetUpdated(newLength);
-            return;
         }
 
         // step 0: force all maintaining validators to exit `Temporary Maintenance`
@@ -1118,11 +1089,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         isFelony = false;
         if (slashCount >= felonyThreshold) {
             _felony(validator, index);
-            if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
-                ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount, shouldRevert);
-            } else {
-                ISlashIndicator(SLASH_CONTRACT_ADDR).sendFelonyPackage(validator);
-            }
+            ISlashIndicator(SLASH_CONTRACT_ADDR).downtimeSlash(validator, slashCount, shouldRevert);
             isFelony = true;
         } else if (slashCount >= misdemeanorThreshold) {
             _misdemeanor(validator);

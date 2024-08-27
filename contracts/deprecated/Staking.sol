@@ -112,9 +112,7 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     event failedSynPackage(uint8 indexed eventType, uint256 errCode);
     event crashResponse(uint8 indexed eventType);
 
-    receive() external payable {
-        revert("deprecated");
-    }
+    receive() external payable { }
 
     /*----------------- Implement cross chain app -----------------*/
     function handleSynPackage(
