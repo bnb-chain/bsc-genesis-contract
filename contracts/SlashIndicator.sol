@@ -94,22 +94,15 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         uint8,
         bytes calldata
     ) external override onlyCrossChainContract onlyInit returns (bytes memory) {
-        require(false, "receive unexpected syn package");
+        revert("deprecated");
     }
 
     function handleAckPackage(uint8, bytes calldata msgBytes) external override onlyCrossChainContract onlyInit {
-        (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
-        if (ok) {
-            emit knownResponse(response.code);
-        } else {
-            emit unKnownResponse(response.code);
-        }
-        return;
+        revert("deprecated");
     }
 
     function handleFailAckPackage(uint8, bytes calldata) external override onlyCrossChainContract onlyInit {
-        emit crashResponse();
-        return;
+        revert("deprecated");
     }
 
     /*----------------- External func -----------------*/

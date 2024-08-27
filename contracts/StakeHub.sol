@@ -8,10 +8,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./SystemV2.sol";
 import "./extension/Protectable.sol";
 import "./interface/0.8.x/IBSCValidatorSet.sol";
-import "./interface/0.8.x/ICrossChain.sol";
 import "./interface/0.8.x/IGovToken.sol";
 import "./interface/0.8.x/IStakeCredit.sol";
-import "./interface/0.8.x/ITokenHub.sol";
 import "./lib/0.8.x/RLPDecode.sol";
 import "./lib/0.8.x/Utils.sol";
 
@@ -283,45 +281,15 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         uint8,
         bytes calldata msgBytes
     ) external onlyCrossChainContract whenNotPaused enableReceivingFund returns (bytes memory) {
-        (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
-        if (!decodeSuccess) revert InvalidSynPackage();
-
-        if (migrationPkg.amount == 0) {
-            return new bytes(0);
-        }
-
-        // claim fund from TokenHub
-        bool claimSuccess = ITokenHub(TOKEN_HUB_ADDR).claimMigrationFund(migrationPkg.amount);
-        if (!claimSuccess) {
-            emit MigrateFailed(
-                migrationPkg.operatorAddress,
-                migrationPkg.delegator,
-                migrationPkg.amount,
-                StakeMigrationRespCode.CLAIM_FUND_FAILED
-            );
-            return msgBytes;
-        }
-
-        StakeMigrationRespCode respCode = _doMigration(migrationPkg);
-
-        if (respCode == StakeMigrationRespCode.MIGRATE_SUCCESS) {
-            return new bytes(0);
-        } else {
-            (bool success,) = TOKEN_HUB_ADDR.call{ value: address(this).balance }("");
-            if (!success) revert TransferFailed();
-            emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, respCode);
-            return msgBytes;
-        }
+        revert("deprecated");
     }
 
     function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
-        // should not happen
-        emit UnexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
-        // should not happen
-        emit UnexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     /*----------------- external functions -----------------*/
@@ -1181,14 +1149,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
             // If staking channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
-            if (
-                !ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(
-                    VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID
-                )
-            ) {
-                emit ValidatorEmptyJailed(valInfo.operatorAddress);
-                return;
-            }
+            emit ValidatorEmptyJailed(valInfo.operatorAddress);
+            return;
         }
 
         if (jailUntil > valInfo.jailUntil) {
