@@ -199,13 +199,11 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external override onlyCrossChainContract {
-        // should not happen
-        emit unexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external override onlyCrossChainContract {
-        // should not happen
-        emit unexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     /*----------------- External Functions -----------------*/
