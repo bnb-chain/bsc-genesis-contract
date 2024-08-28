@@ -999,57 +999,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _decodeMigrationSynPackage(
-        bytes memory msgBytes
-    ) internal pure returns (StakeMigrationPackage memory, bool) {
-        StakeMigrationPackage memory migrationPackage;
-
-        RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
-        bool success = false;
-        uint256 idx = 0;
-        while (iter.hasNext()) {
-            if (idx == 0) {
-                migrationPackage.operatorAddress = address(uint160(iter.next().toAddress()));
-            } else if (idx == 1) {
-                migrationPackage.delegator = address(uint160(iter.next().toAddress()));
-            } else if (idx == 2) {
-                migrationPackage.refundAddress = address(uint160(iter.next().toAddress()));
-            } else if (idx == 3) {
-                migrationPackage.amount = iter.next().toUint();
-                success = true;
-            } else {
-                break;
-            }
-            ++idx;
-        }
-
-        return (migrationPackage, success);
-    }
-
-    function _doMigration(StakeMigrationPackage memory migrationPkg) internal returns (StakeMigrationRespCode) {
-        if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
-            return StakeMigrationRespCode.INVALID_DELEGATOR;
-        }
-
-        if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
-            return StakeMigrationRespCode.VALIDATOR_NOT_EXISTED;
-        }
-
-        Validator memory valInfo = _validators[migrationPkg.operatorAddress];
-        if (valInfo.jailed && migrationPkg.delegator != migrationPkg.operatorAddress) {
-            return StakeMigrationRespCode.VALIDATOR_JAILED;
-        }
-
-        uint256 shares =
-            IStakeCredit(valInfo.creditContract).delegate{ value: migrationPkg.amount }(migrationPkg.delegator);
-        emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
-        emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
-
-        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, migrationPkg.delegator);
-
-        return StakeMigrationRespCode.MIGRATE_SUCCESS;
-    }
-
     function _checkMoniker(string memory moniker) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
@@ -1143,8 +1092,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
-
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
