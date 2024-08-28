@@ -568,12 +568,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     function removeTmpMigratedValidator(address validator) external onlyStakeHub {
-        for (uint256 i; i < _tmpMigratedValidatorSet.length; ++i) {
-            if (_tmpMigratedValidatorSet[i].consensusAddress == validator) {
-                _tmpMigratedValidatorSet[i].jailed = true;
-                break;
-            }
-        }
+        revert("deprecated");
     }
 
     /*----------------- For Temporary Maintenance -----------------*/
@@ -1096,64 +1091,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
 
         emit validatorExitMaintenance(validator);
-    }
-
-    function _mergeValidatorSet(
-        Validator[] memory validatorSet1,
-        bytes[] memory voteAddrSet1,
-        Validator[] memory validatorSet2,
-        bytes[] memory voteAddrSet2
-    ) internal view returns (Validator[] memory, bytes[] memory) {
-        uint256 _length = IStakeHub(STAKE_HUB_ADDR).maxElectedValidators();
-        if (validatorSet1.length + validatorSet2.length < _length) {
-            _length = validatorSet1.length + validatorSet2.length;
-        }
-        Validator[] memory mergedValidatorSet = new Validator[](_length);
-        bytes[] memory mergedVoteAddrSet = new bytes[](_length);
-
-        uint256 i;
-        uint256 j;
-        uint256 k;
-        while ((i < validatorSet1.length || j < validatorSet2.length) && k < _length) {
-            if (i == validatorSet1.length) {
-                mergedValidatorSet[k] = validatorSet2[j];
-                mergedVoteAddrSet[k] = voteAddrSet2[j];
-                ++j;
-                ++k;
-                continue;
-            }
-
-            if (j == validatorSet2.length) {
-                mergedValidatorSet[k] = validatorSet1[i];
-                mergedVoteAddrSet[k] = voteAddrSet1[i];
-                ++i;
-                ++k;
-                continue;
-            }
-
-            if (validatorSet1[i].votingPower > validatorSet2[j].votingPower) {
-                mergedValidatorSet[k] = validatorSet1[i];
-                mergedVoteAddrSet[k] = voteAddrSet1[i];
-                ++i;
-            } else if (validatorSet1[i].votingPower < validatorSet2[j].votingPower) {
-                mergedValidatorSet[k] = validatorSet2[j];
-                mergedVoteAddrSet[k] = voteAddrSet2[j];
-                ++j;
-            } else {
-                if (validatorSet1[i].consensusAddress < validatorSet2[j].consensusAddress) {
-                    mergedValidatorSet[k] = validatorSet1[i];
-                    mergedVoteAddrSet[k] = voteAddrSet1[i];
-                    ++i;
-                } else {
-                    mergedValidatorSet[k] = validatorSet2[j];
-                    mergedVoteAddrSet[k] = voteAddrSet2[j];
-                    ++j;
-                }
-            }
-            ++k;
-        }
-
-        return (mergedValidatorSet, mergedVoteAddrSet);
     }
 
     //rlp encode & decode function
