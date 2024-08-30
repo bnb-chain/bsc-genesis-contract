@@ -5,21 +5,13 @@ import "./System.sol";
 import "./lib/0.6.x/BytesLib.sol";
 import "./lib/0.6.x/BytesToTypes.sol";
 import "./lib/0.6.x/Memory.sol";
-import "./interface/0.6.x/ILightClient.sol";
 import "./interface/0.6.x/ISlashIndicator.sol";
-import "./interface/0.6.x/ITokenHub.sol";
-import "./interface/0.6.x/IRelayerHub.sol";
 import "./interface/0.6.x/IParamSubscriber.sol";
 import "./interface/0.6.x/IBSCValidatorSet.sol";
 import "./interface/0.6.x/IApplication.sol";
 import "./interface/0.6.x/IStakeHub.sol";
 import "./lib/0.6.x/SafeMath.sol";
 import "./lib/0.6.x/RLPDecode.sol";
-import "./lib/0.6.x/CmnPkg.sol";
-
-interface ICrossChain {
-    function registeredContractChannelMap(address, uint8) external view returns (bool);
-}
 
 contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplication {
     using SafeMath for uint256;
@@ -85,7 +77,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     uint256 public systemRewardBaseRatio;
     uint256 public previousHeight;
-    uint256 public previousBalanceOfSystemReward; // deprecated
+    uint256 public previousBalanceOfSystemReward; // @dev deprecated
     bytes[] public previousVoteAddrFullSet;
     bytes[] public currentVoteAddrFullSet;
     bool public isSystemRewardIncluded;

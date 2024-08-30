@@ -10,10 +10,8 @@ import "./interface/0.6.x/ISlashIndicator.sol";
 import "./interface/0.6.x/IApplication.sol";
 import "./interface/0.6.x/IBSCValidatorSet.sol";
 import "./interface/0.6.x/IParamSubscriber.sol";
-import "./interface/0.6.x/ICrossChain.sol";
 import "./interface/0.6.x/ISystemReward.sol";
 import "./interface/0.6.x/IStakeHub.sol";
-import "./lib/0.6.x/CmnPkg.sol";
 import "./lib/0.6.x/RLPEncode.sol";
 
 contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplication {
@@ -46,13 +44,13 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     uint256 public felonySlashScope;
 
     event validatorSlashed(address indexed validator);
-    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
+    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);  // @dev deprecated
     event indicatorCleaned();
     event paramChange(string key, bytes value);
 
-    event knownResponse(uint32 code);
-    event unKnownResponse(uint32 code);
-    event crashResponse();
+    event knownResponse(uint32 code);  // @dev deprecated
+    event unKnownResponse(uint32 code);  // @dev deprecated
+    event crashResponse();  // @dev deprecated
 
     event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
 
