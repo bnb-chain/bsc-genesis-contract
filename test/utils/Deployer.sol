@@ -168,13 +168,8 @@ contract Deployer is Test {
     }
 
     function _updateParamByGovHub(bytes memory key, bytes memory value, address addr) internal {
-        bytes[] memory elements = new bytes[](3);
-        elements[0] = key.encodeBytes();
-        elements[1] = value.encodeBytes();
-        elements[2] = addr.encodeAddress();
-
-        vm.startPrank(address(crossChain));
-        govHub.handleSynPackage(GOV_CHANNELID, elements.encodeList());
+        vm.startPrank(address(TIMELOCK_ADDR));
+        govHub.updateParam(string(key), value, addr);
         vm.stopPrank();
     }
 
