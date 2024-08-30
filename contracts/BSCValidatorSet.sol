@@ -34,7 +34,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     // the precision of cross chain value transfer.
     uint256 public constant PRECISION = 1e10;
-    uint256 public constant EXPIRE_TIME_SECOND_GAP = 1000;
     uint256 public constant MAX_NUM_OF_VALIDATORS = 100;
 
     bytes public constant INIT_VALIDATORSET_BYTES =
@@ -50,19 +49,19 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     /*----------------- state of the contract -----------------*/
     Validator[] public currentValidatorSet;
-    uint256 public expireTimeSecondGap;
+    uint256 public expireTimeSecondGap;  // @dev deprecated
     uint256 public totalInComing;
 
     // key is the `consensusAddress` of `Validator`,
     // value is the index of the element in `currentValidatorSet`.
     mapping(address => uint256) public currentValidatorSetMap;
-    uint256 public numOfJailed;
+    uint256 public numOfJailed; // @dev deprecated
 
     uint256 public constant BLOCK_FEES_RATIO_SCALE = 10000;
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
     uint256 public constant INIT_BURN_RATIO = 1000;
     uint256 public burnRatio;
-    bool public burnRatioInitialized; // deprecated
+    bool public burnRatioInitialized; // @dev deprecated
 
     // BEP-127 Temporary Maintenance
     uint256 public constant INIT_MAX_NUM_OF_MAINTAINING = 3;
@@ -120,7 +119,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     /*----------------- cross chain package -----------------*/
-    struct IbcValidatorSetPackage {
+    struct ValidatorSetPackage {
         uint8 packageType;
         Validator[] validatorSet;
         bytes[] voteAddrs;
@@ -177,14 +176,13 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     /*----------------- init -----------------*/
     function init() external onlyNotInit {
-        (IbcValidatorSetPackage memory validatorSetPkg, bool valid) =
-            decodeValidatorSetSynPackage(INIT_VALIDATORSET_BYTES);
+        (ValidatorSetPackage memory validatorSetPkg, bool valid) =
+            getValidatorSet(INIT_VALIDATORSET_BYTES);
         require(valid, "failed to parse init validatorSet");
         for (uint256 i; i < validatorSetPkg.validatorSet.length; ++i) {
             currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
             currentValidatorSetMap[validatorSetPkg.validatorSet[i].consensusAddress] = i + 1;
         }
-        expireTimeSecondGap = EXPIRE_TIME_SECOND_GAP;
         alreadyInit = true;
     }
 
@@ -626,15 +624,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     /*----------------- Param update -----------------*/
     function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {
-        if (Memory.compareStrings(key, "expireTimeSecondGap")) {
-            require(value.length == 32, "length of expireTimeSecondGap mismatch");
-            uint256 newExpireTimeSecondGap = BytesToTypes.bytesToUint256(32, value);
-            require(
-                newExpireTimeSecondGap >= 100 && newExpireTimeSecondGap <= 1e5,
-                "the expireTimeSecondGap is out of range"
-            );
-            expireTimeSecondGap = newExpireTimeSecondGap;
-        } else if (Memory.compareStrings(key, "burnRatio")) {
+        if (Memory.compareStrings(key, "burnRatio")) {
             require(value.length == 32, "length of burnRatio mismatch");
             uint256 newBurnRatio = BytesToTypes.bytesToUint256(32, value);
             require(
@@ -1093,13 +1083,12 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit validatorExitMaintenance(validator);
     }
 
-    //rlp encode & decode function
-    function decodeValidatorSetSynPackage(bytes memory msgBytes)
+    function getValidatorSet(bytes memory msgBytes)
         internal
         pure
-        returns (IbcValidatorSetPackage memory, bool)
+        returns (ValidatorSetPackage memory, bool)
     {
-        IbcValidatorSetPackage memory validatorSetPkg;
+        ValidatorSetPackage memory validatorSetPkg;
 
         RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
         bool success = false;

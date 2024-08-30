@@ -28,12 +28,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     mapping(address => bool) relayManagersExistMap;
-    mapping(address => address) managerToRelayer;
+    mapping(address => address) managerToRelayer;  // @dev deprecated
     mapping(address => bool) currentRelayers;
     mapping(address => bool) provisionalRelayers;
-    mapping(address => address) managerToProvisionalRelayer;
+    mapping(address => address) managerToProvisionalRelayer;  // @dev deprecated
 
-    bool public whitelistInitDone;
+    bool public whitelistInitDone;  // @dev deprecated
 
     modifier onlyManager() {
         require(relayManagersExistMap[msg.sender], "manager does not exist");
@@ -51,12 +51,12 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     event relayerUnRegister(address _relayer);
-    event paramChange(string key, bytes value);
+    event paramChange(string key, bytes value);  // @dev deprecated
 
-    event managerRemoved(address _removedManager);
-    event managerAdded(address _addedManager);
-    event relayerUpdated(address _from, address _to);
-    event relayerAddedProvisionally(address _relayer);
+    event managerRemoved(address _removedManager);  // @dev deprecated
+    event managerAdded(address _addedManager);  // @dev deprecated
+    event relayerUpdated(address _from, address _to);  // @dev deprecated
+    event relayerAddedProvisionally(address _relayer);  // @dev deprecated
 
     function init() external onlyNotInit {
         requiredDeposit = INIT_REQUIRED_DEPOSIT;

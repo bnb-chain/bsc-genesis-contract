@@ -24,26 +24,26 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     uint256 public callerCompensationMolecule;
     uint256 public callerCompensationDenominator;
 
-    mapping(address => uint256) public headerRelayersSubmitCount;
-    address payable[] public headerRelayerAddressRecord;
+    mapping(address => uint256) public headerRelayersSubmitCount;  // @dev deprecated
+    address payable[] public headerRelayerAddressRecord;  // @dev deprecated
 
-    mapping(address => uint256) public packageRelayersSubmitCount;
-    address payable[] public packageRelayerAddressRecord;
+    mapping(address => uint256) public packageRelayersSubmitCount;  // @dev deprecated
+    address payable[] public packageRelayerAddressRecord;  // @dev deprecated
 
-    uint256 public collectedRewardForHeaderRelayer = 0;
-    uint256 public collectedRewardForTransferRelayer = 0;
+    uint256 public collectedRewardForHeaderRelayer = 0;  // @dev deprecated
+    uint256 public collectedRewardForTransferRelayer = 0;  // @dev deprecated
 
-    uint256 public roundSequence = 0;
-    uint256 public countInRound = 0;
+    uint256 public roundSequence = 0;  // @dev deprecated
+    uint256 public countInRound = 0;  // @dev deprecated
 
     mapping(address => uint256) public relayerRewardVault;
 
-    uint256 public dynamicExtraIncentiveAmount;
+    uint256 public dynamicExtraIncentiveAmount;  // @dev deprecated
 
     event distributeCollectedReward(
         uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer
-    );
-    event paramChange(string key, bytes value);
+    );  // @dev deprecated
+    event paramChange(string key, bytes value);  // @dev deprecated
     event rewardToRelayer(address relayer, uint256 amount);
 
     function init() external onlyNotInit {
@@ -55,9 +55,7 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
         alreadyInit = true;
     }
 
-    receive() external payable {
-        revert("deprecated");
-    }
+    receive() external payable { }
 
     function addReward(
         address payable headerRelayerAddr,

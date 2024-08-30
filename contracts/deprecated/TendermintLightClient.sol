@@ -1,9 +1,7 @@
 pragma solidity 0.6.4;
 
 import "../lib/0.6.x/Memory.sol";
-import "../lib/0.6.x/BytesToTypes.sol";
 import "../interface/0.6.x/ILightClient.sol";
-import "../interface/0.6.x/ISystemReward.sol";
 import "../interface/0.6.x/IParamSubscriber.sol";
 import "../System.sol";
 
@@ -26,9 +24,9 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber {
     uint256 public constant INIT_REWARD_FOR_VALIDATOR_SER_CHANGE = 1e16;
     uint256 public rewardForValidatorSetChange;
 
-    event initConsensusState(uint64 initHeight, bytes32 appHash);
-    event syncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);
-    event paramChange(string key, bytes value);
+    event initConsensusState(uint64 initHeight, bytes32 appHash);  // @dev deprecated
+    event syncConsensusState(uint64 height, uint64 preValidatorSetChangeHeight, bytes32 appHash, bool validatorChanged);  // @dev deprecated
+    event paramChange(string key, bytes value);  // @dev deprecated
 
     function init() external onlyNotInit {
         uint256 pointer;
@@ -40,18 +38,8 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber {
             sstore(chainID_slot, mload(pointer))
         }
 
-        ConsensusState memory cs;
-        uint64 height;
-        (cs, height) = decodeConsensusState(pointer, length, false);
-        cs.preValidatorSetChangeHeight = 0;
-        lightClientConsensusStates[height] = cs;
-
-        initialHeight = height;
-        latestHeight = height;
         alreadyInit = true;
         rewardForValidatorSetChange = INIT_REWARD_FOR_VALIDATOR_SER_CHANGE;
-
-        emit initConsensusState(initialHeight, cs.appHash);
     }
 
     function syncTendermintHeader(bytes calldata header, uint64 height) external onlyRelayer returns (bool) {
@@ -91,51 +79,6 @@ contract TendermintLightClient is ILightClient, System, IParamSubscriber {
         }
 
         return string(chainIDStr);
-    }
-
-    // | chainID  | height   | appHash  | curValidatorSetHash | [{validator pubkey, voting power}] |
-    // | 32 bytes  | 8 bytes  | 32 bytes | 32 bytes            | [{32 bytes, 8 bytes}]              |
-    /* solium-disable-next-line */
-    function decodeConsensusState(
-        uint256 ptr,
-        uint256 size,
-        bool leaveOutValidatorSet
-    ) internal pure returns (ConsensusState memory, uint64) {
-        ptr = ptr + 8;
-        uint64 height;
-        /* solium-disable-next-line */
-        assembly {
-            height := mload(ptr)
-        }
-
-        ptr = ptr + 32;
-        bytes32 appHash;
-        /* solium-disable-next-line */
-        assembly {
-            appHash := mload(ptr)
-        }
-
-        ptr = ptr + 32;
-        bytes32 curValidatorSetHash;
-        /* solium-disable-next-line */
-        assembly {
-            curValidatorSetHash := mload(ptr)
-        }
-
-        ConsensusState memory cs;
-        cs.appHash = appHash;
-        cs.curValidatorSetHash = curValidatorSetHash;
-
-        if (!leaveOutValidatorSet) {
-            uint256 dest;
-            uint256 length;
-            cs.nextValidatorSet = new bytes(size - 104);
-            (dest, length) = Memory.fromBytes(cs.nextValidatorSet);
-
-            Memory.copy(ptr + 32, dest, length);
-        }
-
-        return (cs, height);
     }
 
     function updateParam(string calldata key, bytes calldata value) external override onlyInit onlyGov {

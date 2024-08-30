@@ -125,8 +125,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     mapping(bytes => uint256) public voteExpiration;
 
     // legacy addresses of BC
-    mapping(address => bool) private _legacyConsensusAddress;
-    mapping(bytes => bool) private _legacyVoteAddress;
+    mapping(address => bool) private _legacyConsensusAddress;  // @dev deprecated
+    mapping(bytes => bool) private _legacyVoteAddress;  // @dev deprecated
 
     // total number of current jailed validators
     uint256 public numOfJailed;
@@ -221,11 +221,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);  // @dev deprecated
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
-    );
-    event UnexpectedPackage(uint8 channelId, bytes msgBytes);
+    );  // @dev deprecated
+    event UnexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     /*----------------- modifiers -----------------*/
