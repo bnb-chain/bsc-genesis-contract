@@ -1,9 +1,7 @@
 pragma solidity 0.6.4;
 
 import "../interface/0.6.x/IBEP20.sol";
-import "../interface/0.6.x/ITokenHub.sol";
 import "../interface/0.6.x/IApplication.sol";
-import "../interface/0.6.x/ICrossChain.sol";
 import "../interface/0.6.x/IParamSubscriber.sol";
 import "../lib/0.6.x/SafeMath.sol";
 import "../lib/0.6.x/RLPEncode.sol";
@@ -28,52 +26,6 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         uint256 peggyAmount;
         uint8 bep20Decimals;
         uint64 expireTime;
-    }
-
-    // BSC to BC
-    struct ReactBindSynPackage {
-        uint32 status;
-        bytes32 bep2TokenSymbol;
-    }
-
-    // BSC to BC
-    struct MirrorSynPackage {
-        address mirrorSender;
-        address bep20Addr;
-        bytes32 bep20Name;
-        bytes32 bep20Symbol;
-        uint256 bep20Supply;
-        uint8 bep20Decimals;
-        uint256 mirrorFee;
-        uint64 expireTime;
-    }
-
-    // BC to BSC
-    struct MirrorAckPackage {
-        address mirrorSender;
-        address bep20Addr;
-        uint8 bep20Decimals;
-        bytes32 bep2Symbol;
-        uint256 mirrorFee;
-        uint8 errorCode;
-    }
-
-    // BSC to BC
-    struct SyncSynPackage {
-        address syncSender;
-        address bep20Addr;
-        bytes32 bep2Symbol;
-        uint256 bep20Supply;
-        uint256 syncFee;
-        uint64 expireTime;
-    }
-
-    // BC to BSC
-    struct SyncAckPackage {
-        address syncSender;
-        address bep20Addr;
-        uint256 syncFee;
-        uint8 errorCode;
     }
 
     uint8 public constant BIND_PACKAGE = 0;
@@ -109,19 +61,19 @@ contract TokenManager is System, IApplication, IParamSubscriber {
 
     mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
-    mapping(address => bool) public mirrorPendingRecord;
-    mapping(address => bool) public boundByMirror;
-    uint256 public mirrorFee;
-    uint256 public syncFee;
+    mapping(address => bool) public mirrorPendingRecord;  // @dev deprecated
+    mapping(address => bool) public boundByMirror;  // @dev deprecated
+    uint256 public mirrorFee;  // @dev deprecated
+    uint256 public syncFee;  // @dev deprecated
 
-    event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);
-    event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
-    event paramChange(string key, bytes value);
-    event mirrorSuccess(address indexed bep20Addr, bytes32 bep2Symbol);
-    event mirrorFailure(address indexed bep20Addr, uint8 errCode);
-    event syncSuccess(address indexed bep20Addr);
-    event syncFailure(address indexed bep20Addr, uint8 errCode);
+    event bindSuccess(address indexed contractAddr, string bep2Symbol, uint256 totalSupply, uint256 peggyAmount);  // @dev deprecated
+    event bindFailure(address indexed contractAddr, string bep2Symbol, uint32 failedReason);  // @dev deprecated
+    event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
+    event paramChange(string key, bytes value);  // @dev deprecated
+    event mirrorSuccess(address indexed bep20Addr, bytes32 bep2Symbol);  // @dev deprecated
+    event mirrorFailure(address indexed bep20Addr, uint8 errCode);  // @dev deprecated
+    event syncSuccess(address indexed bep20Addr);  // @dev deprecated
+    event syncFailure(address indexed bep20Addr, uint8 errCode);  // @dev deprecated
 
     function handleSynPackage(
         uint8 channelId,

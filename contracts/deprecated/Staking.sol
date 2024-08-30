@@ -2,13 +2,8 @@ pragma solidity 0.6.4;
 
 import "../System.sol";
 import "../interface/0.6.x/IApplication.sol";
-import "../interface/0.6.x/ICrossChain.sol";
 import "../interface/0.6.x/IParamSubscriber.sol";
 import "../interface/0.6.x/IStaking.sol";
-import "../interface/0.6.x/ITokenHub.sol";
-import "../lib/0.6.x/BytesToTypes.sol";
-import "../lib/0.6.x/BytesLib.sol";
-import "../lib/0.6.x/CmnPkg.sol";
 import "../lib/0.6.x/Memory.sol";
 import "../lib/0.6.x/RLPEncode.sol";
 import "../lib/0.6.x/RLPDecode.sol";
@@ -52,13 +47,13 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     mapping(address => uint256) undelegated; // delegator => totalUndelegated
     mapping(address => mapping(address => mapping(address => uint256))) pendingRedelegateTime; // delegator => srcValidator => dstValidator => minTime
 
-    mapping(uint256 => bytes32) packageQueue; // index => package's hash
+    mapping(uint256 => bytes32) packageQueue; // index => package's hash  // @dev deprecated
     mapping(address => uint256) delegateInFly; // delegator => delegate request in fly
     mapping(address => uint256) undelegateInFly; // delegator => undelegate request in fly
     mapping(address => uint256) redelegateInFly; // delegator => redelegate request in fly
 
-    uint256 internal leftIndex;
-    uint256 internal rightIndex;
+    uint256 internal leftIndex;  // @dev deprecated
+    uint256 internal rightIndex;  // @dev deprecated
     uint8 internal locked;
 
     uint256 public transferGas; // this param is newly added after the hardfork on testnet. It need to be initialed by governed
@@ -87,30 +82,30 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     }
 
     /*----------------- Events -----------------*/
-    event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
-    event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);
+    event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);  // @dev deprecated
+    event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);  // @dev deprecated
     event redelegateSubmitted(
         address indexed delegator,
         address indexed validatorSrc,
         address indexed validatorDst,
         uint256 amount,
         uint256 relayerFee
-    );
-    event rewardReceived(address indexed delegator, uint256 amount);
+    );  // @dev deprecated
+    event rewardReceived(address indexed delegator, uint256 amount);  // @dev deprecated
     event rewardClaimed(address indexed delegator, uint256 amount);
-    event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);
+    event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);  // @dev deprecated
     event undelegatedClaimed(address indexed delegator, uint256 amount);
-    event delegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
-    event undelegateSuccess(address indexed delegator, address indexed validator, uint256 amount);
-    event redelegateSuccess(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount);
-    event delegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
-    event undelegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);
+    event delegateSuccess(address indexed delegator, address indexed validator, uint256 amount);  // @dev deprecated
+    event undelegateSuccess(address indexed delegator, address indexed validator, uint256 amount);  // @dev deprecated
+    event redelegateSuccess(address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount);  // @dev deprecated
+    event delegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);  // @dev deprecated
+    event undelegateFailed(address indexed delegator, address indexed validator, uint256 amount, uint8 errCode);  // @dev deprecated
     event redelegateFailed(
         address indexed delegator, address indexed valSrc, address indexed valDst, uint256 amount, uint8 errCode
-    );
-    event paramChange(string key, bytes value);
-    event failedSynPackage(uint8 indexed eventType, uint256 errCode);
-    event crashResponse(uint8 indexed eventType);
+    );  // @dev deprecated
+    event paramChange(string key, bytes value);  // @dev deprecated
+    event failedSynPackage(uint8 indexed eventType, uint256 errCode);  // @dev deprecated
+    event crashResponse(uint8 indexed eventType);  // @dev deprecated
 
     receive() external payable { }
 
