@@ -4,12 +4,10 @@ import "./interface/0.6.x/IBEP20.sol";
 import "./interface/0.6.x/ITokenHub.sol";
 import "./interface/0.6.x/IParamSubscriber.sol";
 import "./interface/0.6.x/IApplication.sol";
-import "./interface/0.6.x/ICrossChain.sol";
 import "./interface/0.6.x/ISystemReward.sol";
 import "./lib/0.6.x/SafeMath.sol";
 import "./lib/0.6.x/RLPEncode.sol";
 import "./lib/0.6.x/RLPDecode.sol";
-import "./lib/0.6.x/BytesToTypes.sol";
 import "./lib/0.6.x/Memory.sol";
 import "./System.sol";
 
@@ -21,42 +19,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     using RLPDecode for RLPDecode.RLPItem;
     using RLPDecode for RLPDecode.Iterator;
-
-    // BSC to BC
-    struct TransferOutSynPackage {
-        bytes32 bep2TokenSymbol;
-        address contractAddr;
-        uint256[] amounts;
-        address[] recipients;
-        address[] refundAddrs;
-        uint64 expireTime;
-    }
-
-    // BC to BSC
-    struct TransferOutAckPackage {
-        address contractAddr;
-        uint256[] refundAmounts;
-        address[] refundAddrs;
-        uint32 status;
-    }
-
-    // BC to BSC
-    struct TransferInSynPackage {
-        bytes32 bep2TokenSymbol;
-        address contractAddr;
-        uint256 amount;
-        address recipient;
-        address refundAddr;
-        uint64 expireTime;
-    }
-
-    // BSC to BC
-    struct TransferInRefundPackage {
-        bytes32 bep2TokenSymbol;
-        uint256 refundAmount;
-        address refundAddr;
-        uint32 status;
-    }
 
     // BEP-171: Security Enhancement for Cross-Chain Module
     struct LockInfo {
@@ -95,29 +57,29 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 public constant INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
     uint256 public constant INIT_LOCK_PERIOD = 12 hours;
     // the lock period for large cross-chain transfer
-    uint256 public lockPeriod;
+    uint256 public lockPeriod;  // @dev deprecated
     // the lock Period for token recover
     uint256 public constant LOCK_PERIOD_FOR_TOKEN_RECOVER = 7 days;
     // token address => largeTransferLimit amount, address(0) means BNB
-    mapping(address => uint256) public largeTransferLimitMap;
+    mapping(address => uint256) public largeTransferLimitMap;  // @dev deprecated
     // token address => recipient address => lockedAmount + unlockAt, address(0) means BNB
     mapping(address => mapping(address => LockInfo)) public lockInfoMap;
     uint8 internal reentryLock;
 
-    event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);
-    event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);
-    event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
-    event refundFailure(address bep20Addr, address refundAddr, uint256 amount, uint32 status);
+    event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);  // @dev deprecated
+    event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);  // @dev deprecated
+    event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);  // @dev deprecated
+    event refundFailure(address bep20Addr, address refundAddr, uint256 amount, uint32 status);  // @dev deprecated
     event rewardTo(address to, uint256 amount);
     event receiveDeposit(address from, uint256 amount);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
-    event paramChange(string key, bytes value);
+    event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
+    event paramChange(string key, bytes value);  // @dev deprecated
 
     // BEP-171: Security Enhancement for Cross-Chain Module
-    event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);
+    event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);  // @dev deprecated
     event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
-    event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);
-    event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);
+    event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);  // @dev deprecated
+    event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);  // @dev deprecated
 
     // BEP-299: Token Migration after BC Fusion
     event TokenRecoverLocked(
