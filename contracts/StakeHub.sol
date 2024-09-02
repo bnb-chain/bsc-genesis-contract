@@ -10,11 +10,9 @@ import "./extension/Protectable.sol";
 import "./interface/0.8.x/IBSCValidatorSet.sol";
 import "./interface/0.8.x/IGovToken.sol";
 import "./interface/0.8.x/IStakeCredit.sol";
-import "./lib/0.8.x/RLPDecode.sol";
 import "./lib/0.8.x/Utils.sol";
 
 contract StakeHub is SystemV2, Initializable, Protectable {
-    using RLPDecode for *;
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -120,11 +118,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     mapping(bytes => uint256) public voteExpiration;
 
     // legacy addresses of BC
-    mapping(address => bool) private _legacyConsensusAddress;  // @dev deprecated
-    mapping(bytes => bool) private _legacyVoteAddress;  // @dev deprecated
+    mapping(address => bool) private _legacyConsensusAddress; // @dev deprecated
+    mapping(bytes => bool) private _legacyVoteAddress; // @dev deprecated
 
     // total number of current jailed validators
-    uint256 public numOfJailed;  // @dev deprecated
+    uint256 public numOfJailed; // @dev deprecated
     // max number of jailed validators between breathe block(only for malicious vote and double sign)
     uint256 public maxFelonyBetweenBreatheBlock;
     // index(timestamp / breatheBlockInterval) => number of malicious vote and double sign slash
@@ -216,11 +214,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);  // @dev deprecated
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount); // @dev deprecated
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
-    );  // @dev deprecated
-    event UnexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
+    ); // @dev deprecated
+    event UnexpectedPackage(uint8 channelId, bytes msgBytes); // @dev deprecated
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     /*----------------- modifiers -----------------*/

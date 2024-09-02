@@ -4,18 +4,10 @@ import "../interface/0.6.x/IBEP20.sol";
 import "../interface/0.6.x/IApplication.sol";
 import "../interface/0.6.x/IParamSubscriber.sol";
 import "../lib/0.6.x/SafeMath.sol";
-import "../lib/0.6.x/RLPEncode.sol";
-import "../lib/0.6.x/RLPDecode.sol";
 import "../System.sol";
 
 contract TokenManager is System, IApplication, IParamSubscriber {
     using SafeMath for uint256;
-
-    using RLPEncode for *;
-    using RLPDecode for *;
-
-    using RLPDecode for RLPDecode.RLPItem;
-    using RLPDecode for RLPDecode.Iterator;
 
     // BC to BSC
     struct BindSynPackage {

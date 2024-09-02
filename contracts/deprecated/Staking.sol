@@ -4,15 +4,10 @@ import "../System.sol";
 import "../interface/0.6.x/IApplication.sol";
 import "../interface/0.6.x/IParamSubscriber.sol";
 import "../interface/0.6.x/IStaking.sol";
-import "../lib/0.6.x/Memory.sol";
-import "../lib/0.6.x/RLPEncode.sol";
-import "../lib/0.6.x/RLPDecode.sol";
 import "../lib/0.6.x/SafeMath.sol";
 
 contract Staking is IStaking, System, IParamSubscriber, IApplication {
     using SafeMath for uint256;
-    using RLPEncode for *;
-    using RLPDecode for *;
 
     // Cross Stake Event type
     uint8 public constant EVENT_DELEGATE = 0x01;

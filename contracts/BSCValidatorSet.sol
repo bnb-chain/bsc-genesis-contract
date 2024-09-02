@@ -18,23 +18,15 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     using RLPDecode for *;
 
-    // will not transfer value less than 0.1 BNB for validators
-    uint256 public constant DUSTY_INCOMING = 1e17;
-
-    uint8 public constant JAIL_MESSAGE_TYPE = 1;
-    uint8 public constant VALIDATORS_UPDATE_MESSAGE_TYPE = 0;
-
-    // the precision of cross chain value transfer.
-    uint256 public constant PRECISION = 1e10;
     uint256 public constant MAX_NUM_OF_VALIDATORS = 100;
 
     bytes public constant INIT_VALIDATORSET_BYTES =
         hex"f905ec80f905e8f846942a7cdd959bfe8d9487b2a43b33565295a698f7e294b6a7edd747c0554875d3fc531d19ba1497992c5e941ff80f3f7f110ffd8920a3ac38fdef318fe94a3f86048c27395000f846946488aa4d1955ee33403f8ccb1d4de5fb97c7ade294220f003d8bdfaadf52aa1e55ae4cc485e6794875941a87e90e440a39c99aa9cb5cea0ad6a3f0b2407b86048c27395000f846949ef9f4360c606c7ab4db26b016007d3ad0ab86a0946103af86a874b705854033438383c82575f25bc29418e2db06cbff3e3c5f856410a1838649e760175786048c27395000f84694ee01c3b1283aa067c58eab4709f85e99d46de5fe94ee4b9bfb1871c64e2bcabb1dc382dc8b7c4218a29415904ab26ab0e99d70b51c220ccdcccabee6e29786048c27395000f84694685b1ded8013785d6623cc18d214320b6bb6475994a20ef4e5e4e7e36258dbf51f4d905114cb1b34bc9413e39085dc88704f4394d35209a02b1a9520320c86048c27395000f8469478f3adfc719c99674c072166708589033e2d9afe9448a30d5eaa7b64492a160f139e2da2800ec3834e94055838358c29edf4dcc1ba1985ad58aedbb6be2b86048c27395000f84694c2be4ec20253b8642161bc3f444f53679c1f3d479466f50c616d737e60d7ca6311ff0d9c434197898a94d1d678a2506eeaa365056fe565df8bc8659f28b086048c27395000f846942f7be8361c80a4c1e7e9aaf001d0877f1cfde218945f93992ac37f3e61db2ef8a587a436a161fd210b94ecbc4fb1a97861344dad0867ca3cba2b860411f086048c27395000f84694ce2fd7544e0b2cc94692d4a704debef7bcb613289444abc67b4b2fba283c582387f54c9cba7c34bafa948acc2ab395ded08bb75ce85bf0f95ad2abc51ad586048c27395000f84694b8f7166496996a7da21cf1f1b04d9b3e26a3d077946770572763289aac606e4f327c2f6cc1aa3b3e3b94882d745ed97d4422ca8da1c22ec49d880c4c097286048c27395000f846942d4c407bbe49438ed859fe965b140dcf1aab71a9943ad0939e120f33518fbba04631afe7a3ed6327b194b2bbb170ca4e499a2b0f3cc85ebfa6e8c4dfcbea86048c27395000f846946bbad7cf34b5fa511d8e963dbba288b1960e75d694853b0f6c324d1f4e76c8266942337ac1b0af1a229442498946a51ca5924552ead6fc2af08b94fcba648601d1a94a2000f846944430b3230294d12c6ab2aac5c2cd68e80b16b581947b107f4976a252a6939b771202c28e64e03f52d694795811a7f214084116949fc4f53cedbf189eeab28601d1a94a2000f84694ea0a6e3c511bbd10f4519ece37dc24887e11b55d946811ca77acfb221a49393c193f3a22db829fcc8e9464feb7c04830dd9ace164fc5c52b3f5a29e5018a8601d1a94a2000f846947ae2f5b9e386cd1b50a4550696d957cb4900f03a94e83bcc5077e6b873995c24bac871b5ad856047e19464e48d4057a90b233e026c1041e6012ada897fe88601d1a94a2000f8469482012708dafc9e1b880fd083b32182b869be8e09948e5adc73a2d233a1b496ed3115464dd6c7b887509428b383d324bc9a37f4e276190796ba5a8947f5ed8601d1a94a2000f8469422b81f8e175ffde54d797fe11eb03f9e3bf75f1d94a1c3ef7ca38d8ba80cce3bfc53ebd2903ed21658942767f7447f7b9b70313d4147b795414aecea54718601d1a94a2000f8469468bf0b8b6fb4e317a0f9d6f03eaf8ce6675bc60d94675cfe570b7902623f47e7f59c9664b5f5065dcf94d84f0d2e50bcf00f2fc476e1c57f5ca2d57f625b8601d1a94a2000f846948c4d90829ce8f72d0163c1d5cf348a862d5506309485c42a7b34309bee2ed6a235f86d16f059deec5894cc2cedc53f0fa6d376336efb67e43d167169f3b78601d1a94a2000f8469435e7a025f4da968de7e4d7e4004197917f4070f194b1182abaeeb3b4d8eba7e6a4162eac7ace23d57394c4fd0d870da52e73de2dd8ded19fe3d26f43a1138601d1a94a2000f84694d6caa02bbebaebb5d7e581e4b66559e635f805ff94c07335cf083c1c46a487f0325769d88e163b653694efaff03b42e41f953a925fc43720e45fb61a19938601d1a94a2000";
 
-    uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;
-    uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;
-    uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 103;
-    uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 104;
+    uint32 public constant ERROR_UNKNOWN_PACKAGE_TYPE = 101;  // @dev deprecated
+    uint32 public constant ERROR_FAIL_CHECK_VALIDATORS = 102;  // @dev deprecated
+    uint32 public constant ERROR_LEN_OF_VAL_MISMATCH = 103;  // @dev deprecated
+    uint32 public constant ERROR_RELAYFEE_TOO_LARGE = 104;  // @dev deprecated
 
     uint256 public constant INIT_NUM_OF_CABINETS = 21;
     uint256 public constant EPOCH = 200;
@@ -144,27 +136,27 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     /*----------------- events -----------------*/
     event validatorSetUpdated();
-    event validatorJailed(address indexed validator);
-    event validatorEmptyJailed(address indexed validator);
-    event batchTransfer(uint256 amount);
-    event batchTransferFailed(uint256 indexed amount, string reason);
-    event batchTransferLowerFailed(uint256 indexed amount, bytes reason);
+    event validatorJailed(address indexed validator);  // @dev deprecated
+    event validatorEmptyJailed(address indexed validator);  // @dev deprecated
+    event batchTransfer(uint256 amount);  // @dev deprecated
+    event batchTransferFailed(uint256 indexed amount, string reason);  // @dev deprecated
+    event batchTransferLowerFailed(uint256 indexed amount, bytes reason);  // @dev deprecated
     event systemTransfer(uint256 amount);
-    event directTransfer(address payable indexed validator, uint256 amount);
-    event directTransferFail(address payable indexed validator, uint256 amount);
+    event directTransfer(address payable indexed validator, uint256 amount);  // @dev deprecated
+    event directTransferFail(address payable indexed validator, uint256 amount);  // @dev deprecated
     event deprecatedDeposit(address indexed validator, uint256 amount);
     event validatorDeposit(address indexed validator, uint256 amount);
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorFelony(address indexed validator, uint256 amount);
-    event failReasonWithStr(string message);
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);
+    event failReasonWithStr(string message);  // @dev deprecated
+    event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
     event paramChange(string key, bytes value);
     event feeBurned(uint256 amount);
     event validatorEnterMaintenance(address indexed validator);
     event validatorExitMaintenance(address indexed validator);
     event finalityRewardDeposit(address indexed validator, uint256 amount);
     event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
-    event tmpValidatorSetUpdated(uint256 validatorsNum);
+    event tmpValidatorSetUpdated(uint256 validatorsNum);  // @dev deprecated
 
     /*----------------- init -----------------*/
     function init() external onlyNotInit {
@@ -242,7 +234,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
         // step 3: do update validator set state
         totalInComing = 0;
-        numOfJailed = 0;
         if (validatorSetTemp.length != 0) {
             doUpdateState(validatorSetTemp, voteAddrsTemp);
         }

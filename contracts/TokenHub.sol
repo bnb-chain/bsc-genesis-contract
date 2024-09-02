@@ -6,19 +6,10 @@ import "./interface/0.6.x/IParamSubscriber.sol";
 import "./interface/0.6.x/IApplication.sol";
 import "./interface/0.6.x/ISystemReward.sol";
 import "./lib/0.6.x/SafeMath.sol";
-import "./lib/0.6.x/RLPEncode.sol";
-import "./lib/0.6.x/RLPDecode.sol";
-import "./lib/0.6.x/Memory.sol";
 import "./System.sol";
 
 contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemReward {
     using SafeMath for uint256;
-
-    using RLPEncode for *;
-    using RLPDecode for *;
-
-    using RLPDecode for RLPDecode.RLPItem;
-    using RLPDecode for RLPDecode.Iterator;
 
     // BEP-171: Security Enhancement for Cross-Chain Module
     struct LockInfo {
