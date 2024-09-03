@@ -98,18 +98,12 @@ def generate_cross_chain(init_batch_size="50"):
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
 
-    replace_parameter(contract, "uint256 public constant CROSS_CHAIN_KEY_PREFIX", f"0x01{hex_chain_id}00")
-    replace_parameter(contract, "uint256 public constant INIT_BATCH_SIZE", f"{init_batch_size}")
-
 
 def generate_relayer_hub(whitelist_1, whitelist_2):
     contract = "deprecated/RelayerHub.sol"
     backup_file(
         os.path.join(work_dir, "contracts", contract), os.path.join(work_dir, "contracts", contract[:-4] + ".bak")
     )
-
-    replace_parameter(contract, "address public constant WHITELIST_1", f"{whitelist_1}")
-    replace_parameter(contract, "address public constant WHITELIST_2", f"{whitelist_2}")
 
     if network == "dev":
         replace(contract, r"function whitelistInit\(\) external", "function whitelistInit() public")
@@ -140,8 +134,6 @@ def generate_stake_hub(
     )
 
     replace_parameter(contract, "uint256 public constant BREATHE_BLOCK_INTERVAL", f"{breathe_block_interval}")
-    replace_parameter(contract, "bytes private constant INIT_BC_CONSENSUS_ADDRESSES", f"{init_bc_consensus_addresses}")
-    replace_parameter(contract, "bytes private constant INIT_BC_VOTE_ADDRESSES", f"{init_bc_vote_addresses}")
 
     replace(contract, r"maxElectedValidators = .*;", f"maxElectedValidators = {max_elected_validators};")
     replace(contract, r"unbondPeriod = .*;", f"unbondPeriod = {unbond_period};")
