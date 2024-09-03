@@ -214,12 +214,13 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
+    event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
+
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount); // @dev deprecated
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
     ); // @dev deprecated
     event UnexpectedPackage(uint8 channelId, bytes msgBytes); // @dev deprecated
-    event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
     /*----------------- modifiers -----------------*/
     modifier validatorExist(address operatorAddress) {
