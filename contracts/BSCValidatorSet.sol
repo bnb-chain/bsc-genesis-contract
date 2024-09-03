@@ -97,7 +97,6 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         uint256[19] slots;
     }
 
-    /*----------------- cross chain package -----------------*/
     struct ValidatorSetPackage {
         uint8 packageType;
         Validator[] validatorSet;
@@ -157,7 +156,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     /*----------------- init -----------------*/
     function init() external onlyNotInit {
         (ValidatorSetPackage memory validatorSetPkg, bool valid) =
-            getValidatorSet(INIT_VALIDATORSET_BYTES);
+            decodeValidatorSet(INIT_VALIDATORSET_BYTES);
         require(valid, "failed to parse init validatorSet");
         for (uint256 i; i < validatorSetPkg.validatorSet.length; ++i) {
             currentValidatorSet.push(validatorSetPkg.validatorSet[i]);
@@ -1062,7 +1061,7 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         emit validatorExitMaintenance(validator);
     }
 
-    function getValidatorSet(bytes memory msgBytes)
+    function decodeValidatorSet(bytes memory msgBytes)
         internal
         pure
         returns (ValidatorSetPackage memory, bool)

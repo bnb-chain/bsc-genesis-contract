@@ -8,10 +8,7 @@ contract System {
     bool public alreadyInit;
 
     uint32 public constant CODE_OK = 0;
-
-    uint8 public constant STAKING_CHANNELID = 0x08;
     uint16 public constant bscChainID = 0x0038;
-
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;

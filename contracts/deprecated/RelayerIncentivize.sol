@@ -64,20 +64,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
         revert("deprecated");
     }
 
-    function claimRelayerReward(address relayerAddr) external {
-        uint256 reward = relayerRewardVault[relayerAddr];
-        require(reward > 0, "no relayer reward");
-        relayerRewardVault[relayerAddr] = 0;
-        address payable recipient = address(uint160(relayerAddr));
-        if (!recipient.send(reward)) {
-            address payable systemPayable = address(uint160(SYSTEM_REWARD_ADDR));
-            systemPayable.transfer(reward);
-            emit rewardToRelayer(SYSTEM_REWARD_ADDR, reward);
-            return;
-        }
-        emit rewardToRelayer(relayerAddr, reward);
-    }
-
     function updateParam(string calldata key, bytes calldata value) external override onlyGov {
         revert("deprecated");
     }

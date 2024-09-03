@@ -116,14 +116,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         return actualAmount;
     }
 
-    function claimMigrationFund(uint256 amount) external onlyStakeHub returns (bool) {
-        if (address(this).balance >= amount) {
-            payable(STAKE_HUB_ADDR).transfer(amount);
-            return true;
-        }
-        return false;
-    }
-
     function getMiniRelayFee() external view override returns (uint256) {
         return relayFee;
     }
