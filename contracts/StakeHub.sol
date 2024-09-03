@@ -317,10 +317,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
         if (agentToOperator[operatorAddress] != address(0)) revert InvalidValidator();
 
-        if (consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
+        if (consensusToOperator[consensusAddress] != address(0)) {
             revert DuplicateConsensusAddress();
         }
-        if (voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
+        if (voteToOperator[voteAddress] != address(0)) {
             revert DuplicateVoteAddress();
         }
         bytes32 monikerHash = keccak256(abi.encodePacked(description.moniker));
@@ -369,7 +369,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         address newConsensusAddress
     ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
-        if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
+        if (consensusToOperator[newConsensusAddress] != address(0)) {
             revert DuplicateConsensusAddress();
         }
 
@@ -436,7 +436,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         // proof-of-possession verify
         address operatorAddress = _bep410MsgSender();
         if (!_checkVoteAddress(operatorAddress, newVoteAddress, blsProof)) revert InvalidVoteAddress();
-        if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
+        if (voteToOperator[newVoteAddress] != address(0)) {
             revert DuplicateVoteAddress();
         }
 
