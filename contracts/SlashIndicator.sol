@@ -44,15 +44,14 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     uint256 public felonySlashScope;
 
     event validatorSlashed(address indexed validator);
-    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);  // @dev deprecated
     event indicatorCleaned();
     event paramChange(string key, bytes value);
+    event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
 
+    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);  // @dev deprecated
     event knownResponse(uint32 code);  // @dev deprecated
     event unKnownResponse(uint32 code);  // @dev deprecated
     event crashResponse();  // @dev deprecated
-
-    event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
 
     struct Indicator {
         uint256 height;

@@ -51,8 +51,8 @@ contract RelayerHub is IRelayerHub, System, IParamSubscriber {
     }
 
     event relayerUnRegister(address _relayer);
-    event paramChange(string key, bytes value);  // @dev deprecated
 
+    event paramChange(string key, bytes value);  // @dev deprecated
     event managerRemoved(address _removedManager);  // @dev deprecated
     event managerAdded(address _addedManager);  // @dev deprecated
     event relayerUpdated(address _from, address _to);  // @dev deprecated

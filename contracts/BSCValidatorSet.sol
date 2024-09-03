@@ -136,26 +136,27 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
 
     /*----------------- events -----------------*/
     event validatorSetUpdated();
-    event validatorJailed(address indexed validator);  // @dev deprecated
-    event validatorEmptyJailed(address indexed validator);  // @dev deprecated
-    event batchTransfer(uint256 amount);  // @dev deprecated
-    event batchTransferFailed(uint256 indexed amount, string reason);  // @dev deprecated
-    event batchTransferLowerFailed(uint256 indexed amount, bytes reason);  // @dev deprecated
     event systemTransfer(uint256 amount);
-    event directTransfer(address payable indexed validator, uint256 amount);  // @dev deprecated
-    event directTransferFail(address payable indexed validator, uint256 amount);  // @dev deprecated
     event deprecatedDeposit(address indexed validator, uint256 amount);
     event validatorDeposit(address indexed validator, uint256 amount);
     event validatorMisdemeanor(address indexed validator, uint256 amount);
     event validatorFelony(address indexed validator, uint256 amount);
-    event failReasonWithStr(string message);  // @dev deprecated
-    event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
     event paramChange(string key, bytes value);
     event feeBurned(uint256 amount);
     event validatorEnterMaintenance(address indexed validator);
     event validatorExitMaintenance(address indexed validator);
     event finalityRewardDeposit(address indexed validator, uint256 amount);
     event deprecatedFinalityRewardDeposit(address indexed validator, uint256 amount);
+
+    event validatorJailed(address indexed validator);  // @dev deprecated
+    event validatorEmptyJailed(address indexed validator);  // @dev deprecated
+    event batchTransfer(uint256 amount);  // @dev deprecated
+    event batchTransferFailed(uint256 indexed amount, string reason);  // @dev deprecated
+    event batchTransferLowerFailed(uint256 indexed amount, bytes reason);  // @dev deprecated
+    event directTransfer(address payable indexed validator, uint256 amount);  // @dev deprecated
+    event directTransferFail(address payable indexed validator, uint256 amount);  // @dev deprecated
+    event failReasonWithStr(string message);  // @dev deprecated
+    event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
     event tmpValidatorSetUpdated(uint256 validatorsNum);  // @dev deprecated
 
     /*----------------- init -----------------*/

@@ -57,18 +57,17 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     mapping(address => mapping(address => LockInfo)) public lockInfoMap;
     uint8 internal reentryLock;
 
+    event rewardTo(address to, uint256 amount);
+    event receiveDeposit(address from, uint256 amount);
+    event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
+
     event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);  // @dev deprecated
     event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);  // @dev deprecated
     event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);  // @dev deprecated
     event refundFailure(address bep20Addr, address refundAddr, uint256 amount, uint32 status);  // @dev deprecated
-    event rewardTo(address to, uint256 amount);
-    event receiveDeposit(address from, uint256 amount);
     event unexpectedPackage(uint8 channelId, bytes msgBytes);  // @dev deprecated
     event paramChange(string key, bytes value);  // @dev deprecated
-
-    // BEP-171: Security Enhancement for Cross-Chain Module
     event LargeTransferLocked(address indexed tokenAddr, address indexed recipient, uint256 amount, uint256 unlockAt);  // @dev deprecated
-    event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
     event CancelTransfer(address indexed tokenAddr, address indexed attacker, uint256 amount);  // @dev deprecated
     event LargeTransferLimitSet(address indexed tokenAddr, address indexed owner, uint256 largeTransferLimit);  // @dev deprecated
 

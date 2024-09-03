@@ -40,11 +40,12 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
 
     uint256 public dynamicExtraIncentiveAmount;  // @dev deprecated
 
+    event rewardToRelayer(address relayer, uint256 amount);
+
     event distributeCollectedReward(
         uint256 sequence, uint256 roundRewardForHeaderRelayer, uint256 roundRewardForTransferRelayer
     );  // @dev deprecated
     event paramChange(string key, bytes value);  // @dev deprecated
-    event rewardToRelayer(address relayer, uint256 amount);
 
     function init() external onlyNotInit {
         require(!alreadyInit, "already initialized");

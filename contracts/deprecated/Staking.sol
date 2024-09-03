@@ -77,6 +77,8 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
     }
 
     /*----------------- Events -----------------*/
+    event rewardClaimed(address indexed delegator, uint256 amount);
+
     event delegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);  // @dev deprecated
     event undelegateSubmitted(address indexed delegator, address indexed validator, uint256 amount, uint256 relayerFee);  // @dev deprecated
     event redelegateSubmitted(
@@ -87,7 +89,6 @@ contract Staking is IStaking, System, IParamSubscriber, IApplication {
         uint256 relayerFee
     );  // @dev deprecated
     event rewardReceived(address indexed delegator, uint256 amount);  // @dev deprecated
-    event rewardClaimed(address indexed delegator, uint256 amount);
     event undelegatedReceived(address indexed delegator, address indexed validator, uint256 amount);  // @dev deprecated
     event undelegatedClaimed(address indexed delegator, uint256 amount);
     event delegateSuccess(address indexed delegator, address indexed validator, uint256 amount);  // @dev deprecated
