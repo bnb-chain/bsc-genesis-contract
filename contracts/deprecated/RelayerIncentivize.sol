@@ -11,9 +11,6 @@ import "../interface/0.6.x/ISystemReward.sol";
 contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
     using SafeMath for uint256;
 
-    uint256 public constant ROUND_SIZE = 100;
-    uint256 public constant MAXIMUM_WEIGHT = 40;
-
     uint256 public constant HEADER_RELAYER_REWARD_RATE_MOLECULE = 1;
     uint256 public constant HEADER_RELAYER_REWARD_RATE_DENOMINATOR = 5;
     uint256 public constant CALLER_COMPENSATION_MOLECULE = 1;
@@ -79,26 +76,6 @@ contract RelayerIncentivize is IRelayerIncentivize, System, IParamSubscriber {
             return;
         }
         emit rewardToRelayer(relayerAddr, reward);
-    }
-
-    function calculateTransferRelayerWeight(uint256 count) public pure returns (uint256) {
-        if (count <= MAXIMUM_WEIGHT) {
-            return count;
-        } else if (MAXIMUM_WEIGHT < count && count <= 2 * MAXIMUM_WEIGHT) {
-            return MAXIMUM_WEIGHT;
-        } else if (2 * MAXIMUM_WEIGHT < count && count <= (2 * MAXIMUM_WEIGHT + 3 * MAXIMUM_WEIGHT / 4)) {
-            return 3 * MAXIMUM_WEIGHT - count;
-        } else {
-            return count / 4;
-        }
-    }
-
-    function calculateHeaderRelayerWeight(uint256 count) public pure returns (uint256) {
-        if (count <= MAXIMUM_WEIGHT) {
-            return count;
-        } else {
-            return MAXIMUM_WEIGHT;
-        }
     }
 
     function updateParam(string calldata key, bytes calldata value) external override onlyGov {

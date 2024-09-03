@@ -20,37 +20,6 @@ contract TokenManager is System, IApplication, IParamSubscriber {
         uint64 expireTime;
     }
 
-    uint8 public constant BIND_PACKAGE = 0;
-    uint8 public constant UNBIND_PACKAGE = 1;
-
-    // bind status
-    uint8 public constant BIND_STATUS_TIMEOUT = 1;
-    uint8 public constant BIND_STATUS_SYMBOL_MISMATCH = 2;
-    uint8 public constant BIND_STATUS_TOO_MUCH_TOKENHUB_BALANCE = 3;
-    uint8 public constant BIND_STATUS_TOTAL_SUPPLY_MISMATCH = 4;
-    uint8 public constant BIND_STATUS_DECIMALS_MISMATCH = 5;
-    uint8 public constant BIND_STATUS_ALREADY_BOUND_TOKEN = 6;
-    uint8 public constant BIND_STATUS_REJECTED = 7;
-
-    uint8 public constant MIRROR_CHANNELID = 0x04;
-    uint8 public constant SYNC_CHANNELID = 0x05;
-    uint8 public constant BEP2_TOKEN_DECIMALS = 8;
-    uint256 public constant MAX_GAS_FOR_TRANSFER_BNB = 10000;
-    uint256 public constant MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
-    uint256 public constant LOG_MAX_UINT256 = 77;
-    // mirror status
-    uint8 public constant MIRROR_STATUS_TIMEOUT = 1;
-    uint8 public constant MIRROR_STATUS_DUPLICATED_BEP2_SYMBOL = 2;
-    uint8 public constant MIRROR_STATUS_ALREADY_BOUND = 3;
-    // sync status
-    uint8 public constant SYNC_STATUS_TIMEOUT = 1;
-    uint8 public constant SYNC_STATUS_NOT_BOUND_MIRROR = 2;
-
-    uint8 public constant MINIMUM_BEP20_SYMBOL_LEN = 2;
-    uint8 public constant MAXIMUM_BEP20_SYMBOL_LEN = 8;
-
-    uint256 public constant TEN_DECIMALS = 1e10;
-
     mapping(bytes32 => BindSynPackage) public bindPackageRecord;
 
     mapping(address => bool) public mirrorPendingRecord;  // @dev deprecated

@@ -17,22 +17,10 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         uint256 unlockAt;
     }
 
-    // transfer in channel
-    uint8 public constant TRANSFER_IN_SUCCESS = 0;
-    uint8 public constant TRANSFER_IN_FAILURE_TIMEOUT = 1;
-    uint8 public constant TRANSFER_IN_FAILURE_UNBOUND_TOKEN = 2;
-    uint8 public constant TRANSFER_IN_FAILURE_INSUFFICIENT_BALANCE = 3;
-    uint8 public constant TRANSFER_IN_FAILURE_NON_PAYABLE_RECIPIENT = 4;
-    uint8 public constant TRANSFER_IN_FAILURE_UNKNOWN = 5;
-
     uint256 public constant MAX_BEP2_TOTAL_SUPPLY = 9000000000000000000;
-    uint8 public constant MINIMUM_BEP20_SYMBOL_LEN = 2;
-    uint8 public constant MAXIMUM_BEP20_SYMBOL_LEN = 8;
     uint8 public constant BEP2_TOKEN_DECIMALS = 8;
     bytes32 public constant BEP2_TOKEN_SYMBOL_FOR_BNB =
         0x424E420000000000000000000000000000000000000000000000000000000000; // "BNB"
-    uint256 public constant MAX_GAS_FOR_CALLING_BEP20 = 50000;
-    uint256 public constant MAX_GAS_FOR_TRANSFER_BNB = 10000;
 
     uint256 public constant INIT_MINIMUM_RELAY_FEE = 2e15;
     uint256 public constant REWARD_UPPER_LIMIT = 1e18;
@@ -45,8 +33,6 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     mapping(bytes32 => address) private bep2SymbolToContractAddr;
 
     // BEP-171: Security Enhancement for Cross-Chain Module
-    uint256 public constant INIT_BNB_LARGE_TRANSFER_LIMIT = 10000 ether;
-    uint256 public constant INIT_LOCK_PERIOD = 12 hours;
     // the lock period for large cross-chain transfer
     uint256 public lockPeriod;  // @dev deprecated
     // the lock Period for token recover

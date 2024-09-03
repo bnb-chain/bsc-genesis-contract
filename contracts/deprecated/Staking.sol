@@ -9,22 +9,7 @@ import "../lib/0.6.x/SafeMath.sol";
 contract Staking is IStaking, System, IParamSubscriber, IApplication {
     using SafeMath for uint256;
 
-    // Cross Stake Event type
-    uint8 public constant EVENT_DELEGATE = 0x01;
-    uint8 public constant EVENT_UNDELEGATE = 0x02;
-    uint8 public constant EVENT_REDELEGATE = 0x03;
-    uint8 public constant EVENT_DISTRIBUTE_REWARD = 0x04;
-    uint8 public constant EVENT_DISTRIBUTE_UNDELEGATED = 0x05;
-
-    // ack package status code
-    uint8 public constant CODE_FAILED = 0;
-    uint8 public constant CODE_SUCCESS = 1;
-
-    // Error code
-    uint32 public constant ERROR_WITHDRAW_BNB = 101;
-
     uint256 public constant TEN_DECIMALS = 1e10;
-    uint256 public constant LOCK_TIME = 8 days; // 8*24*3600 second
 
     uint256 public constant INIT_RELAYER_FEE = 16 * 1e15;
     uint256 public constant INIT_BSC_RELAYER_FEE = 1 * 1e16;

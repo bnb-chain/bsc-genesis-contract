@@ -5,8 +5,6 @@ import "./interface/0.6.x/IParamSubscriber.sol";
 import "./interface/0.6.x/IApplication.sol";
 
 contract GovHub is System, IApplication {
-    uint8 public constant PARAM_UPDATE_MESSAGE_TYPE = 0;
-
     uint32 public constant ERROR_TARGET_NOT_CONTRACT = 101;
     uint32 public constant ERROR_TARGET_CONTRACT_FAIL = 102;
 
