@@ -122,7 +122,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     mapping(bytes => bool) private _legacyVoteAddress; // @dev deprecated
 
     // total number of current jailed validators
-    uint256 public numOfJailed; // @dev deprecated
+    uint256 public numOfJailed;
     // max number of jailed validators between breathe block(only for malicious vote and double sign)
     uint256 public maxFelonyBetweenBreatheBlock;
     // index(timestamp / breatheBlockInterval) => number of malicious vote and double sign slash
