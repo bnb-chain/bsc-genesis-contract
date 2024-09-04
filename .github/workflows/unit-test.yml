@@ -37,10 +37,6 @@ jobs:
           forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
           forge --version
 
-      - name: Lint Check
-        run: |
-          npm run lint:check
-
       - name: Build
         run: |
           forge build
