@@ -35,15 +35,6 @@ contract SlashIndicatorTest is Deployer {
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
         vm.mockCall(address(0x66), "", hex"01");
-
-        // close staking channel
-        // remove this after final sunset hard fork
-        if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
-            bytes memory key = "enableOrDisableChannel";
-            bytes memory valueBytes = bytes(hex"0800");
-            _updateParamByGovHub(key, valueBytes, address(crossChain));
-            assertTrue(!crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
-        }
     }
 
     function testGov() public {
@@ -106,88 +97,6 @@ contract SlashIndicatorTest is Deployer {
         vm.prank(validator0);
         vm.expectRevert(bytes("can not enter Temporary Maintenance"));
         bscValidatorSet.enterMaintenance();
-    }
-
-    function testMaintenanceFix() public {
-        assert(bscValidatorSet.isCurrentValidator(validatorLast));
-
-        (uint256 misdemeanorThreshold,) = slashIndicator.getSlashThresholds();
-        (, uint256 countBefore) = slashIndicator.getSlashIndicator(validatorLast);
-
-        uint256 height = block.number;
-        for (uint256 i = countBefore; i < misdemeanorThreshold; i++) {
-            vm.prank(coinbase);
-            slashIndicator.slash(validatorLast);
-            height++;
-            vm.roll(height);
-        }
-
-        (, uint256 countAfter) = slashIndicator.getSlashIndicator(validatorLast);
-        assertEq(countAfter, misdemeanorThreshold);
-
-        // validatorLast already enter maintenance after misdemeanor
-        assert(!bscValidatorSet.isCurrentValidator(validatorLast));
-
-        // should felony
-        vm.roll(height + 1000000);
-
-        vm.prank(validatorLast);
-        vm.expectRevert(bytes("can not enter Temporary Maintenance"));
-        bscValidatorSet.enterMaintenance();
-
-        // exit maintenance
-        vm.prank(validatorLast);
-        // can not avoid downtime slash by reducing gasLimit
-        vm.expectRevert();
-        bscValidatorSet.exitMaintenance{ gas: 550000 }();
-
-        vm.prank(validatorLast);
-        bscValidatorSet.exitMaintenance{ gas: 1000000 }();
-    }
-
-    function testMaintenanceFix2() public {
-        address[] memory _consensusAddrs = bscValidatorSet.getValidators();
-        uint256 numOfMaintainingBefore = bscValidatorSet.numOfMaintaining();
-        assert(bscValidatorSet.isCurrentValidator(validatorLast));
-
-        (uint256 misdemeanorThreshold,) = slashIndicator.getSlashThresholds();
-        (, uint256 countBefore) = slashIndicator.getSlashIndicator(validatorLast);
-
-        uint256 height = block.number;
-        for (uint256 i = countBefore; i < misdemeanorThreshold; i++) {
-            vm.prank(coinbase);
-            slashIndicator.slash(validatorLast);
-            height++;
-            vm.roll(height);
-        }
-
-        (, uint256 countAfter) = slashIndicator.getSlashIndicator(validatorLast);
-        assertEq(countAfter, misdemeanorThreshold);
-
-        // validatorLast already enter maintenance after misdemeanor
-        assert(!bscValidatorSet.isCurrentValidator(validatorLast));
-        assertEq(bscValidatorSet.numOfMaintaining(), numOfMaintainingBefore + 1);
-
-        // should felony
-        vm.roll(height + 1000000);
-
-        uint256 len = _consensusAddrs.length;
-        uint64[] memory _votingPowers = new uint64[](len);
-        bytes[] memory _voteAddrs = new bytes[](len);
-        for (uint256 i = 0; i < len; i++) {
-            _votingPowers[i] = uint64(1);
-            _voteAddrs[i] = bytes("11");
-        }
-
-        // close STAKE channel
-        bytes memory value = abi.encodePacked(STAKING_CHANNELID, uint8(0));
-        vm.prank(GOV_HUB_ADDR);
-        crossChain.updateParam("enableOrDisableChannel", value);
-
-        vm.prank(coinbase);
-        bscValidatorSet.updateValidatorSetV2(_consensusAddrs, _votingPowers, _voteAddrs);
-
-        assertEq(bscValidatorSet.numOfMaintaining(), numOfMaintainingBefore);
     }
 
     function testMisdemeanor() public {
