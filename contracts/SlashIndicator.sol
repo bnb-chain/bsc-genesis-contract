@@ -252,20 +252,19 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             "verify signature failed"
         );
 
+        IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
+
         // reward sender and felony validator if validator found
-        // TODO: after BC-fusion, we don't need to check if validator is living
         (address[] memory vals, bytes[] memory voteAddrs) =
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
         for (uint256 i; i < voteAddrs.length; ++i) {
             if (BytesLib.equal(voteAddrs[i], _evidence.voteAddr)) {
                 uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
-                ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
                 IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
+                ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
                 break;
             }
         }
-
-        IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
     }
 
     function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
