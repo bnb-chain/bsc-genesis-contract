@@ -72,7 +72,9 @@ contract GovToken is
         _delegate(delegator, delegatee);
     }
 
-    function burn(uint256) public pure override {
+    function burn(
+        uint256
+    ) public pure override {
         revert BurnNotAllowed();
     }
 

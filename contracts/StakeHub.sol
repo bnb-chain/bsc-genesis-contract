@@ -223,7 +223,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event UnexpectedPackage(uint8 channelId, bytes msgBytes); // @dev deprecated
 
     /*----------------- modifiers -----------------*/
-    modifier validatorExist(address operatorAddress) {
+    modifier validatorExist(
+        address operatorAddress
+    ) {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted();
         _;
     }
@@ -278,7 +280,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @param newAgent the new agent address of the validator, updating to address(0) means remove the old agent.
      */
-    function updateAgent(address newAgent) external validatorExist(msg.sender) whenNotPaused notInBlackList {
+    function updateAgent(
+        address newAgent
+    ) external validatorExist(msg.sender) whenNotPaused notInBlackList {
         if (agentToOperator[newAgent] != address(0)) revert InvalidAgent();
         if (_validatorSet.contains(newAgent)) revert InvalidAgent();
 
@@ -455,7 +459,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @param operatorAddress the operator address of the validator to be unjailed
      */
-    function unjail(address operatorAddress) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
+    function unjail(
+        address operatorAddress
+    ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         if (!valInfo.jailed) revert ValidatorNotJailed();
 
@@ -620,7 +626,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev This function will be called by consensus engine. So it should never revert.
      */
-    function distributeReward(address consensusAddress) external payable onlyValidatorContract {
+    function distributeReward(
+        address consensusAddress
+    ) external payable onlyValidatorContract {
         address operatorAddress = consensusToOperator[consensusAddress];
         Validator memory valInfo = _validators[operatorAddress];
         if (valInfo.creditContract == address(0) || valInfo.jailed) {
@@ -638,7 +646,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Downtime slash. Only the `SlashIndicator` contract can call this function.
      */
-    function downtimeSlash(address consensusAddress) external onlySlash {
+    function downtimeSlash(
+        address consensusAddress
+    ) external onlySlash {
         address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -656,7 +666,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Malicious vote slash. Only the `SlashIndicator` contract can call this function.
      */
-    function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash whenNotPaused {
+    function maliciousVoteSlash(
+        bytes calldata voteAddress
+    ) external onlySlash whenNotPaused {
         address operatorAddress = voteToOperator[voteAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -686,7 +698,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Double sign slash. Only the `SlashIndicator` contract can call this function.
      */
-    function doubleSignSlash(address consensusAddress) external onlySlash whenNotPaused {
+    function doubleSignSlash(
+        address consensusAddress
+    ) external onlySlash whenNotPaused {
         address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -855,7 +869,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return consensusAddress the consensus address of the validator
      */
-    function getValidatorConsensusAddress(address operatorAddress) external view returns (address consensusAddress) {
+    function getValidatorConsensusAddress(
+        address operatorAddress
+    ) external view returns (address consensusAddress) {
         Validator memory valInfo = _validators[operatorAddress];
         consensusAddress = valInfo.consensusAddress;
     }
@@ -867,7 +883,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return creditContract the credit contract address of the validator
      */
-    function getValidatorCreditContract(address operatorAddress) external view returns (address creditContract) {
+    function getValidatorCreditContract(
+        address operatorAddress
+    ) external view returns (address creditContract) {
         Validator memory valInfo = _validators[operatorAddress];
         creditContract = valInfo.creditContract;
     }
@@ -879,7 +897,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return voteAddress the vote address of the validator
      */
-    function getValidatorVoteAddress(address operatorAddress) external view returns (bytes memory voteAddress) {
+    function getValidatorVoteAddress(
+        address operatorAddress
+    ) external view returns (bytes memory voteAddress) {
         Validator memory valInfo = _validators[operatorAddress];
         voteAddress = valInfo.voteAddress;
     }
@@ -981,7 +1001,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _checkMoniker(string memory moniker) internal pure returns (bool) {
+    function _checkMoniker(
+        string memory moniker
+    ) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
         // 1. moniker length should be between 3 and 9
@@ -1049,7 +1071,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         return creditProxy;
     }
 
-    function _checkValidatorSelfDelegation(address operatorAddress) internal {
+    function _checkValidatorSelfDelegation(
+        address operatorAddress
+    ) internal {
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.jailed) {
             return;
