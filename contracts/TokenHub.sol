@@ -105,15 +105,11 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
         address payable to,
         uint256 amount
     ) external override onlyInit onlyRelayerIncentivize returns (uint256) {
-        uint256 actualAmount = amount < address(this).balance ? amount : address(this).balance;
-        if (actualAmount > REWARD_UPPER_LIMIT) {
-            return 0;
-        }
-        if (actualAmount > 0) {
-            to.transfer(actualAmount);
-            emit rewardTo(to, actualAmount);
-        }
-        return actualAmount;
+        revert("deprecated");
+    }
+
+    function claimMigrationFund(uint256 amount) external onlyStakeHub returns (bool) {
+        revert("deprecated");
     }
 
     function getMiniRelayFee() external view override returns (uint256) {
