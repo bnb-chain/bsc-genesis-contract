@@ -97,7 +97,7 @@ const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: s
     const bytecode = clear0x(genesis['alloc'][addr]['code'])
 
     log('---------------------------------------------------------------------------')
-    log(contractName)
+    log(contractName, addr)
     log('bytecode from genesis:', bytecode.length, )
 
     const bytecodeFromBsc = getBytecodeFromBscRepo(contractName, files)
