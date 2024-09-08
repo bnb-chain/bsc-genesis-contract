@@ -47,12 +47,16 @@ jobs:
             console.log("PR description:", prBody);
             const p1 = prBody.indexOf('>CI')
             const p2 = prBody.indexOf('>CI', p1 + 1)
-            const info = prBody.substring(p1 + 3, p2)
-            console.log(p1, p2, info)
+            if (p1 < 0 || p2 < 0) {
+                throw new Error('PR description does not contain >CI tag');
+            }
+            
+            const info = JSON.parse(prBody.substring(p1 + 3, p2))
+            log('info', info, info.hardfork, info.bsc)
             return { prBody, info };
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
         run: |
-          export HARDFORK_NAME=${{ steps.extract_pr_description.outputs.info }}
+          export HARDFORK_NAME=${{ steps.extract_pr_description.outputs.info.hardfork }}
           export PR_BODY=${{ steps.extract_pr_description.outputs.prBody }}
           ts-node scripts/check-bsc-hardfork-bytecode.ts
