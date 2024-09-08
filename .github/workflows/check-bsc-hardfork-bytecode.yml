@@ -14,7 +14,7 @@ permissions:
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   # pull-requests: read
 jobs:
-  keyword_check:
+  check-keyword:
     runs-on: ubuntu-latest
     if: contains(github.event.pull_request.title, ' hardfork]')
     steps:
@@ -23,3 +23,12 @@ jobs:
 
       - name: Run your CI script
         run: echo ${{github.event.pull_request.title}}
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run your CI script
+        run: echo "Test"
