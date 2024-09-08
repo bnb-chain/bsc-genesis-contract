@@ -16,7 +16,7 @@ permissions:
 jobs:
   main:
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.body, 'hardfork:')
+    if: contains(github.event.pull_request.body, '>CI')
     steps:
       - uses: actions/checkout@master
       - name: Get yarn cache directory path
