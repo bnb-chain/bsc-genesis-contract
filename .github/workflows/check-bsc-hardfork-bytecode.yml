@@ -1,0 +1,25 @@
+name: Compare genesis with bytecode files from BSC repo
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types: [opened, edited, synchronize]
+    branches:
+      - master
+      - develop
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read
+jobs:
+  keyword_check:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.title, '[hardfork:')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Run your CI script
+        run: echo ${{github.event.pull_request.title}}
