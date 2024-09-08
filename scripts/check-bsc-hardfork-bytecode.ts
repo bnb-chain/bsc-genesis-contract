@@ -60,7 +60,7 @@ contractNameMap[TOKEN_RECOVER_PORTAL_ADDR] = 'TokenRecoverContract'
 
 let hardforkName = process.env.HARDFORK
 let bscUrl = process.env.BSC_URL
-let bscRepoDir = __dirname + '/bsc'
+let bscRepoDir = '/tmp/bsc'
 
 const checkHardforkBytecode = async () => {
   const bscHardforkBytecodeDir = bscRepoDir + '/core/systemcontracts/' + hardforkName
@@ -170,11 +170,18 @@ const main = async () => {
 
   log('hardforkName', hardforkName, 'commitId', commitId)
 
-  execSync(`git clone https://github.com/bnb-chain/bsc.git && cd bsc && git checkout ${commitId} && cd ..`)
+  execSync(`cd /tmp && git clone https://github.com/bnb-chain/bsc.git && cd bsc && git checkout ${commitId}`)
+
+  await sleep(5)
 
   await checkHardforkBytecode();
 
   log('All bytecode match!')
+};
+
+const sleep = async (seconds: number) => {
+  console.log('sleep', seconds, 's');
+  await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 };
 
 main()
