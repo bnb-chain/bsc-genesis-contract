@@ -16,7 +16,7 @@ permissions:
 jobs:
   keyword_check:
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.title, '[hardfork:')
+    if: contains(github.event.pull_request.title, ' hardfork]')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
