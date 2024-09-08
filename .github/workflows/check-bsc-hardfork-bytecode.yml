@@ -46,8 +46,8 @@ jobs:
 #            console.log("PR description:", prBody);
 #            return { prBody };
 
-      - name: Set environment variable from PR description
-        run: echo "PR_BODY=${{ steps.extract_pr_description.outputs.prBody }}" >> $GITHUB_ENV
+      - name: Extract PR description
+        run: echo "PR_BODY=${{ github.event.pull_request.body }}" >> $GITHUB_ENV
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
         run: |
