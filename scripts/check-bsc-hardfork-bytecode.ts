@@ -101,6 +101,11 @@ const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: s
     log('bytecode from genesis:', bytecode.length, )
 
     const bytecodeFromBsc = getBytecodeFromBscRepo(contractName, files)
+    if (!bytecodeFromBsc) {
+      log(`cannot find bytecode for ${contractName} in bsc repo`)
+      continue;
+    }
+
     log('bytecode from bsc repo:', bytecodeFromBsc.length, )
 
     if (bytecode === bytecodeFromBsc) {
@@ -111,14 +116,14 @@ const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: s
   }
 }
 
-const getBytecodeFromBscRepo = (contractName: string, files: string[]): string => {
+const getBytecodeFromBscRepo = (contractName: string, files: string[]): string | undefined => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     if (file.includes(`/${contractName}`)) {
       return clear0x((fs.readFileSync(file)).toString());
     }
   }
-  throw new Error(`cannot find bytecode for ${contractName} in bsc repo`)
+  return undefined
 }
 
 const searchFiles = async (searchDir: string, searchSuffix = ''): Promise<string[]> => {
