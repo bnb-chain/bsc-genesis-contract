@@ -58,8 +58,10 @@ contractNameMap[TIMELOCK_ADDR] = 'TimelockContract'
 const TOKEN_RECOVER_PORTAL_ADDR = '0x0000000000000000000000000000000000003000';
 contractNameMap[TOKEN_RECOVER_PORTAL_ADDR] = 'TokenRecoverContract'
 
-const bscRepoDir = process.env.BSC_REPO_DIR;
-const hardforkName = process.env.HARDFORK
+let hardforkName = process.env.HARDFORK
+let bscUrl = process.env.BSC_URL
+let bscRepoDir = __dirname + '/bsc'
+
 const checkHardforkBytecode = async () => {
   const bscHardforkBytecodeDir = bscRepoDir + '/core/systemcontracts/' + hardforkName
   const mainnetDir = bscHardforkBytecodeDir + '/mainnet'
@@ -151,15 +153,24 @@ const clear0x = (str: string) => {
 };
 
 const main = async () => {
-  log('process.env.HARDFORK', process.env.HARDFORK)
-  log('process.env.BSC_URL', process.env.BSC_URL)
 
-  if (!bscRepoDir) {
-    throw new Error('BSC_REPO_DIR is required in .env')
-  }
   if (!hardforkName) {
     throw new Error('HARDFORK is required in .env')
   }
+
+  if (!bscUrl) {
+    throw new Error('BSC_URL is required in .env')
+  }
+
+  hardforkName = hardforkName.trim()
+  bscUrl = bscUrl.trim()
+
+  const p= bscUrl.lastIndexOf('/')
+  const commitId = bscUrl.substring(p+1)
+
+  log('hardforkName', hardforkName, 'commitId', commitId)
+
+  execSync(`git clone https://github.com/bnb-chain/bsc.git && cd bsc && git checkout ${commitId} && cd ..`)
 
   await checkHardforkBytecode();
 
