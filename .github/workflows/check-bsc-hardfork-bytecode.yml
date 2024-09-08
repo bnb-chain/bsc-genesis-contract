@@ -57,6 +57,5 @@ jobs:
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
         run: |
-          export HARDFORK_NAME=${{ steps.extract_pr_description.outputs.info.hardfork }}
-          export PR_BODY=${{ steps.extract_pr_description.outputs.prBody }}
+          echo ${{ steps.extract_pr_description.outputs.info.hardfork }}
           ts-node scripts/check-bsc-hardfork-bytecode.ts
