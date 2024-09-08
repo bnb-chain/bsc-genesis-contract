@@ -14,21 +14,41 @@ permissions:
   # Optional: allow read access to pull request. Use with `only-new-issues` option.
   # pull-requests: read
 jobs:
-  check-keyword:
+  main:
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.title, ' hardfork]')
+    if: contains(github.event.pull_request.body, 'hardfork:')
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - uses: actions/checkout@master
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
 
-      - name: Run your CI script
-        run: echo ${{github.event.pull_request.title}}
+#      - name: Run your CI script
+#        run: echo ${{github.event.pull_request.title}}
 
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Install Project Dependencies
+        run: |
+          npm install ts-node -g
+          npm install
 
-      - name: Run your CI script
-        run: echo "Test"
+#      - name: Extract BSC commitId and hardfork name from PR description
+#        uses: actions/github-script@v6
+#        with:
+#          script: |
+#            const prBody = context.payload.pull_request.body || '';
+#            console.log("PR description:", prBody);
+#            return { prBody };
+
+      - name: Set environment variable from PR description
+        run: echo "PR_BODY=${{ steps.extract_pr_description.outputs.prBody }}" >> $GITHUB_ENV
+
+      - name: Compare genesis with hardfork bytecode files from BSC repo
+        run: |
+          ts-node scripts/check-bsc-hardfork-bytecode.ts
