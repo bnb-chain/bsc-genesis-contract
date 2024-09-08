@@ -151,13 +151,8 @@ const clear0x = (str: string) => {
 };
 
 const main = async () => {
-  const pr = process.env.PR_BODY
-  log('PR_BODY:', pr)
-  const info = process.env.info
-  log('info:', info)
-  const p1 = pr.indexOf('>CI')
-  const p2 = pr.indexOf('>CI', p1 + 1)
-  log(p1, p2, pr.substring(p1 + 3, p2))
+  log('process.env.HARDFORK', process.env.HARDFORK)
+  log('process.env.BSC_URL', process.env.BSC_URL)
 
   if (!bscRepoDir) {
     throw new Error('BSC_REPO_DIR is required in .env')

@@ -54,8 +54,10 @@ jobs:
             const info = JSON.parse(prBody.substring(p1 + 3, p2))
             console.log('info', info, info.hardfork, info.bsc)
             core.setOutput('hardfork', info.hardfork)
+            core.setOutput('bsc', info.bsc)
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
         run: |
-          echo ${{ steps.extract_pr_description.outputs.hardfork }}
+          export HARDFORK=${{ steps.extract_pr_description.outputs.hardfork }}
+          export BSC_URL=${{ steps.extract_pr_description.outputs.bsc }}
           ts-node scripts/check-bsc-hardfork-bytecode.ts
