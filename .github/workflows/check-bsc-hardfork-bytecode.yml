@@ -52,7 +52,7 @@ jobs:
             }
             
             const info = JSON.parse(prBody.substring(p1 + 3, p2))
-            log('info', info, info.hardfork, info.bsc)
+            console.log('info', info, info.hardfork, info.bsc)
             return { prBody, info };
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
