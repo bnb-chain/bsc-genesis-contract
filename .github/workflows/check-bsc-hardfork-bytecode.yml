@@ -38,17 +38,21 @@ jobs:
           npm install ts-node -g
           npm install
 
-#      - name: Extract BSC commitId and hardfork name from PR description
-#        uses: actions/github-script@v6
-#        with:
-#          script: |
-#            const prBody = context.payload.pull_request.body || '';
-#            console.log("PR description:", prBody);
-#            return { prBody };
-
-      - name: Extract PR description
-        run: echo "PR_BODY=${{ github.event.pull_request.body }}" >> $GITHUB_ENV
+      - name: Extract BSC commitId and hardfork name from PR description
+        id: extract_pr_description
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            console.log("PR description:", prBody);
+            const p1 = prBody.indexOf('>CI')
+            const p2 = prBody.indexOf('>CI', p1 + 1)
+            const info = prBody.substring(p1 + 3, p2)
+            console.log(p1, p2, info)
+            return { prBody, info };
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
         run: |
+          export HARDFORK_NAME=${{ steps.extract_pr_description.outputs.info }}
+          export PR_BODY=${{ steps.extract_pr_description.outputs.prBody }}
           ts-node scripts/check-bsc-hardfork-bytecode.ts

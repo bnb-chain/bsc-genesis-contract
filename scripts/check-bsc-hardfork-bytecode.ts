@@ -153,6 +153,8 @@ const clear0x = (str: string) => {
 const main = async () => {
   const pr = process.env.PR_BODY
   log('PR_BODY:', pr)
+  const info = process.env.info
+  log('info:', info)
   const p1 = pr.indexOf('>CI')
   const p2 = pr.indexOf('>CI', p1 + 1)
   log(p1, p2, pr.substring(p1 + 3, p2))
