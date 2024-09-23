@@ -8,18 +8,7 @@ contract System {
     bool public alreadyInit;
 
     uint32 public constant CODE_OK = 0;
-    uint32 public constant ERROR_FAIL_DECODE = 100;
-
-    uint8 public constant BIND_CHANNELID = 0x01;
-    uint8 public constant TRANSFER_IN_CHANNELID = 0x02;
-    uint8 public constant TRANSFER_OUT_CHANNELID = 0x03;
-    uint8 public constant STAKING_CHANNELID = 0x08;
-    uint8 public constant GOV_CHANNELID = 0x09;
-    uint8 public constant SLASH_CHANNELID = 0x0b;
-    uint8 public constant CROSS_STAKE_CHANNELID = 0x10;
-    uint8 public constant BC_FUSION_CHANNELID = 0x11; // new channel id for cross-chain redelegate from Beacon Chain to Smart Chain after Feynman upgrade
     uint16 public constant bscChainID = 0x0038;
-
     address public constant VALIDATOR_CONTRACT_ADDR = 0x0000000000000000000000000000000000001000;
     address public constant SLASH_CONTRACT_ADDR = 0x0000000000000000000000000000000000001001;
     address public constant SYSTEM_REWARD_ADDR = 0x0000000000000000000000000000000000001002;
