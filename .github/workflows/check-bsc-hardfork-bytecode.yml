@@ -1,0 +1,63 @@
+name: Compare genesis with bytecode files from BSC repo
+on:
+  push:
+    branches:
+      - master
+      - develop
+  pull_request:
+    types: [opened, edited, synchronize]
+    branches:
+      - master
+      - develop
+permissions:
+  contents: read
+  # Optional: allow read access to pull request. Use with `only-new-issues` option.
+  # pull-requests: read
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.body, '>CI')
+    steps:
+      - uses: actions/checkout@master
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v1
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+        with:
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-yarn-
+
+#      - name: Run your CI script
+#        run: echo ${{github.event.pull_request.title}}
+
+      - name: Install Project Dependencies
+        run: |
+          npm install ts-node -g
+          npm install
+
+      - name: Extract BSC commitId and hardfork name from PR description
+        uses: actions/github-script@v6
+        id: extract_pr_description
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            console.log("PR description:", prBody);
+            const p1 = prBody.indexOf('>CI')
+            const p2 = prBody.indexOf('>CI', p1 + 1)
+            if (p1 < 0 || p2 < 0) {
+                throw new Error('PR description does not contain >CI tag');
+            }
+            
+            const info = JSON.parse(prBody.substring(p1 + 3, p2))
+            console.log('info', info, info.hardfork, info.bsc)
+            core.setOutput('hardfork', info.hardfork)
+            core.setOutput('bsc', info.bsc)
+
+      - name: Compare genesis with hardfork bytecode files from BSC repo
+        run: |
+          export HARDFORK=${{ steps.extract_pr_description.outputs.hardfork }}
+          export BSC_URL=${{ steps.extract_pr_description.outputs.bsc }}
+          ts-node scripts/check-bsc-hardfork-bytecode.ts

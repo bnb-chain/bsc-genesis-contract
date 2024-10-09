@@ -8,15 +8,11 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./SystemV2.sol";
 import "./extension/Protectable.sol";
 import "./interface/0.8.x/IBSCValidatorSet.sol";
-import "./interface/0.8.x/ICrossChain.sol";
 import "./interface/0.8.x/IGovToken.sol";
 import "./interface/0.8.x/IStakeCredit.sol";
-import "./interface/0.8.x/ITokenHub.sol";
-import "./lib/0.8.x/RLPDecode.sol";
 import "./lib/0.8.x/Utils.sol";
 
 contract StakeHub is SystemV2, Initializable, Protectable {
-    using RLPDecode for *;
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -30,11 +26,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     uint256 public constant REDELEGATE_FEE_RATE_BASE = 100000; // 100%
 
     uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
-
-    bytes private constant INIT_BC_CONSENSUS_ADDRESSES =
-        hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000038000000000000000000000000295e26495cef6f69dfa69911d9d8e4f3bbadb89b00000000000000000000000072b61c6014342d914470ec7ac2975be345796c2b0000000000000000000000002465176c461afb316ebc773c61faee85a6515daa0000000000000000000000007ae2f5b9e386cd1b50a4550696d957cb4900f03a000000000000000000000000b4dd66d7c2c7e57f628210187192fb89d4b99dd4000000000000000000000000e9ae3261a475a27bb1028f140bc2a7c843318afd000000000000000000000000ee226379db83cffc681495730c11fdde79ba4c0c0000000000000000000000003f349bbafec1551819b8be1efea2fc46ca749aa10000000000000000000000008b6c8fd93d6f4cea42bbb345dbc6f0dfdb5bec73000000000000000000000000ef0274e31810c9df02f98fafde0f841f4e66a1cd000000000000000000000000a6f79b60359f141df90a0c745125b131caaffd12000000000000000000000000e2d3a739effcd3a99387d015e260eefac72ebea100000000000000000000000061dd481a114a2e761c554b641742c973867899d3000000000000000000000000cc8e6d00c17eb431350c6c50d8b8f05176b90b11000000000000000000000000ea0a6e3c511bbd10f4519ece37dc24887e11b55d0000000000000000000000002d4c407bbe49438ed859fe965b140dcf1aab71a9000000000000000000000000685b1ded8013785d6623cc18d214320b6bb64759000000000000000000000000d1d6bf74282782b0b3eb1413c901d6ecf02e8e2800000000000000000000000070f657164e5b75689b64b7fd1fa275f334f28e18000000000000000000000000be807dddb074639cd9fa61b47676c064fc50d62c000000000000000000000000b218c5d6af1f979ac42bc68d98a5a0d796c6ab010000000000000000000000009f8ccdafcc39f3c7d6ebf637c9151673cbc36b88000000000000000000000000d93dbfb27e027f5e9e6da52b9e1c413ce35adc11000000000000000000000000ce2fd7544e0b2cc94692d4a704debef7bcb613280000000000000000000000000bac492386862ad3df4b666bc096b0505bb694da000000000000000000000000733fda7714a05960b7536330be4dbb135bef0ed600000000000000000000000035ebb5849518aff370ca25e19e1072cc1a9fabca000000000000000000000000ebe0b55ad7bb78309180cada12427d120fdbcc3a0000000000000000000000006488aa4d1955ee33403f8ccb1d4de5fb97c7ade20000000000000000000000004396e28197653d0c244d95f8c1e57da902a72b4e000000000000000000000000702be18040aa2a9b1af9219941469f1a435854fc00000000000000000000000012d810c13e42811e9907c02e02d1fad46cfa18ba0000000000000000000000002a7cdd959bfe8d9487b2a43b33565295a698f7e2000000000000000000000000b8f7166496996a7da21cf1f1b04d9b3e26a3d0770000000000000000000000009bb832254baf4e8b4cc26bd2b52b31389b56e98b0000000000000000000000004430b3230294d12c6ab2aac5c2cd68e80b16b581000000000000000000000000c2be4ec20253b8642161bc3f444f53679c1f3d47000000000000000000000000ee01c3b1283aa067c58eab4709f85e99d46de5fe0000000000000000000000009ef9f4360c606c7ab4db26b016007d3ad0ab86a00000000000000000000000002f7be8361c80a4c1e7e9aaf001d0877f1cfde21800000000000000000000000035e7a025f4da968de7e4d7e4004197917f4070f1000000000000000000000000d6caa02bbebaebb5d7e581e4b66559e635f805ff0000000000000000000000008c4d90829ce8f72d0163c1d5cf348a862d55063000000000000000000000000068bf0b8b6fb4e317a0f9d6f03eaf8ce6675bc60d00000000000000000000000082012708dafc9e1b880fd083b32182b869be8e090000000000000000000000006bbad7cf34b5fa511d8e963dbba288b1960e75d600000000000000000000000022b81f8e175ffde54d797fe11eb03f9e3bf75f1d00000000000000000000000078f3adfc719c99674c072166708589033e2d9afe00000000000000000000000029a97c6effb8a411dabc6adeefaa84f5067c8bbe000000000000000000000000aacf6a8119f7e11623b5a43da638e91f669a130f0000000000000000000000002b3a6c089311b478bf629c29d790a7a6db3fc1b9000000000000000000000000fe6e72b223f6d6cf4edc6bff92f30e84b8258249000000000000000000000000a6503279e8b5c7bb5cf4defd3ec8abf3e009a80b0000000000000000000000004ee63a09170c3f2207aeca56134fc2bee1b28e3c000000000000000000000000ac0e15a038eedfc68ba3c35c73fed5be4a07afb500000000000000000000000069c77a677c40c7fbea129d4b171a39b7a8ddabfa";
-    bytes private constant INIT_BC_VOTE_ADDRESSES =
-        hex"00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000022000000000000000000000000000000000000000000000000000000000000044000000000000000000000000000000000000000000000000000000000000004a00000000000000000000000000000000000000000000000000000000000000500000000000000000000000000000000000000000000000000000000000000056000000000000000000000000000000000000000000000000000000000000005c00000000000000000000000000000000000000000000000000000000000000620000000000000000000000000000000000000000000000000000000000000068000000000000000000000000000000000000000000000000000000000000006e0000000000000000000000000000000000000000000000000000000000000074000000000000000000000000000000000000000000000000000000000000007a00000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000086000000000000000000000000000000000000000000000000000000000000008c00000000000000000000000000000000000000000000000000000000000000920000000000000000000000000000000000000000000000000000000000000098000000000000000000000000000000000000000000000000000000000000009e00000000000000000000000000000000000000000000000000000000000000a400000000000000000000000000000000000000000000000000000000000000aa00000000000000000000000000000000000000000000000000000000000000b000000000000000000000000000000000000000000000000000000000000000b600000000000000000000000000000000000000000000000000000000000000bc00000000000000000000000000000000000000000000000000000000000000c200000000000000000000000000000000000000000000000000000000000000c800000000000000000000000000000000000000000000000000000000000000ce00000000000000000000000000000000000000000000000000000000000000d400000000000000000000000000000000000000000000000000000000000000da00000000000000000000000000000000000000000000000000000000000000e000000000000000000000000000000000000000000000000000000000000000e600000000000000000000000000000000000000000000000000000000000000ec00000000000000000000000000000000000000000000000000000000000000f200000000000000000000000000000000000000000000000000000000000000f800000000000000000000000000000000000000000000000000000000000000fe0000000000000000000000000000000000000000000000000000000000000104000000000000000000000000000000000000000000000000000000000000010a00000000000000000000000000000000000000000000000000000000000000030977cf58294f7239d515e15b24cfeb82494056cf691eaf729b165f32c9757c429dba5051155903067e56ebe3698678e9100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003081db0422a5fd08e40db1fc2368d2245e4b18b1d0b85c921aaaafd2e341760e29fc613edd39f71254614e2055c3287a510000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308a923564c6ffd37fb2fe9f118ef88092e8762c7addb526ab7eb1e772baef85181f892c731be0c1891a50e6b06262c816000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b84f83ff2df44193496793b847f64e9d6db1b3953682bb95edd096eb1e69bbd357c200992ca78050d0cbe180cfaa018e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b0de8472be0308918c8bdb369bf5a67525210daffa053c52224c1d2ef4f5b38e4ecfcd06a1cc51c39c3a7dccfcb6b507000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030ae7bc6faa3f0cc3e6093b633fd7ee4f86970926958d0b7ec80437f936acf212b78f0cd095f4565fff144fd458d233a5b00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003084248a459464eec1a21e7fc7b71a053d9644e9bb8da4853b8f872cd7c1d6b324bf1922829830646ceadfb658d3de009a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030a8a257074e82b881cfa06ef3eb4efeca060c2531359abd0eab8af1e3edfa2025fca464ac9c3fd123f6c24a0d7886948500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003098cbf822e4bc29f1701ac0350a3d042cd0756e9f74822c6481773ceb000641c51b870a996fe0f6a844510b1061f38cd0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b772e180fbf38a051c97dabc8aaa0126a233a9e828cdafcc7422c4bb1f4030a56ba364c54103f26bad91508b5220b741000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030956c470ddff48cb49300200b5f83497f3a3ccb3aeb83c5edd9818569038e61d197184f4aa6939ea5e9911e3e98ac6d210000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308a80967d39e406a0a9642d41e9007a27fc1150a267d143a9f786cd2b5eecbdcc4036273705225b956d5e2f8f5eb95d25000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b3a3d4feb825ae9702711566df5dbf38e82add4dd1b573b95d2466fa6501ccb81e9d26a352b96150ccbf7b697fd0a419000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b2d4c6283c44a1c7bd503aaba7666e9f0c830e0ff016c1c750a5e48757a713d0836b1cabfd5c281b1de3b77d1c19218300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003093c1f7f6929d1fe2a17b4e14614ef9fc5bdc713d6631d675403fbeefac55611bf612700b1b65f4744861b80b0f7d6ab00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308a60f82a7bcf74b4cb053b9bfe83d0ed02a84ebb10865dfdd8e26e7535c43a1cccd268e860f502216b379dfc9971d358000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030939e8fb41b682372335be8070199ad3e8621d1743bcac4cc9d8f0f6e10f41e56461385c8eb5daac804fe3f2bca6ce73900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003096a26afa1295da81418593bd12814463d9f6e45c36a0e47eb4cd3e5b6af29c41e2a3a5636430155a466e216585af3ba7000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b1f2c71577def3144fabeb75a8a1c8cb5b51d1d1b4a05eec67988b8685008baa17459ec425dbaebc852f496dc92196cd000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b659ad0fbd9f515893fdd740b29ba0772dbde9b4635921dd91bd2963a0fc855e31f6338f45b211c4e9dedb7f2eb09de70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308819ec5ec3e97e1f03bbb4bb6055c7a5feac8f4f259df58349a32bb5cb377e2cb1f362b77f1dd398cfd3e9dba46138c3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b313f9cba57c63a84edb4079140e6dbd7829e5023c9532fce57e9fe602400a2953f4bf7dab66cca16e97be95d4de7044000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b64abe25614c9cfd32e456b4d521f29c8357f4af4606978296c9be93494072ac05fa86e3d27cc8d66e65000f8ba33fbb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b0bec348681af766751cb839576e9c515a09c8bffa30a46296ccc56612490eb480d03bf948e10005bbcc0421f90b3d4e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b0245c33bc556cfeb013cd3643b30dbdef6df61a0be3ba00cae104b3c587083852e28f8911689c7033f7021a8a1774c9000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030a7f3e2c0b4b16ad183c473bafe30a36e39fa4a143657e229cd23c77f8fbc8e4e4e241695dd3d248d1e51521eee6619140000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308fdf49777b22f927d460fa3fcdd7f2ba0cf200634a3dfb5197d7359f2f88aaf496ef8c93a065de0f376d164ff2b6db9a0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308ab17a9148339ef40aed8c177379c4db0bb5efc6f5c57a5d1a6b58b84d4b562e227196c79bda9a136830ed0c09f378130000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308dd20979bd63c14df617a6939c3a334798149151577dd3f1fadb2bd1c1b496bf84c25c879da5f0f9dfdb88c6dd17b1e6000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b679cbab0276ac30ff5f198e5e1dedf6b84959129f70fe7a07fcdf13444ba45b5dbaa7b1f650adf8b0acbecd04e2675b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000308974616fe8ab950a3cded19b1d16ff49c97bf5af65154b3b097d5523eb213f3d35fc5c57e7276c7f2d83be87ebfdcdf9000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030ab764a39ff81dad720d5691b852898041a3842e09ecbac8025812d51b32223d8420e6ae51a01582220a10f7722de67c10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000309025b6715c8eaabac0bfccdb2f25d651c9b69b0a184011a4a486b0b2080319d2396e7ca337f2abdf01548b2de1b3ba06000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000030b2317f59d86abfaf690850223d90e9e7593d91a29331dfc2f84d5adecc75fc39ecab4632c1b4400a3dd1e1298835bcca00000000000000000000000000000000";
 
     // receive fund status
     uint8 private constant _DISABLE = 0;
@@ -127,8 +118,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     mapping(bytes => uint256) public voteExpiration;
 
     // legacy addresses of BC
-    mapping(address => bool) private _legacyConsensusAddress;
-    mapping(bytes => bool) private _legacyVoteAddress;
+    mapping(address => bool) private _legacyConsensusAddress; // @dev deprecated
+    mapping(bytes => bool) private _legacyVoteAddress; // @dev deprecated
 
     // total number of current jailed validators
     uint256 public numOfJailed;
@@ -223,15 +214,18 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event ValidatorEmptyJailed(address indexed operatorAddress);
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
-    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount);
-    event MigrateFailed(
-        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
-    );
-    event UnexpectedPackage(uint8 channelId, bytes msgBytes);
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
+    event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount); // @dev deprecated
+    event MigrateFailed(
+        address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
+    ); // @dev deprecated
+    event UnexpectedPackage(uint8 channelId, bytes msgBytes); // @dev deprecated
+
     /*----------------- modifiers -----------------*/
-    modifier validatorExist(address operatorAddress) {
+    modifier validatorExist(
+        address operatorAddress
+    ) {
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted();
         _;
     }
@@ -262,18 +256,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         downtimeJailTime = 2 days;
         felonyJailTime = 30 days;
         maxFelonyBetweenBreatheBlock = 2;
-
-        address[] memory bcConsensusAddress;
-        bytes[] memory bcVoteAddress;
-        bcConsensusAddress = abi.decode(INIT_BC_CONSENSUS_ADDRESSES, (address[]));
-        bcVoteAddress = abi.decode(INIT_BC_VOTE_ADDRESSES, (bytes[]));
-        for (uint256 i; i < bcConsensusAddress.length; ++i) {
-            _legacyConsensusAddress[bcConsensusAddress[i]] = true;
-        }
-        for (uint256 i; i < bcVoteAddress.length; ++i) {
-            _legacyVoteAddress[bcVoteAddress[i]] = true;
-        }
-
         // Different address will be set depending on the environment
         __Protectable_init_unchained(0x08E68Ec70FA3b629784fDB28887e206ce8561E08);
     }
@@ -283,52 +265,24 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         uint8,
         bytes calldata msgBytes
     ) external onlyCrossChainContract whenNotPaused enableReceivingFund returns (bytes memory) {
-        (StakeMigrationPackage memory migrationPkg, bool decodeSuccess) = _decodeMigrationSynPackage(msgBytes);
-        if (!decodeSuccess) revert InvalidSynPackage();
-
-        if (migrationPkg.amount == 0) {
-            return new bytes(0);
-        }
-
-        // claim fund from TokenHub
-        bool claimSuccess = ITokenHub(TOKEN_HUB_ADDR).claimMigrationFund(migrationPkg.amount);
-        if (!claimSuccess) {
-            emit MigrateFailed(
-                migrationPkg.operatorAddress,
-                migrationPkg.delegator,
-                migrationPkg.amount,
-                StakeMigrationRespCode.CLAIM_FUND_FAILED
-            );
-            return msgBytes;
-        }
-
-        StakeMigrationRespCode respCode = _doMigration(migrationPkg);
-
-        if (respCode == StakeMigrationRespCode.MIGRATE_SUCCESS) {
-            return new bytes(0);
-        } else {
-            (bool success,) = TOKEN_HUB_ADDR.call{ value: address(this).balance }("");
-            if (!success) revert TransferFailed();
-            emit MigrateFailed(migrationPkg.operatorAddress, migrationPkg.delegator, migrationPkg.amount, respCode);
-            return msgBytes;
-        }
+        revert("deprecated");
     }
 
     function handleAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
-        // should not happen
-        emit UnexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     function handleFailAckPackage(uint8 channelId, bytes calldata msgBytes) external onlyCrossChainContract {
-        // should not happen
-        emit UnexpectedPackage(channelId, msgBytes);
+        revert("deprecated");
     }
 
     /*----------------- external functions -----------------*/
     /**
      * @param newAgent the new agent address of the validator, updating to address(0) means remove the old agent.
      */
-    function updateAgent(address newAgent) external validatorExist(msg.sender) whenNotPaused notInBlackList {
+    function updateAgent(
+        address newAgent
+    ) external validatorExist(msg.sender) whenNotPaused notInBlackList {
         if (agentToOperator[newAgent] != address(0)) revert InvalidAgent();
         if (_validatorSet.contains(newAgent)) revert InvalidAgent();
 
@@ -368,10 +322,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (_validatorSet.contains(operatorAddress)) revert ValidatorExisted();
         if (agentToOperator[operatorAddress] != address(0)) revert InvalidValidator();
 
-        if (consensusToOperator[consensusAddress] != address(0) || _legacyConsensusAddress[consensusAddress]) {
+        if (consensusToOperator[consensusAddress] != address(0)) {
             revert DuplicateConsensusAddress();
         }
-        if (voteToOperator[voteAddress] != address(0) || _legacyVoteAddress[voteAddress]) {
+        if (voteToOperator[voteAddress] != address(0)) {
             revert DuplicateVoteAddress();
         }
         bytes32 monikerHash = keccak256(abi.encodePacked(description.moniker));
@@ -420,7 +374,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         address newConsensusAddress
     ) external whenNotPaused notInBlackList validatorExist(_bep410MsgSender()) {
         if (newConsensusAddress == address(0)) revert InvalidConsensusAddress();
-        if (consensusToOperator[newConsensusAddress] != address(0) || _legacyConsensusAddress[newConsensusAddress]) {
+        if (consensusToOperator[newConsensusAddress] != address(0)) {
             revert DuplicateConsensusAddress();
         }
 
@@ -487,7 +441,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         // proof-of-possession verify
         address operatorAddress = _bep410MsgSender();
         if (!_checkVoteAddress(operatorAddress, newVoteAddress, blsProof)) revert InvalidVoteAddress();
-        if (voteToOperator[newVoteAddress] != address(0) || _legacyVoteAddress[newVoteAddress]) {
+        if (voteToOperator[newVoteAddress] != address(0)) {
             revert DuplicateVoteAddress();
         }
 
@@ -505,7 +459,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @param operatorAddress the operator address of the validator to be unjailed
      */
-    function unjail(address operatorAddress) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
+    function unjail(
+        address operatorAddress
+    ) external whenNotPaused notInBlackList validatorExist(operatorAddress) {
         Validator storage valInfo = _validators[operatorAddress];
         if (!valInfo.jailed) revert ValidatorNotJailed();
 
@@ -670,7 +626,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev This function will be called by consensus engine. So it should never revert.
      */
-    function distributeReward(address consensusAddress) external payable onlyValidatorContract {
+    function distributeReward(
+        address consensusAddress
+    ) external payable onlyValidatorContract {
         address operatorAddress = consensusToOperator[consensusAddress];
         Validator memory valInfo = _validators[operatorAddress];
         if (valInfo.creditContract == address(0) || valInfo.jailed) {
@@ -688,7 +646,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Downtime slash. Only the `SlashIndicator` contract can call this function.
      */
-    function downtimeSlash(address consensusAddress) external onlySlash {
+    function downtimeSlash(
+        address consensusAddress
+    ) external onlySlash {
         address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -706,7 +666,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Malicious vote slash. Only the `SlashIndicator` contract can call this function.
      */
-    function maliciousVoteSlash(bytes calldata voteAddress) external onlySlash whenNotPaused {
+    function maliciousVoteSlash(
+        bytes calldata voteAddress
+    ) external onlySlash whenNotPaused {
         address operatorAddress = voteToOperator[voteAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -736,7 +698,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     /**
      * @dev Double sign slash. Only the `SlashIndicator` contract can call this function.
      */
-    function doubleSignSlash(address consensusAddress) external onlySlash whenNotPaused {
+    function doubleSignSlash(
+        address consensusAddress
+    ) external onlySlash whenNotPaused {
         address operatorAddress = consensusToOperator[consensusAddress];
         if (!_validatorSet.contains(operatorAddress)) revert ValidatorNotExisted(); // should never happen
         Validator storage valInfo = _validators[operatorAddress];
@@ -905,7 +869,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return consensusAddress the consensus address of the validator
      */
-    function getValidatorConsensusAddress(address operatorAddress) external view returns (address consensusAddress) {
+    function getValidatorConsensusAddress(
+        address operatorAddress
+    ) external view returns (address consensusAddress) {
         Validator memory valInfo = _validators[operatorAddress];
         consensusAddress = valInfo.consensusAddress;
     }
@@ -917,7 +883,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return creditContract the credit contract address of the validator
      */
-    function getValidatorCreditContract(address operatorAddress) external view returns (address creditContract) {
+    function getValidatorCreditContract(
+        address operatorAddress
+    ) external view returns (address creditContract) {
         Validator memory valInfo = _validators[operatorAddress];
         creditContract = valInfo.creditContract;
     }
@@ -929,7 +897,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      *
      * @return voteAddress the vote address of the validator
      */
-    function getValidatorVoteAddress(address operatorAddress) external view returns (bytes memory voteAddress) {
+    function getValidatorVoteAddress(
+        address operatorAddress
+    ) external view returns (bytes memory voteAddress) {
         Validator memory valInfo = _validators[operatorAddress];
         voteAddress = valInfo.voteAddress;
     }
@@ -986,6 +956,17 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
+     * @return the updateTime of a validator
+     */
+    function getValidatorUpdateTime(
+        address operatorAddress
+    ) external view validatorExist(operatorAddress) returns (uint256) {
+        return _validators[operatorAddress].updateTime;
+    }
+
+    /**
      * @dev this function will be used by Parlia consensus engine.
      *
      * @notice get the election info of a validator
@@ -1031,58 +1012,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
-    function _decodeMigrationSynPackage(
-        bytes memory msgBytes
-    ) internal pure returns (StakeMigrationPackage memory, bool) {
-        StakeMigrationPackage memory migrationPackage;
-
-        RLPDecode.Iterator memory iter = msgBytes.toRLPItem().iterator();
-        bool success = false;
-        uint256 idx = 0;
-        while (iter.hasNext()) {
-            if (idx == 0) {
-                migrationPackage.operatorAddress = address(uint160(iter.next().toAddress()));
-            } else if (idx == 1) {
-                migrationPackage.delegator = address(uint160(iter.next().toAddress()));
-            } else if (idx == 2) {
-                migrationPackage.refundAddress = address(uint160(iter.next().toAddress()));
-            } else if (idx == 3) {
-                migrationPackage.amount = iter.next().toUint();
-                success = true;
-            } else {
-                break;
-            }
-            ++idx;
-        }
-
-        return (migrationPackage, success);
-    }
-
-    function _doMigration(StakeMigrationPackage memory migrationPkg) internal returns (StakeMigrationRespCode) {
-        if (blackList[migrationPkg.delegator] || migrationPkg.delegator == address(0)) {
-            return StakeMigrationRespCode.INVALID_DELEGATOR;
-        }
-
-        if (!_validatorSet.contains(migrationPkg.operatorAddress)) {
-            return StakeMigrationRespCode.VALIDATOR_NOT_EXISTED;
-        }
-
-        Validator memory valInfo = _validators[migrationPkg.operatorAddress];
-        if (valInfo.jailed && migrationPkg.delegator != migrationPkg.operatorAddress) {
-            return StakeMigrationRespCode.VALIDATOR_JAILED;
-        }
-
-        uint256 shares =
-            IStakeCredit(valInfo.creditContract).delegate{ value: migrationPkg.amount }(migrationPkg.delegator);
-        emit Delegated(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
-        emit MigrateSuccess(migrationPkg.operatorAddress, migrationPkg.delegator, shares, migrationPkg.amount);
-
-        IGovToken(GOV_TOKEN_ADDR).sync(valInfo.creditContract, migrationPkg.delegator);
-
-        return StakeMigrationRespCode.MIGRATE_SUCCESS;
-    }
-
-    function _checkMoniker(string memory moniker) internal pure returns (bool) {
+    function _checkMoniker(
+        string memory moniker
+    ) internal pure returns (bool) {
         bytes memory bz = bytes(moniker);
 
         // 1. moniker length should be between 3 and 9
@@ -1150,7 +1082,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         return creditProxy;
     }
 
-    function _checkValidatorSelfDelegation(address operatorAddress) internal {
+    function _checkValidatorSelfDelegation(
+        address operatorAddress
+    ) internal {
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.jailed) {
             return;
@@ -1175,20 +1109,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     function _jailValidator(Validator storage valInfo, uint256 jailUntil) internal {
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).removeTmpMigratedValidator(valInfo.consensusAddress);
-
         // keep the last eligible validator
         bool isLast = (numOfJailed >= _validatorSet.length() - 1);
         if (isLast) {
             // If staking channel is closed, then BC-fusion is finished and we should keep the last eligible validator here
-            if (
-                !ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).registeredContractChannelMap(
-                    VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID
-                )
-            ) {
-                emit ValidatorEmptyJailed(valInfo.operatorAddress);
-                return;
-            }
+            emit ValidatorEmptyJailed(valInfo.operatorAddress);
+            return;
         }
 
         if (jailUntil > valInfo.jailUntil) {

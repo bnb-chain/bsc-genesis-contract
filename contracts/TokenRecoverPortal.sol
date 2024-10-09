@@ -86,7 +86,9 @@ contract TokenRecoverPortal is SystemV2, Initializable, ReentrancyGuardUpgradeab
      * @param node the leaf node of merkle tree.
      * @return the result of check.
      */
-    function isRecovered(bytes32 node) public view returns (bool) {
+    function isRecovered(
+        bytes32 node
+    ) public view returns (bool) {
         return recoveredMap[node];
     }
 

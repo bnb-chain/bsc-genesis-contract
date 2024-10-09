@@ -10,10 +10,8 @@ import "./interface/0.6.x/ISlashIndicator.sol";
 import "./interface/0.6.x/IApplication.sol";
 import "./interface/0.6.x/IBSCValidatorSet.sol";
 import "./interface/0.6.x/IParamSubscriber.sol";
-import "./interface/0.6.x/ICrossChain.sol";
 import "./interface/0.6.x/ISystemReward.sol";
 import "./interface/0.6.x/IStakeHub.sol";
-import "./lib/0.6.x/CmnPkg.sol";
 import "./lib/0.6.x/RLPEncode.sol";
 
 contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplication {
@@ -46,15 +44,14 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
     uint256 public felonySlashScope;
 
     event validatorSlashed(address indexed validator);
-    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);
     event indicatorCleaned();
     event paramChange(string key, bytes value);
-
-    event knownResponse(uint32 code);
-    event unKnownResponse(uint32 code);
-    event crashResponse();
-
     event failedFelony(address indexed validator, uint256 slashCount, bytes failReason);
+
+    event maliciousVoteSlashed(bytes32 indexed voteAddrSlice);  // @dev deprecated
+    event knownResponse(uint32 code);  // @dev deprecated
+    event unKnownResponse(uint32 code);  // @dev deprecated
+    event crashResponse();  // @dev deprecated
 
     struct Indicator {
         uint256 height;
@@ -94,22 +91,15 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         uint8,
         bytes calldata
     ) external override onlyCrossChainContract onlyInit returns (bytes memory) {
-        require(false, "receive unexpected syn package");
+        revert("deprecated");
     }
 
     function handleAckPackage(uint8, bytes calldata msgBytes) external override onlyCrossChainContract onlyInit {
-        (CmnPkg.CommonAckPackage memory response, bool ok) = CmnPkg.decodeCommonAckPackage(msgBytes);
-        if (ok) {
-            emit knownResponse(response.code);
-        } else {
-            emit unKnownResponse(response.code);
-        }
-        return;
+        revert("deprecated");
     }
 
     function handleFailAckPackage(uint8, bytes calldata) external override onlyCrossChainContract onlyInit {
-        emit crashResponse();
-        return;
+        revert("deprecated");
     }
 
     /*----------------- External func -----------------*/
@@ -134,16 +124,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         if (indicator.count % felonyThreshold == 0) {
             indicator.count = 0;
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(validator);
-            if (IStakeHub(STAKE_HUB_ADDR).consensusToOperator(validator) != address(0)) {
-                _downtimeSlash(validator, indicator.count, false);
-            } else {
-                // send slash msg to bc if validator is not migrated
-                try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(
-                    SLASH_CHANNELID, encodeSlashPackage(validator), 0
-                ) { } catch (bytes memory reason) {
-                    emit failedFelony(validator, indicator.count, reason);
-                }
-            }
+            _downtimeSlash(validator, indicator.count, false);
         } else if (indicator.count % misdemeanorThreshold == 0) {
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
         }
@@ -272,7 +253,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         );
 
         // reward sender and felony validator if validator found
-        // TODO: after BC-fusion, we don't need to check if validator is living
         (address[] memory vals, bytes[] memory voteAddrs) =
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
         for (uint256 i; i < voteAddrs.length; ++i) {
@@ -284,17 +264,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             }
         }
 
-        if (IStakeHub(STAKE_HUB_ADDR).voteToOperator(_evidence.voteAddr) != address(0)) {
-            IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
-        } else {
-            // send slash msg to bc if the validator not migrated
-            ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(
-                SLASH_CHANNELID, encodeVoteSlashPackage(_evidence.voteAddr), 0
-            );
-
-            bytes32 voteAddrSlice = BytesLib.toBytes32(_evidence.voteAddr, 0);
-            emit maliciousVoteSlashed(voteAddrSlice);
-        }
+        IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
     }
 
     function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
@@ -343,10 +313,7 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
      * @param validator Who will be jailed
      */
     function sendFelonyPackage(address validator) external override(ISlashIndicator) onlyValidatorContract onlyInit {
-        try ICrossChain(CROSS_CHAIN_CONTRACT_ADDR).sendSynPackage(SLASH_CHANNELID, encodeSlashPackage(validator), 0) { }
-        catch (bytes memory reason) {
-            emit failedFelony(validator, 0, reason);
-        }
+        emit failedFelony(validator, 0, "deprecated");
     }
 
     function _verifyBLSSignature(VoteData memory vote, bytes memory voteAddr) internal view returns (bool) {

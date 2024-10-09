@@ -98,7 +98,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
      * @param delegator the address of the delegator
      * @return shares the amount of shares minted
      */
-    function delegate(address delegator) external payable onlyStakeHub returns (uint256 shares) {
+    function delegate(
+        address delegator
+    ) external payable onlyStakeHub returns (uint256 shares) {
         if (msg.value == 0) revert ZeroAmount();
         shares = _mintAndSync(delegator, msg.value);
         if (shares == 0) revert ZeroShares();
@@ -181,7 +183,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
      * @dev Distribute the reward to the validator and all delegators. Only the `StakeHub` contract can call this function.
      * @param commissionRate the commission rate of the validator
      */
-    function distributeReward(uint64 commissionRate) external payable onlyStakeHub {
+    function distributeReward(
+        uint64 commissionRate
+    ) external payable onlyStakeHub {
         uint256 bnbAmount = msg.value;
         uint256 _commission = (bnbAmount * uint256(commissionRate)) / COMMISSION_RATE_BASE;
         uint256 _reward = bnbAmount - _commission;
@@ -202,7 +206,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
      * @param slashBnbAmount the amount of BNB to be slashed
      * @return realSlashBnbAmount the real amount of BNB slashed
      */
-    function slash(uint256 slashBnbAmount) external onlyStakeHub returns (uint256) {
+    function slash(
+        uint256 slashBnbAmount
+    ) external onlyStakeHub returns (uint256) {
         uint256 selfDelegation = balanceOf(validator);
         uint256 slashShares = getSharesByPooledBNB(slashBnbAmount);
 
@@ -219,7 +225,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
     /**
      * @return the amount of shares that corresponds to `_bnbAmount` protocol-controlled BNB.
      */
-    function getSharesByPooledBNB(uint256 bnbAmount) public view returns (uint256) {
+    function getSharesByPooledBNB(
+        uint256 bnbAmount
+    ) public view returns (uint256) {
         if (totalPooledBNB == 0) revert ZeroTotalPooledBNB();
         return (bnbAmount * totalSupply()) / totalPooledBNB;
     }
@@ -227,7 +235,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
     /**
      * @return the amount of BNB that corresponds to `_sharesAmount` token shares.
      */
-    function getPooledBNBByShares(uint256 shares) public view returns (uint256) {
+    function getPooledBNBByShares(
+        uint256 shares
+    ) public view returns (uint256) {
         if (totalSupply() == 0) revert ZeroTotalShares();
         return (shares * totalPooledBNB) / totalSupply();
     }
@@ -243,14 +253,18 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
     /**
      * @return the total length of delegator's pending unbond queue.
      */
-    function pendingUnbondRequest(address delegator) public view returns (uint256) {
+    function pendingUnbondRequest(
+        address delegator
+    ) public view returns (uint256) {
         return _unbondRequestsQueue[delegator].length();
     }
 
     /**
      * @return the total number of delegator's claimable unbond requests.
      */
-    function claimableUnbondRequest(address delegator) public view returns (uint256) {
+    function claimableUnbondRequest(
+        address delegator
+    ) public view returns (uint256) {
         uint256 length = _unbondRequestsQueue[delegator].length();
         uint256 count;
         for (uint256 i; i < length; ++i) {
@@ -290,19 +304,25 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
     /**
      * @return the personal unbond sequence of the delegator.
      */
-    function unbondSequence(address delegator) public view returns (uint256) {
+    function unbondSequence(
+        address delegator
+    ) public view returns (uint256) {
         return _unbondSequence[delegator].current();
     }
 
     /**
      * @return the total amount of BNB staked and reward of the delegator.
      */
-    function getPooledBNB(address account) public view returns (uint256) {
+    function getPooledBNB(
+        address account
+    ) public view returns (uint256) {
         return getPooledBNBByShares(balanceOf(account));
     }
 
     /*----------------- internal functions -----------------*/
-    function _bootstrapInitialHolder(uint256 initAmount) internal onlyInitializing {
+    function _bootstrapInitialHolder(
+        uint256 initAmount
+    ) internal onlyInitializing {
         // check before mint
         uint256 toLock = IStakeHub(STAKE_HUB_ADDR).LOCK_AMOUNT();
         if (initAmount <= toLock || validator == address(0) || totalSupply() != 0) revert WrongInitContext();
@@ -330,7 +350,9 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
         totalPooledBNB -= bnbAmount;
     }
 
-    function _useSequence(address delegator) internal returns (uint256 current) {
+    function _useSequence(
+        address delegator
+    ) internal returns (uint256 current) {
         CountersUpgradeable.Counter storage sequence = _unbondSequence[delegator];
         current = sequence.current();
         sequence.increment();

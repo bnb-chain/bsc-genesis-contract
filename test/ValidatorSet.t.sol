@@ -56,15 +56,6 @@ contract ValidatorSetTest is Deployer {
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
         vm.mockCall(address(0x66), "", hex"01");
-
-        // close staking channel
-        // remove this after final sunset hard fork
-        if (crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID)) {
-            key = "enableOrDisableChannel";
-            valueBytes = bytes(hex"0800");
-            _updateParamByGovHub(key, valueBytes, address(crossChain));
-            assertTrue(!crossChain.registeredContractChannelMap(VALIDATOR_CONTRACT_ADDR, STAKING_CHANNELID));
-        }
     }
 
     function testDeposit(uint256 amount) public {
