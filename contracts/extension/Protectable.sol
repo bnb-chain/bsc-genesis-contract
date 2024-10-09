@@ -101,5 +101,10 @@ abstract contract Protectable is Initializable {
         _protector = protector;
     }
 
+    /*----------------- view functions -----------------*/
+    function getProtector() external view returns (address) {
+        return _protector;
+    }
+
     uint256[50] private __reservedSlot;
 }
