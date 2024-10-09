@@ -956,6 +956,17 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /**
+     * @param operatorAddress the operator address of the validator
+     *
+     * @return the updateTime of a validator
+     */
+    function getValidatorUpdateTime(
+        address operatorAddress
+    ) external view validatorExist(operatorAddress) returns (uint256) {
+        return _validators[operatorAddress].updateTime;
+    }
+
+    /**
      * @dev this function will be used by Parlia consensus engine.
      *
      * @notice get the election info of a validator
