@@ -253,7 +253,6 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
         );
 
         // reward sender and felony validator if validator found
-        // TODO: after BC-fusion, we don't need to check if validator is living
         (address[] memory vals, bytes[] memory voteAddrs) =
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
         for (uint256 i; i < voteAddrs.length; ++i) {
