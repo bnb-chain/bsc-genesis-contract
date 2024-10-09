@@ -25,6 +25,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
     uint256 public constant INIT_MINIMUM_RELAY_FEE = 2e15;
     uint256 public constant REWARD_UPPER_LIMIT = 1e18;
     uint256 public constant TEN_DECIMALS = 1e10;
+    uint256 public constant MAX_GAS_FOR_CALLING_BEP20 = 50000;
+    uint256 public constant MAX_GAS_FOR_TRANSFER_BNB = 10000;
 
     uint256 public relayFee;
 
@@ -45,8 +47,8 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     event rewardTo(address to, uint256 amount);
     event receiveDeposit(address from, uint256 amount);
+    event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);
 
-    event WithdrawUnlockedToken(address indexed tokenAddr, address indexed recipient, uint256 amount);  // @dev deprecated
     event transferInSuccess(address bep20Addr, address refundAddr, uint256 amount);  // @dev deprecated
     event transferOutSuccess(address bep20Addr, address senderAddr, uint256 amount, uint256 relayFee);  // @dev deprecated
     event refundSuccess(address bep20Addr, address refundAddr, uint256 amount, uint32 status);  // @dev deprecated
@@ -166,7 +168,22 @@ contract TokenHub is ITokenHub, System, IParamSubscriber, IApplication, ISystemR
 
     // BEP-171: Security Enhancement for Cross-Chain Module
     function withdrawUnlockedToken(address tokenAddress, address recipient) external noReentrant {
-        revert("deprecated");
+        LockInfo storage lockInfo = lockInfoMap[tokenAddress][recipient];
+        require(lockInfo.amount > 0, "no locked amount");
+        require(block.timestamp >= lockInfo.unlockAt, "still on locking period");
+
+        uint256 _amount = lockInfo.amount;
+        lockInfo.amount = 0;
+
+        bool _success;
+        if (tokenAddress == address(0x0)) {
+            (_success,) = recipient.call{ gas: MAX_GAS_FOR_TRANSFER_BNB, value: _amount }("");
+        } else {
+            _success = IBEP20(tokenAddress).transfer{ gas: MAX_GAS_FOR_CALLING_BEP20 }(recipient, _amount);
+        }
+        require(_success, "withdraw unlocked token failed");
+
+        emit WithdrawUnlockedToken(tokenAddress, recipient, _amount);
     }
 
     // BEP-171: Security Enhancement for Cross-Chain Module
