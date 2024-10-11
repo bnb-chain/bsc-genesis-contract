@@ -335,7 +335,7 @@ def testnet():
     propose_start_threshold = "10_000_000 ether"
     init_min_period_after_quorum = "uint64(1 hours / BLOCK_INTERVAL)"
     init_minimal_delay = "6 hours"
-    lock_period_for_token_recover = "1 days"
+    lock_period_for_token_recover = "300 seconds"
 
     stake_hub_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
     governor_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
