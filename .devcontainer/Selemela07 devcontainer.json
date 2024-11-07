@@ -1,0 +1,14 @@
+{npm install ts-node -g
+
+cp .env.example .env
+# set UNLOCK_RECEIVER, OPERATOR_PRIVATE_KEY to .env
+
+ts-node scripts/bep171-unlock-bot.ts // get metadata
+forge build
+
+// generate interface
+cast interface ${workspace}/out/{contract_name}.sol/${contract_name}.json -p ^0.8.0 -n ${contract_name} > ${workspace}/test/utils/interface/I${contract_name}.solpoetry run python -m scripts.generate ${network}scripts.generateforge testbash scripts/flatten.sh
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  "features": {
+  }
+}
