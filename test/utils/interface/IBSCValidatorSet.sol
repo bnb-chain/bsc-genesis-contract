@@ -35,7 +35,6 @@ interface BSCValidatorSet {
     function CROSS_CHAIN_CONTRACT_ADDR() external view returns (address);
     function CROSS_STAKE_CHANNELID() external view returns (uint8);
     function DUSTY_INCOMING() external view returns (uint256);
-    function EPOCH() external view returns (uint256);
     function ERROR_FAIL_CHECK_VALIDATORS() external view returns (uint32);
     function ERROR_FAIL_DECODE() external view returns (uint32);
     function ERROR_LEN_OF_VAL_MISMATCH() external view returns (uint32);

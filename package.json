@@ -9,7 +9,7 @@
     "lint:write": "forge fmt ./contracts/BSCTimelock.sol ./contracts/GovToken.sol ./contracts/BSCGovernor.sol  ./contracts/TokenRecoverPortal.sol ./contracts/StakeCredit.sol ./contracts/StakeHub.sol ./contracts/SystemV2.sol ",
     "generate:mainnet": "poetry run python -m scripts.generate mainnet",
     "generate:testnet": "poetry run python -m scripts.generate testnet",
-    "generate:dev": "poetry run python -m scripts.generate dev --epoch \"200\" --init-felony-slash-scope \"60\" --breathe-block-interval \"10 minutes\" --block-interval \"3 seconds\" --stake-hub-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --unbond-period \"2 minutes\" --downtime-jail-time \"2 minutes\" --felony-jail-time \"3 minutes\" --init-voting-delay \"1 minutes / BLOCK_INTERVAL\" --init-voting-period \"2 minutes / BLOCK_INTERVAL\" --init-min-period-after-quorum \"uint64(1 minutes / BLOCK_INTERVAL)\" --governor-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --init-minimal-delay \"1 minutes\""
+    "generate:dev": "poetry run python -m scripts.generate dev --init-felony-slash-scope \"60\" --breathe-block-interval \"10 minutes\" --block-interval \"3 seconds\" --stake-hub-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --unbond-period \"2 minutes\" --downtime-jail-time \"2 minutes\" --felony-jail-time \"3 minutes\" --init-voting-delay \"1 minutes / BLOCK_INTERVAL\" --init-voting-period \"2 minutes / BLOCK_INTERVAL\" --init-min-period-after-quorum \"uint64(1 minutes / BLOCK_INTERVAL)\" --governor-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --init-minimal-delay \"1 minutes\""
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.3",
