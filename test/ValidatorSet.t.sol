@@ -75,7 +75,7 @@ contract ValidatorSetTest is Deployer {
         bscValidatorSet.deposit{ value: amount }(validator0);
 
         vm.stopPrank();
-        assertEq(bscValidatorSet.getTurnLength(), 1);
+        assertEq(bscValidatorSet.getTurnLength(), 4);
         bytes memory key = "turnLength";
         bytes memory value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000005"); // 5
         _updateParamByGovHub(key, value, address(bscValidatorSet));
