@@ -34,7 +34,7 @@ contract BSCGovernor is
      * @dev caution:
      * INIT_VOTING_DELAY, INIT_VOTING_PERIOD and INIT_MIN_PERIOD_AFTER_QUORUM are default in number of blocks, not seconds
      */
-    uint256 private constant BLOCK_INTERVAL = 3 seconds;
+    uint256 private constant BLOCK_INTERVAL = 3 seconds; // TODO(Nathan): Only can be used to do initialize!
     uint256 private constant INIT_VOTING_DELAY = 0 hours / BLOCK_INTERVAL;
     uint256 private constant INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
     uint256 private constant INIT_PROPOSAL_THRESHOLD = 200 ether; //  = 200 BNB
