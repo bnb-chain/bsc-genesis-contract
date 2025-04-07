@@ -244,9 +244,9 @@ def generate_gov_hub():
         )
 
 
-def generate_genesis():
+def generate_genesis(output="./genesis.json"):
     subprocess.run(["forge", "build"], cwd=work_dir, check=True)
-    subprocess.run(["node", "scripts/generate-genesis.js", "--chainId", f"{chain_id}"], cwd=work_dir, check=True)
+    subprocess.run(["node", "scripts/generate-genesis.js", "--chainId", f"{chain_id}", "--output", f"{output}"], cwd=work_dir, check=True)
 
 
 @main.command(help="Generate contracts for BSC mainnet")
@@ -332,7 +332,7 @@ def testnet():
     propose_start_threshold = "10_000_000 ether"
     init_min_period_after_quorum = "uint64(1 hours / BLOCK_INTERVAL)"
     init_minimal_delay = "6 hours"
-    lock_period_for_token_recover = "1 days"
+    lock_period_for_token_recover = "300 seconds"
 
     stake_hub_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
     governor_protector = "0x30151DA466EC8AB345BEF3d6983023E050fb0673"
@@ -355,7 +355,7 @@ def testnet():
     generate_timelock(init_minimal_delay)
     generate_token_hub(lock_period_for_token_recover)
 
-    generate_genesis()
+    generate_genesis("./genesis-testnet.json")
     print("Generate genesis of testnet successfully")
 
 
