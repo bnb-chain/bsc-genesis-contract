@@ -39,6 +39,14 @@ contract TokenRecoverPortalTest is Deployer {
 
     function setUp() public {
         vm.mockCall(address(0x69), "", mockTokenOwner);
+        // slot id for `merkleRootAlreadyInit`
+        bytes32 slot = bytes32(uint256(105));
+
+        // change `merkleRootAlreadyInit` to false
+        vm.store(address(tokenRecoverPortal), slot, bytes32(uint256(0)));
+
+        // check `merkleRootAlreadyInit` is false
+        assertEq(tokenRecoverPortal.merkleRootAlreadyInit(), false);
     }
 
     function setUpContractParams(
