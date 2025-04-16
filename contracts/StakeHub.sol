@@ -133,6 +133,14 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     // agent => validator operator address
     mapping(address => address) public agentToOperator;
 
+    // network related values //
+    // governance controlled maximum number of NodeIDs per validator (default is 5).
+    uint256 public maxNodeIDs = 5;
+
+    // mapping from a validator's address to an array of their registered NodeIDs,
+    // where each NodeID is stored as a fixed 32-byte value.
+    mapping(address => bytes32[]) private validatorNodeIDs;
+
     /*----------------- structs and events -----------------*/
     struct StakeMigrationPackage {
         address operatorAddress; // the operator address of the target validator to delegate to
@@ -216,6 +224,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
 
+    // Events for adding and removing NodeIDs.
+    event NodeIDAdded(address indexed validator, bytes32 nodeID);
+    event NodeIDRemoved(address indexed validator, bytes32 nodeID);
+
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount); // @dev deprecated
     event MigrateFailed(
         address indexed operatorAddress, address indexed delegator, uint256 bnbAmount, StakeMigrationRespCode respCode
@@ -234,6 +246,16 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         _receiveFundStatus = _ENABLE;
         _;
         _receiveFundStatus = _DISABLE;
+    }
+
+    /**
+    * @dev Modifier to ensure that only an authorized validator can update NodeIDs.
+    * The caller must either be the validator itself (i.e. the provided address)
+    * or the designated alternative address recorded in `consensusToOperator` for that validator.
+    */
+    modifier onlyAuthorized(address validator) {
+        require(msg.sender == validator || consensusToOperator[validator] == msg.sender, "Unauthorized caller");
+        _;
     }
 
     receive() external payable {
@@ -804,6 +826,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
             address newStakeHubProtector = value.bytesToAddress(20);
             if (newStakeHubProtector == address(0)) revert InvalidValue(key, value);
             _setProtector(newStakeHubProtector);
+        } else if (key.compareStrings("maxNodeIDs")) {
+          if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newMaxNodeIDs = value.bytesToUint256(32);
+            if (newMaxNodeIDs == 0) revert InvalidValue(key, value);
+            maxNodeIDs = newMaxNodeIDs;
         } else {
             revert UnknownParam(key, value);
         }
@@ -1009,6 +1036,95 @@ contract StakeHub is SystemV2, Initializable, Protectable {
             votingPowers[i] = valInfo.jailed ? 0 : IStakeCredit(valInfo.creditContract).totalPooledBNB();
             voteAddrs[i] = valInfo.voteAddress;
         }
+    }
+
+     /**
+     * @notice Adds a new NodeID (of type bytes32) to the validator's registry.
+     * @param validator The address of the validator.
+     * @param newNodeID The NodeID to be added (must be nonzero).
+     */
+    function addNodeID(
+        address validator,
+        bytes32 newNodeID
+    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+        require(newNodeID != bytes32(0), "Invalid NodeID");
+        require(
+            validatorNodeIDs[validator].length < maxNodeIDs,
+            "Maximum NodeIDs reached"
+        );
+        
+        // Check for duplicate NodeID
+        for (uint256 i = 0; i < validatorNodeIDs[validator].length; i++) {
+            require(
+                validatorNodeIDs[validator][i] != newNodeID,
+                "NodeID already exists"
+            );
+        }
+
+        validatorNodeIDs[validator].push(newNodeID);
+        emit NodeIDAdded(validator, newNodeID);
+    }
+
+    /**
+     * @notice Removes a specified NodeID from the validator's registry.
+     * @param validator The address of the validator.
+     * @param targetNodeID The NodeID to be removed.
+     */
+    function removeNodeID(
+        address validator,
+        bytes32 targetNodeID
+    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+        uint256 length = validatorNodeIDs[validator].length;
+        require(length > 0, "No NodeIDs registered for validator");
+
+        // Find the index of the target NodeID
+        uint256 indexToRemove = length; // default invalid index
+        for (uint256 i = 0; i < length; i++) {
+            if (validatorNodeIDs[validator][i] == targetNodeID) {
+                indexToRemove = i;
+                break;
+            }
+        }
+        require(indexToRemove < length, "NodeID not found for validator");
+
+        // Remove the NodeID using the swap-and-pop technique
+        if (indexToRemove != length - 1) {
+            validatorNodeIDs[validator][indexToRemove] = validatorNodeIDs[validator][length - 1];
+        }
+        validatorNodeIDs[validator].pop();
+        emit NodeIDRemoved(validator, targetNodeID);
+
+        // Clear the array if empty to save storage
+        if (validatorNodeIDs[validator].length == 0) {
+            delete validatorNodeIDs[validator];
+        }
+    }
+
+    /**
+     * @notice Returns all registered NodeIDs for a given validator.
+     * @param validator The address of the validator.
+     * @return An array of NodeIDs (bytes32[]).
+     */
+    function getNodeIDs(
+        address validator
+    ) external view returns (bytes32[] memory) {
+        return validatorNodeIDs[validator];
+    }
+
+    /**
+     * @notice Returns all validators with their registered NodeIDs.
+     * @param validatorsToQuery The addresses of the validators.
+     * @return An array of NodeIDs (bytes32[][]).
+     */
+    function listNodeIDsFor(
+        address[] calldata validatorsToQuery
+    ) external view returns (bytes32[][] memory) {
+        uint256 len = validatorsToQuery.length;
+        bytes32[][] memory nodeIDsList = new bytes32[][](len);
+        for (uint256 i = 0; i < len; i++) {
+            nodeIDsList[i] = validatorNodeIDs[validatorsToQuery[i]];
+        }
+        return nodeIDsList;
     }
 
     /*----------------- internal functions -----------------*/
