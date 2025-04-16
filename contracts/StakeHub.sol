@@ -249,12 +249,20 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /**
-    * @dev Modifier to ensure that only an authorized validator can update NodeIDs.
-    * The caller must either be the validator itself (i.e. the provided address)
-    * or the designated alternative address recorded in `consensusToOperator` for that validator.
-    */
+     * @dev Modifier to ensure that only an authorized validator can update NodeIDs.
+     * The caller must either be:
+     * 1. The validator itself (i.e. the provided address)
+     * 2. The designated alternative address recorded in `consensusToOperator` for that validator
+     * 3. The BEP-410 authorized sender (agent) for the validator
+     */
     modifier onlyAuthorized(address validator) {
-        require(msg.sender == validator || consensusToOperator[validator] == msg.sender, "Unauthorized caller");
+        address sender = _bep410MsgSender();
+        require(
+            sender == validator || 
+            consensusToOperator[validator] == sender || 
+            agentToOperator[sender] == validator, 
+            "Unauthorized caller"
+        );
         _;
     }
 
@@ -1098,6 +1106,49 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (validatorNodeIDs[validator].length == 0) {
             delete validatorNodeIDs[validator];
         }
+    }
+
+    /**
+     * @notice Replaces an existing NodeID with a new one for a validator.
+     * @param validator The address of the validator.
+     * @param oldNodeID The NodeID to be replaced.
+     * @param newNodeID The new NodeID to replace the old one with.
+     */
+    function replaceNodeID(
+        address validator,
+        bytes32 oldNodeID,
+        bytes32 newNodeID
+    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+        require(newNodeID != bytes32(0), "Invalid new NodeID");
+        require(oldNodeID != bytes32(0), "Invalid old NodeID");
+        require(newNodeID != oldNodeID, "New NodeID same as old NodeID");
+
+        uint256 length = validatorNodeIDs[validator].length;
+        require(length > 0, "No NodeIDs registered for validator");
+
+        // Check if newNodeID already exists
+        for (uint256 i = 0; i < length; i++) {
+            require(
+                validatorNodeIDs[validator][i] != newNodeID,
+                "New NodeID already exists"
+            );
+        }
+
+        // Find the index of the old NodeID
+        uint256 indexToReplace = length; // default invalid index
+        for (uint256 i = 0; i < length; i++) {
+            if (validatorNodeIDs[validator][i] == oldNodeID) {
+                indexToReplace = i;
+                break;
+            }
+        }
+        require(indexToReplace < length, "Old NodeID not found");
+
+        // Replace the NodeID
+        validatorNodeIDs[validator][indexToReplace] = newNodeID;
+        
+        emit NodeIDRemoved(validator, oldNodeID);
+        emit NodeIDAdded(validator, newNodeID);
     }
 
     /**
