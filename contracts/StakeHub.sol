@@ -141,9 +141,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     // network related values //
     // governance controlled maximum number of NodeIDs per validator (default is 5).
-    uint256 public maxNodeIDs = 5;
+    uint256 public maxNodeIDs;
 
-    // mapping from a validator's address to an array of their registered NodeIDs,
+    // mapping from a validator's operator address to an array of their registered NodeIDs,
     // where each NodeID is stored as a fixed 32-byte value.
     mapping(address => bytes32[]) private validatorNodeIDs;
 
@@ -254,24 +254,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         _receiveFundStatus = _DISABLE;
     }
 
-    /**
-     * @dev Modifier to ensure that only an authorized validator can update NodeIDs.
-     * The caller must either be:
-     * 1. The validator itself (i.e. the provided address)
-     * 2. The designated alternative address recorded in `consensusToOperator` for that validator
-     * 3. The BEP-410 authorized sender (agent) for the validator
-     */
-    modifier onlyAuthorized(address validator) {
-        address sender = _bep410MsgSender();
-        require(
-            sender == validator || 
-            consensusToOperator[validator] == sender || 
-            agentToOperator[sender] == validator, 
-            "Unauthorized caller"
-        );
-        _;
-    }
-
     receive() external payable {
         // to prevent BNB from being lost
         if (_receiveFundStatus != _ENABLE) revert();
@@ -292,6 +274,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         downtimeJailTime = 2 days;
         felonyJailTime = 30 days;
         maxFelonyBetweenBreatheBlock = 2;
+        maxNodeIDs = 5;
         // Different address will be set depending on the environment
         __Protectable_init_unchained(0x08E68Ec70FA3b629784fDB28887e206ce8561E08);
     }
@@ -1054,15 +1037,15 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
      /**
      * @notice Adds multiple new NodeIDs to the validator's registry.
-     * @param validator The address of the validator.
      * @param nodeIDs Array of NodeIDs to be added.
      */
-    function addNodeIDs(address validator, bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+    function addNodeIDs( bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
         if (nodeIDs.length == 0) {
             revert InvalidNodeID();
         }
 
-        bytes32[] storage existingNodeIDs = validatorNodeIDs[validator];
+        address operatorAddress = _bep563MsgSender();
+        bytes32[] storage existingNodeIDs = validatorNodeIDs[operatorAddress];
         uint256 currentLength = existingNodeIDs.length;
 
         if (currentLength + nodeIDs.length > maxNodeIDs) {
@@ -1093,25 +1076,24 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         // Add new NodeIDs
         for (uint256 i = 0; i < nodeIDs.length; i++) {
             existingNodeIDs.push(nodeIDs[i]);
-            emit NodeIDAdded(validator, nodeIDs[i]);
+            emit NodeIDAdded(operatorAddress, nodeIDs[i]);
         }
     }
 
     /**
      * @notice Removes multiple NodeIDs from the validator's registry.
-     * @param validator The address of the validator.
      * @param targetNodeIDs Array of NodeIDs to be removed.
      */
     function removeNodeIDs(
-        address validator,
         bytes32[] calldata targetNodeIDs
-    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
         if (targetNodeIDs.length == 0) {
             revert InvalidNodeID();
         }
 
+        address operatorAddress = _bep563MsgSender();
         // Get current NodeIDs
-        bytes32[] storage currentNodeIDs = validatorNodeIDs[validator];
+        bytes32[] storage currentNodeIDs = validatorNodeIDs[operatorAddress];
         uint256 currentLength = currentNodeIDs.length;
         
         // Remove NodeIDs
@@ -1121,7 +1103,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
             for (uint256 j = 0; j < targetNodeIDs.length; j++) {
                 if (currentNodeIDs[i] == targetNodeIDs[j]) {
                     shouldRemove = true;
-                    emit NodeIDRemoved(validator, currentNodeIDs[i]);
+                    emit NodeIDRemoved(operatorAddress, currentNodeIDs[i]);
                     break;
                 }
             }
@@ -1138,22 +1120,22 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
         // If no NodeIDs left, remove the array from storage
         if (newLength == 0) {
-            delete validatorNodeIDs[validator];
+            delete validatorNodeIDs[operatorAddress];
         }
     }
 
     /**
      * @notice Replaces all existing NodeIDs with new ones for a validator.
-     * @param validator The address of the validator.
      * @param newNodeIDs Array of new NodeIDs to replace the old ones.
      */
     function replaceNodeIDs(
-        address validator,
         bytes32[] calldata newNodeIDs
-    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
+    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
         if (newNodeIDs.length > maxNodeIDs) {
             revert ExceedsMaxNodeIDs();
         }
+
+        address operatorAddress = _bep563MsgSender();
         
         // Check for zero NodeIDs and duplicates in the new array
         for (uint256 i = 0; i < newNodeIDs.length; i++) {
@@ -1168,7 +1150,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         // Get current NodeIDs
-        bytes32[] storage currentNodeIDs = validatorNodeIDs[validator];
+        bytes32[] storage currentNodeIDs = validatorNodeIDs[operatorAddress];
         uint256 currentLength = currentNodeIDs.length;
 
         // Track which new NodeIDs have been matched with existing ones
@@ -1185,14 +1167,14 @@ contract StakeHub is SystemV2, Initializable, Protectable {
                 }
             }
             if (!found) {
-                emit NodeIDRemoved(validator, currentNodeIDs[i]);
+                emit NodeIDRemoved(operatorAddress, currentNodeIDs[i]);
             }
         }
 
         // Second pass: emit events for new NodeIDs that weren't matched
         for (uint256 i = 0; i < newNodeIDs.length; i++) {
             if (!matched[i]) {
-                emit NodeIDAdded(validator, newNodeIDs[i]);
+                emit NodeIDAdded(operatorAddress, newNodeIDs[i]);
             }
         }
 
@@ -1352,5 +1334,13 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         return msg.sender;
+    }
+
+    function _bep563MsgSender() internal view returns (address) {
+        if (consensusToOperator[msg.sender] != address(0)) {
+            return consensusToOperator[msg.sender];
+        }
+
+        return _bep410MsgSender();
     }
 }

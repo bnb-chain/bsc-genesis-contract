@@ -727,7 +727,7 @@ contract StakeHubTest is Deployer {
         nodeIDs1[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
         nodeIDs1[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
         vm.startPrank(validator1);
-        stakeHub.addNodeIDs(validator1, nodeIDs1);
+        stakeHub.addNodeIDs(nodeIDs1);
         vm.stopPrank();
 
         // Add NodeIDs to validator2
@@ -735,7 +735,7 @@ contract StakeHubTest is Deployer {
         nodeIDs2[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
         nodeIDs2[1] = bytes32(0x2222222222222222222222222222222222222222222222222222222222222222);
         vm.startPrank(validator2);
-        stakeHub.addNodeIDs(validator2, nodeIDs2);
+        stakeHub.addNodeIDs(nodeIDs2);
         vm.stopPrank();
 
         // Test listNodeIDsFor with both validators
@@ -769,7 +769,7 @@ contract StakeHubTest is Deployer {
         initialNodeIDs[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
         initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
         vm.startPrank(validator);
-        stakeHub.addNodeIDs(validator, initialNodeIDs);
+        stakeHub.addNodeIDs(initialNodeIDs);
 
         // Replace with new NodeIDs
         bytes32[] memory newNodeIDs = new bytes32[](3);
@@ -789,7 +789,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, true, false, false);
         emit NodeIDAdded(validator, newNodeIDs[2]);
 
-        stakeHub.replaceNodeIDs(validator, newNodeIDs);
+        stakeHub.replaceNodeIDs(newNodeIDs);
 
         // Verify the replacement
         address[] memory validatorsToQuery = new address[](1);
@@ -808,20 +808,20 @@ contract StakeHubTest is Deployer {
             tooManyNodeIDs[i] = bytes32(uint256(i + 1));
         }
         vm.expectRevert(ExceedsMaxNodeIDs.selector);
-        stakeHub.replaceNodeIDs(validator, tooManyNodeIDs);
+        stakeHub.replaceNodeIDs(tooManyNodeIDs);
 
         // Test with duplicate NodeIDs
         bytes32[] memory duplicateNodeIDs = new bytes32[](2);
         duplicateNodeIDs[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
         duplicateNodeIDs[1] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
         vm.expectRevert(DuplicateNodeID.selector);
-        stakeHub.replaceNodeIDs(validator, duplicateNodeIDs);
+        stakeHub.replaceNodeIDs(duplicateNodeIDs);
 
         // Test with zero NodeID
         bytes32[] memory zeroNodeID = new bytes32[](1);
         zeroNodeID[0] = bytes32(0);
         vm.expectRevert(InvalidNodeID.selector);
-        stakeHub.replaceNodeIDs(validator, zeroNodeID);
+        stakeHub.replaceNodeIDs(zeroNodeID);
         vm.stopPrank();
     }
 
@@ -842,7 +842,7 @@ contract StakeHubTest is Deployer {
         initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
         initialNodeIDs[2] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
         vm.startPrank(validator);
-        stakeHub.addNodeIDs(validator, initialNodeIDs);
+        stakeHub.addNodeIDs(initialNodeIDs);
 
         // Remove some NodeIDs
         bytes32[] memory nodeIDsToRemove = new bytes32[](2);
@@ -855,7 +855,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, true, false, false);
         emit NodeIDRemoved(validator, initialNodeIDs[2]);
 
-        stakeHub.removeNodeIDs(validator, nodeIDsToRemove);
+        stakeHub.removeNodeIDs(nodeIDsToRemove);
 
         // Verify the removal
         address[] memory validatorsToQuery = new address[](1);
@@ -870,7 +870,7 @@ contract StakeHubTest is Deployer {
         removeAll[0] = initialNodeIDs[1];
         vm.expectEmit(true, true, false, false);
         emit NodeIDRemoved(validator, initialNodeIDs[1]);
-        stakeHub.removeNodeIDs(validator, removeAll);
+        stakeHub.removeNodeIDs(removeAll);
 
         // Verify all NodeIDs are removed
         result = stakeHub.listNodeIDsFor(validatorsToQuery);
@@ -909,7 +909,7 @@ contract StakeHubTest is Deployer {
         vm.expectEmit(true, true, false, false);
         emit NodeIDAdded(validator, initialNodeIDs[4]);
 
-        stakeHub.addNodeIDs(validator, initialNodeIDs);
+        stakeHub.addNodeIDs(initialNodeIDs);
 
         // Verify the addition
         address[] memory validatorsToQuery = new address[](1);
@@ -928,6 +928,6 @@ contract StakeHubTest is Deployer {
         bytes32[] memory tooManyNodeIDs = new bytes32[](1);
         tooManyNodeIDs[0] = bytes32(0x4444444444444444444444444444444444444444444444444444444444444444);
         vm.expectRevert(ExceedsMaxNodeIDs.selector);
-        stakeHub.addNodeIDs(validator, tooManyNodeIDs);
+        stakeHub.addNodeIDs(tooManyNodeIDs);
     }
 }
