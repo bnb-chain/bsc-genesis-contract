@@ -1057,7 +1057,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      * @param validator The address of the validator.
      * @param nodeIDs Array of NodeIDs to be added.
      */
-    function addNodeIDs(address validator, bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+    function addNodeIDs(address validator, bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
         if (nodeIDs.length == 0) {
             revert InvalidNodeID();
         }
@@ -1105,7 +1105,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     function removeNodeIDs(
         address validator,
         bytes32[] calldata targetNodeIDs
-    ) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
         if (targetNodeIDs.length == 0) {
             revert InvalidNodeID();
         }
@@ -1150,7 +1150,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     function replaceNodeIDs(
         address validator,
         bytes32[] calldata newNodeIDs
-    ) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
         if (newNodeIDs.length > maxNodeIDs) {
             revert ExceedsMaxNodeIDs();
         }
