@@ -1,5 +1,6 @@
 pragma solidity ^0.8.10;
 
+import "forge-std/console.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./utils/Deployer.sol";
@@ -14,6 +15,14 @@ interface IStakeCredit {
 
 contract StakeHubTest is Deployer {
     using RLPEncode for *;
+
+    // Add NodeID related events and errors
+    event NodeIDAdded(address indexed validator, bytes32 nodeID);
+    event NodeIDRemoved(address indexed validator, bytes32 nodeID);
+    
+    error ExceedsMaxNodeIDs();
+    error DuplicateNodeID();
+    error InvalidNodeID();
 
     event ConsensusAddressEdited(address indexed operatorAddress, address indexed newAddress);
     event CommissionRateEdited(address indexed operatorAddress, uint64 commissionRate);
@@ -699,5 +708,226 @@ contract StakeHubTest is Deployer {
         assertEq(realVoteAddr, newVoteAddress);
 
         vm.stopPrank();
+    }
+
+    function testListNodeIDsFor() public {
+        // Set maxNodeIDs through governance
+        uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
+        if (currentMaxNodeIDs != 5) {
+            vm.prank(GOV_HUB_ADDR);
+            stakeHub.updateParam("maxNodeIDs", abi.encode(uint256(5)));
+        }
+
+        // Create two validators
+        (address validator1,,,) = _createValidator(2000 ether);
+        (address validator2,,,) = _createValidator(2000 ether);
+
+        // Add NodeIDs to validator1
+        bytes32[] memory nodeIDs1 = new bytes32[](2);
+        nodeIDs1[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
+        nodeIDs1[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
+        vm.startPrank(validator1);
+        stakeHub.addNodeIDs(validator1, nodeIDs1);
+        vm.stopPrank();
+
+        // Add NodeIDs to validator2
+        bytes32[] memory nodeIDs2 = new bytes32[](2);
+        nodeIDs2[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        nodeIDs2[1] = bytes32(0x2222222222222222222222222222222222222222222222222222222222222222);
+        vm.startPrank(validator2);
+        stakeHub.addNodeIDs(validator2, nodeIDs2);
+        vm.stopPrank();
+
+        // Test listNodeIDsFor with both validators
+        address[] memory validatorsToQuery = new address[](2);
+        validatorsToQuery[0] = validator1;
+        validatorsToQuery[1] = validator2;
+
+        bytes32[][] memory result = stakeHub.listNodeIDsFor(validatorsToQuery);
+        assertEq(result.length, 2, "Should return results for both validators");
+        assertEq(result[0].length, 2, "Validator1 should have 2 NodeIDs");
+        assertEq(result[1].length, 2, "Validator2 should have 2 NodeIDs");
+        assertEq(result[0][0], nodeIDs1[0], "First NodeID of validator1 should match");
+        assertEq(result[0][1], nodeIDs1[1], "Second NodeID of validator1 should match");
+        assertEq(result[1][0], nodeIDs2[0], "First NodeID of validator2 should match");
+        assertEq(result[1][1], nodeIDs2[1], "Second NodeID of validator2 should match");
+    }
+
+    function testReplaceNodeIDs() public {
+        // Set maxNodeIDs through governance
+        uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
+        if (currentMaxNodeIDs != 5) {
+            vm.prank(GOV_HUB_ADDR);
+            stakeHub.updateParam("maxNodeIDs", abi.encode(uint256(5)));
+        }
+
+        // Create a validator
+        (address validator,,,) = _createValidator(2000 ether);
+
+        // Add initial NodeIDs
+        bytes32[] memory initialNodeIDs = new bytes32[](2);
+        initialNodeIDs[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
+        initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
+        vm.startPrank(validator);
+        stakeHub.addNodeIDs(validator, initialNodeIDs);
+
+        // Replace with new NodeIDs
+        bytes32[] memory newNodeIDs = new bytes32[](3);
+        newNodeIDs[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        newNodeIDs[1] = bytes32(0x2222222222222222222222222222222222222222222222222222222222222222);
+        newNodeIDs[2] = bytes32(0x3333333333333333333333333333333333333333333333333333333333333333);
+
+        // Test event emissions
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDRemoved(validator, initialNodeIDs[0]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDRemoved(validator, initialNodeIDs[1]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, newNodeIDs[0]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, newNodeIDs[1]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, newNodeIDs[2]);
+
+        stakeHub.replaceNodeIDs(validator, newNodeIDs);
+
+        // Verify the replacement
+        address[] memory validatorsToQuery = new address[](1);
+        validatorsToQuery[0] = validator;
+        bytes32[][] memory result = stakeHub.listNodeIDsFor(validatorsToQuery);
+        
+        assertEq(result[0].length, 3, "Should have 3 new NodeIDs");
+        assertEq(result[0][0], newNodeIDs[0], "First new NodeID should match");
+        assertEq(result[0][1], newNodeIDs[1], "Second new NodeID should match");
+        assertEq(result[0][2], newNodeIDs[2], "Third new NodeID should match");
+
+        // Test error cases
+        // Test with too many NodeIDs
+        bytes32[] memory tooManyNodeIDs = new bytes32[](6);
+        for (uint256 i = 0; i < 6; i++) {
+            tooManyNodeIDs[i] = bytes32(uint256(i + 1));
+        }
+        vm.expectRevert(ExceedsMaxNodeIDs.selector);
+        stakeHub.replaceNodeIDs(validator, tooManyNodeIDs);
+
+        // Test with duplicate NodeIDs
+        bytes32[] memory duplicateNodeIDs = new bytes32[](2);
+        duplicateNodeIDs[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        duplicateNodeIDs[1] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        vm.expectRevert(DuplicateNodeID.selector);
+        stakeHub.replaceNodeIDs(validator, duplicateNodeIDs);
+
+        // Test with zero NodeID
+        bytes32[] memory zeroNodeID = new bytes32[](1);
+        zeroNodeID[0] = bytes32(0);
+        vm.expectRevert(InvalidNodeID.selector);
+        stakeHub.replaceNodeIDs(validator, zeroNodeID);
+        vm.stopPrank();
+    }
+
+    function testRemoveNodeIDs() public {
+        // Set maxNodeIDs through governance
+        uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
+        if (currentMaxNodeIDs != 5) {
+            vm.prank(GOV_HUB_ADDR);
+            stakeHub.updateParam("maxNodeIDs", abi.encode(uint256(5)));
+        }
+
+        // Create a validator
+        (address validator,,,) = _createValidator(2000 ether);
+
+        // Add initial NodeIDs
+        bytes32[] memory initialNodeIDs = new bytes32[](3);
+        initialNodeIDs[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
+        initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
+        initialNodeIDs[2] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        vm.startPrank(validator);
+        stakeHub.addNodeIDs(validator, initialNodeIDs);
+
+        // Remove some NodeIDs
+        bytes32[] memory nodeIDsToRemove = new bytes32[](2);
+        nodeIDsToRemove[0] = initialNodeIDs[0];
+        nodeIDsToRemove[1] = initialNodeIDs[2];
+
+        // Test event emissions
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDRemoved(validator, initialNodeIDs[0]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDRemoved(validator, initialNodeIDs[2]);
+
+        stakeHub.removeNodeIDs(validator, nodeIDsToRemove);
+
+        // Verify the removal
+        address[] memory validatorsToQuery = new address[](1);
+        validatorsToQuery[0] = validator;
+        bytes32[][] memory result = stakeHub.listNodeIDsFor(validatorsToQuery);
+        
+        assertEq(result[0].length, 1, "Should have 1 remaining NodeID");
+        assertEq(result[0][0], initialNodeIDs[1], "Remaining NodeID should match");
+
+        // Test removing all NodeIDs
+        bytes32[] memory removeAll = new bytes32[](1);
+        removeAll[0] = initialNodeIDs[1];
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDRemoved(validator, initialNodeIDs[1]);
+        stakeHub.removeNodeIDs(validator, removeAll);
+
+        // Verify all NodeIDs are removed
+        result = stakeHub.listNodeIDsFor(validatorsToQuery);
+        assertEq(result[0].length, 0, "Should have no NodeIDs remaining");
+    }
+
+    function testAddNodeIDs() public {
+        // Set maxNodeIDs through governance
+        uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
+        if (currentMaxNodeIDs != 5) {
+            vm.prank(GOV_HUB_ADDR);
+            stakeHub.updateParam("maxNodeIDs", abi.encode(uint256(5)));
+        }
+
+        // Create a validator
+        (address validator,,,) = _createValidator(2000 ether);
+
+        // Add initial NodeIDs to reach exactly 5
+        bytes32[] memory initialNodeIDs = new bytes32[](5);
+        initialNodeIDs[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
+        initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
+        initialNodeIDs[2] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
+        initialNodeIDs[3] = bytes32(0x2222222222222222222222222222222222222222222222222222222222222222);
+        initialNodeIDs[4] = bytes32(0x3333333333333333333333333333333333333333333333333333333333333333);
+
+        // Test event emissions
+        vm.startPrank(validator);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, initialNodeIDs[0]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, initialNodeIDs[1]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, initialNodeIDs[2]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, initialNodeIDs[3]);
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, initialNodeIDs[4]);
+
+        stakeHub.addNodeIDs(validator, initialNodeIDs);
+
+        // Verify the addition
+        address[] memory validatorsToQuery = new address[](1);
+        validatorsToQuery[0] = validator;
+        bytes32[][] memory result = stakeHub.listNodeIDsFor(validatorsToQuery);
+        
+        assertEq(result[0].length, 5, "Should have 5 NodeIDs");
+        assertEq(result[0][0], initialNodeIDs[0], "First NodeID should match");
+        assertEq(result[0][1], initialNodeIDs[1], "Second NodeID should match");
+        assertEq(result[0][2], initialNodeIDs[2], "Third NodeID should match");
+        assertEq(result[0][3], initialNodeIDs[3], "Fourth NodeID should match");
+        assertEq(result[0][4], initialNodeIDs[4], "Fifth NodeID should match");
+
+        // Test error cases
+        // Test with too many NodeIDs - use unique NodeIDs to avoid DuplicateNodeID error
+        bytes32[] memory tooManyNodeIDs = new bytes32[](1);
+        tooManyNodeIDs[0] = bytes32(0x4444444444444444444444444444444444444444444444444444444444444444);
+        vm.expectRevert(ExceedsMaxNodeIDs.selector);
+        stakeHub.addNodeIDs(validator, tooManyNodeIDs);
     }
 }

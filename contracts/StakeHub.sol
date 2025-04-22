@@ -84,6 +84,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     error InvalidAgent();
     // @notice signature: 0x682a6e7c
     error InvalidValidator();
+    // @notice signature: 0x12345678
+    error InvalidNodeID();
+    // @notice signature: 0x87654321
+    error ExceedsMaxNodeIDs();
+    // @notice signature: 0x13579246
+    error DuplicateNodeID();
 
     /*----------------- storage -----------------*/
     uint8 private _receiveFundStatus;
@@ -1047,119 +1053,158 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
      /**
-     * @notice Adds a new NodeID (of type bytes32) to the validator's registry.
+     * @notice Adds multiple new NodeIDs to the validator's registry.
      * @param validator The address of the validator.
-     * @param newNodeID The NodeID to be added (must be nonzero).
+     * @param nodeIDs Array of NodeIDs to be added.
      */
-    function addNodeID(
-        address validator,
-        bytes32 newNodeID
-    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
-        require(newNodeID != bytes32(0), "Invalid NodeID");
-        require(
-            validatorNodeIDs[validator].length < maxNodeIDs,
-            "Maximum NodeIDs reached"
-        );
-        
-        // Check for duplicate NodeID
-        for (uint256 i = 0; i < validatorNodeIDs[validator].length; i++) {
-            require(
-                validatorNodeIDs[validator][i] != newNodeID,
-                "NodeID already exists"
-            );
+    function addNodeIDs(address validator, bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+        if (nodeIDs.length == 0) {
+            revert InvalidNodeID();
         }
 
-        validatorNodeIDs[validator].push(newNodeID);
-        emit NodeIDAdded(validator, newNodeID);
+        bytes32[] storage existingNodeIDs = validatorNodeIDs[validator];
+        uint256 currentLength = existingNodeIDs.length;
+
+        if (currentLength + nodeIDs.length > maxNodeIDs) {
+            revert ExceedsMaxNodeIDs();
+        }
+
+        // Check for duplicates in new NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            if (nodeIDs[i] == bytes32(0)) {
+                revert InvalidNodeID();
+            }
+            for (uint256 j = i + 1; j < nodeIDs.length; j++) {
+                if (nodeIDs[i] == nodeIDs[j]) {
+                    revert DuplicateNodeID();
+                }
+            }
+        }
+
+        // Check for duplicates in existing NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            for (uint256 j = 0; j < currentLength; j++) {
+                if (nodeIDs[i] == existingNodeIDs[j]) {
+                    revert DuplicateNodeID();
+                }
+            }
+        }
+
+        // Add new NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            existingNodeIDs.push(nodeIDs[i]);
+            emit NodeIDAdded(validator, nodeIDs[i]);
+        }
     }
 
     /**
-     * @notice Removes a specified NodeID from the validator's registry.
+     * @notice Removes multiple NodeIDs from the validator's registry.
      * @param validator The address of the validator.
-     * @param targetNodeID The NodeID to be removed.
+     * @param targetNodeIDs Array of NodeIDs to be removed.
      */
-    function removeNodeID(
+    function removeNodeIDs(
         address validator,
-        bytes32 targetNodeID
-    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
-        uint256 length = validatorNodeIDs[validator].length;
-        require(length > 0, "No NodeIDs registered for validator");
+        bytes32[] calldata targetNodeIDs
+    ) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+        if (targetNodeIDs.length == 0) {
+            revert InvalidNodeID();
+        }
 
-        // Find the index of the target NodeID
-        uint256 indexToRemove = length; // default invalid index
-        for (uint256 i = 0; i < length; i++) {
-            if (validatorNodeIDs[validator][i] == targetNodeID) {
-                indexToRemove = i;
-                break;
+        // Get current NodeIDs
+        bytes32[] storage currentNodeIDs = validatorNodeIDs[validator];
+        uint256 currentLength = currentNodeIDs.length;
+        
+        // Remove NodeIDs
+        uint256 newLength = 0;
+        for (uint256 i = 0; i < currentLength; i++) {
+            bool shouldRemove = false;
+            for (uint256 j = 0; j < targetNodeIDs.length; j++) {
+                if (currentNodeIDs[i] == targetNodeIDs[j]) {
+                    shouldRemove = true;
+                    emit NodeIDRemoved(validator, currentNodeIDs[i]);
+                    break;
+                }
+            }
+            if (!shouldRemove) {
+                currentNodeIDs[newLength] = currentNodeIDs[i];
+                newLength++;
             }
         }
-        require(indexToRemove < length, "NodeID not found for validator");
 
-        // Remove the NodeID using the swap-and-pop technique
-        if (indexToRemove != length - 1) {
-            validatorNodeIDs[validator][indexToRemove] = validatorNodeIDs[validator][length - 1];
+        // Clean up storage
+        for (uint256 i = newLength; i < currentLength; i++) {
+            currentNodeIDs.pop();
         }
-        validatorNodeIDs[validator].pop();
-        emit NodeIDRemoved(validator, targetNodeID);
 
-        // Clear the array if empty to save storage
-        if (validatorNodeIDs[validator].length == 0) {
+        // If no NodeIDs left, remove the array from storage
+        if (newLength == 0) {
             delete validatorNodeIDs[validator];
         }
     }
 
     /**
-     * @notice Replaces an existing NodeID with a new one for a validator.
+     * @notice Replaces all existing NodeIDs with new ones for a validator.
      * @param validator The address of the validator.
-     * @param oldNodeID The NodeID to be replaced.
-     * @param newNodeID The new NodeID to replace the old one with.
+     * @param newNodeIDs Array of new NodeIDs to replace the old ones.
      */
-    function replaceNodeID(
+    function replaceNodeIDs(
         address validator,
-        bytes32 oldNodeID,
-        bytes32 newNodeID
-    ) external whenNotPaused notInBlackList validatorExist(validator) onlyAuthorized(validator) {
-        require(newNodeID != bytes32(0), "Invalid new NodeID");
-        require(oldNodeID != bytes32(0), "Invalid old NodeID");
-        require(newNodeID != oldNodeID, "New NodeID same as old NodeID");
-
-        uint256 length = validatorNodeIDs[validator].length;
-        require(length > 0, "No NodeIDs registered for validator");
-
-        // Check if newNodeID already exists
-        for (uint256 i = 0; i < length; i++) {
-            require(
-                validatorNodeIDs[validator][i] != newNodeID,
-                "New NodeID already exists"
-            );
+        bytes32[] calldata newNodeIDs
+    ) external whenNotPaused notInBlackList onlyAuthorized(validator) {
+        if (newNodeIDs.length > maxNodeIDs) {
+            revert ExceedsMaxNodeIDs();
         }
-
-        // Find the index of the old NodeID
-        uint256 indexToReplace = length; // default invalid index
-        for (uint256 i = 0; i < length; i++) {
-            if (validatorNodeIDs[validator][i] == oldNodeID) {
-                indexToReplace = i;
-                break;
+        
+        // Check for zero NodeIDs and duplicates in the new array
+        for (uint256 i = 0; i < newNodeIDs.length; i++) {
+            if (newNodeIDs[i] == bytes32(0)) {
+                revert InvalidNodeID();
+            }
+            for (uint256 j = i + 1; j < newNodeIDs.length; j++) {
+                if (newNodeIDs[i] == newNodeIDs[j]) {
+                    revert DuplicateNodeID();
+                }
             }
         }
-        require(indexToReplace < length, "Old NodeID not found");
 
-        // Replace the NodeID
-        validatorNodeIDs[validator][indexToReplace] = newNodeID;
-        
-        emit NodeIDRemoved(validator, oldNodeID);
-        emit NodeIDAdded(validator, newNodeID);
-    }
+        // Get current NodeIDs
+        bytes32[] storage currentNodeIDs = validatorNodeIDs[validator];
+        uint256 currentLength = currentNodeIDs.length;
 
-    /**
-     * @notice Returns all registered NodeIDs for a given validator.
-     * @param validator The address of the validator.
-     * @return An array of NodeIDs (bytes32[]).
-     */
-    function getNodeIDs(
-        address validator
-    ) external view returns (bytes32[] memory) {
-        return validatorNodeIDs[validator];
+        // Track which new NodeIDs have been matched with existing ones
+        bool[] memory matched = new bool[](newNodeIDs.length);
+
+        // First pass: match existing NodeIDs with new ones and emit events for removals
+        for (uint256 i = 0; i < currentLength; i++) {
+            bool found = false;
+            for (uint256 j = 0; j < newNodeIDs.length; j++) {
+                if (currentNodeIDs[i] == newNodeIDs[j]) {
+                    matched[j] = true;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                emit NodeIDRemoved(validator, currentNodeIDs[i]);
+            }
+        }
+
+        // Second pass: emit events for new NodeIDs that weren't matched
+        for (uint256 i = 0; i < newNodeIDs.length; i++) {
+            if (!matched[i]) {
+                emit NodeIDAdded(validator, newNodeIDs[i]);
+            }
+        }
+
+        // Clear existing array
+        while (currentNodeIDs.length > 0) {
+            currentNodeIDs.pop();
+        }
+
+        // Add new NodeIDs
+        for (uint256 i = 0; i < newNodeIDs.length; i++) {
+            currentNodeIDs.push(newNodeIDs[i]);
+        }
     }
 
     /**
