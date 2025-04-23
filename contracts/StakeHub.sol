@@ -27,6 +27,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
 
+    uint256 public constant INIT_MAX_NUMBER_NODE_ID = 5;
+
     // receive fund status
     uint8 private constant _DISABLE = 0;
     uint8 private constant _ENABLE = 1;
@@ -140,8 +142,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     mapping(address => address) public agentToOperator;
 
     // network related values //
+
     // governance controlled maximum number of NodeIDs per validator (default is 5).
     uint256 public maxNodeIDs;
+    // whether the maxNodeIDs has been initialized
+    bool private maxNodeIDsInitialized;
 
     // mapping from a validator's operator address to an array of their registered NodeIDs,
     // where each NodeID is stored as a fixed 32-byte value.
@@ -274,7 +279,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         downtimeJailTime = 2 days;
         felonyJailTime = 30 days;
         maxFelonyBetweenBreatheBlock = 2;
-        maxNodeIDs = 5;
         // Different address will be set depending on the environment
         __Protectable_init_unchained(0x08E68Ec70FA3b629784fDB28887e206ce8561E08);
     }
@@ -1040,6 +1044,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      * @param nodeIDs Array of NodeIDs to be added.
      */
     function addNodeIDs( bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+        maxNodeIDsInitializer();
+
         if (nodeIDs.length == 0) {
             revert InvalidNodeID();
         }
@@ -1087,6 +1093,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     function removeNodeIDs(
         bytes32[] calldata targetNodeIDs
     ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+        maxNodeIDsInitializer();
+
         if (targetNodeIDs.length == 0) {
             revert InvalidNodeID();
         }
@@ -1131,6 +1139,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     function replaceNodeIDs(
         bytes32[] calldata newNodeIDs
     ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+        maxNodeIDsInitializer();
+
         if (newNodeIDs.length > maxNodeIDs) {
             revert ExceedsMaxNodeIDs();
         }
@@ -1342,5 +1352,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         return _bep410MsgSender();
+    }
+
+    function maxNodeIDsInitializer() internal {
+        if (!maxNodeIDsInitialized) {
+            maxNodeIDs = INIT_MAX_NUMBER_NODE_ID;
+            maxNodeIDsInitialized = true;
+        }
     }
 }
