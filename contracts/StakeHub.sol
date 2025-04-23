@@ -828,7 +828,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
             if (newStakeHubProtector == address(0)) revert InvalidValue(key, value);
             _setProtector(newStakeHubProtector);
         } else if (key.compareStrings("maxNodeIDs")) {
-          if (value.length != 32) revert InvalidValue(key, value);
+            if (value.length != 32) revert InvalidValue(key, value);
             uint256 newMaxNodeIDs = value.bytesToUint256(32);
             if (newMaxNodeIDs == 0) revert InvalidValue(key, value);
             maxNodeIDs = newMaxNodeIDs;
@@ -1039,11 +1039,13 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
     }
 
-     /**
+    /**
      * @notice Adds multiple new NodeIDs to the validator's registry.
      * @param nodeIDs Array of NodeIDs to be added.
      */
-    function addNodeIDs( bytes32[] calldata nodeIDs) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+    function addNodeIDs(
+        bytes32[] calldata nodeIDs
+    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
         maxNodeIDsInitializer();
 
         if (nodeIDs.length == 0) {
@@ -1103,7 +1105,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         // Get current NodeIDs
         bytes32[] storage currentNodeIDs = validatorNodeIDs[operatorAddress];
         uint256 currentLength = currentNodeIDs.length;
-        
+
         // Remove NodeIDs
         uint256 newLength = 0;
         for (uint256 i = 0; i < currentLength; i++) {
@@ -1146,7 +1148,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         address operatorAddress = _bep563MsgSender();
-        
+
         // Check for zero NodeIDs and duplicates in the new array
         for (uint256 i = 0; i < newNodeIDs.length; i++) {
             if (newNodeIDs[i] == bytes32(0)) {
