@@ -191,7 +191,6 @@ interface StakeHub {
     // NodeID management functions
     function addNodeIDs(bytes32[] calldata newNodeIDs) external;
     function removeNodeIDs(bytes32[] calldata targetNodeIDs) external;
-    function replaceNodeIDs(bytes32[] calldata newNodeIDs) external;
     function listNodeIDsFor(address[] calldata validatorsToQuery) external view returns (bytes32[][] memory);
     function maxNodeIDs() external view returns (uint256);
 }

@@ -1095,109 +1095,37 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     function removeNodeIDs(
         bytes32[] calldata targetNodeIDs
     ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
-        maxNodeIDsInitializer();
+        address validator = _bep563MsgSender();
+        bytes32[] storage nodeIDs = validatorNodeIDs[validator];
+        uint256 length = nodeIDs.length;
 
+        // If targetNodeIDs is empty, remove all NodeIDs
         if (targetNodeIDs.length == 0) {
-            revert InvalidNodeID();
+            for (uint256 i = 0; i < length; i++) {
+                emit NodeIDRemoved(validator, nodeIDs[i]);
+            }
+            delete validatorNodeIDs[validator];
+            return;
         }
 
-        address operatorAddress = _bep563MsgSender();
-        // Get current NodeIDs
-        bytes32[] storage currentNodeIDs = validatorNodeIDs[operatorAddress];
-        uint256 currentLength = currentNodeIDs.length;
-
-        // Remove NodeIDs
-        uint256 newLength = 0;
-        for (uint256 i = 0; i < currentLength; i++) {
-            bool shouldRemove = false;
-            for (uint256 j = 0; j < targetNodeIDs.length; j++) {
-                if (currentNodeIDs[i] == targetNodeIDs[j]) {
-                    shouldRemove = true;
-                    emit NodeIDRemoved(operatorAddress, currentNodeIDs[i]);
+        // Otherwise, remove specific NodeIDs
+        for (uint256 i = 0; i < targetNodeIDs.length; i++) {
+            bytes32 nodeID = targetNodeIDs[i];
+            for (uint256 j = 0; j < length; j++) {
+                if (nodeIDs[j] == nodeID) {
+                    // Swap and pop
+                    nodeIDs[j] = nodeIDs[length - 1];
+                    nodeIDs.pop();
+                    length--;
+                    emit NodeIDRemoved(validator, nodeID);
                     break;
                 }
             }
-            if (!shouldRemove) {
-                currentNodeIDs[newLength] = currentNodeIDs[i];
-                newLength++;
-            }
         }
 
-        // Clean up storage
-        for (uint256 i = newLength; i < currentLength; i++) {
-            currentNodeIDs.pop();
-        }
-
-        // If no NodeIDs left, remove the array from storage
-        if (newLength == 0) {
-            delete validatorNodeIDs[operatorAddress];
-        }
-    }
-
-    /**
-     * @notice Replaces all existing NodeIDs with new ones for a validator.
-     * @param newNodeIDs Array of new NodeIDs to replace the old ones.
-     */
-    function replaceNodeIDs(
-        bytes32[] calldata newNodeIDs
-    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
-        maxNodeIDsInitializer();
-
-        if (newNodeIDs.length > maxNodeIDs) {
-            revert ExceedsMaxNodeIDs();
-        }
-
-        address operatorAddress = _bep563MsgSender();
-
-        // Check for zero NodeIDs and duplicates in the new array
-        for (uint256 i = 0; i < newNodeIDs.length; i++) {
-            if (newNodeIDs[i] == bytes32(0)) {
-                revert InvalidNodeID();
-            }
-            for (uint256 j = i + 1; j < newNodeIDs.length; j++) {
-                if (newNodeIDs[i] == newNodeIDs[j]) {
-                    revert DuplicateNodeID();
-                }
-            }
-        }
-
-        // Get current NodeIDs
-        bytes32[] storage currentNodeIDs = validatorNodeIDs[operatorAddress];
-        uint256 currentLength = currentNodeIDs.length;
-
-        // Track which new NodeIDs have been matched with existing ones
-        bool[] memory matched = new bool[](newNodeIDs.length);
-
-        // First pass: match existing NodeIDs with new ones and emit events for removals
-        for (uint256 i = 0; i < currentLength; i++) {
-            bool found = false;
-            for (uint256 j = 0; j < newNodeIDs.length; j++) {
-                if (currentNodeIDs[i] == newNodeIDs[j]) {
-                    matched[j] = true;
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
-                emit NodeIDRemoved(operatorAddress, currentNodeIDs[i]);
-            }
-        }
-
-        // Second pass: emit events for new NodeIDs that weren't matched
-        for (uint256 i = 0; i < newNodeIDs.length; i++) {
-            if (!matched[i]) {
-                emit NodeIDAdded(operatorAddress, newNodeIDs[i]);
-            }
-        }
-
-        // Clear existing array
-        while (currentNodeIDs.length > 0) {
-            currentNodeIDs.pop();
-        }
-
-        // Add new NodeIDs
-        for (uint256 i = 0; i < newNodeIDs.length; i++) {
-            currentNodeIDs.push(newNodeIDs[i]);
+        // Clean up storage if no NodeIDs left
+        if (nodeIDs.length == 0) {
+            delete validatorNodeIDs[validator];
         }
     }
 

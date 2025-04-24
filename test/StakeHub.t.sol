@@ -753,78 +753,6 @@ contract StakeHubTest is Deployer {
         assertEq(result[1][1], nodeIDs2[1], "Second NodeID of validator2 should match");
     }
 
-    function testReplaceNodeIDs() public {
-        // Set maxNodeIDs through governance
-        uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
-        if (currentMaxNodeIDs != 5) {
-            vm.prank(GOV_HUB_ADDR);
-            stakeHub.updateParam("maxNodeIDs", abi.encode(uint256(5)));
-        }
-
-        // Create a validator
-        (address validator,,,) = _createValidator(2000 ether);
-
-        // Add initial NodeIDs
-        bytes32[] memory initialNodeIDs = new bytes32[](2);
-        initialNodeIDs[0] = bytes32(0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef);
-        initialNodeIDs[1] = bytes32(0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890);
-        vm.startPrank(validator);
-        stakeHub.addNodeIDs(initialNodeIDs);
-
-        // Replace with new NodeIDs
-        bytes32[] memory newNodeIDs = new bytes32[](3);
-        newNodeIDs[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
-        newNodeIDs[1] = bytes32(0x2222222222222222222222222222222222222222222222222222222222222222);
-        newNodeIDs[2] = bytes32(0x3333333333333333333333333333333333333333333333333333333333333333);
-
-        // Test event emissions
-        vm.expectEmit(true, true, false, false);
-        emit NodeIDRemoved(validator, initialNodeIDs[0]);
-        vm.expectEmit(true, true, false, false);
-        emit NodeIDRemoved(validator, initialNodeIDs[1]);
-        vm.expectEmit(true, true, false, false);
-        emit NodeIDAdded(validator, newNodeIDs[0]);
-        vm.expectEmit(true, true, false, false);
-        emit NodeIDAdded(validator, newNodeIDs[1]);
-        vm.expectEmit(true, true, false, false);
-        emit NodeIDAdded(validator, newNodeIDs[2]);
-
-        stakeHub.replaceNodeIDs(newNodeIDs);
-
-        // Verify the replacement
-        address[] memory validatorsToQuery = new address[](1);
-        validatorsToQuery[0] = validator;
-        bytes32[][] memory result = stakeHub.listNodeIDsFor(validatorsToQuery);
-        
-        assertEq(result[0].length, 3, "Should have 3 new NodeIDs");
-        assertEq(result[0][0], newNodeIDs[0], "First new NodeID should match");
-        assertEq(result[0][1], newNodeIDs[1], "Second new NodeID should match");
-        assertEq(result[0][2], newNodeIDs[2], "Third new NodeID should match");
-
-        // Test error cases
-        // Test with too many NodeIDs
-        bytes32[] memory tooManyNodeIDs = new bytes32[](6);
-        for (uint256 i = 0; i < 6; i++) {
-            tooManyNodeIDs[i] = bytes32(uint256(i + 1));
-        }
-        vm.expectRevert(ExceedsMaxNodeIDs.selector);
-        stakeHub.replaceNodeIDs(tooManyNodeIDs);
-
-        // Test with duplicate NodeIDs
-        bytes32[] memory duplicateNodeIDs = new bytes32[](2);
-        duplicateNodeIDs[0] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
-        duplicateNodeIDs[1] = bytes32(0x1111111111111111111111111111111111111111111111111111111111111111);
-        vm.expectRevert(DuplicateNodeID.selector);
-        stakeHub.replaceNodeIDs(duplicateNodeIDs);
-
-        // Test with zero NodeID
-        bytes32[] memory zeroNodeID = new bytes32[](1);
-        zeroNodeID[0] = bytes32(0);
-        vm.expectRevert(InvalidNodeID.selector);
-        stakeHub.replaceNodeIDs(zeroNodeID);
-        vm.stopPrank();
-    }
-
     function testRemoveNodeIDs() public {
         // Set maxNodeIDs through governance
         uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
@@ -866,8 +794,7 @@ contract StakeHubTest is Deployer {
         assertEq(result[0][0], initialNodeIDs[1], "Remaining NodeID should match");
 
         // Test removing all NodeIDs
-        bytes32[] memory removeAll = new bytes32[](1);
-        removeAll[0] = initialNodeIDs[1];
+        bytes32[] memory removeAll = new bytes32[](0);
         vm.expectEmit(true, true, false, false);
         emit NodeIDRemoved(validator, initialNodeIDs[1]);
         stakeHub.removeNodeIDs(removeAll);
