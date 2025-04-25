@@ -1145,6 +1145,27 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         return nodeIDsList;
     }
 
+    /**
+     * @notice Returns all NodeIDs for validators identified by their consensus addresses.
+     * @param consensusAddresses The consensus addresses of the validators.
+     * @return An array of NodeIDs (bytes32[][]).
+     */
+    function listNodeIDsForConsensus(
+        address[] calldata consensusAddresses
+    ) external view returns (bytes32[][] memory) {
+        uint256 len = consensusAddresses.length;
+        bytes32[][] memory nodeIDsList = new bytes32[][](len);
+
+        for (uint256 i = 0; i < len; i++) {
+            address operator = consensusToOperator[consensusAddresses[i]];
+            if (operator != address(0)) {
+                nodeIDsList[i] = validatorNodeIDs[operator];
+            }
+        }
+
+        return nodeIDsList;
+    }
+
     /*----------------- internal functions -----------------*/
     function _checkMoniker(
         string memory moniker
