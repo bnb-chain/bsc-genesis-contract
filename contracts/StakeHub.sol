@@ -1130,40 +1130,26 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /**
-     * @notice Returns all validators with their registered NodeIDs.
-     * @param validatorsToQuery The addresses of the validators.
-     * @return An array of NodeIDs (bytes32[][]).
+     * @notice Returns all validators with their consensus addresses and registered NodeIDs.
+     * @param validatorsToQuery The operator addresses of the validators.
+     * @return consensusAddresses Array of consensus addresses corresponding to the validators.
+     * @return nodeIDsList Array of NodeIDs for each validator.
      */
     function listNodeIDsFor(
         address[] calldata validatorsToQuery
-    ) external view returns (bytes32[][] memory) {
+    ) external view returns (address[] memory consensusAddresses, bytes32[][] memory nodeIDsList) {
         uint256 len = validatorsToQuery.length;
-        bytes32[][] memory nodeIDsList = new bytes32[][](len);
-        for (uint256 i = 0; i < len; i++) {
-            nodeIDsList[i] = validatorNodeIDs[validatorsToQuery[i]];
-        }
-        return nodeIDsList;
-    }
-
-    /**
-     * @notice Returns all NodeIDs for validators identified by their consensus addresses.
-     * @param consensusAddresses The consensus addresses of the validators.
-     * @return An array of NodeIDs (bytes32[][]).
-     */
-    function listNodeIDsForConsensus(
-        address[] calldata consensusAddresses
-    ) external view returns (bytes32[][] memory) {
-        uint256 len = consensusAddresses.length;
-        bytes32[][] memory nodeIDsList = new bytes32[][](len);
+        consensusAddresses = new address[](len);
+        nodeIDsList = new bytes32[][](len);
 
         for (uint256 i = 0; i < len; i++) {
-            address operator = consensusToOperator[consensusAddresses[i]];
-            if (operator != address(0)) {
-                nodeIDsList[i] = validatorNodeIDs[operator];
-            }
+            address operator = validatorsToQuery[i];
+            Validator memory valInfo = _validators[operator];
+            consensusAddresses[i] = valInfo.consensusAddress;
+            nodeIDsList[i] = validatorNodeIDs[operator];
         }
 
-        return nodeIDsList;
+        return (consensusAddresses, nodeIDsList);
     }
 
     /*----------------- internal functions -----------------*/
