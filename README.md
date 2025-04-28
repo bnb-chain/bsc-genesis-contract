@@ -31,17 +31,8 @@ nvm install  12.18.3 && nvm use 12.18.3
 
 ## Unit test
 
-Add follow line to .env file in project dir, replace `archive_node` with a valid bsc mainnet node url which should be in archive mode:
-
-```text
-RPC_BSC=${archive_node}
-```
-
-You can get a free archive node endpoint from https://nodereal.io/.
-
-Run forge test:
 ```shell script
-forge test
+forge test --fork-url https://bsc-dataseed.bnbchain.org
 ```
 
 ## Flatten all system contracts
