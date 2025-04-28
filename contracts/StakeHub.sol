@@ -86,11 +86,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     error InvalidAgent();
     // @notice signature: 0x682a6e7c
     error InvalidValidator();
-    // @notice signature: 0x12345678
+    // @notice signature: 0x6490ffd3
     error InvalidNodeID();
-    // @notice signature: 0x87654321
+    // @notice signature: 0x246be614
     error ExceedsMaxNodeIDs();
-    // @notice signature: 0x13579246
+    // @notice signature: 0x440bc78e
     error DuplicateNodeID();
 
     /*----------------- storage -----------------*/
