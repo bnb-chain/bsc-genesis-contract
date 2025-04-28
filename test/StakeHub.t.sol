@@ -710,7 +710,7 @@ contract StakeHubTest is Deployer {
         vm.stopPrank();
     }
 
-    function testListNodeIDsFor() public {
+    function testGetNodeIDs() public {
          // Set maxNodeIDs through governance
          uint256 currentMaxNodeIDs = stakeHub.maxNodeIDs();
          if (currentMaxNodeIDs != 5) {
@@ -738,12 +738,12 @@ contract StakeHubTest is Deployer {
          stakeHub.addNodeIDs(nodeIDs2);
          vm.stopPrank();
  
-         // Test listNodeIDsFor with both validators
+         // Test getNodeIDs with both validators
          address[] memory validatorsToQuery = new address[](2);
          validatorsToQuery[0] = validator1;
          validatorsToQuery[1] = validator2;
  
-         (address[] memory consensusAddresses, bytes32[][] memory result) = stakeHub.listNodeIDsFor(validatorsToQuery);
+         (address[] memory consensusAddresses, bytes32[][] memory result) = stakeHub.getNodeIDs(validatorsToQuery);
          assertEq(result.length, 2, "Should return results for both validators");
          assertEq(consensusAddresses.length, 2, "Should return consensus addresses for both validators");
          assertEq(result[0].length, 2, "Validator1 should have 2 NodeIDs");
@@ -789,7 +789,7 @@ contract StakeHubTest is Deployer {
         // Verify the removal
         address[] memory validatorsToQuery = new address[](1);
         validatorsToQuery[0] = validator;
-        (, bytes32[][] memory result) = stakeHub.listNodeIDsFor(validatorsToQuery);
+        (, bytes32[][] memory result) = stakeHub.getNodeIDs(validatorsToQuery);
         
         assertEq(result[0].length, 1, "Should have 1 remaining NodeID");
         assertEq(result[0][0], initialNodeIDs[1], "Remaining NodeID should match");
@@ -801,7 +801,7 @@ contract StakeHubTest is Deployer {
         stakeHub.removeNodeIDs(removeAll);
 
         // Verify all NodeIDs are removed
-        (, result) = stakeHub.listNodeIDsFor(validatorsToQuery);
+        (, result) = stakeHub.getNodeIDs(validatorsToQuery);
         assertEq(result[0].length, 0, "Should have no NodeIDs remaining");
     }
 
@@ -842,7 +842,7 @@ contract StakeHubTest is Deployer {
         // Verify the addition
         address[] memory validatorsToQuery = new address[](1);
         validatorsToQuery[0] = validator;
-        (, bytes32[][] memory result) = stakeHub.listNodeIDsFor(validatorsToQuery);
+        (, bytes32[][] memory result) = stakeHub.getNodeIDs(validatorsToQuery);
         
         assertEq(result[0].length, 5, "Should have 5 NodeIDs");
         assertEq(result[0][0], initialNodeIDs[0], "First NodeID should match");

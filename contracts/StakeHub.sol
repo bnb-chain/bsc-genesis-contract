@@ -1135,7 +1135,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
      * @return consensusAddresses Array of consensus addresses corresponding to the validators.
      * @return nodeIDsList Array of NodeIDs for each validator.
      */
-    function listNodeIDsFor(
+    function getNodeIDs(
         address[] calldata validatorsToQuery
     ) external view returns (address[] memory consensusAddresses, bytes32[][] memory nodeIDsList) {
         uint256 len = validatorsToQuery.length;
