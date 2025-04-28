@@ -145,8 +145,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     // governance controlled maximum number of NodeIDs per validator (default is 5).
     uint256 public maxNodeIDs;
-    // whether the maxNodeIDs has been initialized
-    bool private maxNodeIDsInitialized;
 
     // mapping from a validator's operator address to an array of their registered NodeIDs,
     // where each NodeID is stored as a fixed 32-byte value.
@@ -1292,9 +1290,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     function maxNodeIDsInitializer() internal {
-        if (!maxNodeIDsInitialized) {
+        if (maxNodeIDs == 0) {
             maxNodeIDs = INIT_MAX_NUMBER_NODE_ID;
-            maxNodeIDsInitialized = true;
         }
     }
 }
