@@ -39,7 +39,7 @@ jobs:
           npm install ts-node -g
           npm install
           poetry install
-          forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
+          forge install --no-git foundry-rs/forge-std@v1.7.3
           forge --version
 
       - name: Build
