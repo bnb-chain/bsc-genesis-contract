@@ -304,10 +304,11 @@ contract GovernorTest is Deployer {
 
         uint256 BLOCK_INTERVAL = 3 seconds;
         uint256 INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
+        uint256 NEW_VOTING_PERIOD = INIT_VOTING_PERIOD * 2;
         uint64 INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
-
-        vm.roll(_nowBlock + INIT_VOTING_PERIOD - 1);
-        vm.warp(_now + INIT_VOTING_PERIOD * BLOCK_INTERVAL - 3);
+        uint64 NEW_MIN_PERIOD_AFTER_QUORUM = INIT_MIN_PERIOD_AFTER_QUORUM * 2;
+        vm.roll(_nowBlock + NEW_VOTING_PERIOD - 1);
+        vm.warp(_now + (NEW_VOTING_PERIOD - 1) * BLOCK_INTERVAL / 2);
 
         uint256 deadline = governor.proposalDeadline(proposalId);
         console.log("block.number", block.number);
@@ -320,7 +321,7 @@ contract GovernorTest is Deployer {
         console.log("block.number", block.number);
         console.log("deadline block", deadline);
         // quorum reached, deadline should be added 1 day
-        assertEq(deadline, block.number + INIT_MIN_PERIOD_AFTER_QUORUM);
+        assertEq(deadline, block.number + NEW_MIN_PERIOD_AFTER_QUORUM);
     }
 
     function testPropose() public {
