@@ -111,19 +111,19 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
         assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
-        for (uint256 i; i < 50; ++i) {
+        for (uint256 i; i < 100; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
         (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(50, count);
+        assertEq(100, count);
         assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
         // enter maintenance, cannot be slashed
         vm.roll(block.number + 1);
         slashIndicator.slash(consensusAddrs[0]);
         (, count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(50, count);
+        assertEq(100, count);
 
         address[] memory newVals = new address[](3);
         uint64[] memory newVotingPowers = new uint64[](3);
@@ -138,19 +138,19 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: 2 ether }(newVals[0]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[0]));
 
-        for (uint256 i; i < 37; ++i) {
+        for (uint256 i; i < 76; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[0]);
         }
         (, count) = slashIndicator.getSlashIndicator(newVals[0]);
-        assertEq(50, count);
+        assertEq(100, count);
         assertEq(0, bscValidatorSet.getIncoming(newVals[0]));
         assertEq(_incoming, bscValidatorSet.getIncoming(newVals[1]));
         assertEq(_incoming, bscValidatorSet.getIncoming(newVals[2]));
 
         bscValidatorSet.deposit{ value: _deposit }(newVals[1]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[1]));
-        for (uint256 i; i < 50; ++i) {
+        for (uint256 i; i < 100; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[1]);
         }
@@ -159,7 +159,7 @@ contract SlashIndicatorTest is Deployer {
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[2]));
 
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[2]));
-        for (uint256 i; i < 50; ++i) {
+        for (uint256 i; i < 100; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[2]);
         }
@@ -181,12 +181,12 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
         assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
-        for (uint256 i; i < 50; ++i) {
+        for (uint256 i; i < 100; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
         (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(50, count);
+        assertEq(100, count);
         assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
         vm.stopPrank();
 
@@ -195,7 +195,7 @@ contract SlashIndicatorTest is Deployer {
 
         vm.startPrank(coinbase);
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i; i < 200; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
