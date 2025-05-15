@@ -429,7 +429,7 @@ def dev(
     generate_timelock(init_minimal_delay)
     generate_token_hub(lock_period_for_token_recover)
 
-    generate_genesis()
+    generate_genesis("./genesis-dev.json")
     print("Generate genesis of dev environment successfully")
 
 

@@ -27,6 +27,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     uint256 public constant BREATHE_BLOCK_INTERVAL = 1 days;
 
+    uint256 public constant INIT_MAX_NUMBER_NODE_ID = 5;
+
     // receive fund status
     uint8 private constant _DISABLE = 0;
     uint8 private constant _ENABLE = 1;
@@ -84,6 +86,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     error InvalidAgent();
     // @notice signature: 0x682a6e7c
     error InvalidValidator();
+    // @notice signature: 0x6490ffd3
+    error InvalidNodeID();
+    // @notice signature: 0x246be614
+    error ExceedsMaxNodeIDs();
+    // @notice signature: 0x440bc78e
+    error DuplicateNodeID();
 
     /*----------------- storage -----------------*/
     uint8 private _receiveFundStatus;
@@ -132,6 +140,15 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     // agent => validator operator address
     mapping(address => address) public agentToOperator;
+
+    // network related values //
+
+    // governance controlled maximum number of NodeIDs per validator (default is 5).
+    uint256 public maxNodeIDs;
+
+    // mapping from a validator's operator address to an array of their registered NodeIDs,
+    // where each NodeID is stored as a fixed 32-byte value.
+    mapping(address => bytes32[]) private validatorNodeIDs;
 
     /*----------------- structs and events -----------------*/
     struct StakeMigrationPackage {
@@ -215,6 +232,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     event ValidatorUnjailed(address indexed operatorAddress);
     event Claimed(address indexed operatorAddress, address indexed delegator, uint256 bnbAmount);
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
+
+    // Events for adding and removing NodeIDs.
+    event NodeIDAdded(address indexed validator, bytes32 nodeID);
+    event NodeIDRemoved(address indexed validator, bytes32 nodeID);
 
     event MigrateSuccess(address indexed operatorAddress, address indexed delegator, uint256 shares, uint256 bnbAmount); // @dev deprecated
     event MigrateFailed(
@@ -804,6 +825,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
             address newStakeHubProtector = value.bytesToAddress(20);
             if (newStakeHubProtector == address(0)) revert InvalidValue(key, value);
             _setProtector(newStakeHubProtector);
+        } else if (key.compareStrings("maxNodeIDs")) {
+            if (value.length != 32) revert InvalidValue(key, value);
+            uint256 newMaxNodeIDs = value.bytesToUint256(32);
+            if (newMaxNodeIDs == 0) revert InvalidValue(key, value);
+            maxNodeIDs = newMaxNodeIDs;
         } else {
             revert UnknownParam(key, value);
         }
@@ -1011,6 +1037,119 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
     }
 
+    /**
+     * @notice Adds multiple new NodeIDs to the validator's registry.
+     * @param nodeIDs Array of NodeIDs to be added.
+     */
+    function addNodeIDs(
+        bytes32[] calldata nodeIDs
+    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+        maxNodeIDsInitializer();
+
+        if (nodeIDs.length == 0) {
+            revert InvalidNodeID();
+        }
+
+        address operatorAddress = _bep563MsgSender();
+        bytes32[] storage existingNodeIDs = validatorNodeIDs[operatorAddress];
+        uint256 currentLength = existingNodeIDs.length;
+
+        if (currentLength + nodeIDs.length > maxNodeIDs) {
+            revert ExceedsMaxNodeIDs();
+        }
+
+        // Check for duplicates in new NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            if (nodeIDs[i] == bytes32(0)) {
+                revert InvalidNodeID();
+            }
+            for (uint256 j = i + 1; j < nodeIDs.length; j++) {
+                if (nodeIDs[i] == nodeIDs[j]) {
+                    revert DuplicateNodeID();
+                }
+            }
+        }
+
+        // Check for duplicates in existing NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            for (uint256 j = 0; j < currentLength; j++) {
+                if (nodeIDs[i] == existingNodeIDs[j]) {
+                    revert DuplicateNodeID();
+                }
+            }
+        }
+
+        // Add new NodeIDs
+        for (uint256 i = 0; i < nodeIDs.length; i++) {
+            existingNodeIDs.push(nodeIDs[i]);
+            emit NodeIDAdded(operatorAddress, nodeIDs[i]);
+        }
+    }
+
+    /**
+     * @notice Removes multiple NodeIDs from the validator's registry.
+     * @param targetNodeIDs Array of NodeIDs to be removed.
+     */
+    function removeNodeIDs(
+        bytes32[] calldata targetNodeIDs
+    ) external whenNotPaused notInBlackList validatorExist(_bep563MsgSender()) {
+        address validator = _bep563MsgSender();
+        bytes32[] storage nodeIDs = validatorNodeIDs[validator];
+        uint256 length = nodeIDs.length;
+
+        // If targetNodeIDs is empty, remove all NodeIDs
+        if (targetNodeIDs.length == 0) {
+            for (uint256 i = 0; i < length; i++) {
+                emit NodeIDRemoved(validator, nodeIDs[i]);
+            }
+            delete validatorNodeIDs[validator];
+            return;
+        }
+
+        // Otherwise, remove specific NodeIDs
+        for (uint256 i = 0; i < targetNodeIDs.length; i++) {
+            bytes32 nodeID = targetNodeIDs[i];
+            for (uint256 j = 0; j < length; j++) {
+                if (nodeIDs[j] == nodeID) {
+                    // Swap and pop
+                    nodeIDs[j] = nodeIDs[length - 1];
+                    nodeIDs.pop();
+                    length--;
+                    emit NodeIDRemoved(validator, nodeID);
+                    break;
+                }
+            }
+        }
+
+        // Clean up storage if no NodeIDs left
+        if (nodeIDs.length == 0) {
+            delete validatorNodeIDs[validator];
+        }
+    }
+
+    /**
+     * @notice Returns all validators with their consensus addresses and registered NodeIDs.
+     * @param validatorsToQuery The operator addresses of the validators.
+     * @return consensusAddresses Array of consensus addresses corresponding to the validators.
+     * @return nodeIDsList Array of NodeIDs for each validator.
+     */
+    function getNodeIDs(
+        address[] calldata validatorsToQuery
+    ) external view returns (address[] memory consensusAddresses, bytes32[][] memory nodeIDsList) {
+        uint256 len = validatorsToQuery.length;
+        consensusAddresses = new address[](len);
+        nodeIDsList = new bytes32[][](len);
+
+        for (uint256 i = 0; i < len; i++) {
+            address operator = validatorsToQuery[i];
+            Validator memory valInfo = _validators[operator];
+            consensusAddresses[i] = valInfo.consensusAddress;
+            nodeIDsList[i] = validatorNodeIDs[operator];
+        }
+
+        return (consensusAddresses, nodeIDsList);
+    }
+
     /*----------------- internal functions -----------------*/
     function _checkMoniker(
         string memory moniker
@@ -1140,5 +1279,19 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         return msg.sender;
+    }
+
+    function _bep563MsgSender() internal view returns (address) {
+        if (consensusToOperator[msg.sender] != address(0)) {
+            return consensusToOperator[msg.sender];
+        }
+
+        return _bep410MsgSender();
+    }
+
+    function maxNodeIDsInitializer() internal {
+        if (maxNodeIDs == 0) {
+            maxNodeIDs = INIT_MAX_NUMBER_NODE_ID;
+        }
     }
 }

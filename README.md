@@ -26,22 +26,16 @@ Tips: You can manage multi version of Node:
 ```Shell
 ## Install nvm and node
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.2/install.sh | bash
-nvm install  12.18.3 && nvm use 12.18.3
+nvm install 18.17.0 && nvm use 18.17.0
 ```
 
 ## Unit test
-
-Add follow line to .env file in project dir, replace `archive_node` with a valid bsc mainnet node url which should be in archive mode:
-
-```text
-RPC_BSC=${archive_node}
-```
 
 You can get a free archive node endpoint from https://nodereal.io/.
 
 Run forge test:
 ```shell script
-forge test
+forge test --fork-url ${archive_node_rpc}
 ```
 
 ## Flatten all system contracts
@@ -62,12 +56,25 @@ All system contracts will be flattened and output into `${workspace}/contracts/f
 ## How to generate mainnet/testnet/dev genesis file
 
 ```shell 
-poetry run python -m scripts.generate ${network}
+# build mainnet genesis file & clean
+npm run generate:mainnet && poetry run python -m scripts.generate recover
+
+# build testnet genesis file & clean
+npm run generate:testnet && poetry run python -m scripts.generate recover
+
+# build local dev-net genesis file & clean
+npm run generate:dev && poetry run python -m scripts.generate recover
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
 (`poetry run python -m scripts.generate --help ` for more details)
 
 You can refer to `generate:dev` in `package.json` for more details about how to custom params for local dev-net.
+
+## update ABI files
+
+```bash
+forge inspect {{contract}} abi > abi/{{contract}}.abi
+```
 
 ## How to update contract interface for test
 
