@@ -97,6 +97,8 @@ interface StakeHub {
     event ValidatorUnjailed(address indexed operatorAddress);
     event VoteAddressEdited(address indexed operatorAddress, bytes newVoteAddress);
     event AgentChanged(address indexed operatorAddress, address indexed oldAgent, address indexed newAgent);
+    event NodeIDAdded(address indexed validator, bytes32 nodeID);
+    event NodeIDRemoved(address indexed validator, bytes32 nodeID);
 
     receive() external payable;
 
@@ -185,4 +187,10 @@ interface StakeHub {
 
     function agentToOperator(address) external view returns (address);
     function updateAgent(address newAgent) external;
+
+    // NodeID management functions
+    function addNodeIDs(bytes32[] calldata newNodeIDs) external;
+    function removeNodeIDs(bytes32[] calldata targetNodeIDs) external;
+    function getNodeIDs(address[] calldata validatorsToQuery) external view returns (address[] memory consensusAddresses, bytes32[][] memory nodeIDsList);
+    function maxNodeIDs() external view returns (uint256);
 }
