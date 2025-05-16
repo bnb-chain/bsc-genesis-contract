@@ -28,9 +28,27 @@
     "shanghaiTime": 0,
     "keplerTime": 0,
     "feynmanTime": 0,
-    "parlia": {
-      "period": 3,
-      "epoch": 200
+    "feynmanFixTime": 0,
+    "cancunTime": 0,
+    "haberTime": 0,
+    "haberFixTime": 0,
+    "bohrTime": 0,
+    "pascalTime": 0,
+    "pragueTime": 0,
+    "lorentzTime": 0,
+    "depositContractAddress": "0x0000000000000000000000000000000000000000",
+    "parlia": {},
+    "blobSchedule": {
+      "cancun": {
+        "target": 3,
+        "max": 6,
+        "baseFeeUpdateFraction": 3338477
+      },
+      "prague": {
+        "target": 3,
+        "max": 6,
+        "baseFeeUpdateFraction": 3338477
+      }
     }
   },
   "nonce": "0x0",
@@ -111,12 +129,6 @@
     "0x0000000000000000000000000000000000003000": {
       "balance": "0x0",
       "code": "{{tokenRecoverPortal}}"
-    },
-    "0x88cb4D8F77742c24d647BEf8049D3f3C56067cDD": {
-      "balance": "0x100000000000000000000"
-    },
-    "0x42D596440775C90db8d9187b47650986E1063493": {
-      "balance": "0x1000000000000000000000"
     }{% for v in initHolders %},
     "{{ v.address.replace('0x', '') }}": {
       "balance": "0x{{ v.balance }}"
