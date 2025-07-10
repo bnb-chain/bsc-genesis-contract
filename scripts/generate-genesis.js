@@ -7,7 +7,7 @@ const validators = require('./validators');
 const init_holders = require('./init_holders');
 
 program.version('0.0.1');
-program.option('-c, --chainId <chainId>', 'chain id', '714');
+program.option('-c, --chainId <chainId>', 'chain id', '19999');
 program.option('-o, --output <output-file>', 'Genesis json file', './genesis.json');
 program.option('-t, --template <template>', 'Genesis template json', './genesis-template.json');
 program.option(
