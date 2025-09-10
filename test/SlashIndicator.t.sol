@@ -34,7 +34,7 @@ contract SlashIndicatorTest is Deployer {
 
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
-        vm.mockCall(address(0x66), "", hex"01");
+        vm.mockCall(address(0x66), bytes(""), hex"01");
     }
 
     function testGov() public {
@@ -284,7 +284,7 @@ contract SlashIndicatorTest is Deployer {
 
         uint256 mockEvidenceHeight = block.number - 1;
         bytes memory mockOutput = bytes.concat(abi.encodePacked(mockValidator), abi.encodePacked(mockEvidenceHeight));
-        vm.mockCall(address(0x68), "", mockOutput);
+        vm.mockCall(address(0x68), bytes(""), mockOutput);
         vm.mockCall(
             address(stakeHub), abi.encodeCall(stakeHub.consensusToOperator, (mockValidator)), abi.encode(mockValidator)
         );

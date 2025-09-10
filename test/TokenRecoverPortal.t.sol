@@ -38,7 +38,7 @@ contract TokenRecoverPortalTest is Deployer {
     bytes merkleRoot = hex"59bb94f7047904a8fdaec42e4785295167f7fd63742b309afeb84bd71f8e6554";
 
     function setUp() public {
-        vm.mockCall(address(0x69), "", mockTokenOwner);
+        vm.mockCall(address(0x69), bytes(""), mockTokenOwner);
         // slot id for `merkleRootAlreadyInit`
         bytes32 slot = bytes32(uint256(105));
 
@@ -226,7 +226,7 @@ contract TokenRecoverPortalTest is Deployer {
         ) = recoverParams();
 
         vm.expectRevert();
-        vm.mockCall(address(0x69), "", hex"1111100f29effb427fb76a185b4ac73ea09a534b");
+        vm.mockCall(address(0x69), bytes(""), hex"1111100f29effb427fb76a185b4ac73ea09a534b");
         ownerPubKey = hex"11111111cd7da2e96d39bcbd0390bfed461a86382f7a2923436ff16c65cabc7720";
         // failed to recover the token
         tokenRecoverPortal.recover(tokenSymbol, amount, ownerPubKey, ownerSignature, approvalSignature, merkleProof);
