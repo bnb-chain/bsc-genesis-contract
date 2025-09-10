@@ -29,15 +29,6 @@
     "keplerTime": 0,
     "feynmanTime": 0,
     "feynmanFixTime": 0,
-    "cancunTime": 0,
-    "haberTime": 0,
-    "haberFixTime": 0,
-    "lorentzTime": 0,
-    "maxwellTime": 0,
-    "bohrTime": 0,
-    "tychoTime": 0,
-    "pragueTime": 0,
-    "pascalTime": 0,
     "parlia": {
       "period": 3,
       "epoch": 200
@@ -127,12 +118,10 @@
     },
     "0x42D596440775C90db8d9187b47650986E1063493": {
       "balance": "0x1000000000000000000000"
-    }{% for v in initHolders %
-    },
+    }{% for v in initHolders %},
     "{{ v.address.replace('0x', '') }}": {
       "balance": "0x{{ v.balance }}"
-    }{% endfor %
-    }
+    }{% endfor %}
   },
   "number": "0x0",
   "gasUsed": "0x0",
