@@ -55,7 +55,7 @@ contract ValidatorSetTest is Deployer {
 
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
-        vm.mockCall(address(0x66), "", hex"01");
+        vm.mockCall(address(0x66), bytes(""), hex"01");
     }
 
     function testDeposit(uint256 amount) public {
