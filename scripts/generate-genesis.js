@@ -61,11 +61,17 @@ Promise.all([
   readByteCode('timelock', 'out/BSCTimelock.sol/BSCTimelock.json'),
   readByteCode('tokenRecoverPortal', 'out/TokenRecoverPortal.sol/TokenRecoverPortal.json'),
 ]).then((result) => {
+  const PASSED_FORK_DELAY = process.env.PASSED_FORK_DELAY || 40;
+  const passedHardforkTime = Math.floor(Date.now() / 1000) + parseInt(PASSED_FORK_DELAY);
+  const maxwellTime = passedHardforkTime + 10;
+  
   const data = {
     initLockedBNBOnTokenHub: program.initLockedBNBOnTokenHub,
     chainId: program.chainId,
     initHolders: init_holders,
     extraData: web3.utils.bytesToHex(validators.extraValidatorBytes),
+    passedHardforkTime: passedHardforkTime,
+    maxwellTime: maxwellTime,
   };
 
   result.forEach((r) => {
