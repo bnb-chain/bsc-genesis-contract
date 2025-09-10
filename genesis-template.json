@@ -42,20 +42,18 @@
       "period": 3,
       "epoch": 200
     },
-    "blobSchedule": [
-      {
-        "fork": "cancun",
-        "target": 3,     
-        "max": 6,   
-        "baseFeeUpdateFraction": 3338477,       
+    "blobSchedule": {
+      "cancun": {
+        "target": 3,
+        "max": 6,
+        "baseFeeUpdateFraction": 3338477
       },
-      {
-        "fork": "prague",
-        "target": 3,     
-        "max": 6,   
-        "baseFeeUpdateFraction": 3338477,       
+      "prague": {
+        "target": 3,
+        "max": 6,
+        "baseFeeUpdateFraction": 3338477
       }
-    ]
+    }
   },
   "nonce": "0x0",
   "timestamp": "0x5e9da7ce",
