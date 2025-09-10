@@ -1362,12 +1362,12 @@ files = [
 
 [[package]]
 name = "pyunormalize"
-version = "15.1.0"
+version = "16.0.0"
 description = "Unicode normalization forms (NFC, NFKC, NFD, NFKD). A library independent from the Python core Unicode database."
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "pyunormalize-15.1.0.tar.gz", hash = "sha256:cf4a87451a0f1cb76911aa97f432f4579e1f564a2f0c84ce488c73a73901b6c1"},
+    {file = "pyunormalize-16.0.0.tar.gz", hash = "sha256:2e1dfbb4a118154ae26f70710426a52a364b926c9191f764601f5a8cb12761f7"},
 ]
 
 [[package]]

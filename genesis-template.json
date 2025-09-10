@@ -1,6 +1,9 @@
 {
   "config": {
-    "chainId": {{chainId}},
+    "chainId": {
+      {chainId
+      }
+    },
     "homesteadBlock": 0,
     "eip150Block": 0,
     "eip155Block": 0,
@@ -12,7 +15,7 @@
     "muirGlacierBlock": 0,
     "ramanujanBlock": 0,
     "nielsBlock": 0,
-    "mirrorSyncBlock":1,
+    "mirrorSyncBlock": 1,
     "brunoBlock": 1,
     "eulerBlock": 2,
     "nanoBlock": 3,
@@ -28,6 +31,16 @@
     "shanghaiTime": 0,
     "keplerTime": 0,
     "feynmanTime": 0,
+    "feynmanFixTime": 0,
+    "cancunTime": 0,
+    "haberTime": 0,
+    "haberFixTime": 0,
+    "lorentzTime": 0,
+    "maxwellTime": 0,
+    "bohrTime": 0,
+    "tychoTime": 0,
+    "pragueTime": 0,
+    "pascalTime": 0,
     "parlia": {
       "period": 3,
       "epoch": 200
@@ -104,7 +117,7 @@
       "balance": "0x0",
       "code": "{{govToken}}"
     },
-      "0x0000000000000000000000000000000000002006": {
+    "0x0000000000000000000000000000000000002006": {
       "balance": "0x0",
       "code": "{{timelock}}"
     },
@@ -117,10 +130,12 @@
     },
     "0x42D596440775C90db8d9187b47650986E1063493": {
       "balance": "0x1000000000000000000000"
-    }{% for v in initHolders %},
+    }{% for v in initHolders %
+    },
     "{{ v.address.replace('0x', '') }}": {
       "balance": "0x{{ v.balance }}"
-    }{% endfor %}
+    }{% endfor %
+    }
   },
   "number": "0x0",
   "gasUsed": "0x0",
