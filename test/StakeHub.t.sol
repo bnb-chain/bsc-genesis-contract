@@ -48,7 +48,7 @@ contract StakeHubTest is Deployer {
     receive() external payable { }
 
     function setUp() public {
-        vm.mockCall(address(0x66), "", hex"01");
+        vm.mockCall(address(0x66), bytes(""), hex"01");
     }
 
     function testCreateValidator() public {
