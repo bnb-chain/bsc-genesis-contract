@@ -13,7 +13,7 @@ Install foundry:
 ```shell script
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
-forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
+forge install --no-git foundry-rs/forge-std@v1.7.3
 ```
 
 Install poetry:
