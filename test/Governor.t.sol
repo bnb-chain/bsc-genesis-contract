@@ -73,7 +73,7 @@ contract GovernorTest is Deployer {
         assertEq(govToken.getVotes(delegator), 0);
         govToken.delegate(delegator);
         assertEq(govToken.getVotes(delegator), govBNBBalance);
-        console.log("govBNBBalance", govBNBBalance);
+        console2.log("govBNBBalance", govBNBBalance);
 
         // text Propose
         address[] memory targets;
@@ -110,15 +110,15 @@ contract GovernorTest is Deployer {
         //
         // bnbAmount = 10000000 ether - 2000 ether;
         // govBNBBalance = govToken.balanceOf(delegator);
-        // console.log("govBNBBalance", govBNBBalance);
+        // console2.log("govBNBBalance", govBNBBalance);
         // assertEq(govBNBBalance, bnbAmount);
         // assertEq(govToken.getVotes(delegator), govBNBBalance);
-        // console.log("voting power before undelegate", govToken.getVotes(delegator));
+        // console2.log("voting power before undelegate", govToken.getVotes(delegator));
 
         // voting power changed after undelegating staking share
         bnbAmount = 1 ether;
         stakeHub.undelegate(validator, bnbAmount);
-        console.log("voting power after undelegate", govToken.getVotes(delegator));
+        console2.log("voting power after undelegate", govToken.getVotes(delegator));
         assertEq(govToken.getVotes(delegator), govBNBBalance - bnbAmount);
     }
 
@@ -134,7 +134,7 @@ contract GovernorTest is Deployer {
         assertEq(govToken.getVotes(delegator), 0);
         govToken.delegate(delegator);
         assertEq(govToken.getVotes(delegator), bnbAmount);
-        console.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
+        console2.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
 
         address delegator2 = _getNextUserAddress();
         vm.startPrank(delegator2);
@@ -145,7 +145,7 @@ contract GovernorTest is Deployer {
         assertEq(govToken.getVotes(delegator2), 0);
         govToken.delegate(delegator2);
         assertEq(govToken.getVotes(delegator2), bnbAmount);
-        console.log("govToken.getVotes(delegator2)", govToken.getVotes(delegator2));
+        console2.log("govToken.getVotes(delegator2)", govToken.getVotes(delegator2));
         vm.stopPrank();
 
         // text Propose
@@ -192,7 +192,7 @@ contract GovernorTest is Deployer {
         assertEq(govToken.getVotes(delegator), 0);
         govToken.delegate(delegator);
         assertEq(govToken.getVotes(delegator), bnbAmount);
-        console.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
+        console2.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
 
         address delegator2 = _getNextUserAddress();
         vm.startPrank(delegator2);
@@ -203,7 +203,7 @@ contract GovernorTest is Deployer {
         assertEq(govToken.getVotes(delegator2), 0);
         govToken.delegate(delegator2);
         assertEq(govToken.getVotes(delegator2), bnbAmount);
-        console.log("govToken.getVotes(delegator2)", govToken.getVotes(delegator2));
+        console2.log("govToken.getVotes(delegator2)", govToken.getVotes(delegator2));
         vm.stopPrank();
 
         // text Propose
@@ -236,9 +236,9 @@ contract GovernorTest is Deployer {
 
         (,,,,, uint256 forVotes, uint256 againstVotes,,,) = governor.proposals(proposalId);
 
-        console.log("quorumVote", quorumVote);
-        console.log("forVotes", forVotes);
-        console.log("againstVotes", againstVotes);
+        console2.log("quorumVote", quorumVote);
+        console2.log("forVotes", forVotes);
+        console2.log("againstVotes", againstVotes);
 
         assertEq(forVotes < quorumVote, true, "quorum not reached");
 
@@ -273,8 +273,8 @@ contract GovernorTest is Deployer {
         string memory description = "test";
 
         vm.roll(block.number + 1);
-        console.log("delegator", delegator);
-        console.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
+        console2.log("delegator", delegator);
+        console2.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
 
         // param proposal
         targets = new address[](1);
@@ -292,34 +292,34 @@ contract GovernorTest is Deployer {
         assertEq(governor.proposeStarted(), true, "propose should start");
 
         bytes32 descHash = keccak256(bytes(description));
-        console.logBytes32(descHash);
+        console2.logBytes32(descHash);
         assertEq(proposalId, governor.hashProposal(targets, values, calldatas, descHash), "hashProposal");
 
-        console.log("proposalId", proposalId);
-        console.log("proposalSnapshot", governor.proposalSnapshot(proposalId));
-        console.log("now", governor.clock());
+        console2.log("proposalId", proposalId);
+        console2.log("proposalSnapshot", governor.proposalSnapshot(proposalId));
+        console2.log("now", governor.clock());
 
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
 
         uint256 BLOCK_INTERVAL = 3 seconds;
         uint256 INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
-        uint256 NEW_VOTING_PERIOD = INIT_VOTING_PERIOD * 2;
+        uint256 NEW_VOTING_PERIOD = INIT_VOTING_PERIOD * 4;
         uint64 INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
-        uint64 NEW_MIN_PERIOD_AFTER_QUORUM = INIT_MIN_PERIOD_AFTER_QUORUM * 2;
+        uint64 NEW_MIN_PERIOD_AFTER_QUORUM = INIT_MIN_PERIOD_AFTER_QUORUM * 4;
         vm.roll(_nowBlock + NEW_VOTING_PERIOD - 1);
         vm.warp(_now + (NEW_VOTING_PERIOD - 1) * BLOCK_INTERVAL / 2);
 
         uint256 deadline = governor.proposalDeadline(proposalId);
-        console.log("block.number", block.number);
-        console.log("deadline block", deadline);
+        console2.log("block.number", block.number);
+        console2.log("deadline block", deadline);
         assertEq(deadline, block.number + 1);
 
         governor.castVote(proposalId, 1);
 
         deadline = governor.proposalDeadline(proposalId);
-        console.log("block.number", block.number);
-        console.log("deadline block", deadline);
+        console2.log("block.number", block.number);
+        console2.log("deadline block", deadline);
         // quorum reached, deadline should be added 1 day
         assertEq(deadline, block.number + NEW_MIN_PERIOD_AFTER_QUORUM);
     }
@@ -351,8 +351,8 @@ contract GovernorTest is Deployer {
         string memory description = "test";
 
         vm.roll(block.number + 1);
-        console.log("delegator", delegator);
-        console.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
+        console2.log("delegator", delegator);
+        console2.log("govToken.getVotes(delegator)", govToken.getVotes(delegator));
 
         // param proposal
         targets = new address[](1);
@@ -366,19 +366,19 @@ contract GovernorTest is Deployer {
             "updateParam(string,bytes,address)", "votingDelay", abi.encodePacked(newVotingDelay), GOVERNOR_ADDR
         );
 
-        console.log("calldatas[0]");
-        console.logBytes(calldatas[0]);
+        console2.log("calldatas[0]");
+        console2.logBytes(calldatas[0]);
 
         uint256 proposalId = governor.propose(targets, values, calldatas, description);
         assertEq(governor.proposeStarted(), true, "propose should start");
 
         bytes32 descHash = keccak256(bytes(description));
-        console.logBytes32(descHash);
+        console2.logBytes32(descHash);
         assertEq(proposalId, governor.hashProposal(targets, values, calldatas, descHash), "hashProposal");
 
-        console.log("proposalId", proposalId);
-        console.log("proposalSnapshot", governor.proposalSnapshot(proposalId));
-        console.log("now", governor.clock());
+        console2.log("proposalId", proposalId);
+        console2.log("proposalSnapshot", governor.proposalSnapshot(proposalId));
+        console2.log("now", governor.clock());
 
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
