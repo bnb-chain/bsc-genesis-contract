@@ -361,7 +361,7 @@ def testnet():
 
 @main.command(help="Generate contracts for dev environment")
 def dev(
-    dev_chain_id: int = 714,
+    dev_chain_id: int = 19999,
     init_burn_ratio: Annotated[str, typer.Option(help="init burn ratio of BscValidatorSet")] = "1000",
     source_chain_id: Annotated[
         str, typer.Option(help="source chain id of the token recover portal")] = "Binance-Chain-Ganges",
