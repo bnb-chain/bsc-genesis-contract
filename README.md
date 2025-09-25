@@ -13,7 +13,7 @@ Install foundry:
 ```shell script
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
-forge install --no-git --no-commit foundry-rs/forge-std@v1.7.3
+forge install --no-git foundry-rs/forge-std@v1.7.3
 ```
 
 Install poetry:
@@ -67,6 +67,11 @@ npm run generate:dev && poetry run python -m scripts.generate recover
 ```
 Check the `genesis.json` file, and you can get the exact compiled bytecode for different network.
 (`poetry run python -m scripts.generate --help ` for more details)
+```
+# you can verify the bytecode in genesis.json with solc, take ./contracts/StakeHub.sol for example:
+solc-select use 0.8.17
+solc --optimize --optimize-runs 200 --abi --metadata-hash none --bin-runtime ./contracts/StakeHub.sol --base-path . --include-path ./node_modules/ -o output
+```
 
 You can refer to `generate:dev` in `package.json` for more details about how to custom params for local dev-net.
 

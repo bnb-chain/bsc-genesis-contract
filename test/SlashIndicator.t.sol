@@ -15,6 +15,9 @@ contract SlashIndicatorTest is Deployer {
     address public validator0;
     address public validatorLast;
 
+    uint256 public constant MISDEMEANOR_THRESHOLD = 200;
+    uint256 public constant FELONY_THRESHOLD = 600;
+
     function setUp() public {
         burnRatio =
             bscValidatorSet.isSystemRewardIncluded() ? bscValidatorSet.burnRatio() : bscValidatorSet.INIT_BURN_RATIO();
@@ -34,7 +37,7 @@ contract SlashIndicatorTest is Deployer {
 
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
-        vm.mockCall(address(0x66), "", hex"01");
+        vm.mockCall(address(0x66), bytes(""), hex"01");
     }
 
     function testGov() public {
@@ -111,19 +114,19 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
         assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i; i < MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
         (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(100, count);
+        assertEq(MISDEMEANOR_THRESHOLD, count);
         assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
         // enter maintenance, cannot be slashed
         vm.roll(block.number + 1);
         slashIndicator.slash(consensusAddrs[0]);
         (, count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(100, count);
+        assertEq(MISDEMEANOR_THRESHOLD, count);
 
         address[] memory newVals = new address[](3);
         uint64[] memory newVotingPowers = new uint64[](3);
@@ -138,19 +141,19 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: 2 ether }(newVals[0]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[0]));
 
-        for (uint256 i; i < 76; ++i) {
+        for (uint256 i; i < 152; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[0]);
         }
         (, count) = slashIndicator.getSlashIndicator(newVals[0]);
-        assertEq(100, count);
+        assertEq(MISDEMEANOR_THRESHOLD, count);
         assertEq(0, bscValidatorSet.getIncoming(newVals[0]));
         assertEq(_incoming, bscValidatorSet.getIncoming(newVals[1]));
         assertEq(_incoming, bscValidatorSet.getIncoming(newVals[2]));
 
         bscValidatorSet.deposit{ value: _deposit }(newVals[1]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[1]));
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i; i < MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[1]);
         }
@@ -159,7 +162,7 @@ contract SlashIndicatorTest is Deployer {
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[2]));
 
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[2]));
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i; i < MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[2]);
         }
@@ -181,12 +184,12 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
         assertEq(_incoming, bscValidatorSet.getIncoming(consensusAddrs[0]));
 
-        for (uint256 i; i < 100; ++i) {
+        for (uint256 i; i < MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
         (, uint256 count) = slashIndicator.getSlashIndicator(consensusAddrs[0]);
-        assertEq(100, count);
+        assertEq(MISDEMEANOR_THRESHOLD, count);
         assertEq(0, bscValidatorSet.getIncoming(consensusAddrs[0]));
         vm.stopPrank();
 
@@ -195,7 +198,7 @@ contract SlashIndicatorTest is Deployer {
 
         vm.startPrank(coinbase);
         bscValidatorSet.deposit{ value: _deposit }(consensusAddrs[0]);
-        for (uint256 i; i < 200; ++i) {
+        for (uint256 i; i < FELONY_THRESHOLD - MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(consensusAddrs[0]);
         }
@@ -284,7 +287,7 @@ contract SlashIndicatorTest is Deployer {
 
         uint256 mockEvidenceHeight = block.number - 1;
         bytes memory mockOutput = bytes.concat(abi.encodePacked(mockValidator), abi.encodePacked(mockEvidenceHeight));
-        vm.mockCall(address(0x68), "", mockOutput);
+        vm.mockCall(address(0x68), bytes(""), mockOutput);
         vm.mockCall(
             address(stakeHub), abi.encodeCall(stakeHub.consensusToOperator, (mockValidator)), abi.encode(mockValidator)
         );

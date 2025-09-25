@@ -55,7 +55,7 @@ contract ValidatorSetTest is Deployer {
 
         // set gas price to zero to send system slash tx
         vm.txGasPrice(0);
-        vm.mockCall(address(0x66), "", hex"01");
+        vm.mockCall(address(0x66), bytes(""), hex"01");
     }
 
     function testDeposit(uint256 amount) public {
@@ -75,7 +75,7 @@ contract ValidatorSetTest is Deployer {
         bscValidatorSet.deposit{ value: amount }(validator0);
 
         vm.stopPrank();
-        assertEq(bscValidatorSet.getTurnLength(), 8);
+        assertEq(bscValidatorSet.getTurnLength(), 16);
         bytes memory key = "turnLength";
         bytes memory value = bytes(hex"0000000000000000000000000000000000000000000000000000000000000005"); // 5
         _updateParamByGovHub(key, value, address(bscValidatorSet));

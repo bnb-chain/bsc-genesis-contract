@@ -794,26 +794,26 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         } else if (key.compareStrings("downtimeSlashAmount")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newDowntimeSlashAmount = value.bytesToUint256(32);
-            if (newDowntimeSlashAmount < 5 ether || newDowntimeSlashAmount > felonySlashAmount) {
+            if (newDowntimeSlashAmount < 1 ether || newDowntimeSlashAmount >= felonySlashAmount) {
                 revert InvalidValue(key, value);
             }
             downtimeSlashAmount = newDowntimeSlashAmount;
         } else if (key.compareStrings("felonySlashAmount")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newFelonySlashAmount = value.bytesToUint256(32);
-            if (newFelonySlashAmount < 100 ether || newFelonySlashAmount <= downtimeSlashAmount) {
+            if (newFelonySlashAmount < 10 ether || newFelonySlashAmount <= downtimeSlashAmount) {
                 revert InvalidValue(key, value);
             }
             felonySlashAmount = newFelonySlashAmount;
         } else if (key.compareStrings("downtimeJailTime")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newDowntimeJailTime = value.bytesToUint256(32);
-            if (newDowntimeJailTime < 2 days || newDowntimeJailTime >= felonyJailTime) revert InvalidValue(key, value);
+            if (newDowntimeJailTime < 1 days || newDowntimeJailTime >= felonyJailTime) revert InvalidValue(key, value);
             downtimeJailTime = newDowntimeJailTime;
         } else if (key.compareStrings("felonyJailTime")) {
             if (value.length != 32) revert InvalidValue(key, value);
             uint256 newFelonyJailTime = value.bytesToUint256(32);
-            if (newFelonyJailTime < 10 days || newFelonyJailTime <= downtimeJailTime) revert InvalidValue(key, value);
+            if (newFelonyJailTime < 3 days || newFelonyJailTime <= downtimeJailTime) revert InvalidValue(key, value);
             felonyJailTime = newFelonyJailTime;
         } else if (key.compareStrings("maxFelonyBetweenBreatheBlock")) {
             if (value.length != 32) revert InvalidValue(key, value);
