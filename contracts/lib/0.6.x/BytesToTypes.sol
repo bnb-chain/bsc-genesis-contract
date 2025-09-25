@@ -31,7 +31,7 @@ library BytesToTypes {
                 chunk_count := add(chunk_count, 1)
             }
 
-            size := mul(chunk_count, 32) // first 32 bytes reseves for size in strings
+            size := mul(chunk_count, 32) // first 32 bytes reserves for size in strings
         }
     }
 
