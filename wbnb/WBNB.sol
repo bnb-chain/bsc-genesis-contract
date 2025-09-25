@@ -1,62 +1,65 @@
-pragma solidity ^0.4.18;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
 contract WBNB {
-    string public name     = "Wrapped BNB";
-    string public symbol   = "WBNB";
-    uint8  public decimals = 18;
+    string public name = "Wrapped BNB";
+    string public symbol = "WBNB";
+    uint8 public decimals = 18;
 
-    event  Approval(address indexed src, address indexed guy, uint wad);
-    event  Transfer(address indexed src, address indexed dst, uint wad);
-    event  Deposit(address indexed dst, uint wad);
-    event  Withdrawal(address indexed src, uint wad);
+    event Approval(address indexed owner, address indexed spender, uint256 amount);
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Deposit(address indexed from, uint256 amount);
+    event Withdrawal(address indexed to, uint256 amount);
 
-    mapping (address => uint)                       public  balanceOf;
-    mapping (address => mapping (address => uint))  public  allowance;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
 
-    function() public payable {
+    receive() external payable {
         deposit();
     }
+
     function deposit() public payable {
         balanceOf[msg.sender] += msg.value;
-        Deposit(msg.sender, msg.value);
-    }
-    function withdraw(uint wad) public {
-        require(balanceOf[msg.sender] >= wad);
-        balanceOf[msg.sender] -= wad;
-        msg.sender.transfer(wad);
-        Withdrawal(msg.sender, wad);
+        emit Deposit(msg.sender, msg.value);
     }
 
-    function totalSupply() public view returns (uint) {
-        return this.balance;
+    function withdraw(uint256 amount) public {
+        require(balanceOf[msg.sender] >= amount, "Insufficient balance");
+        balanceOf[msg.sender] -= amount;
+        payable(msg.sender).transfer(amount);
+        emit Withdrawal(msg.sender, amount);
     }
 
-    function approve(address guy, uint wad) public returns (bool) {
-        allowance[msg.sender][guy] = wad;
-        Approval(msg.sender, guy, wad);
+    function totalSupply() public view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function approve(address spender, uint256 amount) public returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function transfer(address dst, uint wad) public returns (bool) {
-        return transferFrom(msg.sender, dst, wad);
+    function transfer(address to, uint256 amount) public returns (bool) {
+        return transferFrom(msg.sender, to, amount);
     }
 
-    function transferFrom(address src, address dst, uint wad)
-    public
-    returns (bool)
-    {
-        require(balanceOf[src] >= wad);
+    function transferFrom(address from, address to, uint256 amount) public returns (bool) {
+        require(balanceOf[from] >= amount, "Insufficient balance");
 
-        if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
-            require(allowance[src][msg.sender] >= wad);
-            allowance[src][msg.sender] -= wad;
+        if (from != msg.sender) {
+            uint256 allowed = allowance[from][msg.sender];
+            require(allowed >= amount, "Allowance exceeded");
+
+            if (allowed != type(uint256).max) {
+                allowance[from][msg.sender] -= amount;
+            }
         }
 
-        balanceOf[src] -= wad;
-        balanceOf[dst] += wad;
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
 
-        Transfer(src, dst, wad);
-
+        emit Transfer(from, to, amount);
         return true;
     }
 }
