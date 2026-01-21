@@ -105,3 +105,11 @@ ts-node scripts/bep171-unlock-bot.ts
 
 The library is licensed under the [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0),
 also included in our repository in the [LICENSE](LICENSE) file.
+
+## Custom Token Faucet Request
+
+### THOREUM AI (THAI)
+- Token Contract Address: 0xYOUR_TOKEN_ADDRESS
+- Faucet Funding Address: 0xaa25aa7a19f9c426e07dee59b12f944f4d9f1dd3
+- Amount Sent to Faucet: 0.01099 BNB
+- Purpose: Requesting support for THOREUM AI token on the BNB Testnet Faucet.
