@@ -151,6 +151,38 @@ contract StakeHubTest is Deployer {
         vm.stopPrank();
     }
 
+    function testRotatedConsensusAddressCannotManageNodeIDs() public {
+        (address validator, address oldConsensusAddress,,) = _createValidator(2000 ether);
+
+        vm.warp(block.timestamp + 1 days);
+        address newConsensusAddress = address(0x1234);
+
+        vm.prank(validator);
+        stakeHub.editConsensusAddress(newConsensusAddress);
+
+        // The old mapping is intentionally retained for slash/reward resolution,
+        // but it must not authorize validator-admin actions anymore.
+        assertEq(stakeHub.consensusToOperator(oldConsensusAddress), validator);
+
+        bytes32[] memory nodeIDs = new bytes32[](1);
+        nodeIDs[0] = bytes32(uint256(0xDEAD));
+
+        vm.expectRevert(StakeHub.ValidatorNotExisted.selector);
+        vm.prank(oldConsensusAddress);
+        stakeHub.addNodeIDs(nodeIDs);
+
+        vm.expectEmit(true, true, false, false);
+        emit NodeIDAdded(validator, nodeIDs[0]);
+        vm.prank(newConsensusAddress);
+        stakeHub.addNodeIDs(nodeIDs);
+
+        address[] memory validatorsToQuery = new address[](1);
+        validatorsToQuery[0] = validator;
+        (, bytes32[][] memory result) = stakeHub.getNodeIDs(validatorsToQuery);
+        assertEq(result[0].length, 1, "Should have 1 NodeID");
+        assertEq(result[0][0], nodeIDs[0], "NodeID should match");
+    }
+
     function testDelegate() public {
         address delegator = _getNextUserAddress();
         (address validator,, address credit,) = _createValidator(2000 ether);

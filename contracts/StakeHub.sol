@@ -1282,7 +1282,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     function _bep563MsgSender() internal view returns (address) {
-        if (consensusToOperator[msg.sender] != address(0)) {
+        // Rotated consensus addresses must no longer authorize validator-admin
+        // actions, but the stale mapping is intentionally retained for system
+        // paths such as slash/reward handling.
+        if (consensusToOperator[msg.sender] != address(0) && consensusExpiration[msg.sender] == 0) {
             return consensusToOperator[msg.sender];
         }
 
