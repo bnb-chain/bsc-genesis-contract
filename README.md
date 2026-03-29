@@ -16,6 +16,11 @@ foundryup
 forge install --no-git foundry-rs/forge-std@v1.7.3
 ```
 
+
+
+
+
+
 Install poetry:
 ```shell script
 curl -sSL https://install.python-poetry.org | python3 -
