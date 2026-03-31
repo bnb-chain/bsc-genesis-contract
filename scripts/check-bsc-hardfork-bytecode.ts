@@ -1,7 +1,8 @@
 import 'dotenv/config';
-import {execSync} from 'child_process';
+import {execFileSync} from 'child_process';
 import * as fs from "fs";
 import * as fsp from 'fs/promises';
+import * as os from "node:os";
 import * as path from "node:path";
 
 const log = console.log;
@@ -61,6 +62,9 @@ contractNameMap[TOKEN_RECOVER_PORTAL_ADDR] = 'TokenRecoverPortalContract'
 let hardforkName = process.env.HARDFORK
 let bscUrl = process.env.BSC_URL
 let bscRepoDir = '/tmp/bsc'
+
+const hardforkNamePattern = /^[a-z_]+$/;
+const gitRefPattern = /^[0-9A-Za-z][0-9A-Za-z._/-]{0,127}$/;
 
 const checkHardforkBytecode = async () => {
   const bscHardforkBytecodeDir = bscRepoDir + '/core/systemcontracts/' + hardforkName
@@ -157,6 +161,68 @@ const clear0x = (str: string) => {
   return str
 };
 
+const normalizeHardforkName = (name: string) => {
+  const normalized = name.trim().toLowerCase();
+  if (!hardforkNamePattern.test(normalized)) {
+    throw new Error(`invalid HARDFORK: ${name}`);
+  }
+  return normalized;
+};
+
+const extractCommitId = (input: string) => {
+  const trimmed = input.trim();
+  let commitId = trimmed;
+
+  if (trimmed.includes('://')) {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com') {
+      throw new Error(`invalid BSC_URL host: ${trimmed}`);
+    }
+    if (!parsed.pathname.startsWith('/bnb-chain/bsc/')) {
+      throw new Error(`invalid BSC_URL path: ${trimmed}`);
+    }
+    commitId = parsed.pathname.substring('/bnb-chain/bsc/'.length);
+  }
+
+  commitId = commitId.replace(/^\/+|\/+$/g, '');
+
+  // Keep the ref syntax intentionally narrow so the workflow only accepts
+  // ordinary branch/tag/commit identifiers, not shell metacharacters or git options.
+  if (
+    commitId.length === 0 ||
+    commitId.startsWith('-') ||
+    commitId.includes('..') ||
+    commitId.includes('//') ||
+    commitId.includes('@{') ||
+    commitId.includes('\\') ||
+    !gitRefPattern.test(commitId)
+  ) {
+    throw new Error(`invalid BSC_URL ref: ${input}`);
+  }
+
+  return commitId;
+};
+
+const checkoutBscRepo = (commitId: string) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'bsc-hardfork-bytecode-'));
+  bscRepoDir = path.join(tempRoot, 'bsc');
+
+  try {
+    execFileSync('git', ['clone', 'https://github.com/bnb-chain/bsc.git', 'bsc'], {
+      cwd: tempRoot,
+      stdio: 'inherit',
+    });
+    execFileSync('git', ['checkout', commitId], {
+      cwd: bscRepoDir,
+      stdio: 'inherit',
+    });
+    return tempRoot;
+  } catch (error) {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
+};
+
 const main = async () => {
 
   if (!hardforkName) {
@@ -167,21 +233,22 @@ const main = async () => {
     throw new Error('BSC_URL is required in .env')
   }
 
-  hardforkName = hardforkName.trim()
-  bscUrl = bscUrl.trim()
-
-  const p= bscUrl.lastIndexOf('/')
-  const commitId = bscUrl.substring(p+1)
+  hardforkName = normalizeHardforkName(hardforkName)
+  const commitId = extractCommitId(bscUrl)
 
   log('hardforkName', hardforkName, 'commitId', commitId)
 
-  execSync(`cd /tmp && git clone https://github.com/bnb-chain/bsc.git && cd bsc && git checkout ${commitId}`)
+  const tempRoot = checkoutBscRepo(commitId)
 
-  await sleep(5)
+  try {
+    await sleep(5)
 
-  await checkHardforkBytecode();
+    await checkHardforkBytecode();
 
-  log('All bytecode match!')
+    log('All bytecode match!')
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 };
 
 const sleep = async (seconds: number) => {
@@ -195,4 +262,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
