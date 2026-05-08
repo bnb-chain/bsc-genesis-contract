@@ -525,6 +525,14 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
         }
     }
 
+    /**
+     * @dev Evict a validator from the active set.
+     * @notice Idempotent: safe to call multiple times for the same validator. If the
+     * validator is not in `currentValidatorSetMap` (already evicted, or the supplied
+     * key does not match the active consensus key after rotation), the call silently
+     * returns without state changes. Callers may invoke felony() with both the
+     * pre-rotation and post-rotation consensus keys to handle rotation race windows.
+     */
     function felony(address validator) external override initValidatorExtraSet {
         require(msg.sender == SLASH_CONTRACT_ADDR || msg.sender == STAKE_HUB_ADDR, "only slash or stakeHub contract");
 
