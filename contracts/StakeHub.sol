@@ -306,6 +306,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     ) external validatorExist(msg.sender) whenNotPaused notInBlackList {
         if (agentToOperator[newAgent] != address(0)) revert InvalidAgent();
         if (_validatorSet.contains(newAgent)) revert InvalidAgent();
+        // the new agent must not collide with a different validator's consensus
+        // address namespace (same-validator overlap is allowed).
+        address consensusOwner = consensusToOperator[newAgent];
+        if (consensusOwner != address(0) && consensusOwner != msg.sender) revert InvalidAgent();
 
         address operatorAddress = msg.sender;
         address oldAgent = _validators[operatorAddress].agent;
@@ -346,6 +350,11 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (consensusToOperator[consensusAddress] != address(0)) {
             revert DuplicateConsensusAddress();
         }
+        // the consensus address must not collide with an existing validator's
+        // operator or agent namespace (the new operator is msg.sender and not yet
+        // registered, so any existing operator/agent here belongs to a different validator).
+        if (_validatorSet.contains(consensusAddress)) revert InvalidConsensusAddress();
+        if (agentToOperator[consensusAddress] != address(0)) revert InvalidConsensusAddress();
         if (voteToOperator[voteAddress] != address(0)) {
             revert DuplicateVoteAddress();
         }
@@ -400,6 +409,15 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
 
         address operatorAddress = _bep410MsgSender();
+        // the new consensus address must not collide with a different validator's
+        // operator or agent namespace (same-validator overlap is allowed, e.g. a
+        // validator may reuse its own agent address as its consensus address).
+        if (_validatorSet.contains(newConsensusAddress) && newConsensusAddress != operatorAddress) {
+            revert InvalidConsensusAddress();
+        }
+        address agentOwner = agentToOperator[newConsensusAddress];
+        if (agentOwner != address(0) && agentOwner != operatorAddress) revert InvalidConsensusAddress();
+
         Validator storage valInfo = _validators[operatorAddress];
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
