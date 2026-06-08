@@ -314,6 +314,11 @@ contract BSCGovernor is
         notInBlackList
         returns (uint256)
     {
+        // notInBlackList only checks msg.sender (the relayer on *BySig paths). Also reject when the
+        // actual voter (account, recovered from the EIP-712 signature) is blacklisted, so a blacklisted
+        // voter cannot bypass the freeze via castVoteBySig / castVoteWithReasonAndParamsBySig submitted
+        // by a clean relayer. Direct castVote is unaffected (account == msg.sender).
+        if (blackList[account]) revert InBlackList();
         return GovernorPreventLateQuorumUpgradeable._castVote(proposalId, account, support, reason, params);
     }
 
