@@ -15,8 +15,8 @@ contract SlashIndicatorTest is Deployer {
     address public validator0;
     address public validatorLast;
 
-    uint256 public constant MISDEMEANOR_THRESHOLD = 200;
-    uint256 public constant FELONY_THRESHOLD = 600;
+    uint256 public constant MISDEMEANOR_THRESHOLD = 333;
+    uint256 public constant FELONY_THRESHOLD = 1000;
 
     function setUp() public {
         burnRatio =
@@ -141,7 +141,10 @@ contract SlashIndicatorTest is Deployer {
         bscValidatorSet.deposit{ value: 2 ether }(newVals[0]);
         assertEq(_incoming * 2, bscValidatorSet.getIncoming(newVals[0]));
 
-        for (uint256 i; i < 152; ++i) {
+        // slash from the post-clean count up to the misdemeanor threshold (derived from
+        // live state so it needn't be retuned when thresholds change)
+        (, count) = slashIndicator.getSlashIndicator(newVals[0]);
+        for (uint256 i = count; i < MISDEMEANOR_THRESHOLD; ++i) {
             vm.roll(block.number + 1);
             slashIndicator.slash(newVals[0]);
         }
