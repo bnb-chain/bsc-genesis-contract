@@ -302,11 +302,11 @@ contract GovernorTest is Deployer {
         uint256 _nowBlock = block.number;
         uint256 _now = block.timestamp;
 
+        // read the live governor params instead of recomputing from a fixed BLOCK_INTERVAL;
+        // mainnet retuned votingPeriod/lateQuorumVoteExtension for the ~0.45s block interval
         uint256 BLOCK_INTERVAL = 3 seconds;
-        uint256 INIT_VOTING_PERIOD = 7 days / BLOCK_INTERVAL;
-        uint256 NEW_VOTING_PERIOD = INIT_VOTING_PERIOD * 4;
-        uint64 INIT_MIN_PERIOD_AFTER_QUORUM = uint64(1 days / BLOCK_INTERVAL);
-        uint64 NEW_MIN_PERIOD_AFTER_QUORUM = INIT_MIN_PERIOD_AFTER_QUORUM * 4;
+        uint256 NEW_VOTING_PERIOD = governor.votingPeriod();
+        uint64 NEW_MIN_PERIOD_AFTER_QUORUM = governor.lateQuorumVoteExtension();
         vm.roll(_nowBlock + NEW_VOTING_PERIOD - 1);
         vm.warp(_now + (NEW_VOTING_PERIOD - 1) * BLOCK_INTERVAL / 2);
 
