@@ -300,6 +300,48 @@ contract SlashIndicatorTest is Deployer {
         slashIndicator.submitDoubleSignEvidence(headerA, headerB);
     }
 
+    // Regression for SRC-2026-791: after a consensus-key rotation the evidence carries the
+    // old key (K_old) while the active set already holds the new key (K_new), so
+    // SlashIndicator.felony(K_old) misses and eviction relies on StakeHub.felony(K_new).
+    function testDoubleSignSlashEvictsAfterConsensusKeyRotation() public {
+        (
+            address[] memory operatorAddrs,
+            address[] memory consensusAddrs,
+            uint64[] memory votingPowers,
+            bytes[] memory voteAddrs
+        ) = _batchCreateValidators(3);
+
+        vm.prank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+
+        address operator = operatorAddrs[0];
+        address kOld = consensusAddrs[0];
+        address kNew = address(uint160(uint256(keccak256("rotated-consensus-key"))));
+        assertTrue(bscValidatorSet.isCurrentValidator(kOld));
+
+        // rotate the consensus key to K_new in StakeHub
+        vm.warp(block.timestamp + 1 days + 1); // pass UpdateTooFrequently
+        vm.prank(operator);
+        stakeHub.editConsensusAddress(kNew);
+
+        // active set syncs K_new, drops K_old
+        consensusAddrs[0] = kNew;
+        vm.prank(coinbase);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+        assertFalse(bscValidatorSet.isCurrentValidator(kOld));
+        assertTrue(bscValidatorSet.isCurrentValidator(kNew));
+
+        // evidence is signed with K_old (precompile 0x68 returns the old signer)
+        uint256 mockEvidenceHeight = block.number - 1;
+        bytes memory mockOutput = bytes.concat(abi.encodePacked(kOld), abi.encodePacked(mockEvidenceHeight));
+        vm.mockCall(address(0x68), bytes(""), mockOutput);
+
+        vm.prank(relayer);
+        slashIndicator.submitDoubleSignEvidence(hex"01", hex"02");
+
+        assertFalse(bscValidatorSet.isCurrentValidator(kNew));
+    }
+
     function testMaliciousVoteSlash() public {
         if (!slashIndicator.enableMaliciousVoteSlash()) {
             bytes memory key = "enableMaliciousVoteSlash";
