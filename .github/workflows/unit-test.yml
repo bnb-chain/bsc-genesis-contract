@@ -50,10 +50,11 @@ jobs:
       - name: Start Local Chain
         run: |
           npm install pm2 -g
-          pm2 start --name local-chain "anvil -f https://bsc-dataseed.bnbchain.org"
+          pm2 start --name local-chain "anvil -f $ARCHIVE_RPC"
           sleep 5
         env:
           PORT: 8545
+          ARCHIVE_RPC: ${{ secrets.ARCHIVE_RPC }}
 
       - name: Unit Test
         run: |
