@@ -26,14 +26,6 @@ interface PaymentLane {
         uint256 paymentLaneMax
     );
 
-    function INIT_EXPAND_STEP_RATIO() external view returns (uint256);
-    function INIT_EXPAND_TRIGGER_RATIO() external view returns (uint256);
-    function INIT_PAYMENT_LANE_MAX() external view returns (uint256);
-    function INIT_PAYMENT_LANE_MAX_RATIO() external view returns (uint256);
-    function INIT_PAYMENT_LANE_MIN() external view returns (uint256);
-    function INIT_PAYMENT_LANE_MIN_RATIO() external view returns (uint256);
-    function INIT_SHRINK_STEP_RATIO() external view returns (uint256);
-    function INIT_SHRINK_TRIGGER_RATIO() external view returns (uint256);
     function MAX_LANE_GAS() external view returns (uint256);
     function MAX_LANE_RATIO() external view returns (uint256);
     function MAX_PAYMENT_CONTRACTS() external view returns (uint256);
@@ -56,18 +48,17 @@ interface PaymentLane {
         external
         view
         returns (
-            uint256 _paymentLaneMinRatio,
-            uint256 _paymentLaneMaxRatio,
-            uint256 _expandTriggerRatio,
-            uint256 _shrinkTriggerRatio,
-            uint256 _expandStepRatio,
-            uint256 _shrinkStepRatio,
-            uint256 _paymentLaneMin,
-            uint256 _paymentLaneMax
+            uint256 minRatio,
+            uint256 maxRatio,
+            uint256 expandTrigger,
+            uint256 shrinkTrigger,
+            uint256 expandStep,
+            uint256 shrinkStep,
+            uint256 laneMin,
+            uint256 laneMax
         );
     function initialize() external;
     function isPaymentContract(address paymentContract) external view returns (bool);
-    function paymentContractsLength() external view returns (uint256);
     function paymentLaneMax() external view returns (uint256);
     function paymentLaneMaxRatio() external view returns (uint256);
     function paymentLaneMin() external view returns (uint256);
