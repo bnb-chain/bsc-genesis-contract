@@ -18,4 +18,5 @@
 | BSCGovernor           | 0x0000000000000000000000000000000000002004 | [bscgovernor](bscgovernor.abi)                     |
 | GovToken              | 0x0000000000000000000000000000000000002005 | [govtoken](govtoken.abi)                           |
 | BSCTimelock           | 0x0000000000000000000000000000000000002006 | [bsctimelock](bsctimelock.abi)                     |
+| PaymentLane           | 0x0000000000000000000000000000000000002007 | [paymentlane](paymentlane.abi)                     |
 | TokenRecoverPortal    | 0x0000000000000000000000000000000000003000 | [tokenrecoverportal](tokenrecoverportal.abi)                     |
