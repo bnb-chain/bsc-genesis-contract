@@ -1,110 +1,6 @@
 [
   {
     "type": "function",
-    "name": "INIT_EXPAND_STEP_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_EXPAND_TRIGGER_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_PAYMENT_LANE_MAX",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_PAYMENT_LANE_MAX_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_PAYMENT_LANE_MIN",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_PAYMENT_LANE_MIN_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_SHRINK_STEP_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "INIT_SHRINK_TRIGGER_RATIO",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "MAX_LANE_GAS",
     "inputs": [],
     "outputs": [
@@ -326,42 +222,42 @@
     "inputs": [],
     "outputs": [
       {
-        "name": "_paymentLaneMinRatio",
+        "name": "minRatio",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_paymentLaneMaxRatio",
+        "name": "maxRatio",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_expandTriggerRatio",
+        "name": "expandTrigger",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_shrinkTriggerRatio",
+        "name": "shrinkTrigger",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_expandStepRatio",
+        "name": "expandStep",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_shrinkStepRatio",
+        "name": "shrinkStep",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_paymentLaneMin",
+        "name": "laneMin",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "_paymentLaneMax",
+        "name": "laneMax",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -390,19 +286,6 @@
         "name": "",
         "type": "bool",
         "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "paymentContractsLength",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"

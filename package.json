@@ -12,8 +12,8 @@
     "generate:dev": "poetry run python -m scripts.generate dev --init-burn-ratio \"1000\" --init-felony-slash-scope \"60\" --breathe-block-interval \"10 minutes\" --block-interval \"3 seconds\" --stake-hub-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --unbond-period \"2 minutes\" --downtime-jail-time \"2 minutes\" --felony-jail-time \"3 minutes\" --init-voting-period \"2 minutes / BLOCK_INTERVAL\" --init-min-period-after-quorum \"uint64(1 minutes / BLOCK_INTERVAL)\" --governor-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\" --init-minimal-delay \"1 minutes\" --token-recover-portal-protector \"0x04d63aBCd2b9b1baa327f2Dda0f873F197ccd186\""
   },
   "dependencies": {
-    "@openzeppelin/contracts": "4.9.6",
-    "@openzeppelin/contracts-upgradeable": "4.9.6",
+    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "commander": "^3.0.1",
     "nunjucks": "^3.2.0",
     "rlp": "^2.2.7",
