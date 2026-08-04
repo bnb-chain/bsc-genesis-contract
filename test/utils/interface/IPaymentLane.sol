@@ -22,7 +22,6 @@ interface PaymentLane {
     error PaymentContractNotFound();
     error UnknownParam(string key, bytes value);
 
-    event Initialized(uint8 version);
     event ParamChange(string key, bytes value);
     event PaymentContractAdded(address indexed paymentContract);
     event PaymentContractRemoved(address indexed paymentContract);
@@ -40,20 +39,8 @@ interface PaymentLane {
     function RATIO_GAP_MIN() external view returns (uint256);
     function TRIGGER_GAP_MIN() external view returns (uint256);
     function arePaymentContracts(address[] memory addrs) external view returns (bool[] memory results);
-    function expandStepRatio() external view returns (uint256);
-    function expandTriggerRatio() external view returns (uint256);
-    function getPaymentContracts(uint256 offset, uint256 limit)
-        external
-        view
-        returns (address[] memory addrs, uint256 totalLength);
+    function getPaymentContracts() external view returns (address[] memory);
     function getPaymentLaneParams() external view returns (Params memory);
-    function initialize() external;
     function isPaymentContract(address paymentContract) external view returns (bool);
-    function paymentLaneMax() external view returns (uint256);
-    function paymentLaneMaxRatio() external view returns (uint256);
-    function paymentLaneMin() external view returns (uint256);
-    function paymentLaneMinRatio() external view returns (uint256);
-    function shrinkStepRatio() external view returns (uint256);
-    function shrinkTriggerRatio() external view returns (uint256);
     function updateParam(string memory key, bytes memory value) external;
 }
