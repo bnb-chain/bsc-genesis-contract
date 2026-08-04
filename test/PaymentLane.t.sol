@@ -26,13 +26,9 @@ contract PaymentLaneTest is Deployer {
     address internal constant USDT = 0x55d398326f99059fF775485246999027B3197955;
     address internal constant USDC = 0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d;
 
-    function setUp() public {
-        // 0x…2007 does not exist on mainnet, so the harness etched fresh code onto a
-        // blank account: storage is zero, exactly as at the fork block.
-        vm.prank(block.coinbase);
-        vm.txGasPrice(0);
-        paymentLane.initialize();
-    }
+    // No setUp: 0x…2007 does not exist on mainnet, so the harness etched fresh code onto a
+    // blank account. Zero storage already reads as the shipped configuration - which is
+    // exactly the state of every node the block after the fork.
 
     function _set(string memory key, uint256 value) internal {
         vm.prank(GOV_HUB_ADDR);
@@ -155,10 +151,8 @@ contract PaymentLaneTest is Deployer {
     }
 
     function testGovHubHappyPath() public {
-        vm.expectEmit(false, false, false, true, address(paymentLane));
-        emit paramChange("expandStepRatio", abi.encode(uint256(300)));
         _updateParamByGovHub("expandStepRatio", abi.encode(uint256(300)), address(paymentLane));
-        assertEq(paymentLane.expandStepRatio(), 300);
+        assertEq(paymentLane.getPaymentLaneParams().expandStepRatio, 300);
     }
 
     /// @dev The list branches take the same swallowed-revert path as the numeric ones.
@@ -195,7 +189,7 @@ contract PaymentLaneTest is Deployer {
     function testMinRatioBounds() public {
         // The declared ceiling is MAX_LANE_RATIO, but invariant (3) binds tighter against
         // the current maxRatio of 800, so the reachable ceiling is 300.
-        _set("paymentLaneMinRatio", 0);
+        _set("paymentLaneMinRatio", 1); // 0 is the unwritten-slot marker, see testZeroIsNotSettable
         _set("paymentLaneMinRatio", D_MAX_RATIO - paymentLane.RATIO_GAP_MIN());
         _expectInvalid("paymentLaneMinRatio", D_MAX_RATIO - paymentLane.RATIO_GAP_MIN() + 1);
     }
@@ -339,24 +333,20 @@ contract PaymentLaneTest is Deployer {
         vm.stopPrank();
     }
 
-    function testGetPaymentContractsPagination() public {
+    function testGetPaymentContracts() public {
+        assertEq(paymentLane.getPaymentContracts().length, 0);
+
         vm.startPrank(GOV_HUB_ADDR);
         for (uint256 i; i < 5; ++i) {
             paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(uint160(0x10000 + i))));
         }
         vm.stopPrank();
 
-        (address[] memory all, uint256 total) = paymentLane.getPaymentContracts(0, 0); // 0 means all
-        assertEq(total, 5);
+        address[] memory all = paymentLane.getPaymentContracts();
         assertEq(all.length, 5);
-
-        (address[] memory page,) = paymentLane.getPaymentContracts(3, 10);
-        assertEq(page.length, 2);
-
-        // over-paginating returns an empty page and the real length, it must not revert
-        (address[] memory none, uint256 total2) = paymentLane.getPaymentContracts(99, 10);
-        assertEq(none.length, 0);
-        assertEq(total2, 5);
+        for (uint256 i; i < 5; ++i) {
+            assertTrue(paymentLane.isPaymentContract(all[i]), "enumeration disagrees with membership");
+        }
     }
 
     /*----------------- the batch getter the client uses -----------------*/
@@ -430,19 +420,23 @@ contract PaymentLaneTest is Deployer {
     /**
      * @dev The client hardcodes nothing about storage, but a shifted slot is still fatal:
      *      a `paymentLaneMax` that reads 0 puts every node into "lane off" permanently,
-     *      because `initialize()` is spent and no single key escapes an all-zero tuple.
+     *      because a shifted slot reads either a neighbour's value or its own default,
+     *      with no error anywhere.
      *      Inserting or reordering any state variable fails here.
      */
     function testStorageLayoutIsFrozen() public {
+        // A no-op update still materialises all eight slots, which is what lets this
+        // compare storage against the defaults.
+        _set("expandStepRatio", D_EXPAND_STEP);
         for (uint256 i; i < 8; ++i) {
-            assertEq(uint256(vm.load(address(paymentLane), bytes32(i + 1))), _defaults()[i], "param slot moved");
+            assertEq(uint256(vm.load(address(paymentLane), bytes32(i))), _defaults()[i], "param slot moved");
         }
         // slots 9 and 10 are the EnumerableSet: array length, then the index mapping
         vm.prank(GOV_HUB_ADDR);
         paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
-        assertEq(uint256(vm.load(address(paymentLane), bytes32(uint256(9)))), 1, "list array moved");
+        assertEq(uint256(vm.load(address(paymentLane), bytes32(uint256(8)))), 1, "list array moved");
         assertEq(
-            uint256(vm.load(address(paymentLane), keccak256(abi.encode(USDT, uint256(10))))),
+            uint256(vm.load(address(paymentLane), keccak256(abi.encode(USDT, uint256(9))))),
             1,
             "list index mapping moved"
         );
@@ -457,36 +451,47 @@ contract PaymentLaneTest is Deployer {
         vm.stopPrank();
     }
 
-    /*----------------- the uninitialized sentinel -----------------*/
+    /*----------------- zero storage is the shipped configuration -----------------*/
 
     /**
-     * @dev `paymentLaneMax == 0` is unreachable in any valid configuration, so the client
-     *      uses it as the "lane not active yet" signal. This asserts the branch is
-     *      reachable, which is the pre-activation behaviour of every node. `initializer`
-     *      also makes the call one-shot.
+     * @dev The property that removes the need for an initializer. A contract that has
+     *      never been written to must already answer with the BEP-703 defaults, because
+     *      that is the state every node is in the block after the fork sets the code.
      */
-    function testUninitializedSentinelAndOneShotInit() public {
+    function testZeroStorageReadsAsDefaults() public {
         address fresh = address(uint160(0x7654321));
         vm.etch(fresh, vm.getDeployedCode("PaymentLane.sol:PaymentLane"));
 
-        assertEq(
-            PaymentLane(fresh).getPaymentLaneParams().paymentLaneMax,
-            0,
-            "an uninitialized PaymentLane must read as lane-disabled"
-        );
+        for (uint256 i; i < 8; ++i) {
+            assertEq(uint256(vm.load(fresh, bytes32(i))), 0, "storage must be untouched");
+        }
+        PaymentLane.Params memory p = PaymentLane(fresh).getPaymentLaneParams();
+        assertEq(p.paymentLaneMinRatio, D_MIN_RATIO);
+        assertEq(p.paymentLaneMaxRatio, D_MAX_RATIO);
+        assertEq(p.expandTriggerRatio, D_EXPAND_TRIGGER);
+        assertEq(p.shrinkTriggerRatio, D_SHRINK_TRIGGER);
+        assertEq(p.expandStepRatio, D_EXPAND_STEP);
+        assertEq(p.shrinkStepRatio, D_SHRINK_STEP);
+        assertEq(p.paymentLaneMin, D_LANE_MIN);
+        assertEq(p.paymentLaneMax, D_LANE_MAX);
+    }
 
-        // onlyCoinbase can only be observed before `initializer` consumes the call
-        vm.txGasPrice(0);
-        vm.expectRevert(abi.encodeWithSignature("OnlyCoinbase()"));
-        PaymentLane(fresh).initialize();
+    /**
+     * @dev 0 stops being a settable value - that is what makes an unwritten slot
+     *      unambiguous. Seven parameters already had a positive floor; this is the one
+     *      the change actually restricts.
+     */
+    function testZeroIsNotSettable() public {
+        _expectInvalid("paymentLaneMinRatio", 0);
+    }
 
-        vm.prank(block.coinbase);
-        PaymentLane(fresh).initialize();
-        assertEq(PaymentLane(fresh).getPaymentLaneParams().paymentLaneMax, D_LANE_MAX);
-
-        vm.prank(block.coinbase);
-        vm.expectRevert("Initializable: contract is already initialized");
-        PaymentLane(fresh).initialize();
+    /// @dev The first accepted update materialises all eight, after which the fallback is inert.
+    function testFirstUpdateMaterialisesEveryDefault() public {
+        _set("expandStepRatio", 300);
+        for (uint256 i; i < 8; ++i) {
+            assertTrue(uint256(vm.load(address(paymentLane), bytes32(i))) != 0, "slot still unwritten");
+        }
+        _assertParams([D_MIN_RATIO, D_MAX_RATIO, D_EXPAND_TRIGGER, D_SHRINK_TRIGGER, 300, D_SHRINK_STEP, D_LANE_MIN, D_LANE_MAX]);
     }
 }
 
@@ -507,17 +512,14 @@ contract PaymentLaneStandaloneTest is Test {
 
     function setUp() public {
         pl = new PaymentLaneImpl();
-        vm.prank(block.coinbase);
-        vm.txGasPrice(0);
-        pl.initialize();
     }
 
     function _add(uint256 i) internal {
         pl.updateParam("addPaymentContract", abi.encodePacked(address(uint160(0x10000 + i))));
     }
 
-    function _listLength() internal view returns (uint256 n) {
-        (, n) = pl.getPaymentContracts(0, 1);
+    function _listLength() internal view returns (uint256) {
+        return pl.getPaymentContracts().length;
     }
 
     function testListCap() public {
@@ -566,6 +568,9 @@ contract PaymentLaneStandaloneTest is Test {
         try pl.updateParam(keys[i], abi.encode(v)) {
             uint256[8] memory got = _read();
             assertEq(got[i], v, "accepted value must have landed");
+            // The whole lazy-default design rests on this: if 0 were ever accepted, an
+            // unwritten slot and a governance-set 0 would be indistinguishable.
+            assertTrue(v != 0, "0 must never be an accepted parameter value");
             for (uint256 j; j < 8; ++j) {
                 if (j != i) assertEq(got[j], before[j], "an accepted update moved another field");
             }

@@ -2,7 +2,6 @@
 pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./SystemV2.sol";
 import "./lib/0.8.x/Utils.sol";
@@ -36,14 +35,19 @@ import "./lib/0.8.x/Utils.sol";
  *      latest `PaymentLaneParamsUpdated`, not the transaction receipt, is where the
  *      configuration actually landed.
  *
- *      `paymentLaneMax == 0` is the "not yet initialized" sentinel, which is why there is
- *      no enable flag. Validation keeps it unreachable once initialized.
+ *      There is no `initialize()`: an unwritten slot reads as its `DEFAULT_*` constant,
+ *      so all-zero storage already IS the shipped configuration and the fork only has to
+ *      set the code. The price is that 0 is no longer settable - already true for seven
+ *      of the eight, and for `paymentLaneMinRatio` the floor moves 0 to 1, which
+ *      `paymentLaneMin` masks until GasLimit passes 210M. It also makes `DEFAULT_*` a live
+ *      fallback rather than a genesis seed: changing one at a later fork changes every
+ *      parameter governance has never written.
  *
  *      No `receive()` and no `Protectable`: nothing holds value and the only mutating
  *      entry point is governance. Adding `Protectable` later would insert its storage
  *      ahead of the parameters and shift every slot.
  */
-contract PaymentLane is SystemV2, Initializable {
+contract PaymentLane is SystemV2 {
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -66,9 +70,9 @@ contract PaymentLane is SystemV2, Initializable {
     // unreachable today so nothing tests it.
     uint256 public constant MAX_STEP_RATIO = 1_000;
 
-    // The floor is the cheapest transaction's intrinsic gas, and it is what keeps the
-    // `paymentLaneMax == 0` sentinel unreachable. The ceiling is only a fat-finger guard:
-    // both absolute bounds enter section 3.4.4 through a min(), so they can only shrink.
+    // The floor is the cheapest transaction's intrinsic gas: below it the lane holds
+    // nothing. The ceiling is only a fat-finger guard - both absolute bounds enter section
+    // 3.4.4 through a min(), so they can only shrink the lane, never grow it.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
 
@@ -80,15 +84,15 @@ contract PaymentLane is SystemV2, Initializable {
     // a system contract would reclassify Parlia's own system transactions.
     uint256 public constant MAX_RESERVED_ADDRESS = 0xFFFF;
 
-    // Genesis seeds for the governable parameters below. BEP-703 section 3.6.
-    uint256 private constant INIT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
-    uint256 private constant INIT_PAYMENT_LANE_MAX_RATIO = 800; // 8%
-    uint256 private constant INIT_EXPAND_TRIGGER_RATIO = 8_000; // 80%
-    uint256 private constant INIT_SHRINK_TRIGGER_RATIO = 7_000; // 70%
-    uint256 private constant INIT_EXPAND_STEP_RATIO = 200; // 2%
-    uint256 private constant INIT_SHRINK_STEP_RATIO = 50; // 0.5%
-    uint256 private constant INIT_PAYMENT_LANE_MIN = 2_000_000; // gas
-    uint256 private constant INIT_PAYMENT_LANE_MAX = 8_000_000; // gas
+    // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
+    uint256 private constant DEFAULT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
+    uint256 private constant DEFAULT_PAYMENT_LANE_MAX_RATIO = 800; // 8%
+    uint256 private constant DEFAULT_EXPAND_TRIGGER_RATIO = 8_000; // 80%
+    uint256 private constant DEFAULT_SHRINK_TRIGGER_RATIO = 7_000; // 70%
+    uint256 private constant DEFAULT_EXPAND_STEP_RATIO = 200; // 2%
+    uint256 private constant DEFAULT_SHRINK_STEP_RATIO = 50; // 0.5%
+    uint256 private constant DEFAULT_PAYMENT_LANE_MIN = 2_000_000; // gas
+    uint256 private constant DEFAULT_PAYMENT_LANE_MAX = 8_000_000; // gas
 
     /*----------------- errors -----------------*/
     // @notice signature: 0x6e45c90c
@@ -100,29 +104,33 @@ contract PaymentLane is SystemV2, Initializable {
 
     /*----------------- storage -----------------*/
     // At a fork the code is replaced in place and the storage survives, so inserting or
-    // reordering a slot silently shifts everything after it - and a shifted
-    // `paymentLaneMax` reads 0, which the client treats as "lane off", with `initialize()`
-    // already consumed and no single governance key able to escape an all-zero tuple.
+    // reordering a slot silently shifts everything after it, and every parameter then
+    // reads either a neighbour's value or its own default with no error anywhere.
     // New state goes at the BOTTOM, never inside the two blocks below, whichever section
     // it belongs to. Deprecate with `// @dev deprecated`, never delete.
+    //
+    // Slot 0 is the first parameter: there is no Initializable and nothing precedes it.
 
-    // BEP-703 section 3.6
-    uint256 public paymentLaneMinRatio;
-    uint256 public paymentLaneMaxRatio;
-    uint256 public expandTriggerRatio;
-    uint256 public shrinkTriggerRatio;
-    uint256 public expandStepRatio;
-    uint256 public shrinkStepRatio;
-    uint256 public paymentLaneMin; // gas, not a ratio
-    uint256 public paymentLaneMax; // gas, not a ratio
+    // BEP-703 section 3.6. Private on purpose: an auto-getter would return the raw slot,
+    // so a fresh contract would answer 0 here and DEFAULT_* through getPaymentLaneParams().
+    // One read path, one answer.
+    uint256 private _paymentLaneMinRatio;
+    uint256 private _paymentLaneMaxRatio;
+    uint256 private _expandTriggerRatio;
+    uint256 private _shrinkTriggerRatio;
+    uint256 private _expandStepRatio;
+    uint256 private _shrinkStepRatio;
+    uint256 private _paymentLaneMin; // gas, not a ratio
+    uint256 private _paymentLaneMax; // gas, not a ratio
 
     // BEP-703 section 3.7
     EnumerableSet.AddressSet private _paymentContracts;
 
     /*----------------- structs and events -----------------*/
     /**
-     * @dev The eight parameters as one value. Returned by `getPaymentLaneParams()`, so
-     *      this is consensus ABI surface: every field must stay a governable parameter.
+     * @dev The eight parameters as one value, returned by `getPaymentLaneParams()` and
+     *      carried by `PaymentLaneParamsUpdated`. Consensus ABI surface on both counts:
+     *      every field must stay a governable parameter, and adding one is a hard fork.
      */
     struct Params {
         uint256 paymentLaneMinRatio;
@@ -135,44 +143,18 @@ contract PaymentLane is SystemV2, Initializable {
         uint256 paymentLaneMax;
     }
 
-    /// @notice The complete configuration, not only the field that moved. The contract
-    ///         header says why the whole tuple and not a delta.
+    /**
+     * @notice The complete configuration, not only the field that moved. The contract
+     *         header says why the whole tuple and not a delta.
+     *
+     * @dev Not emitted at the fork: with no initializer there is no transaction to emit
+     *      from, so an indexer starting from logs alone has no parameters until the first
+     *      governance change. Read `getPaymentLaneParams()` once to seed, then follow this.
+     */
     event PaymentLaneParamsUpdated(Params params);
 
     event PaymentContractAdded(address indexed paymentContract);
     event PaymentContractRemoved(address indexed paymentContract);
-
-    /*----------------- init -----------------*/
-    /**
-     * @dev this function is invoked by BSC Parlia consensus engine during the hard fork
-     *
-     * @notice Genesis bakes code and balance only, never storage, so the defaults are
-     *         written here. Until this runs `paymentLaneMax` is 0 and the lane is off.
-     *         The list is independent and may be seeded before this runs; the sentinel
-     *         keeps the lane off either way and this function does not touch it.
-     *
-     *         `onlyCoinbase` authenticates the coinbase, not the engine, so the in-turn
-     *         validator can also reach this. Harmless only while it takes no arguments:
-     *         never add a `reinitializer` that does.
-     */
-    function initialize() external initializer onlyCoinbase onlyZeroGasPrice {
-        Params memory p = Params({
-            paymentLaneMinRatio: INIT_PAYMENT_LANE_MIN_RATIO,
-            paymentLaneMaxRatio: INIT_PAYMENT_LANE_MAX_RATIO,
-            expandTriggerRatio: INIT_EXPAND_TRIGGER_RATIO,
-            shrinkTriggerRatio: INIT_SHRINK_TRIGGER_RATIO,
-            expandStepRatio: INIT_EXPAND_STEP_RATIO,
-            shrinkStepRatio: INIT_SHRINK_STEP_RATIO,
-            paymentLaneMin: INIT_PAYMENT_LANE_MIN,
-            paymentLaneMax: INIT_PAYMENT_LANE_MAX
-        });
-
-        // Same validator as governance, so a bad seed fails here and not on a live
-        // network. Not dead code: the defaults already sit exactly on invariant (1).
-        _validateParams(p, "initialize", "");
-        _storeParams(p);
-        emit PaymentLaneParamsUpdated(p);
-    }
 
     /*----------------- system functions -----------------*/
     /**
@@ -212,8 +194,8 @@ contract PaymentLane is SystemV2, Initializable {
     /**
      * @dev this function will be used by Parlia consensus engine.
      *
-     * @return the eight parameters of BEP-703 section 3.6. `paymentLaneMax == 0` means
-     *         this contract is not initialized yet and the lane MUST be treated as off.
+     * @return the eight parameters of BEP-703 section 3.6, each either as governance set
+     *         it or, if governance never has, as its `DEFAULT_*` constant.
      */
     function getPaymentLaneParams() external view returns (Params memory) {
         return _loadParams();
@@ -242,29 +224,13 @@ contract PaymentLane is SystemV2, Initializable {
     }
 
     /**
-     * @dev Order is not stable: removal swaps in the last element. Never persist an index.
+     * @dev Unpaginated because MAX_PAYMENT_CONTRACTS bounds the answer. Order is not
+     *      stable: removal swaps in the last element, so never persist an index.
      *
-     * @param offset the offset of the query
-     * @param limit the limit of the query, zero means all
-     *
-     * @return addrs the listed payment contracts
-     * @return totalLength the total number of listed payment contracts
+     * @return the listed payment contracts
      */
-    function getPaymentContracts(
-        uint256 offset,
-        uint256 limit
-    ) external view returns (address[] memory addrs, uint256 totalLength) {
-        totalLength = _paymentContracts.length();
-        if (offset >= totalLength) {
-            return (addrs, totalLength);
-        }
-
-        limit = limit == 0 ? totalLength : limit;
-        uint256 count = (totalLength - offset) > limit ? limit : (totalLength - offset);
-        addrs = new address[](count);
-        for (uint256 i; i < count; ++i) {
-            addrs[i] = _paymentContracts.at(offset + i);
-        }
+    function getPaymentContracts() external view returns (address[] memory) {
+        return _paymentContracts.values();
     }
 
     /*----------------- internal functions -----------------*/
@@ -309,15 +275,24 @@ contract PaymentLane is SystemV2, Initializable {
         return value.bytesToAddress(20);
     }
 
+    /**
+     * @dev The one place the fallback is applied. 0 is not a settable value for any of the
+     *      eight, so an unwritten slot is unambiguous. The first accepted `updateParam`
+     *      writes all eight, after which the fallback is inert.
+     */
     function _loadParams() internal view returns (Params memory p) {
-        p.paymentLaneMinRatio = paymentLaneMinRatio;
-        p.paymentLaneMaxRatio = paymentLaneMaxRatio;
-        p.expandTriggerRatio = expandTriggerRatio;
-        p.shrinkTriggerRatio = shrinkTriggerRatio;
-        p.expandStepRatio = expandStepRatio;
-        p.shrinkStepRatio = shrinkStepRatio;
-        p.paymentLaneMin = paymentLaneMin;
-        p.paymentLaneMax = paymentLaneMax;
+        p.paymentLaneMinRatio = _orDefault(_paymentLaneMinRatio, DEFAULT_PAYMENT_LANE_MIN_RATIO);
+        p.paymentLaneMaxRatio = _orDefault(_paymentLaneMaxRatio, DEFAULT_PAYMENT_LANE_MAX_RATIO);
+        p.expandTriggerRatio = _orDefault(_expandTriggerRatio, DEFAULT_EXPAND_TRIGGER_RATIO);
+        p.shrinkTriggerRatio = _orDefault(_shrinkTriggerRatio, DEFAULT_SHRINK_TRIGGER_RATIO);
+        p.expandStepRatio = _orDefault(_expandStepRatio, DEFAULT_EXPAND_STEP_RATIO);
+        p.shrinkStepRatio = _orDefault(_shrinkStepRatio, DEFAULT_SHRINK_STEP_RATIO);
+        p.paymentLaneMin = _orDefault(_paymentLaneMin, DEFAULT_PAYMENT_LANE_MIN);
+        p.paymentLaneMax = _orDefault(_paymentLaneMax, DEFAULT_PAYMENT_LANE_MAX);
+    }
+
+    function _orDefault(uint256 stored, uint256 fallbackValue) internal pure returns (uint256) {
+        return stored == 0 ? fallbackValue : stored;
     }
 
     /**
@@ -327,14 +302,14 @@ contract PaymentLane is SystemV2, Initializable {
     function _storeParams(
         Params memory p
     ) internal {
-        paymentLaneMinRatio = p.paymentLaneMinRatio;
-        paymentLaneMaxRatio = p.paymentLaneMaxRatio;
-        expandTriggerRatio = p.expandTriggerRatio;
-        shrinkTriggerRatio = p.shrinkTriggerRatio;
-        expandStepRatio = p.expandStepRatio;
-        shrinkStepRatio = p.shrinkStepRatio;
-        paymentLaneMin = p.paymentLaneMin;
-        paymentLaneMax = p.paymentLaneMax;
+        _paymentLaneMinRatio = p.paymentLaneMinRatio;
+        _paymentLaneMaxRatio = p.paymentLaneMaxRatio;
+        _expandTriggerRatio = p.expandTriggerRatio;
+        _shrinkTriggerRatio = p.shrinkTriggerRatio;
+        _expandStepRatio = p.expandStepRatio;
+        _shrinkStepRatio = p.shrinkStepRatio;
+        _paymentLaneMin = p.paymentLaneMin;
+        _paymentLaneMax = p.paymentLaneMax;
     }
 
     /**
@@ -347,7 +322,9 @@ contract PaymentLane is SystemV2, Initializable {
      */
     function _validateParams(Params memory p, string memory key, bytes memory value) internal pure {
         // stage one
-        if (p.paymentLaneMinRatio > MAX_LANE_RATIO) revert InvalidValue(key, value);
+        if (p.paymentLaneMinRatio == 0 || p.paymentLaneMinRatio > MAX_LANE_RATIO) {
+            revert InvalidValue(key, value);
+        }
         if (p.paymentLaneMaxRatio < RATIO_GAP_MIN || p.paymentLaneMaxRatio > MAX_LANE_RATIO) {
             revert InvalidValue(key, value);
         }

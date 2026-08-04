@@ -163,55 +163,13 @@
   },
   {
     "type": "function",
-    "name": "expandStepRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "expandTriggerRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "getPaymentContracts",
-    "inputs": [
-      {
-        "name": "offset",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "limit",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "inputs": [],
     "outputs": [
       {
-        "name": "addrs",
+        "name": "",
         "type": "address[]",
         "internalType": "address[]"
-      },
-      {
-        "name": "totalLength",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -273,13 +231,6 @@
   },
   {
     "type": "function",
-    "name": "initialize",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "isPaymentContract",
     "inputs": [
       {
@@ -293,84 +244,6 @@
         "name": "",
         "type": "bool",
         "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "paymentLaneMax",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "paymentLaneMaxRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "paymentLaneMin",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "paymentLaneMinRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "shrinkStepRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "shrinkTriggerRatio",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -392,19 +265,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "Initialized",
-    "inputs": [
-      {
-        "name": "version",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "uint8"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
