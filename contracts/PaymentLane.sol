@@ -25,9 +25,42 @@ import "./lib/0.8.x/Utils.sol";
  *         gas. Each pair combines through a min(), which is why the absolute bounds can
  *         only shrink the lane and the ratio bounds are what cap its share of a block.
  *
- * @dev Parlia reads this contract once per block, against the parent block's post-state,
- *      through `getPaymentLaneParams()` and `arePaymentContracts(address[])`. Changing
- *      either signature or return encoding is a hard fork.
+ * @dev The client reads this contract once per block, against the parent block's
+ *      post-state, by reading STORAGE SLOTS DIRECTLY - not through the getters. Reading
+ *      through the EVM is not available to it: the only in-tree mechanism, parlia's
+ *      `ethAPI.Call`, lives in a package that imports `core`, so the block importer could
+ *      not then import the lane rules. Direct slot reads are also the only form with no
+ *      node-local input at all - no gas cap, no timeout, no chain rules - so two honest
+ *      nodes cannot disagree.
+ *
+ *      THEREFORE THE CONSENSUS SURFACE OF THIS CONTRACT IS ITS STORAGE LAYOUT, NOT ITS
+ *      ABI. Slots 0..7 are the eight parameters in declaration order; slot 8 is the
+ *      payment-contract array's length, with element `i` at `keccak256(bytes32(8)) + i`.
+ *      Inserting or reordering ANY state variable shifts every slot after it, leaves
+ *      every getter and every Foundry test green, and silently breaks every client. The
+ *      getters below are for RPC, indexers and tests; changing their signatures is safe.
+ *
+ *      The client-side formula, stated normatively because the BEP text gives neither
+ *      units nor a rounding rule and any implementation choosing its own would be a
+ *      consensus split. All three terms MULTIPLY BEFORE DIVIDING and round toward zero:
+ *
+ *          stepGas = floor(step * GasLimit(n) / RATIO_DENOM)
+ *          ceiling = min(floor(paymentLaneMaxRatio * GasLimit(n) / RATIO_DENOM), paymentLaneMax)
+ *          floor   = min(max(floor(paymentLaneMinRatio * GasLimit(n) / RATIO_DENOM),
+ *                            paymentLaneMin), ceiling)
+ *
+ *      `GasLimit(n)` is THIS block's for all three; the congestion signal's denominator is
+ *      the PARENT's, because it must match the numerator's block. Divide-first differs by
+ *      up to `ratio - 1` gas and agrees whenever GasLimit is a multiple of RATIO_DENOM -
+ *      i.e. in the steady state - so getting it wrong is invisible until an operator
+ *      changes the gas limit.
+ *
+ *      `getPaymentLaneParams()` MUST NOT revert, and today cannot: `_loadParams` has no
+ *      revert path and makes no external call. That is a contract-level guarantee the
+ *      client depends on, because it lets the client treat EVERY read failure as
+ *      infrastructure and retry. Were the getter able to revert, the client would need a
+ *      deterministic-failure branch that must not fall back to a default - and a
+ *      must-not-fall-back branch on a consensus path is the bug that discipline loses to.
  *
  *      `GovHub` catches this contract's reverts and discards them, so a rejected change
  *      still reports success and a batched proposal can half-apply. State stays valid -
@@ -77,11 +110,26 @@ contract PaymentLane is SystemV2 {
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
 
     // Bounds governance-written state. Not a performance bound: lookup is O(1) at any size.
+    //
+    // Raising this is safe ONLY while every client's own read bound stays above it. A
+    // client that mirrored this value exactly would, after such a raise, reject every
+    // block from the moment governance added the 257th entry - and because the read is a
+    // pure function of the parent state, it would reject every candidate block forever,
+    // with no protocol path out. The geth client therefore reads with deliberate slack
+    // (4096) and pins only `MAX_PAYMENT_CONTRACTS <= that`. Coordinate any raise with the
+    // clients rather than treating it as a contract-only change.
     uint256 public constant MAX_PAYMENT_CONTRACTS = 256;
 
     // A range, not a `code.length` test: precompiles have no code and any address can
     // gain code later. A rejecting precompile burns all the gas given to it, and listing
     // a system contract would reclassify Parlia's own system transactions.
+    //
+    // Clients mirror this bound and apply it ABOVE their whitelist lookup, so a listing
+    // inside the range can never reclassify anything. That makes raising this safe - the
+    // contract merely gets stricter - but LOWERING it, or dropping the check, silently
+    // dangerous: the contract would accept a listing that every client ignores forever,
+    // with `PaymentContractAdded` emitted and no error anywhere to show governance that
+    // the change did nothing.
     uint256 public constant MAX_RESERVED_ADDRESS = 0xFFFF;
 
     // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
