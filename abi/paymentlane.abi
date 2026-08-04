@@ -222,44 +222,51 @@
     "inputs": [],
     "outputs": [
       {
-        "name": "minRatio",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "maxRatio",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "expandTrigger",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "shrinkTrigger",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "expandStep",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "shrinkStep",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "laneMin",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "laneMax",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct PaymentLane.Params",
+        "components": [
+          {
+            "name": "paymentLaneMinRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMaxRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "expandTriggerRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "shrinkTriggerRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "expandStepRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "shrinkStepRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMin",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMax",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
       }
     ],
     "stateMutability": "view"
@@ -449,52 +456,52 @@
     "name": "PaymentLaneParamsUpdated",
     "inputs": [
       {
-        "name": "paymentLaneMinRatio",
-        "type": "uint256",
+        "name": "params",
+        "type": "tuple",
         "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "paymentLaneMaxRatio",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "expandTriggerRatio",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shrinkTriggerRatio",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "expandStepRatio",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "shrinkStepRatio",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "paymentLaneMin",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "paymentLaneMax",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
+        "internalType": "struct PaymentLane.Params",
+        "components": [
+          {
+            "name": "paymentLaneMinRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMaxRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "expandTriggerRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "shrinkTriggerRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "expandStepRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "shrinkStepRatio",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMin",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "paymentLaneMax",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
       }
     ],
     "anonymous": false

@@ -2,6 +2,17 @@
 pragma solidity ^0.8.0;
 
 interface PaymentLane {
+    struct Params {
+        uint256 paymentLaneMinRatio;
+        uint256 paymentLaneMaxRatio;
+        uint256 expandTriggerRatio;
+        uint256 shrinkTriggerRatio;
+        uint256 expandStepRatio;
+        uint256 shrinkStepRatio;
+        uint256 paymentLaneMin;
+        uint256 paymentLaneMax;
+    }
+
     error ExceedsMaxPaymentContracts();
     error InvalidValue(string key, bytes value);
     error OnlyCoinbase();
@@ -15,16 +26,7 @@ interface PaymentLane {
     event ParamChange(string key, bytes value);
     event PaymentContractAdded(address indexed paymentContract);
     event PaymentContractRemoved(address indexed paymentContract);
-    event PaymentLaneParamsUpdated(
-        uint256 paymentLaneMinRatio,
-        uint256 paymentLaneMaxRatio,
-        uint256 expandTriggerRatio,
-        uint256 shrinkTriggerRatio,
-        uint256 expandStepRatio,
-        uint256 shrinkStepRatio,
-        uint256 paymentLaneMin,
-        uint256 paymentLaneMax
-    );
+    event PaymentLaneParamsUpdated(Params params);
 
     function MAX_LANE_GAS() external view returns (uint256);
     function MAX_LANE_RATIO() external view returns (uint256);
@@ -44,19 +46,7 @@ interface PaymentLane {
         external
         view
         returns (address[] memory addrs, uint256 totalLength);
-    function getPaymentLaneParams()
-        external
-        view
-        returns (
-            uint256 minRatio,
-            uint256 maxRatio,
-            uint256 expandTrigger,
-            uint256 shrinkTrigger,
-            uint256 expandStep,
-            uint256 shrinkStep,
-            uint256 laneMin,
-            uint256 laneMax
-        );
+    function getPaymentLaneParams() external view returns (Params memory);
     function initialize() external;
     function isPaymentContract(address paymentContract) external view returns (bool);
     function paymentLaneMax() external view returns (uint256);
