@@ -36,10 +36,6 @@
     "pascalTime": 0,
     "pragueTime": 0,
     "lorentzTime": 0,
-    "maxwellTime": 0,
-    "fermiTime": 0,
-    "osakaTime": 0,
-    "mendelTime": 0,
     "depositContractAddress": "0x0000000000000000000000000000000000000000",
     "parlia": {},
     "blobSchedule": {

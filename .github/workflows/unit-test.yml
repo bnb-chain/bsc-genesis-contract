@@ -16,14 +16,17 @@ jobs:
   unit-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/cache@v5
-        id: npm-cache
+      - uses: actions/checkout@master
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-yarn-
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -47,11 +50,10 @@ jobs:
       - name: Start Local Chain
         run: |
           npm install pm2 -g
-          pm2 start --name local-chain "anvil -f $ARCHIVE_RPC"
+          pm2 start --name local-chain "anvil -f https://bsc-dataseed.bnbchain.org"
           sleep 5
         env:
           PORT: 8545
-          ARCHIVE_RPC: ${{ secrets.ARCHIVE_RPC }}
 
       - name: Unit Test
         run: |

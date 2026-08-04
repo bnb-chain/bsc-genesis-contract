@@ -16,16 +16,19 @@ permissions:
 jobs:
   main:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.body, '>CI')
+    if: contains(github.event.pull_request.body, '>CI')
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/cache@v5
-        id: npm-cache
+      - uses: actions/checkout@master
+      - name: Get yarn cache directory path
+        id: yarn-cache-dir-path
+        run: echo "::set-output name=dir::$(yarn cache dir)"
+      - uses: actions/cache@v3
+        id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          path: ${{ steps.yarn-cache-dir-path.outputs.dir }}
+          key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-npm-
+            ${{ runner.os }}-yarn-
 
 #      - name: Run your CI script
 #        run: echo ${{github.event.pull_request.title}}
@@ -36,7 +39,7 @@ jobs:
           npm install
 
       - name: Extract BSC commitId and hardfork name from PR description
-        uses: actions/github-script@v8
+        uses: actions/github-script@v6
         id: extract_pr_description
         with:
           script: |
@@ -54,8 +57,7 @@ jobs:
             core.setOutput('bsc', info.bsc)
 
       - name: Compare genesis with hardfork bytecode files from BSC repo
-        env:
-          HARDFORK: ${{ steps.extract_pr_description.outputs.hardfork }}
-          BSC_URL: ${{ steps.extract_pr_description.outputs.bsc }}
         run: |
+          export HARDFORK=${{ steps.extract_pr_description.outputs.hardfork }}
+          export BSC_URL=${{ steps.extract_pr_description.outputs.bsc }}
           ts-node scripts/check-bsc-hardfork-bytecode.ts
