@@ -26,23 +26,19 @@ import "./lib/0.8.x/Utils.sol";
  *         only shrink the lane and the ratio bounds are what cap its share of a block.
  *
  * @dev The client reads this contract once per block, against the parent block's
- *      post-state, by reading STORAGE SLOTS DIRECTLY - not through the getters. Reading
- *      through the EVM is not available to it: the only in-tree mechanism, parlia's
- *      `ethAPI.Call`, lives in a package that imports `core`, so the block importer could
- *      not then import the lane rules. Direct slot reads are also the only form with no
- *      node-local input at all - no gas cap, no timeout, no chain rules - so two honest
- *      nodes cannot disagree.
+ *      post-state, by reading STORAGE SLOTS DIRECTLY - not through the getters. It cannot
+ *      call into the EVM at all; `core/paymentlane/config.go` says why, and why direct
+ *      reads are the only form with no node-local input, so two honest nodes cannot
+ *      disagree.
  *
  *      THEREFORE THE CONSENSUS SURFACE OF THIS CONTRACT IS ITS STORAGE LAYOUT, NOT ITS
  *      ABI. Slots 0..7 are the eight parameters in declaration order; slot 8 is the
  *      payment-contract array's length, with element `i` at `keccak256(bytes32(8)) + i`.
- *      Inserting or reordering ANY state variable shifts every slot after it, leaves
- *      every getter and every Foundry test green, and silently breaks every client. The
- *      getters below are for RPC, indexers and tests; changing their signatures is safe.
+ *      The storage section below says what that forbids. The getters are for RPC,
+ *      indexers and tests; changing their signatures is safe.
  *
- *      The client-side formula, stated normatively because the BEP text gives neither
- *      units nor a rounding rule and any implementation choosing its own would be a
- *      consensus split. All three terms MULTIPLY BEFORE DIVIDING and round toward zero:
+ *      The client-side formula. BEP-703 section 3.4 pins the arithmetic - multiply before
+ *      dividing, truncate toward zero - and this is that rule written out per term:
  *
  *          stepGas = floor(step * GasLimit(n) / RATIO_DENOM)
  *          ceiling = min(floor(paymentLaneMaxRatio * GasLimit(n) / RATIO_DENOM), paymentLaneMax)
@@ -52,8 +48,8 @@ import "./lib/0.8.x/Utils.sol";
  *      `GasLimit(n)` is THIS block's for all three; the congestion signal's denominator is
  *      the PARENT's, because it must match the numerator's block. Divide-first differs by
  *      up to `ratio - 1` gas and agrees whenever GasLimit is a multiple of RATIO_DENOM -
- *      i.e. in the steady state - so getting it wrong is invisible until an operator
- *      changes the gas limit.
+ *      i.e. in the steady state - so getting it wrong stays invisible until an operator
+ *      changes the gas limit, and then never reproduces.
  *
  *      `getPaymentLaneParams()` MUST NOT revert, and today cannot: `_loadParams` has no
  *      revert path and makes no external call. That is a contract-level guarantee the
@@ -111,13 +107,11 @@ contract PaymentLane is SystemV2 {
 
     // Bounds governance-written state. Not a performance bound: lookup is O(1) at any size.
     //
-    // Raising this is safe ONLY while every client's own read bound stays above it. A
-    // client that mirrored this value exactly would, after such a raise, reject every
-    // block from the moment governance added the 257th entry - and because the read is a
-    // pure function of the parent state, it would reject every candidate block forever,
-    // with no protocol path out. The geth client therefore reads with deliberate slack
-    // (4096) and pins only `MAX_PAYMENT_CONTRACTS <= that`. Coordinate any raise with the
-    // clients rather than treating it as a contract-only change.
+    // Clients read with deliberate slack (geth: 4096) and pin only
+    // `MAX_PAYMENT_CONTRACTS <= that`. One that mirrored this value exactly would, after a
+    // raise here, reject every candidate block forever from the moment governance added
+    // the 257th entry - the read is a pure function of the parent state, so there is no
+    // protocol path out. Coordinate any raise with the clients.
     uint256 public constant MAX_PAYMENT_CONTRACTS = 256;
 
     // A range, not a `code.length` test: precompiles have no code and any address can

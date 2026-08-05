@@ -425,13 +425,19 @@ contract PaymentLaneTest is Deployer {
      *      Inserting or reordering any state variable fails here.
      */
     function testStorageLayoutIsFrozen() public {
-        // A no-op update still materialises all eight slots, which is what lets this
-        // compare storage against the defaults.
-        _set("expandStepRatio", D_EXPAND_STEP);
+        // An update materialises all eight slots, which is what lets this compare storage
+        // against known values. It sets expandStepRatio to 300 rather than its own default
+        // for the same reason testConsensusReturnEncodingIsFrozen does: the defaults hold
+        // 200 twice, so at the defaults a swap of paymentLaneMinRatio (slot 0) and
+        // expandStepRatio (slot 4) leaves all eight assertions below green. With eight
+        // distinct values no permutation survives.
+        _set("expandStepRatio", 300);
+        uint256[8] memory expected =
+            [D_MIN_RATIO, D_MAX_RATIO, D_EXPAND_TRIGGER, D_SHRINK_TRIGGER, uint256(300), D_SHRINK_STEP, D_LANE_MIN, D_LANE_MAX];
         for (uint256 i; i < 8; ++i) {
-            assertEq(uint256(vm.load(address(paymentLane), bytes32(i))), _defaults()[i], "param slot moved");
+            assertEq(uint256(vm.load(address(paymentLane), bytes32(i))), expected[i], "param slot moved");
         }
-        // slots 9 and 10 are the EnumerableSet: array length, then the index mapping
+        // slots 8 and 9 are the EnumerableSet: array length, then the index mapping
         vm.prank(GOV_HUB_ADDR);
         paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
         assertEq(uint256(vm.load(address(paymentLane), bytes32(uint256(8)))), 1, "list array moved");
