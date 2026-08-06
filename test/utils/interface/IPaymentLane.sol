@@ -13,7 +13,6 @@ interface PaymentLane {
         uint256 paymentLaneMax;
     }
 
-    error ExceedsMaxPaymentContracts();
     error InvalidValue(string key, bytes value);
     error OnlyCoinbase();
     error OnlySystemContract(address systemContract);
@@ -29,7 +28,6 @@ interface PaymentLane {
 
     function MAX_LANE_GAS() external view returns (uint256);
     function MAX_LANE_RATIO() external view returns (uint256);
-    function MAX_PAYMENT_CONTRACTS() external view returns (uint256);
     function MAX_RESERVED_ADDRESS() external view returns (uint256);
     function MAX_STEP_RATIO() external view returns (uint256);
     function MIN_EXPAND_TRIGGER_RATIO() external view returns (uint256);
@@ -39,7 +37,10 @@ interface PaymentLane {
     function RATIO_GAP_MIN() external view returns (uint256);
     function TRIGGER_GAP_MIN() external view returns (uint256);
     function arePaymentContracts(address[] memory addrs) external view returns (bool[] memory results);
-    function getPaymentContracts() external view returns (address[] memory);
+    function getPaymentContracts(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory paymentContracts, uint256 totalLength);
     function getPaymentLaneParams() external view returns (Params memory);
     function isPaymentContract(address paymentContract) external view returns (bool);
     function updateParam(string memory key, bytes memory value) external;

@@ -27,19 +27,6 @@
   },
   {
     "type": "function",
-    "name": "MAX_PAYMENT_CONTRACTS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "MAX_RESERVED_ADDRESS",
     "inputs": [],
     "outputs": [
@@ -164,12 +151,28 @@
   {
     "type": "function",
     "name": "getPaymentContracts",
-    "inputs": [],
+    "inputs": [
+      {
+        "name": "offset",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "limit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
     "outputs": [
       {
-        "name": "",
+        "name": "paymentContracts",
         "type": "address[]",
         "internalType": "address[]"
+      },
+      {
+        "name": "totalLength",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -365,11 +368,6 @@
       }
     ],
     "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "ExceedsMaxPaymentContracts",
-    "inputs": []
   },
   {
     "type": "error",
