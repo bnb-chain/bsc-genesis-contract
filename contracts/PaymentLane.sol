@@ -43,6 +43,13 @@ import "./lib/0.8.x/Utils.sol";
  *      because the read is a pure function of the parent state. A client's own read
  *      ceiling is an anti-OOM guard and belongs far above anything governance can produce.
  *
+ *      Nor does the list filter by address: any 20-byte value can be listed, including
+ *      zero, a precompile or a system contract. Listing is governance-only and every
+ *      listing is reversible by the same vote, so the contract does not second-guess the
+ *      address. A client that must not reclassify its own system transactions - or must
+ *      not route lane gas into a precompile - owns that exclusion itself, above its
+ *      whitelist lookup; it cannot infer one from what this contract accepted.
+ *
  *      The client-side formula. BEP-703 section 3.4 pins the arithmetic - multiply before
  *      dividing, truncate toward zero - and this is that rule written out per term:
  *
@@ -110,18 +117,6 @@ contract PaymentLane is SystemV2 {
     // 3.4.4 through a min(), so they can only shrink the lane, never grow it.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
-
-    // A range, not a `code.length` test: precompiles have no code and any address can
-    // gain code later. A rejecting precompile burns all the gas given to it, and listing
-    // a system contract would reclassify Parlia's own system transactions.
-    //
-    // Clients mirror this bound and apply it ABOVE their whitelist lookup, so a listing
-    // inside the range can never reclassify anything. That makes raising this safe - the
-    // contract merely gets stricter - but LOWERING it, or dropping the check, silently
-    // dangerous: the contract would accept a listing that every client ignores forever,
-    // with `PaymentContractAdded` emitted and no error anywhere to show governance that
-    // the change did nothing.
-    uint256 public constant MAX_RESERVED_ADDRESS = 0xFFFF;
 
     // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
     uint256 private constant DEFAULT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
@@ -209,9 +204,6 @@ contract PaymentLane is SystemV2 {
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("addPaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
-            // Also covers address(0). Add-time only: removal needs nothing but membership,
-            // so a listing stays removable even if this constant is later raised.
-            if (uint160(paymentContract) <= MAX_RESERVED_ADDRESS) revert InvalidValue(key, value);
             // Revert rather than no-op, so the event is one-to-one with a real mutation.
             if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
             emit PaymentContractAdded(paymentContract);

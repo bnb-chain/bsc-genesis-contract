@@ -306,22 +306,30 @@ contract PaymentLaneTest is Deployer {
         assertFalse(paymentLane.isPaymentContract(USDT));
     }
 
+    /// @dev No address is off-limits: listing is governance-only and every listing is
+    ///      reversible by the same vote, so the contract does not second-guess the
+    ///      address. A reinstated range check fails here rather than at a real vote.
+    function testListAcceptsAnyAddress() public {
+        vm.startPrank(GOV_HUB_ADDR);
+        paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(0)));
+        paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(0x0a)));
+        paymentLane.updateParam("addPaymentContract", abi.encodePacked(VALIDATOR_CONTRACT_ADDR));
+        vm.stopPrank();
+
+        assertTrue(paymentLane.isPaymentContract(address(0)));
+        assertTrue(paymentLane.isPaymentContract(address(0x0a)));
+        assertTrue(paymentLane.isPaymentContract(VALIDATOR_CONTRACT_ADDR));
+
+        vm.prank(GOV_HUB_ADDR);
+        paymentLane.updateParam("removePaymentContract", abi.encodePacked(address(0)));
+        assertFalse(paymentLane.isPaymentContract(address(0)));
+    }
+
     function testListRejections() public {
         vm.startPrank(GOV_HUB_ADDR);
 
         // abi.encode gives 32 bytes; the decoder needs the packed 20-byte form
         _expectListInvalid("addPaymentContract", abi.encode(USDT));
-
-        // every precompile and every system contract sits at or below MAX_RESERVED_ADDRESS.
-        // Listing a precompile would let one transaction burn MaxTxGas of *payment* gas;
-        // listing a system contract would reclassify Parlia's own system transactions.
-        _expectListInvalid("addPaymentContract", abi.encodePacked(address(0)));
-        _expectListInvalid("addPaymentContract", abi.encodePacked(address(0x0a)));
-        _expectListInvalid("addPaymentContract", abi.encodePacked(VALIDATOR_CONTRACT_ADDR));
-        _expectListInvalid("addPaymentContract", abi.encodePacked(address(uint160(0xFFFF))));
-
-        // the first address above the reserved range is fine
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(uint160(0x10000))));
 
         paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
         vm.expectRevert(abi.encodeWithSignature("PaymentContractAlreadyExists()"));

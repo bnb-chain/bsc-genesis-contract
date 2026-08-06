@@ -28,7 +28,6 @@ interface PaymentLane {
 
     function MAX_LANE_GAS() external view returns (uint256);
     function MAX_LANE_RATIO() external view returns (uint256);
-    function MAX_RESERVED_ADDRESS() external view returns (uint256);
     function MAX_STEP_RATIO() external view returns (uint256);
     function MIN_EXPAND_TRIGGER_RATIO() external view returns (uint256);
     function MIN_LANE_GAS() external view returns (uint256);
