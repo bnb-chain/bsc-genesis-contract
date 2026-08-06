@@ -334,7 +334,9 @@ contract PaymentLaneTest is Deployer {
     }
 
     function testGetPaymentContracts() public {
-        assertEq(paymentLane.getPaymentContracts().length, 0);
+        (address[] memory empty, uint256 emptyTotal) = paymentLane.getPaymentContracts(0, 0);
+        assertEq(empty.length, 0);
+        assertEq(emptyTotal, 0);
 
         vm.startPrank(GOV_HUB_ADDR);
         for (uint256 i; i < 5; ++i) {
@@ -342,14 +344,16 @@ contract PaymentLaneTest is Deployer {
         }
         vm.stopPrank();
 
-        address[] memory all = paymentLane.getPaymentContracts();
+        // limit 0 means "the rest", so this is the whole list
+        (address[] memory all, uint256 total) = paymentLane.getPaymentContracts(0, 0);
         assertEq(all.length, 5);
+        assertEq(total, 5);
         for (uint256 i; i < 5; ++i) {
             assertTrue(paymentLane.isPaymentContract(all[i]), "enumeration disagrees with membership");
         }
     }
 
-    /*----------------- the batch getter the client uses -----------------*/
+    /*----------------- the batch getter -----------------*/
 
     function testArePaymentContracts() public {
         vm.prank(GOV_HUB_ADDR);
@@ -525,30 +529,62 @@ contract PaymentLaneStandaloneTest is Test {
     }
 
     function _listLength() internal view returns (uint256) {
-        return pl.getPaymentContracts().length;
+        (, uint256 totalLength) = pl.getPaymentContracts(0, 0);
+        return totalLength;
     }
 
-    function testListCap() public {
-        uint256 cap = pl.MAX_PAYMENT_CONTRACTS();
+    /// @dev 300 is past the 256 this contract used to enforce, so a reinstated cap fails
+    ///      here rather than in production at the 257th governance vote.
+    function testListHasNoCap() public {
+        uint256 n = 300;
 
         vm.startPrank(GOV_HUB);
-        for (uint256 i; i < cap; ++i) {
+        for (uint256 i; i < n; ++i) {
             _add(i);
         }
-        assertEq(_listLength(), cap);
+        assertEq(_listLength(), n);
 
-        vm.expectRevert(PaymentLaneImpl.ExceedsMaxPaymentContracts.selector);
-        _add(cap);
-
-        // a duplicate on a full list must still report the duplicate, not "list full"
+        // a duplicate is a duplicate at any length
         vm.expectRevert(PaymentLaneImpl.PaymentContractAlreadyExists.selector);
         _add(0);
 
-        // freeing one slot lets exactly one more in
+        // and removal is unaffected by length
         pl.updateParam("removePaymentContract", abi.encodePacked(address(uint160(0x10000))));
-        _add(cap);
-        assertEq(_listLength(), cap);
         vm.stopPrank();
+
+        assertEq(_listLength(), n - 1);
+        assertFalse(pl.isPaymentContract(address(uint160(0x10000))), "removed address still listed");
+        assertTrue(pl.isPaymentContract(address(uint160(0x10000 + n - 1))), "last add missing");
+    }
+
+    /// @dev A page walk must cover the list exactly once, in the order the whole-list read
+    ///      gives.
+    function testPagingCoversLongList() public {
+        uint256 n = 300;
+        uint256 pageSize = 64; // does not divide 300, so the last page is short
+
+        vm.startPrank(GOV_HUB);
+        for (uint256 i; i < n; ++i) {
+            _add(i);
+        }
+        vm.stopPrank();
+
+        (address[] memory all, uint256 total) = pl.getPaymentContracts(0, 0);
+        assertEq(all.length, n);
+        assertEq(total, n);
+
+        for (uint256 offset; offset < n; offset += pageSize) {
+            (address[] memory page,) = pl.getPaymentContracts(offset, pageSize);
+            assertEq(page.length, n - offset > pageSize ? pageSize : n - offset, "wrong page length");
+            for (uint256 i; i < page.length; ++i) {
+                assertEq(page[i], all[offset + i], "page disagrees with full read");
+            }
+        }
+
+        // running off the end is an empty page, not a revert
+        (address[] memory past, uint256 pastTotal) = pl.getPaymentContracts(n, 0);
+        assertEq(past.length, 0);
+        assertEq(pastTotal, n);
     }
 
     /**

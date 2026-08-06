@@ -32,10 +32,16 @@ import "./lib/0.8.x/Utils.sol";
  *      disagree.
  *
  *      THEREFORE THE CONSENSUS SURFACE OF THIS CONTRACT IS ITS STORAGE LAYOUT, NOT ITS
- *      ABI. Slots 0..7 are the eight parameters in declaration order; slot 8 is the
- *      payment-contract array's length, with element `i` at `keccak256(bytes32(8)) + i`.
- *      The storage section below says what that forbids. The getters are for RPC,
- *      indexers and tests; changing their signatures is safe.
+ *      ABI. Slots 0..7 are the eight parameters in declaration order; the payment-contract
+ *      set takes two, slot 8 the array's length with element `i` at
+ *      `keccak256(bytes32(8)) + i`, slot 9 the membership mapping. The storage section
+ *      below says what that forbids. The getters are for RPC, indexers and tests;
+ *      changing their signatures is safe.
+ *
+ *      The list has no size limit, and a client MUST NOT mirror one: a bound the contract
+ *      does not enforce becomes a permanent chain halt the moment governance crosses it,
+ *      because the read is a pure function of the parent state. A client's own read
+ *      ceiling is an anti-OOM guard and belongs far above anything governance can produce.
  *
  *      The client-side formula. BEP-703 section 3.4 pins the arithmetic - multiply before
  *      dividing, truncate toward zero - and this is that rule written out per term:
@@ -105,15 +111,6 @@ contract PaymentLane is SystemV2 {
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
 
-    // Bounds governance-written state. Not a performance bound: lookup is O(1) at any size.
-    //
-    // Clients read with deliberate slack (geth: 4096) and pin only
-    // `MAX_PAYMENT_CONTRACTS <= that`. One that mirrored this value exactly would, after a
-    // raise here, reject every candidate block forever from the moment governance added
-    // the 257th entry - the read is a pure function of the parent state, so there is no
-    // protocol path out. Coordinate any raise with the clients.
-    uint256 public constant MAX_PAYMENT_CONTRACTS = 256;
-
     // A range, not a `code.length` test: precompiles have no code and any address can
     // gain code later. A rejecting precompile burns all the gas given to it, and listing
     // a system contract would reclassify Parlia's own system transactions.
@@ -141,8 +138,6 @@ contract PaymentLane is SystemV2 {
     error PaymentContractAlreadyExists();
     // @notice signature: 0x949d443a
     error PaymentContractNotFound();
-    // @notice signature: 0x647ecf12
-    error ExceedsMaxPaymentContracts();
 
     /*----------------- storage -----------------*/
     // At a fork the code is replaced in place and the storage survives, so inserting or
@@ -219,8 +214,6 @@ contract PaymentLane is SystemV2 {
             if (uint160(paymentContract) <= MAX_RESERVED_ADDRESS) revert InvalidValue(key, value);
             // Revert rather than no-op, so the event is one-to-one with a real mutation.
             if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
-            // After the add, so a duplicate on a full list still reports the duplicate.
-            if (_paymentContracts.length() > MAX_PAYMENT_CONTRACTS) revert ExceedsMaxPaymentContracts();
             emit PaymentContractAdded(paymentContract);
         } else if (key.compareStrings("removePaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
@@ -234,8 +227,6 @@ contract PaymentLane is SystemV2 {
 
     /*----------------- view functions -----------------*/
     /**
-     * @dev this function will be used by Parlia consensus engine.
-     *
      * @return the eight parameters of BEP-703 section 3.6, each either as governance set
      *         it or, if governance never has, as its `DEFAULT_*` constant.
      */
@@ -244,7 +235,7 @@ contract PaymentLane is SystemV2 {
     }
 
     /**
-     * @dev this function will be used by Parlia consensus engine.
+     * @dev The loop is sized by the caller, not by the list.
      *
      * @param addrs the addresses to test
      *
@@ -266,13 +257,31 @@ contract PaymentLane is SystemV2 {
     }
 
     /**
-     * @dev Unpaginated because MAX_PAYMENT_CONTRACTS bounds the answer. Order is not
-     *      stable: removal swaps in the last element, so never persist an index.
+     * @dev Paginated because nothing bounds the list. Order is not stable: removal swaps in
+     *      the last element, so never persist an index, and a page walk that straddles a
+     *      governance change can miss the swapped element.
      *
-     * @return the listed payment contracts
+     * @param offset the index to start from
+     * @param limit the maximum number to return, or 0 for all remaining
+     *
+     * @return paymentContracts the requested page
+     * @return totalLength the full list length
      */
-    function getPaymentContracts() external view returns (address[] memory) {
-        return _paymentContracts.values();
+    function getPaymentContracts(
+        uint256 offset,
+        uint256 limit
+    ) external view returns (address[] memory paymentContracts, uint256 totalLength) {
+        totalLength = _paymentContracts.length();
+        if (offset >= totalLength) {
+            return (paymentContracts, totalLength);
+        }
+
+        limit = limit == 0 ? totalLength : limit;
+        uint256 count = (totalLength - offset) > limit ? limit : (totalLength - offset);
+        paymentContracts = new address[](count);
+        for (uint256 i; i < count; ++i) {
+            paymentContracts[i] = _paymentContracts.at(offset + i);
+        }
     }
 
     /*----------------- internal functions -----------------*/
