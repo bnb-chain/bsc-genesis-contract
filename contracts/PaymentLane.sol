@@ -38,17 +38,22 @@ import "./lib/0.8.x/Utils.sol";
  *      below says what that forbids. The getters are for RPC, indexers and tests;
  *      changing their signatures is safe.
  *
- *      The list has no size limit, and a client MUST NOT mirror one: a bound the contract
- *      does not enforce becomes a permanent chain halt the moment governance crosses it,
- *      because the read is a pure function of the parent state. A client's own read
- *      ceiling is an anti-OOM guard and belongs far above anything governance can produce.
+ *      The list has no size limit, and a client MUST NOT carry one either - not even a
+ *      generous one. A bound the contract does not enforce becomes a permanent chain halt
+ *      the moment governance crosses it, because the read is a pure function of the parent
+ *      state and the block that crossed it can never be produced again. Against a shifted
+ *      storage layout a client wants shape rather than magnitude: this is an EnumerableSet,
+ *      so a repeated element proves the read is not looking at this array, which stops a
+ *      garbage length after one element (geth: `core/paymentlane/config.go`).
  *
  *      Nor does the list filter by address: any 20-byte value can be listed, including
  *      zero, a precompile or a system contract. Listing is governance-only and every
  *      listing is reversible by the same vote, so the contract does not second-guess the
- *      address. A client that must not reclassify its own system transactions - or must
- *      not route lane gas into a precompile - owns that exclusion itself, above its
- *      whitelist lookup; it cannot infer one from what this contract accepted.
+ *      address - and neither does the reference client, whose classifier applies no
+ *      address filter above its whitelist lookup. Membership means payment class, whatever
+ *      the address. A client that reintroduced a filter would silently ignore listings this
+ *      contract accepted, with the event emitted and nothing anywhere to show governance
+ *      that its vote did nothing.
  *
  *      The client-side formula. BEP-703 section 3.4 pins the arithmetic - multiply before
  *      dividing, truncate toward zero - and this is that rule written out per term:
