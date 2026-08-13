@@ -205,6 +205,11 @@ contract StakeCredit is SystemV2, Initializable, ReentrancyGuardUpgradeable, ERC
      * @dev Slash the validator. Only the `StakeHub` contract can call this function.
      * @param slashBnbAmount the amount of BNB to be slashed
      * @return realSlashBnbAmount the real amount of BNB slashed
+     *
+     * @notice Slashing is intentionally limited to the validator's active self-delegation
+     * (`balanceOf(validator)`); amounts recorded in the unbonding queue are outside this
+     * burn. A zero burn is therefore a valid outcome and must not itself cause `slash()`
+     * to revert on consensus-driven slashing paths.
      */
     function slash(
         uint256 slashBnbAmount
