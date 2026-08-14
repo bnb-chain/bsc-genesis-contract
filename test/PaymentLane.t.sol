@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "./utils/Deployer.sol";
+import { IPaymentLaneMeta } from "../contracts/interface/0.8.x/IPaymentLaneMeta.sol";
 
 // The real implementation, for the fork-independent tests at the bottom of this file.
 // Aliased because IPaymentLane.sol declares an interface of the same name.
@@ -359,6 +360,34 @@ contract PaymentLaneTest is Deployer {
         for (uint256 i; i < 5; ++i) {
             assertTrue(paymentLane.isPaymentContract(all[i]), "enumeration disagrees with membership");
         }
+    }
+
+    function testMetaInterfaceReadsCurrentSemantics() public {
+        IPaymentLaneMeta meta = IPaymentLaneMeta(address(paymentLane));
+        address[] memory q = new address[](2);
+        q[0] = USDC;
+        q[1] = USDT;
+
+        IPaymentLaneMeta.Params memory p = meta.getPaymentLaneParams();
+        assertEq(p.paymentLaneMinRatio, D_MIN_RATIO);
+        assertEq(p.paymentLaneMaxRatio, D_MAX_RATIO);
+        assertEq(p.expandTriggerRatio, D_EXPAND_TRIGGER);
+        assertEq(p.shrinkTriggerRatio, D_SHRINK_TRIGGER);
+        assertEq(p.expandStepRatio, D_EXPAND_STEP);
+        assertEq(p.shrinkStepRatio, D_SHRINK_STEP);
+        assertEq(p.paymentLaneMin, D_LANE_MIN);
+        assertEq(p.paymentLaneMax, D_LANE_MAX);
+
+        (address[] memory listed, uint256 total) = meta.getPaymentContracts(0, 0);
+        assertEq(listed.length, 0);
+        assertEq(total, 0);
+        assertFalse(meta.isPaymentContract(USDC));
+        assertFalse(meta.isPaymentContract(USDT));
+
+        bool[] memory results = meta.arePaymentContracts(q);
+        assertEq(results.length, 2);
+        assertFalse(results[0]);
+        assertFalse(results[1]);
     }
 
     /*----------------- the batch getter -----------------*/
