@@ -9,27 +9,16 @@ import "./lib/0.8.x/Utils.sol";
 
 /**
  * @title PaymentLane
- * @notice Configuration for BEP-703: the eight governable parameters of section 3.6 and
- *         the payment contract list of section 3.7. Nothing else - the `paymentLaneSize`
- *         accumulator lives in the block header and the client. Do not mirror it here.
+ * @notice Configuration for BEP-703: the eight governable parameters of section 3.6 and the
+ *         payment contract list of section 3.7.
  *
- * @dev The client reads this contract once per block, against the parent block's
- *      post-state, through the read-only getters. Upgrades therefore have to preserve
- *      those getter semantics and the eight-word parameter tuple they expose.
+ * @dev The client reads this contract once per block, against the parent block's post-state,
+ *      through the read-only getters. Upgrades must preserve those getter semantics and the
+ *      eight-word tuple they expose.
  *
- *      The list is capped at `MAX_PAYMENT_CONTRACTS`, and a client MUST NOT carry a tighter
- *      one. A smaller client-side bound would still become a permanent chain halt once
- *      governance crosses it, because the read is a pure function of the parent state and
- *      the block that crossed it can never be produced again. The list also does not
- *      filter by address: membership alone means payment class.
- *
- *      `getPaymentLaneParams()` MUST NOT revert, and today cannot: `_loadParams` has no
- *      revert path and makes no external call. The client depends on that and treats read
- *      failures as infrastructure rather than consensus defaults.
- *
- *      There is no `initialize()`: an unwritten slot reads as its `DEFAULT_*` constant,
- *      so all-zero storage already IS the shipped configuration and the fork only has to
- *      set the code. New storage must be appended, never inserted or reordered.
+ *      There is no `initialize()`: an unwritten slot reads as its `DEFAULT_*` constant, so
+ *      all-zero storage already IS the shipped configuration and the fork only has to set the
+ *      code. New storage must be appended, never inserted or reordered.
  */
 contract PaymentLane is SystemV2, IPaymentLaneMeta {
     using Utils for string;
@@ -42,11 +31,11 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     uint256 public constant TRIGGER_GAP_MIN = 1_000;
     uint256 public constant RATIO_GAP_MIN = 500;
 
-    // Absolute ceilings, NOT in BEP-703. Its six invariants constrain the parameters
-    // against each other but say nothing about GasLimit or about the mandatory
-    // end-of-block system transactions, so a tuple satisfying all six can still starve
-    // general gas until no valid block exists. Ratio bounds close that because they are
-    // scale invariant. Must stay `constant`: a ceiling governance can raise is not one.
+    // Absolute ceilings, NOT in BEP-703. Its six invariants constrain the parameters against
+    // each other but say nothing about GasLimit or the mandatory end-of-block system
+    // transactions, so a tuple satisfying all six can still starve general gas until no valid
+    // block exists. Ratio bounds close that, being scale invariant. Must stay `constant`: a
+    // ceiling governance can raise is not one.
     uint256 public constant MAX_LANE_RATIO = 2_000; // lane <= 20% of any GasLimit
     uint256 public constant MIN_EXPAND_TRIGGER_RATIO = 5_000; // expand only under real congestion
     uint256 public constant MIN_SHRINK_TRIGGER_RATIO = 2_000; // a zero trigger never fires, so the lane would ratchet
@@ -54,9 +43,9 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     // unreachable today so nothing tests it.
     uint256 public constant MAX_STEP_RATIO = 1_000;
 
-    // The floor is the cheapest transaction's intrinsic gas: below it the lane holds
-    // nothing. The ceiling is only a fat-finger guard - both absolute bounds enter section
-    // 3.4.4 through a min(), so they can only shrink the lane, never grow it.
+    // The floor is the cheapest transaction's intrinsic gas: below it the lane holds nothing.
+    // The ceiling is only a fat-finger guard - both absolute bounds enter section 3.4.4 through
+    // a min(), so they can only shrink the lane, never grow it.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
     uint256 public constant MAX_PAYMENT_CONTRACTS = 100_000;
@@ -80,11 +69,9 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     error PaymentContractLimitExceeded();
 
     /*----------------- storage -----------------*/
-    // Getter semantics depend on these fields staying in order. Append new state at the
-    // bottom; do not insert or reorder existing slots.
-    //
-    // The slots stay private so callers always read through getPaymentLaneParams(), which
-    // applies the DEFAULT_* fallback consistently.
+    // Append new state at the bottom; do not insert or reorder. The slots stay private so
+    // callers always read through getPaymentLaneParams(), the one place the DEFAULT_* fallback
+    // is applied.
     uint256 private _paymentLaneMinRatio;
     uint256 private _paymentLaneMaxRatio;
     uint256 private _expandTriggerRatio;
@@ -98,27 +85,23 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     EnumerableSet.AddressSet private _paymentContracts;
 
     /*----------------- structs and events -----------------*/
-    /**
-     * @notice Emitted with the full parameter tuple after every numeric update.
-     * @dev Seed indexers from `getPaymentLaneParams()`: the fork itself emits no event.
-     */
+    /// @dev The full tuple after every numeric update. Seed indexers from
+    ///      `getPaymentLaneParams()` instead: the fork itself emits no event.
     event PaymentLaneParamsUpdated(Params params);
 
     event PaymentContractAdded(address indexed paymentContract);
     event PaymentContractRemoved(address indexed paymentContract);
 
     /*----------------- system functions -----------------*/
-    /**
-     * @dev Numeric keys take `abi.encode(uint256)`; list keys take
-     *      `abi.encodePacked(address)`.
-     */
+    /// @dev Numeric keys take `abi.encode(uint256)`; list keys take `abi.encodePacked(address)`.
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("addPaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
-            // Revert rather than no-op, so the event is one-to-one with a real mutation.
-            if (_paymentContracts.contains(paymentContract)) revert PaymentContractAlreadyExists();
-            if (_paymentContracts.length() >= MAX_PAYMENT_CONTRACTS) revert PaymentContractLimitExceeded();
-            _paymentContracts.add(paymentContract);
+            // Revert rather than no-op, so the event is one-to-one with a real mutation. The cap
+            // is checked after the add - the revert undoes it - so a duplicate on a full list
+            // still reports the duplicate.
+            if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
+            if (_paymentContracts.length() > MAX_PAYMENT_CONTRACTS) revert PaymentContractLimitExceeded();
             emit PaymentContractAdded(paymentContract);
         } else if (key.compareStrings("removePaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
@@ -132,8 +115,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
 
     /*----------------- view functions -----------------*/
     /**
-     * @return the eight parameters of BEP-703 section 3.6, each either as governance set
-     *         it or, if governance never has, as its `DEFAULT_*` constant.
+     * @return the eight parameters of BEP-703 section 3.6, each either as governance set it or,
+     *         if governance never has, as its `DEFAULT_*` constant.
      */
     function getPaymentLaneParams() external view returns (Params memory) {
         return _loadParams();
@@ -160,15 +143,11 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     }
 
     /**
-     * @dev Paginated because even a bounded list can be large. Order is not stable:
-     *      removal swaps in the last element, so never persist an index, and a page walk
-     *      that straddles a governance change can miss the swapped element.
+     * @dev Paginated because even a bounded list can be large. Order is not stable: removal
+     *      swaps in the last element, so never persist an index, and a page walk that straddles
+     *      a governance change can miss the swapped element.
      *
-     * @param offset the index to start from
      * @param limit the maximum number to return, or 0 for all remaining
-     *
-     * @return paymentContracts the requested page
-     * @return totalLength the full list length
      */
     function getPaymentContracts(
         uint256 offset,
@@ -179,8 +158,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
             return (paymentContracts, totalLength);
         }
 
-        limit = limit == 0 ? totalLength : limit;
-        uint256 count = (totalLength - offset) > limit ? limit : (totalLength - offset);
+        uint256 count = totalLength - offset;
+        if (limit != 0 && limit < count) count = limit;
         paymentContracts = new address[](count);
         for (uint256 i; i < count; ++i) {
             paymentContracts[i] = _paymentContracts.at(offset + i);
@@ -189,15 +168,14 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
 
     /*----------------- internal functions -----------------*/
     /**
-     * @dev The eight uint256 parameters, and only those: a parameter of any other type
-     *      needs its own branch in `updateParam`, or this 32-byte decode would misread it.
-     *      The length guard runs before the dispatch, so an unknown key carrying a
-     *      non-32-byte value reports `InvalidValue` rather than `UnknownParam`.
+     * @dev The eight uint256 parameters, and only those: a parameter of any other type needs
+     *      its own branch in `updateParam`, or this 32-byte decode would misread it. The length
+     *      guard runs before the dispatch, so an unknown key carrying a non-32-byte value
+     *      reports `InvalidValue` rather than `UnknownParam`.
      *
-     *      Every key reruns the whole validator against the full resulting tuple, both
-     *      stages, not only the invariants naming that key - the six couple all eight
-     *      parameters, so moving one can break three others. That is why the branches
-     *      mutate a memory copy and nothing reaches storage until validation passes.
+     *      Every key revalidates the whole resulting tuple - the six invariants couple all eight
+     *      parameters, so moving one can break three others. Hence the memory copy: no dispatch
+     *      branch reaches storage until validation passes.
      */
     function _updateNumericParam(string calldata key, bytes calldata value) internal {
         if (value.length != 32) revert InvalidValue(key, value);
@@ -214,15 +192,15 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
         else if (key.compareStrings("paymentLaneMax")) p.paymentLaneMax = newValue;
         else revert UnknownParam(key, value);
 
-        _validateParams(p, key, value);
+        if (!_isValid(p)) revert InvalidValue(key, value);
         _storeParams(p);
         emit PaymentLaneParamsUpdated(p);
     }
 
     /**
-     * @dev `abi.encodePacked(addr)`, not `abi.encode(addr)`: `Utils.bytesToAddress` mloads
-     *      a word at `_input + _offset`, so the offset must equal the byte length or it
-     *      silently returns a shifted address.
+     * @dev `abi.encodePacked(addr)`, not `abi.encode(addr)`: `Utils.bytesToAddress` mloads a
+     *      word at `_input + _offset`, so the offset must equal the byte length or it silently
+     *      returns a shifted address.
      */
     function _decodeAddress(string calldata key, bytes calldata value) internal pure returns (address) {
         if (value.length != 20) revert InvalidValue(key, value);
@@ -230,9 +208,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     }
 
     /**
-     * @dev The one place the fallback is applied. 0 is not a settable value for any of the
-     *      eight, so an unwritten slot is unambiguous. The first accepted `updateParam`
-     *      writes all eight, after which the fallback is inert.
+     * @dev 0 is not a settable value for any of the eight, so an unwritten slot is unambiguous.
+     *      The first accepted `updateParam` writes all eight, after which the fallback is inert.
      */
     function _loadParams() internal view returns (Params memory p) {
         p.paymentLaneMinRatio = _orDefault(_paymentLaneMinRatio, DEFAULT_PAYMENT_LANE_MIN_RATIO);
@@ -249,10 +226,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
         return stored == 0 ? fallbackValue : stored;
     }
 
-    /**
-     * @dev All eight deliberately: seven are same-value writes to slots `_loadParams` just
-     *      warmed, and they buy the rule that no dispatch branch ever touches storage.
-     */
+    /// @dev All eight deliberately: seven are same-value writes to slots `_loadParams` just
+    ///      warmed, and they buy the rule that no dispatch branch ever touches storage.
     function _storeParams(
         Params memory p
     ) internal {
@@ -267,48 +242,43 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     }
 
     /**
-     * @dev Stage one bounds every field absolutely, which is what makes stage two's
-     *      additions provably overflow-free. Do not reorder.
+     * @dev Stage one bounds every field absolutely, which is what makes stage two's additions
+     *      provably overflow-free. Do not reorder.
      *
      *      Every invariant is an addition, never the BEP's subtraction form: `maxRatio -
-     *      minRatio >= RATIO_GAP_MIN` panics 0x11 instead of reverting `InvalidValue`
-     *      whenever max < min, which is the case governance gets wrong.
+     *      minRatio >= RATIO_GAP_MIN` panics 0x11 instead of reverting `InvalidValue` whenever
+     *      max < min, which is the case governance gets wrong.
      */
-    function _validateParams(Params memory p, string memory key, bytes memory value) internal pure {
+    function _isValid(
+        Params memory p
+    ) internal pure returns (bool) {
         // stage one
-        if (p.paymentLaneMinRatio == 0 || p.paymentLaneMinRatio > MAX_LANE_RATIO) {
-            revert InvalidValue(key, value);
-        }
-        if (p.paymentLaneMaxRatio < RATIO_GAP_MIN || p.paymentLaneMaxRatio > MAX_LANE_RATIO) {
-            revert InvalidValue(key, value);
-        }
-        if (p.expandTriggerRatio < MIN_EXPAND_TRIGGER_RATIO || p.expandTriggerRatio > RATIO_DENOM) {
-            revert InvalidValue(key, value);
-        }
-        if (p.shrinkTriggerRatio < MIN_SHRINK_TRIGGER_RATIO || p.shrinkTriggerRatio > RATIO_DENOM) {
-            revert InvalidValue(key, value);
-        }
-        if (p.expandStepRatio == 0 || p.expandStepRatio > MAX_STEP_RATIO) revert InvalidValue(key, value);
-        if (p.shrinkStepRatio == 0 || p.shrinkStepRatio > MAX_STEP_RATIO) revert InvalidValue(key, value);
-        if (p.paymentLaneMin < MIN_LANE_GAS || p.paymentLaneMin > MAX_LANE_GAS) revert InvalidValue(key, value);
-        if (p.paymentLaneMax < MIN_LANE_GAS || p.paymentLaneMax > MAX_LANE_GAS) revert InvalidValue(key, value);
+        if (p.paymentLaneMinRatio == 0 || p.paymentLaneMinRatio > MAX_LANE_RATIO) return false;
+        if (p.paymentLaneMaxRatio < RATIO_GAP_MIN || p.paymentLaneMaxRatio > MAX_LANE_RATIO) return false;
+        if (p.expandTriggerRatio < MIN_EXPAND_TRIGGER_RATIO || p.expandTriggerRatio > RATIO_DENOM) return false;
+        if (p.shrinkTriggerRatio < MIN_SHRINK_TRIGGER_RATIO || p.shrinkTriggerRatio > RATIO_DENOM) return false;
+        if (p.expandStepRatio == 0 || p.expandStepRatio > MAX_STEP_RATIO) return false;
+        if (p.shrinkStepRatio == 0 || p.shrinkStepRatio > MAX_STEP_RATIO) return false;
+        if (p.paymentLaneMin < MIN_LANE_GAS || p.paymentLaneMin > MAX_LANE_GAS) return false;
+        if (p.paymentLaneMax < MIN_LANE_GAS || p.paymentLaneMax > MAX_LANE_GAS) return false;
 
         // stage two, BEP-703 section 3.6
         // (1) EXPAND_TRIGGER_RATIO - SHRINK_TRIGGER_RATIO >= TRIGGER_GAP_MIN
-        if (p.expandTriggerRatio < p.shrinkTriggerRatio + TRIGGER_GAP_MIN) revert InvalidValue(key, value);
+        if (p.expandTriggerRatio < p.shrinkTriggerRatio + TRIGGER_GAP_MIN) return false;
         // (2) EXPAND_STEP_RATIO > SHRINK_STEP_RATIO > 0, the lower half by stage one
-        if (p.expandStepRatio <= p.shrinkStepRatio) revert InvalidValue(key, value);
+        if (p.expandStepRatio <= p.shrinkStepRatio) return false;
         // (3) PAYMENT_LANE_MAX_RATIO - PAYMENT_LANE_MIN_RATIO >= RATIO_GAP_MIN
-        if (p.paymentLaneMaxRatio < p.paymentLaneMinRatio + RATIO_GAP_MIN) revert InvalidValue(key, value);
+        if (p.paymentLaneMaxRatio < p.paymentLaneMinRatio + RATIO_GAP_MIN) return false;
         // (4) PAYMENT_LANE_MAX > PAYMENT_LANE_MIN > 0, the lower half by stage one
-        if (p.paymentLaneMax <= p.paymentLaneMin) revert InvalidValue(key, value);
-        // (5) PAYMENT_LANE_MAX_RATIO <= RATIO_DENOM - EXPAND_TRIGGER_RATIO. Reserved gas
-        //     never competes, so the congestion signal can only come from the rest of the
-        //     block: a ceiling above that point is one the lane could never grow into.
-        if (p.paymentLaneMaxRatio + p.expandTriggerRatio > RATIO_DENOM) revert InvalidValue(key, value);
-        // (6) EXPAND_STEP_RATIO <= EXPAND_TRIGGER_RATIO - SHRINK_TRIGGER_RATIO. Unreachable
-        //     while MAX_STEP_RATIO == TRIGGER_GAP_MIN, since (1) already gives that gap.
-        //     Kept so the code mirrors the spec and stays correct if MAX_STEP_RATIO rises.
-        if (p.expandStepRatio + p.shrinkTriggerRatio > p.expandTriggerRatio) revert InvalidValue(key, value);
+        if (p.paymentLaneMax <= p.paymentLaneMin) return false;
+        // (5) PAYMENT_LANE_MAX_RATIO <= RATIO_DENOM - EXPAND_TRIGGER_RATIO. Reserved gas never
+        //     competes, so a ceiling above that point is one the lane could never grow into.
+        if (p.paymentLaneMaxRatio + p.expandTriggerRatio > RATIO_DENOM) return false;
+        // (6) EXPAND_STEP_RATIO <= EXPAND_TRIGGER_RATIO - SHRINK_TRIGGER_RATIO. Unreachable while
+        //     MAX_STEP_RATIO == TRIGGER_GAP_MIN, since (1) already gives that gap. Kept so the
+        //     code mirrors the spec and stays correct if MAX_STEP_RATIO rises.
+        if (p.expandStepRatio + p.shrinkTriggerRatio > p.expandTriggerRatio) return false;
+
+        return true;
     }
 }
