@@ -4,6 +4,7 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 import "./SystemV2.sol";
+import "./interface/0.8.x/IPaymentLaneMeta.sol";
 import "./lib/0.8.x/Utils.sol";
 
 /**
@@ -12,89 +13,25 @@ import "./lib/0.8.x/Utils.sol";
  *         the payment contract list of section 3.7. Nothing else - the `paymentLaneSize`
  *         accumulator lives in the block header and the client. Do not mirror it here.
  *
- *         The lane is a per-block gas allowance only payment transactions may consume.
- *         Its size is an accumulator the client advances every block - it grows while the
- *         rest of the block is congested and shrinks when it is not - clamped between:
- *
- *             ceiling = min(paymentLaneMaxRatio * GasLimit / RATIO_DENOM, paymentLaneMax)
- *             floor   = min(max(paymentLaneMinRatio * GasLimit / RATIO_DENOM,
- *                               paymentLaneMin), ceiling)
- *             step    = expand/shrinkStepRatio * GasLimit / RATIO_DENOM, per block
- *
- *         Four parameters are shares of GasLimit over RATIO_DENOM and two are absolute
- *         gas. Each pair combines through a min(), which is why the absolute bounds can
- *         only shrink the lane and the ratio bounds are what cap its share of a block.
- *
  * @dev The client reads this contract once per block, against the parent block's
- *      post-state, by reading STORAGE SLOTS DIRECTLY - not through the getters. It cannot
- *      call into the EVM at all; `core/paymentlane/config.go` says why, and why direct
- *      reads are the only form with no node-local input, so two honest nodes cannot
- *      disagree.
+ *      post-state, through the read-only getters. Upgrades therefore have to preserve
+ *      those getter semantics and the eight-word parameter tuple they expose.
  *
- *      THEREFORE THE CONSENSUS SURFACE OF THIS CONTRACT IS ITS STORAGE LAYOUT, NOT ITS
- *      ABI. Slots 0..7 are the eight parameters in declaration order; the payment-contract
- *      set takes two, slot 8 the array's length with element `i` at
- *      `keccak256(bytes32(8)) + i`, slot 9 the membership mapping. The storage section
- *      below says what that forbids. The getters are for RPC, indexers and tests;
- *      changing their signatures is safe.
- *
- *      The list has no size limit, and a client MUST NOT carry one either - not even a
- *      generous one. A bound the contract does not enforce becomes a permanent chain halt
- *      the moment governance crosses it, because the read is a pure function of the parent
- *      state and the block that crossed it can never be produced again. Against a shifted
- *      storage layout a client wants shape rather than magnitude: this is an EnumerableSet,
- *      so a repeated element proves the read is not looking at this array, which stops a
- *      garbage length after one element (geth: `core/paymentlane/config.go`).
- *
- *      Nor does the list filter by address: any 20-byte value can be listed, including
- *      zero, a precompile or a system contract. Listing is governance-only and every
- *      listing is reversible by the same vote, so the contract does not second-guess the
- *      address - and neither does the reference client, whose classifier applies no
- *      address filter above its whitelist lookup. Membership means payment class, whatever
- *      the address. A client that reintroduced a filter would silently ignore listings this
- *      contract accepted, with the event emitted and nothing anywhere to show governance
- *      that its vote did nothing.
- *
- *      The client-side formula. BEP-703 section 3.4 pins the arithmetic - multiply before
- *      dividing, truncate toward zero - and this is that rule written out per term:
- *
- *          stepGas = floor(step * GasLimit(n) / RATIO_DENOM)
- *          ceiling = min(floor(paymentLaneMaxRatio * GasLimit(n) / RATIO_DENOM), paymentLaneMax)
- *          floor   = min(max(floor(paymentLaneMinRatio * GasLimit(n) / RATIO_DENOM),
- *                            paymentLaneMin), ceiling)
- *
- *      `GasLimit(n)` is THIS block's for all three; the congestion signal's denominator is
- *      the PARENT's, because it must match the numerator's block. Divide-first differs by
- *      up to `ratio - 1` gas and agrees whenever GasLimit is a multiple of RATIO_DENOM -
- *      i.e. in the steady state - so getting it wrong stays invisible until an operator
- *      changes the gas limit, and then never reproduces.
+ *      The list is capped at `MAX_PAYMENT_CONTRACTS`, and a client MUST NOT carry a tighter
+ *      one. A smaller client-side bound would still become a permanent chain halt once
+ *      governance crosses it, because the read is a pure function of the parent state and
+ *      the block that crossed it can never be produced again. The list also does not
+ *      filter by address: membership alone means payment class.
  *
  *      `getPaymentLaneParams()` MUST NOT revert, and today cannot: `_loadParams` has no
- *      revert path and makes no external call. That is a contract-level guarantee the
- *      client depends on, because it lets the client treat EVERY read failure as
- *      infrastructure and retry. Were the getter able to revert, the client would need a
- *      deterministic-failure branch that must not fall back to a default - and a
- *      must-not-fall-back branch on a consensus path is the bug that discipline loses to.
- *
- *      `GovHub` catches this contract's reverts and discards them, so a rejected change
- *      still reports success and a batched proposal can half-apply. State stays valid -
- *      every key reruns the full validator - but may not be what was voted on, so the
- *      latest `PaymentLaneParamsUpdated`, not the transaction receipt, is where the
- *      configuration actually landed.
+ *      revert path and makes no external call. The client depends on that and treats read
+ *      failures as infrastructure rather than consensus defaults.
  *
  *      There is no `initialize()`: an unwritten slot reads as its `DEFAULT_*` constant,
  *      so all-zero storage already IS the shipped configuration and the fork only has to
- *      set the code. The price is that 0 is no longer settable - already true for seven
- *      of the eight, and for `paymentLaneMinRatio` the floor moves 0 to 1, which
- *      `paymentLaneMin` masks until GasLimit passes 210M. It also makes `DEFAULT_*` a live
- *      fallback rather than a genesis seed: changing one at a later fork changes every
- *      parameter governance has never written.
- *
- *      No `receive()` and no `Protectable`: nothing holds value and the only mutating
- *      entry point is governance. Adding `Protectable` later would insert its storage
- *      ahead of the parameters and shift every slot.
+ *      set the code. New storage must be appended, never inserted or reordered.
  */
-contract PaymentLane is SystemV2 {
+contract PaymentLane is SystemV2, IPaymentLaneMeta {
     using Utils for string;
     using Utils for bytes;
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -122,6 +59,7 @@ contract PaymentLane is SystemV2 {
     // 3.4.4 through a min(), so they can only shrink the lane, never grow it.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
+    uint256 public constant MAX_PAYMENT_CONTRACTS = 100_000;
 
     // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
     uint256 private constant DEFAULT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
@@ -138,19 +76,15 @@ contract PaymentLane is SystemV2 {
     error PaymentContractAlreadyExists();
     // @notice signature: 0x949d443a
     error PaymentContractNotFound();
+    // @notice signature: 0xb3a28ad3
+    error PaymentContractLimitExceeded();
 
     /*----------------- storage -----------------*/
-    // At a fork the code is replaced in place and the storage survives, so inserting or
-    // reordering a slot silently shifts everything after it, and every parameter then
-    // reads either a neighbour's value or its own default with no error anywhere.
-    // New state goes at the BOTTOM, never inside the two blocks below, whichever section
-    // it belongs to. Deprecate with `// @dev deprecated`, never delete.
+    // Getter semantics depend on these fields staying in order. Append new state at the
+    // bottom; do not insert or reorder existing slots.
     //
-    // Slot 0 is the first parameter: there is no Initializable and nothing precedes it.
-
-    // BEP-703 section 3.6. Private on purpose: an auto-getter would return the raw slot,
-    // so a fresh contract would answer 0 here and DEFAULT_* through getPaymentLaneParams().
-    // One read path, one answer.
+    // The slots stay private so callers always read through getPaymentLaneParams(), which
+    // applies the DEFAULT_* fallback consistently.
     uint256 private _paymentLaneMinRatio;
     uint256 private _paymentLaneMaxRatio;
     uint256 private _expandTriggerRatio;
@@ -165,28 +99,8 @@ contract PaymentLane is SystemV2 {
 
     /*----------------- structs and events -----------------*/
     /**
-     * @dev The eight parameters as one value, returned by `getPaymentLaneParams()` and
-     *      carried by `PaymentLaneParamsUpdated`. Consensus ABI surface on both counts:
-     *      every field must stay a governable parameter, and adding one is a hard fork.
-     */
-    struct Params {
-        uint256 paymentLaneMinRatio;
-        uint256 paymentLaneMaxRatio;
-        uint256 expandTriggerRatio;
-        uint256 shrinkTriggerRatio;
-        uint256 expandStepRatio;
-        uint256 shrinkStepRatio;
-        uint256 paymentLaneMin;
-        uint256 paymentLaneMax;
-    }
-
-    /**
-     * @notice The complete configuration, not only the field that moved. The contract
-     *         header says why the whole tuple and not a delta.
-     *
-     * @dev Not emitted at the fork: with no initializer there is no transaction to emit
-     *      from, so an indexer starting from logs alone has no parameters until the first
-     *      governance change. Read `getPaymentLaneParams()` once to seed, then follow this.
+     * @notice Emitted with the full parameter tuple after every numeric update.
+     * @dev Seed indexers from `getPaymentLaneParams()`: the fork itself emits no event.
      */
     event PaymentLaneParamsUpdated(Params params);
 
@@ -195,22 +109,16 @@ contract PaymentLane is SystemV2 {
 
     /*----------------- system functions -----------------*/
     /**
-     * @dev The list keys are handled inline; they share none of the numeric pipeline.
-     *
-     *        abi.encode(uint256), 32 bytes | paymentLaneMinRatio, paymentLaneMaxRatio,
-     *                                        expandTriggerRatio, shrinkTriggerRatio,
-     *                                        expandStepRatio, shrinkStepRatio,
-     *                                        paymentLaneMin, paymentLaneMax
-     *        abi.encodePacked(address), 20 | addPaymentContract, removePaymentContract
-     *
-     * @param key the key of the param
-     * @param value the value of the param
+     * @dev Numeric keys take `abi.encode(uint256)`; list keys take
+     *      `abi.encodePacked(address)`.
      */
     function updateParam(string calldata key, bytes calldata value) external onlyGov {
         if (key.compareStrings("addPaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
             // Revert rather than no-op, so the event is one-to-one with a real mutation.
-            if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
+            if (_paymentContracts.contains(paymentContract)) revert PaymentContractAlreadyExists();
+            if (_paymentContracts.length() >= MAX_PAYMENT_CONTRACTS) revert PaymentContractLimitExceeded();
+            _paymentContracts.add(paymentContract);
             emit PaymentContractAdded(paymentContract);
         } else if (key.compareStrings("removePaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
@@ -231,13 +139,7 @@ contract PaymentLane is SystemV2 {
         return _loadParams();
     }
 
-    /**
-     * @dev The loop is sized by the caller, not by the list.
-     *
-     * @param addrs the addresses to test
-     *
-     * @return results whether each address is listed, `results[i]` for `addrs[i]`
-     */
+    /// @return results whether each address is listed, `results[i]` for `addrs[i]`
     function arePaymentContracts(
         address[] calldata addrs
     ) external view returns (bool[] memory results) {
@@ -253,10 +155,14 @@ contract PaymentLane is SystemV2 {
         return _paymentContracts.contains(paymentContract);
     }
 
+    function paymentContractCount() external view returns (uint256) {
+        return _paymentContracts.length();
+    }
+
     /**
-     * @dev Paginated because nothing bounds the list. Order is not stable: removal swaps in
-     *      the last element, so never persist an index, and a page walk that straddles a
-     *      governance change can miss the swapped element.
+     * @dev Paginated because even a bounded list can be large. Order is not stable:
+     *      removal swaps in the last element, so never persist an index, and a page walk
+     *      that straddles a governance change can miss the swapped element.
      *
      * @param offset the index to start from
      * @param limit the maximum number to return, or 0 for all remaining
