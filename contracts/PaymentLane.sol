@@ -31,11 +31,11 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     uint256 public constant TRIGGER_GAP_MIN = 1_000;
     uint256 public constant RATIO_GAP_MIN = 500;
 
-    // Absolute ceilings, NOT in BEP-703. Its six invariants constrain the parameters against
-    // each other but say nothing about GasLimit or the mandatory end-of-block system
-    // transactions, so a tuple satisfying all six can still starve general gas until no valid
-    // block exists. Ratio bounds close that, being scale invariant. Must stay `constant`: a
-    // ceiling governance can raise is not one.
+    // BEP-703 section 3.8.4's range guards. Section 3.6's six invariants constrain the
+    // parameters against each other but say nothing about GasLimit or the mandatory
+    // end-of-block system transactions, so a tuple satisfying all six can still starve general
+    // gas until no valid block exists. Ratio bounds close that, being scale invariant. Must
+    // stay `constant`: a ceiling governance can raise is not one.
     uint256 public constant MAX_LANE_RATIO = 2_000; // lane <= 20% of any GasLimit
     uint256 public constant MIN_EXPAND_TRIGGER_RATIO = 5_000; // expand only under real congestion
     uint256 public constant MIN_SHRINK_TRIGGER_RATIO = 2_000; // a zero trigger never fires, so the lane would ratchet
@@ -242,7 +242,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     }
 
     /**
-     * @dev Stage one bounds every field absolutely, which is what makes stage two's additions
+     * @dev Stage one bounds every field from above, which is what makes stage two's additions
      *      provably overflow-free. Do not reorder.
      *
      *      Every invariant is an addition, never the BEP's subtraction form: `maxRatio -
@@ -254,7 +254,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     ) internal pure returns (bool) {
         // stage one
         if (p.paymentLaneMinRatio == 0 || p.paymentLaneMinRatio > MAX_LANE_RATIO) return false;
-        if (p.paymentLaneMaxRatio < RATIO_GAP_MIN || p.paymentLaneMaxRatio > MAX_LANE_RATIO) return false;
+        // No lower bound here: (3) plus minRatio >= 1 already gives maxRatio > RATIO_GAP_MIN.
+        if (p.paymentLaneMaxRatio > MAX_LANE_RATIO) return false;
         if (p.expandTriggerRatio < MIN_EXPAND_TRIGGER_RATIO || p.expandTriggerRatio > RATIO_DENOM) return false;
         if (p.shrinkTriggerRatio < MIN_SHRINK_TRIGGER_RATIO || p.shrinkTriggerRatio > RATIO_DENOM) return false;
         if (p.expandStepRatio == 0 || p.expandStepRatio > MAX_STEP_RATIO) return false;
