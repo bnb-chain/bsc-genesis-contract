@@ -2,6 +2,7 @@
 pragma solidity ^0.8.10;
 
 import "./utils/Deployer.sol";
+import { IPaymentLaneMeta } from "../contracts/interface/0.8.x/IPaymentLaneMeta.sol";
 
 // The real implementation, for the fork-independent tests at the bottom of this file.
 // Aliased because IPaymentLane.sol declares an interface of the same name.
@@ -361,6 +362,35 @@ contract PaymentLaneTest is Deployer {
         }
     }
 
+    function testMetaInterfaceReadsCurrentSemantics() public {
+        IPaymentLaneMeta meta = IPaymentLaneMeta(address(paymentLane));
+        address[] memory q = new address[](2);
+        q[0] = USDC;
+        q[1] = USDT;
+
+        IPaymentLaneMeta.Params memory p = meta.getPaymentLaneParams();
+        assertEq(p.paymentLaneMinRatio, D_MIN_RATIO);
+        assertEq(p.paymentLaneMaxRatio, D_MAX_RATIO);
+        assertEq(p.expandTriggerRatio, D_EXPAND_TRIGGER);
+        assertEq(p.shrinkTriggerRatio, D_SHRINK_TRIGGER);
+        assertEq(p.expandStepRatio, D_EXPAND_STEP);
+        assertEq(p.shrinkStepRatio, D_SHRINK_STEP);
+        assertEq(p.paymentLaneMin, D_LANE_MIN);
+        assertEq(p.paymentLaneMax, D_LANE_MAX);
+        assertEq(meta.paymentContractCount(), 0);
+
+        (address[] memory listed, uint256 total) = meta.getPaymentContracts(0, 0);
+        assertEq(listed.length, 0);
+        assertEq(total, 0);
+        assertFalse(meta.isPaymentContract(USDC));
+        assertFalse(meta.isPaymentContract(USDT));
+
+        bool[] memory results = meta.arePaymentContracts(q);
+        assertEq(results.length, 2);
+        assertFalse(results[0]);
+        assertFalse(results[1]);
+    }
+
     /*----------------- the batch getter -----------------*/
 
     function testArePaymentContracts() public {
@@ -537,13 +567,12 @@ contract PaymentLaneStandaloneTest is Test {
     }
 
     function _listLength() internal view returns (uint256) {
-        (, uint256 totalLength) = pl.getPaymentContracts(0, 0);
-        return totalLength;
+        return pl.paymentContractCount();
     }
 
-    /// @dev 300 is past the 256 this contract used to enforce, so a reinstated cap fails
-    ///      here rather than in production at the 257th governance vote.
-    function testListHasNoCap() public {
+    /// @dev 300 stays well below the explicit 100k cap, so a lower accidental cap fails
+    ///      here rather than only after governance has grown the list in production.
+    function testListAllowsModeratelyLongLists() public {
         uint256 n = 300;
 
         vm.startPrank(GOV_HUB);
@@ -563,6 +592,21 @@ contract PaymentLaneStandaloneTest is Test {
         assertEq(_listLength(), n - 1);
         assertFalse(pl.isPaymentContract(address(uint160(0x10000))), "removed address still listed");
         assertTrue(pl.isPaymentContract(address(uint160(0x10000 + n - 1))), "last add missing");
+    }
+
+    function testListCapIsEnforced() public {
+        uint256 maxPaymentContracts = pl.MAX_PAYMENT_CONTRACTS();
+        bytes32 lenSlot = bytes32(uint256(8));
+
+        vm.store(address(pl), lenSlot, bytes32(maxPaymentContracts - 1));
+
+        vm.startPrank(GOV_HUB);
+        _add(0);
+        assertEq(uint256(vm.load(address(pl), lenSlot)), maxPaymentContracts);
+
+        vm.expectRevert(PaymentLaneImpl.PaymentContractLimitExceeded.selector);
+        _add(1);
+        vm.stopPrank();
     }
 
     /// @dev A page walk must cover the list exactly once, in the order the whole-list read
