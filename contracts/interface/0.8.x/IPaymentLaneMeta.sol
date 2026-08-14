@@ -23,6 +23,8 @@ interface IPaymentLaneMeta {
         address paymentContract
     ) external view returns (bool);
 
+    function paymentContractCount() external view returns (uint256);
+
     function getPaymentContracts(
         uint256 offset,
         uint256 limit

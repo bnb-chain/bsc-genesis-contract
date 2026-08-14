@@ -17,11 +17,11 @@ import "./lib/0.8.x/Utils.sol";
  *      post-state, through the read-only getters. Upgrades therefore have to preserve
  *      those getter semantics and the eight-word parameter tuple they expose.
  *
- *      The list has no size limit, and a client MUST NOT carry one either - not even a
- *      generous one. A bound the contract does not enforce becomes a permanent chain halt
- *      the moment governance crosses it, because the read is a pure function of the parent
- *      state and the block that crossed it can never be produced again. The list also does
- *      not filter by address: membership alone means payment class.
+ *      The list is capped at `MAX_PAYMENT_CONTRACTS`, and a client MUST NOT carry a tighter
+ *      one. A smaller client-side bound would still become a permanent chain halt once
+ *      governance crosses it, because the read is a pure function of the parent state and
+ *      the block that crossed it can never be produced again. The list also does not
+ *      filter by address: membership alone means payment class.
  *
  *      `getPaymentLaneParams()` MUST NOT revert, and today cannot: `_loadParams` has no
  *      revert path and makes no external call. The client depends on that and treats read
@@ -59,6 +59,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     // 3.4.4 through a min(), so they can only shrink the lane, never grow it.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
+    uint256 public constant MAX_PAYMENT_CONTRACTS = 100_000;
 
     // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
     uint256 private constant DEFAULT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
@@ -75,6 +76,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     error PaymentContractAlreadyExists();
     // @notice signature: 0x949d443a
     error PaymentContractNotFound();
+    // @notice signature: 0xb3a28ad3
+    error PaymentContractLimitExceeded();
 
     /*----------------- storage -----------------*/
     // Getter semantics depend on these fields staying in order. Append new state at the
@@ -113,7 +116,9 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
         if (key.compareStrings("addPaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
             // Revert rather than no-op, so the event is one-to-one with a real mutation.
-            if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
+            if (_paymentContracts.contains(paymentContract)) revert PaymentContractAlreadyExists();
+            if (_paymentContracts.length() >= MAX_PAYMENT_CONTRACTS) revert PaymentContractLimitExceeded();
+            _paymentContracts.add(paymentContract);
             emit PaymentContractAdded(paymentContract);
         } else if (key.compareStrings("removePaymentContract")) {
             address paymentContract = _decodeAddress(key, value);
@@ -150,10 +155,14 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
         return _paymentContracts.contains(paymentContract);
     }
 
+    function paymentContractCount() external view returns (uint256) {
+        return _paymentContracts.length();
+    }
+
     /**
-     * @dev Paginated because nothing bounds the list. Order is not stable: removal swaps in
-     *      the last element, so never persist an index, and a page walk that straddles a
-     *      governance change can miss the swapped element.
+     * @dev Paginated because even a bounded list can be large. Order is not stable:
+     *      removal swaps in the last element, so never persist an index, and a page walk
+     *      that straddles a governance change can miss the swapped element.
      *
      * @param offset the index to start from
      * @param limit the maximum number to return, or 0 for all remaining
