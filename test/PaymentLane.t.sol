@@ -30,7 +30,7 @@ contract PaymentLaneTest is Deployer {
     event PaymentContractRemoved(address indexed paymentContract);
     event failReasonWithBytes(bytes message);
 
-    // BEP-703 section 3.6 suggested values, in key order.
+    // BEP-703 section 3.6.1 normative values, in key order.
     uint256 internal constant D_MIN_RATIO = 200;
     uint256 internal constant D_MAX_RATIO = 800;
     uint256 internal constant D_EXPAND_TRIGGER = 8000;
@@ -97,35 +97,40 @@ contract PaymentLaneTest is Deployer {
         expected[4] = 300;
     }
 
-    /*----------------- the reason the extra ceilings exist -----------------*/
+    /*----------------- the range guards of section 3.6.2 -----------------*/
 
     /**
-     * @dev This tuple satisfies all six BEP-703 section 3.6 invariants but pins the lane at 90%
-     *      of the block, starving the mandatory end-of-block system transactions. If any
-     *      assertion here starts failing, a chain-halting configuration has become reachable by
-     *      a single governance vote.
+     * @dev BEP-703 section 3.6.2 carries two sets of constraints: six invariants binding the
+     *      parameters to each other, and a table of range guards bounding each one on its own.
+     *      This tuple satisfies all six invariants - and the guard that every one of the eight is
+     *      non-zero - yet pins the lane at 90% of the block, starving the mandatory end-of-block
+     *      system transactions. Only the magnitude guards catch it. If any assertion here starts
+     *      failing, a chain-halting configuration has become reachable by a single governance vote.
      */
     function testChainHaltTupleIsRejectedFieldByField() public {
-        // First the premise: BEP-703 alone really does accept this tuple. If any of these stops
-        // holding, the extra ceilings are guarding something else than advertised.
-        uint256 minR = 0;
-        uint256 maxR = 9000;
-        uint256 expT = 1000;
-        uint256 shrT = 0;
+        // First the premise: the six invariants really do accept this tuple. If any of these stops
+        // holding, the range guards are catching something else than advertised.
+        uint256 minR = 1;
+        uint256 maxR = 8999;
+        uint256 expT = 1001;
+        uint256 shrT = 1;
         uint256 expS = 1000;
         uint256 shrS = 1;
+        uint256 laneMin = 1e18;
+        uint256 laneMax = 2e18;
         assertGe(expT, shrT + paymentLane.TRIGGER_GAP_MIN(), "(1)");
         assertGt(expS, shrS, "(2)");
         assertGe(maxR, minR + paymentLane.RATIO_GAP_MIN(), "(3)");
-        assertGt(uint256(2e18), uint256(1e18), "(4)");
+        assertGt(laneMax, laneMin, "(4)");
         assertLe(maxR + expT, paymentLane.RATIO_DENOM(), "(5)");
         assertLe(expS + shrT, expT, "(6)");
 
-        // and now each field on its own against a ceiling the BEP does not have
-        _expectInvalid("paymentLaneMaxRatio", 9000); // > MAX_LANE_RATIO
-        _expectInvalid("expandTriggerRatio", 1000); // < MIN_EXPAND_TRIGGER_RATIO
-        _expectInvalid("shrinkTriggerRatio", 0); // < MIN_SHRINK_TRIGGER_RATIO
-        _expectInvalid("paymentLaneMin", 1e18); // > MAX_LANE_GAS
+        // and now each field of that same tuple against the range guard that rejects it
+        _expectInvalid("paymentLaneMaxRatio", maxR); // > MAX_LANE_RATIO
+        _expectInvalid("expandTriggerRatio", expT); // < MIN_EXPAND_TRIGGER_RATIO
+        _expectInvalid("shrinkTriggerRatio", shrT); // < MIN_SHRINK_TRIGGER_RATIO
+        _expectInvalid("paymentLaneMin", laneMin); // > MAX_LANE_GAS
+        _expectInvalid("paymentLaneMax", laneMax); // > MAX_LANE_GAS
 
         _assertParams(_defaults()); // and the BEP defaults are still what is stored
     }
@@ -498,10 +503,13 @@ contract PaymentLaneTest is Deployer {
             assertEq(uint256(vm.load(fresh, bytes32(i))), 0, "storage must be untouched");
         }
         _assertParams(fresh, _defaults());
+        // BEP-703 section 3.6.3: the fork lists nothing, every entry arrives by governance after it
+        assertEq(IPaymentLaneMeta(fresh).paymentContractCount(), 0, "the list must start empty");
     }
 
-    /// @dev 0 stops being a settable value - that is what makes an unwritten slot unambiguous.
-    ///      Seven parameters already had a positive floor; this is the one it actually restricts.
+    /// @dev 0 stops being a settable value - that is what makes an unwritten slot unambiguous. Six
+    ///      parameters already had a positive floor in stage one and paymentLaneMaxRatio is caught
+    ///      by invariant (3); this is the one the explicit zero check restricts.
     function testZeroIsNotSettable() public {
         _expectInvalid("paymentLaneMinRatio", 0);
     }
@@ -581,6 +589,8 @@ contract PaymentLaneStandaloneTest is Test {
     }
 
     /// @dev A page walk must cover the list exactly once, in the order the whole-list read gives.
+    ///      BEP-703 section 3.6.5 has the client check each page against the total that call
+    ///      returns, so every page - not just the first - has to carry the total.
     function testPagingCoversLongList() public {
         uint256 n = 300;
         uint256 pageSize = 64; // does not divide 300, so the last page is short
@@ -596,7 +606,8 @@ contract PaymentLaneStandaloneTest is Test {
         assertEq(total, n);
 
         for (uint256 offset; offset < n; offset += pageSize) {
-            (address[] memory page,) = pl.getPaymentContracts(offset, pageSize);
+            (address[] memory page, uint256 pageTotal) = pl.getPaymentContracts(offset, pageSize);
+            assertEq(pageTotal, n, "every page must report the total");
             assertEq(page.length, n - offset > pageSize ? pageSize : n - offset, "wrong page length");
             for (uint256 i; i < page.length; ++i) {
                 assertEq(page[i], all[offset + i], "page disagrees with full read");
