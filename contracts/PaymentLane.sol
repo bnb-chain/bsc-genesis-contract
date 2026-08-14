@@ -9,16 +9,16 @@ import "./lib/0.8.x/Utils.sol";
 
 /**
  * @title PaymentLane
- * @notice Configuration for BEP-703: the eight governable parameters of section 3.6 and the
- *         payment contract list of section 3.7.
+ * @notice Configuration for BEP-703: the eight governable parameters of section 3.6.1 and the
+ *         payment contract list of section 3.6.3. Section 3.6.4 specifies this contract itself.
  *
  * @dev The client reads this contract once per block, against the parent block's post-state,
- *      through the read-only getters. Upgrades must preserve those getter semantics and the
- *      eight-word tuple they expose.
+ *      through the read-only getters of section 3.6.5. Upgrades must preserve those getter
+ *      semantics and the eight-word tuple they expose.
  *
- *      There is no `initialize()`: an unwritten slot reads as its `DEFAULT_*` constant, so
- *      all-zero storage already IS the shipped configuration and the fork only has to set the
- *      code. New storage must be appended, never inserted or reordered.
+ *      There is no `initialize()`, per section 3.6.4: an unwritten slot reads as its `DEFAULT_*`
+ *      constant, so all-zero storage already IS the shipped configuration and the fork only has
+ *      to set the code. New storage must be appended, never inserted or reordered.
  */
 contract PaymentLane is SystemV2, IPaymentLaneMeta {
     using Utils for string;
@@ -26,16 +26,18 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*----------------- constants -----------------*/
-    // BEP-703 section 3.6 protocol constants.
+    // BEP-703 section 3.6.1 protocol constants. Its fourth, SYSTEM_TXS_GAS_RESERVE, is
+    // deliberately not mirrored here: it belongs to the client's section 3.4.4 `laneCap`, which no
+    // parameter update is validated against.
     uint256 public constant RATIO_DENOM = 10_000;
     uint256 public constant TRIGGER_GAP_MIN = 1_000;
     uint256 public constant RATIO_GAP_MIN = 500;
 
-    // BEP-703 section 3.8.4's range guards. Section 3.6's six invariants constrain the
-    // parameters against each other but say nothing about GasLimit or the mandatory
-    // end-of-block system transactions, so a tuple satisfying all six can still starve general
-    // gas until no valid block exists. Ratio bounds close that, being scale invariant. Must
-    // stay `constant`: a ceiling governance can raise is not one.
+    // BEP-703 section 3.6.2's range guards, which bound each parameter on its own. The six
+    // invariants alongside them constrain the parameters only against each other and say nothing
+    // about GasLimit or the mandatory end-of-block system transactions, so a tuple satisfying all
+    // six can still starve general gas until no valid block exists. Ratio bounds close that, being
+    // scale invariant. Must stay `constant`: a ceiling governance can raise is not one.
     uint256 public constant MAX_LANE_RATIO = 2_000; // lane <= 20% of any GasLimit
     uint256 public constant MIN_EXPAND_TRIGGER_RATIO = 5_000; // expand only under real congestion
     uint256 public constant MIN_SHRINK_TRIGGER_RATIO = 2_000; // a zero trigger never fires, so the lane would ratchet
@@ -43,14 +45,19 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     // unreachable today so nothing tests it.
     uint256 public constant MAX_STEP_RATIO = 1_000;
 
-    // The floor is the cheapest transaction's intrinsic gas: below it the lane holds nothing.
-    // The ceiling is only a fat-finger guard - both absolute bounds enter section 3.4.4 through
-    // a min(), so they can only shrink the lane, never grow it.
+    // The floor is the cheapest transaction's intrinsic gas: below it the lane holds nothing. The
+    // ceiling is only a fat-finger guard. Neither can widen the lane past the ratio bound above:
+    // PAYMENT_LANE_MIN does enter section 3.4.4 through a max(), and so can raise the floor above
+    // the ratio, but that max() sits inside a min() against laneMax - the floor is clamped to a
+    // ceiling the ratio already bounds.
     uint256 public constant MIN_LANE_GAS = 21_000;
     uint256 public constant MAX_LANE_GAS = 1_000_000_000;
+
+    // BEP-703 section 3.6.3: classification reads the whole list against each parent post-state,
+    // so this bound is here to keep that read finite, not to ration listings.
     uint256 public constant MAX_PAYMENT_CONTRACTS = 100_000;
 
-    // The value an unwritten slot reads as. BEP-703 section 3.6 suggested values.
+    // The value an unwritten slot reads as. BEP-703 section 3.6.1 normative values.
     uint256 private constant DEFAULT_PAYMENT_LANE_MIN_RATIO = 200; // 2%
     uint256 private constant DEFAULT_PAYMENT_LANE_MAX_RATIO = 800; // 8%
     uint256 private constant DEFAULT_EXPAND_TRIGGER_RATIO = 8_000; // 80%
@@ -81,7 +88,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     uint256 private _paymentLaneMin; // gas, not a ratio
     uint256 private _paymentLaneMax; // gas, not a ratio
 
-    // BEP-703 section 3.7
+    // BEP-703 section 3.6.3
     EnumerableSet.AddressSet private _paymentContracts;
 
     /*----------------- structs and events -----------------*/
@@ -115,7 +122,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
 
     /*----------------- view functions -----------------*/
     /**
-     * @return the eight parameters of BEP-703 section 3.6, each either as governance set it or,
+     * @return the eight parameters of BEP-703 section 3.6.1, each either as governance set it or,
      *         if governance never has, as its `DEFAULT_*` constant.
      */
     function getPaymentLaneParams() external view returns (Params memory) {
@@ -263,7 +270,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
         if (p.paymentLaneMin < MIN_LANE_GAS || p.paymentLaneMin > MAX_LANE_GAS) return false;
         if (p.paymentLaneMax < MIN_LANE_GAS || p.paymentLaneMax > MAX_LANE_GAS) return false;
 
-        // stage two, BEP-703 section 3.6
+        // stage two, BEP-703 section 3.6.2
         // (1) EXPAND_TRIGGER_RATIO - SHRINK_TRIGGER_RATIO >= TRIGGER_GAP_MIN
         if (p.expandTriggerRatio < p.shrinkTriggerRatio + TRIGGER_GAP_MIN) return false;
         // (2) EXPAND_STEP_RATIO > SHRINK_STEP_RATIO > 0, the lower half by stage one
