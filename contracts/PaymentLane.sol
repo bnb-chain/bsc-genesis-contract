@@ -12,9 +12,13 @@ import "./lib/0.8.x/Utils.sol";
  * @notice Configuration for BEP-703: the eight governable parameters of section 3.6.1 and the
  *         payment contract list of section 3.6.3. Section 3.6.4 specifies this contract itself.
  *
- * @dev The client reads this contract once per block, against the parent block's post-state,
- *      through the read-only getters of section 3.6.5. Upgrades must preserve those getter
- *      semantics and the eight-word tuple they expose.
+ * @dev The BSC client reads this contract once per block, against the parent block's post-state,
+ *      through IPaymentLaneMeta. Those reads are cached by this account's `(codeHash,
+ *      storageRoot)`, so the consensus getters MUST stay a function of this contract's own
+ *      storage only: no block/msg/tx environment reads, no blockhash, and no external calls.
+ *
+ *      Upgrades must preserve the getter semantics the client depends on: the eight-word tuple of
+ *      `getPaymentLaneParams()` and the pagination semantics of `getPaymentContracts()`.
  *
  *      There is no `initialize()`, per section 3.6.4: an unwritten slot reads as its `DEFAULT_*`
  *      constant, so all-zero storage already IS the shipped configuration and the fork only has
@@ -124,6 +128,9 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     /**
      * @return the eight parameters of BEP-703 section 3.6.1, each either as governance set it or,
      *         if governance never has, as its `DEFAULT_*` constant.
+     *
+     * @dev Consensus getter. Keep its return shape and semantics stable, and keep it a pure
+     *      function of this contract's own storage.
      */
     function getPaymentLaneParams() external view returns (Params memory) {
         return _loadParams();
@@ -153,6 +160,8 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
      * @dev Paginated because even a bounded list can be large. Order is not stable: removal
      *      swaps in the last element, so never persist an index, and a page walk that straddles
      *      a governance change can miss the swapped element.
+     *
+     *      Consensus getter. Keep it a pure function of this contract's own storage.
      *
      * @param limit the maximum number to return, or 0 for all remaining
      */
