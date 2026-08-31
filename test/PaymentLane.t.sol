@@ -458,6 +458,25 @@ contract PaymentLaneTest is Deployer {
     }
 
     /**
+     * @dev The client mirrors every constant below and rejects any block whose tuple or list
+     *      breaks them, so changing one here without the same change in core/paymentlane makes
+     *      that client reject blocks its peers accept. Every other test reads them symbolically
+     *      and would stay green; this one would not.
+     */
+    function testGuardConstantsAreFrozen() public {
+        assertEq(paymentLane.RATIO_DENOM(), 10_000, "RATIO_DENOM");
+        assertEq(paymentLane.TRIGGER_GAP_MIN(), 1_000, "TRIGGER_GAP_MIN");
+        assertEq(paymentLane.RATIO_GAP_MIN(), 500, "RATIO_GAP_MIN");
+        assertEq(paymentLane.MAX_LANE_RATIO(), 2_000, "MAX_LANE_RATIO");
+        assertEq(paymentLane.MIN_EXPAND_TRIGGER_RATIO(), 5_000, "MIN_EXPAND_TRIGGER_RATIO");
+        assertEq(paymentLane.MIN_SHRINK_TRIGGER_RATIO(), 2_000, "MIN_SHRINK_TRIGGER_RATIO");
+        assertEq(paymentLane.MAX_STEP_RATIO(), 1_000, "MAX_STEP_RATIO");
+        assertEq(paymentLane.MIN_LANE_GAS(), 21_000, "MIN_LANE_GAS");
+        assertEq(paymentLane.MAX_LANE_GAS(), 1_000_000_000, "MAX_LANE_GAS");
+        assertEq(paymentLane.MAX_PAYMENT_CONTRACTS(), 100_000, "MAX_PAYMENT_CONTRACTS");
+    }
+
+    /**
      * @dev The client hardcodes nothing about storage, but a shifted slot is still fatal: a
      *      `paymentLaneMax` that reads 0 puts every node into "lane off" permanently, because a
      *      shifted slot reads either a neighbour's value or its own default, with no error
