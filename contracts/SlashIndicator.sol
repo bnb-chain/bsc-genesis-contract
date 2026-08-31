@@ -252,19 +252,17 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             "verify signature failed"
         );
 
-        // reward sender and felony validator if validator found
-        (address[] memory vals, bytes[] memory voteAddrs) =
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).getLivingValidators();
-        for (uint256 i; i < voteAddrs.length; ++i) {
-            if (BytesLib.equal(voteAddrs[i], _evidence.voteAddr)) {
-                uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
-                ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
-                IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(vals[i]);
-                break;
-            }
-        }
-
+        // Slash + jail + evict the offender (StakeHub resolves the operator from the vote
+        // address and evicts it). If it reverts (e.g. already slashed / expired), the whole
+        // submission reverts and no reward is paid.
         IStakeHub(STAKE_HUB_ADDR).maliciousVoteSlash(_evidence.voteAddr);
+
+        // Reward the reporter unconditionally, mirroring submitDoubleSignEvidence. The prior
+        // implementation only paid when the vote address matched a CURRENT living validator's
+        // key, so a validator that rotated its vote key between the offence and the report was
+        // still fully slashed while the reporter received nothing.
+        uint256 amount = (address(SYSTEM_REWARD_ADDR).balance * felonySlashRewardRatio) / 100;
+        ISystemReward(SYSTEM_REWARD_ADDR).claimRewards(msg.sender, amount);
     }
 
     function submitDoubleSignEvidence(bytes memory header1, bytes memory header2) public onlyInit {
