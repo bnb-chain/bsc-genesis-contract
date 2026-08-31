@@ -29,6 +29,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     uint256 public constant INIT_MAX_NUMBER_NODE_ID = 5;
 
+    // Max byte length of each free-form description field (identity/website/details).
+    // Bounds the per-validator metadata that the daily election read copies out of storage,
+    // so an append-only registry of large descriptions cannot push getValidatorElectionInfo
+    // over the node's eth_call gas cap and halt the breathe-block validator-set update.
+    uint256 public constant MAX_DESCRIPTION_LENGTH = 280;
+
     // receive fund status
     uint8 private constant _DISABLE = 0;
     uint8 private constant _ENABLE = 1;
@@ -52,6 +58,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     error InvalidCommission();
     // @notice signature: 0x5dba5ad7
     error InvalidMoniker();
+    error InvalidDescription();
     // @notice signature: 0x2c8fc796
     error InvalidVoteAddress();
     // @notice signature: 0xca40c236
@@ -361,6 +368,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
                 || commission.maxChangeRate > commission.maxRate
         ) revert InvalidCommission();
         if (!_checkMoniker(description.moniker)) revert InvalidMoniker();
+        _checkDescriptionLength(description);
         // proof-of-possession verify
         if (!_checkVoteAddress(operatorAddress, voteAddress, blsProof)) revert InvalidVoteAddress();
 
@@ -445,6 +453,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         description.moniker = valInfo.description.moniker;
+        _checkDescriptionLength(description);
         valInfo.description = description;
         valInfo.updateTime = block.timestamp;
 
@@ -1157,6 +1166,20 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
+    // Bound each free-form description field so the daily election read cannot be made
+    // arbitrarily expensive. moniker is already length-checked by `_checkMoniker`.
+    function _checkDescriptionLength(
+        Description memory description
+    ) internal pure {
+        if (
+            bytes(description.identity).length > MAX_DESCRIPTION_LENGTH
+                || bytes(description.website).length > MAX_DESCRIPTION_LENGTH
+                || bytes(description.details).length > MAX_DESCRIPTION_LENGTH
+        ) {
+            revert InvalidDescription();
+        }
+    }
+
     function _checkMoniker(
         string memory moniker
     ) internal pure returns (bool) {
