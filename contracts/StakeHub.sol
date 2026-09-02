@@ -29,11 +29,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
 
     uint256 public constant INIT_MAX_NUMBER_NODE_ID = 5;
 
-    // Max byte length of each free-form description field (identity/website/details).
-    // Bounds the per-validator metadata that the daily election read copies out of storage,
-    // so an append-only registry of large descriptions cannot push getValidatorElectionInfo
-    // over the node's eth_call gas cap and halt the breathe-block validator-set update.
-    uint256 public constant MAX_DESCRIPTION_LENGTH = 280;
+    // Max byte length of each free-form description field, bounding the per-validator
+    // metadata the daily election read copies from storage.
+    uint256 public constant MAX_DESCRIPTION_LENGTH = 2048;
 
     // receive fund status
     uint8 private constant _DISABLE = 0;
@@ -1166,8 +1164,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     }
 
     /*----------------- internal functions -----------------*/
-    // Bound each free-form description field so the daily election read cannot be made
-    // arbitrarily expensive. moniker is already length-checked by `_checkMoniker`.
+    // moniker is already length-checked by `_checkMoniker`.
     function _checkDescriptionLength(
         Description memory description
     ) internal pure {

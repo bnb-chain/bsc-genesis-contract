@@ -152,7 +152,7 @@ contract StakeHubTest is Deployer {
     }
 
     function testDescriptionLengthCapped() public {
-        uint256 cap = 280; // StakeHub.MAX_DESCRIPTION_LENGTH
+        uint256 cap = 2048; // StakeHub.MAX_DESCRIPTION_LENGTH
         string memory tooLong = string(new bytes(cap + 1));
         string memory atCap = string(new bytes(cap));
 
