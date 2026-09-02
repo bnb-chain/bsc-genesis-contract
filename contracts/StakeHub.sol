@@ -150,12 +150,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     // where each NodeID is stored as a fixed 32-byte value.
     mapping(address => bytes32[]) private validatorNodeIDs;
 
-    // operator address => the consensus address held immediately before the most recent
-    // `editConsensusAddress`. Until the next breathe-block sync, BSCValidatorSet's active
-    // set may still be keyed on this pre-rotation address, so slash eviction must target it
-    // as well as the current one. Retained (never cleared) so a felony() on a stale value is
-    // a harmless no-op; consensusToOperator[preConsensusAddress] is likewise retained, so the
-    // address can never be re-registered by another validator.
+    // operator => consensus address held just before the latest `editConsensusAddress`.
+    // Slash eviction targets it too, since BSCValidatorSet keeps it until the next breathe sync.
     mapping(address => address) public preConsensusAddress;
 
     /*----------------- structs and events -----------------*/
@@ -412,9 +408,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         consensusExpiration[valInfo.consensusAddress] = block.timestamp;
-        // Remember the pre-rotation key: BSCValidatorSet keeps it in the active set until the
-        // next breathe-block sync, so slash eviction must still be able to reach it.
-        preConsensusAddress[operatorAddress] = valInfo.consensusAddress;
+        preConsensusAddress[operatorAddress] = valInfo.consensusAddress; // for slash eviction pre-sync
         valInfo.consensusAddress = newConsensusAddress;
         valInfo.updateTime = block.timestamp;
         consensusToOperator[newConsensusAddress] = operatorAddress;
@@ -721,10 +715,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        // Evict the validator's active-set key. `_felonyActiveKey` targets both the current
-        // and the pre-rotation consensus address, so the eviction lands whether or not the
-        // active set has synced a recent `editConsensusAddress`, and cannot be dodged by
-        // resolving the slash through a chosen key.
         _felonyActiveKey(valInfo);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
@@ -760,10 +750,6 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        // Evict the validator's active-set key. `_felonyActiveKey` targets both the current
-        // and the pre-rotation consensus address, so a proven double-signer is removed even
-        // when it rotated its key just before offending, and the eviction cannot be dodged by
-        // self-submitting evidence signed with the new key.
         _felonyActiveKey(valInfo);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
@@ -1242,15 +1228,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         return creditProxy;
     }
 
-    /**
-     * @dev Evict a validator from BSCValidatorSet's active set regardless of a pending
-     * consensus-key rotation. Between `editConsensusAddress` and the next breathe-block
-     * sync the active set is still keyed on the pre-rotation address, so felony() on the
-     * current address alone is a no-op. Evicting both the current and the pre-rotation key
-     * always removes whichever one is actually in the active set; felony() on the other is
-     * a harmless no-op. This also means the eviction cannot be dodged by choosing which key
-     * the slash resolves through (e.g. self-submitted evidence signed with the new key).
-     */
+    // Evict via both the current and pre-rotation consensus key, so the felony lands on
+    // whichever is actually seated in BSCValidatorSet (the other is a harmless no-op) and
+    // cannot be dodged by the key the slash resolves through.
     function _felonyActiveKey(Validator storage valInfo) internal {
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         address preAddr = preConsensusAddress[valInfo.operatorAddress];
