@@ -29,6 +29,7 @@ interface StakeHub {
     error InvalidCommission();
     error InvalidConsensusAddress();
     error InvalidMoniker();
+    error InvalidDescription();
     error InvalidRequest();
     error InvalidSynPackage();
     error InvalidValue(string key, bytes value);

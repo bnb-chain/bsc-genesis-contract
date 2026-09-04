@@ -151,6 +151,49 @@ contract StakeHubTest is Deployer {
         vm.stopPrank();
     }
 
+    function testDescriptionLengthCapped() public {
+        uint256 cap = 2048; // StakeHub.MAX_DESCRIPTION_LENGTH
+        string memory tooLong = string(new bytes(cap + 1));
+        string memory atCap = string(new bytes(cap));
+
+        // createValidator rejects an over-length free-form field.
+        address operatorAddress = _getNextUserAddress();
+        uint256 toLock = stakeHub.LOCK_AMOUNT();
+        StakeHub.Commission memory commission = StakeHub.Commission({ rate: 10, maxRate: 100, maxChangeRate: 5 });
+        StakeHub.Description memory description = StakeHub.Description({
+            moniker: string.concat("T", vm.toString(uint24(uint160(operatorAddress)))),
+            identity: "ok",
+            website: "ok",
+            details: tooLong
+        });
+        bytes memory voteAddress = bytes.concat(
+            hex"00000000000000000000000000000000000000000000000000000000", abi.encodePacked(operatorAddress)
+        );
+        bytes memory blsProof = new bytes(96);
+        address consensusAddress = address(uint160(uint256(keccak256(voteAddress))));
+        vm.prank(operatorAddress);
+        vm.expectRevert(StakeHub.InvalidDescription.selector);
+        stakeHub.createValidator{ value: 2000 ether + toLock }(
+            consensusAddress, voteAddress, blsProof, commission, description
+        );
+
+        // A validator at the cap can be created and edited; over-length edits revert.
+        (address validator,,,) = _createValidator(2000 ether);
+        vm.startPrank(validator);
+        vm.warp(block.timestamp + 1 days);
+
+        StakeHub.Description memory ok = stakeHub.getValidatorDescription(validator);
+        ok.details = atCap;
+        stakeHub.editDescription(ok); // at the cap: allowed
+
+        vm.warp(block.timestamp + 1 days);
+        StakeHub.Description memory bad = stakeHub.getValidatorDescription(validator);
+        bad.website = tooLong;
+        vm.expectRevert(StakeHub.InvalidDescription.selector);
+        stakeHub.editDescription(bad); // over the cap: rejected
+        vm.stopPrank();
+    }
+
     function testRotatedConsensusAddressCannotManageNodeIDs() public {
         (address validator, address oldConsensusAddress,,) = _createValidator(2000 ether);
 
