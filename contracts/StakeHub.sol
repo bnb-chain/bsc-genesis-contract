@@ -711,9 +711,13 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (_felonyMap[index] >= maxFelonyBetweenBreatheBlock) revert NoMoreFelonyAllowed();
         _felonyMap[index] += 1;
 
-        // check if the voteAddress has already expired
-        if (voteExpiration[voteAddress] != 0 && voteExpiration[voteAddress] + BREATHE_BLOCK_INTERVAL < block.timestamp)
-        {
+        // Evidence expires one BREATHE_BLOCK_INTERVAL after the vote key leaves the active set.
+        // A rotated-out key deactivates at the next breathe block, so the deadline is
+        // deactivation + BREATHE = (rotationTimestamp / BREATHE + 2) * BREATHE.
+        if (
+            voteExpiration[voteAddress] != 0
+                && (voteExpiration[voteAddress] / BREATHE_BLOCK_INTERVAL + 2) * BREATHE_BLOCK_INTERVAL < block.timestamp
+        ) {
             revert VoteAddressExpired();
         }
 
@@ -744,10 +748,12 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (_felonyMap[index] >= maxFelonyBetweenBreatheBlock) revert NoMoreFelonyAllowed();
         _felonyMap[index] += 1;
 
-        // check if the consensusAddress has already expired
+        // Evidence expires one BREATHE_BLOCK_INTERVAL after the consensus key leaves the active set.
+        // A rotated-out key deactivates at the next breathe block, so the deadline is
+        // deactivation + BREATHE = (rotationTimestamp / BREATHE + 2) * BREATHE.
         if (
             consensusExpiration[consensusAddress] != 0
-                && consensusExpiration[consensusAddress] + BREATHE_BLOCK_INTERVAL < block.timestamp
+                && (consensusExpiration[consensusAddress] / BREATHE_BLOCK_INTERVAL + 2) * BREATHE_BLOCK_INTERVAL < block.timestamp
         ) {
             revert ConsensusAddressExpired();
         }
