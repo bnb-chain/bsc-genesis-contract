@@ -150,6 +150,10 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     // where each NodeID is stored as a fixed 32-byte value.
     mapping(address => bytes32[]) private validatorNodeIDs;
 
+    // operator => consensus address held just before the latest `editConsensusAddress`.
+    // Slash eviction targets it too, since BSCValidatorSet keeps it until the next breathe sync.
+    mapping(address => address) public preConsensusAddress;
+
     /*----------------- structs and events -----------------*/
     struct StakeMigrationPackage {
         address operatorAddress; // the operator address of the target validator to delegate to
@@ -404,6 +408,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (valInfo.updateTime + BREATHE_BLOCK_INTERVAL > block.timestamp) revert UpdateTooFrequently();
 
         consensusExpiration[valInfo.consensusAddress] = block.timestamp;
+        preConsensusAddress[operatorAddress] = valInfo.consensusAddress; // for slash eviction pre-sync
         valInfo.consensusAddress = newConsensusAddress;
         valInfo.updateTime = block.timestamp;
         consensusToOperator[newConsensusAddress] = operatorAddress;
@@ -710,9 +715,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        // Evict using the post-rotation consensus key; SlashIndicator's voteAddr-based
-        // eviction covers the case where BSCValidatorSet has not yet synced K_new.
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
+        _felonyActiveKey(valInfo);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.MaliciousVote);
 
@@ -747,9 +750,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         if (!canSlash) revert AlreadySlashed();
         uint256 slashAmount = IStakeCredit(valInfo.creditContract).slash(felonySlashAmount);
         _jailValidator(valInfo, jailUntil);
-        // Evict using the post-rotation consensus key; SlashIndicator's felony(K_old)
-        // covers the case where BSCValidatorSet has not yet synced K_new.
-        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
+        _felonyActiveKey(valInfo);
 
         emit ValidatorSlashed(operatorAddress, jailUntil, slashAmount, SlashType.DoubleSign);
 
@@ -1227,6 +1228,17 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         return creditProxy;
     }
 
+    // Evict via both the current and pre-rotation consensus key, so the felony lands on
+    // whichever is actually seated in BSCValidatorSet (the other is a harmless no-op) and
+    // cannot be dodged by the key the slash resolves through.
+    function _felonyActiveKey(Validator storage valInfo) internal {
+        IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
+        address preAddr = preConsensusAddress[valInfo.operatorAddress];
+        if (preAddr != address(0) && preAddr != valInfo.consensusAddress) {
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(preAddr);
+        }
+    }
+
     function _checkValidatorSelfDelegation(
         address operatorAddress
     ) internal {
@@ -1236,7 +1248,7 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         }
         if (IStakeCredit(valInfo.creditContract).getPooledBNB(operatorAddress) < minSelfDelegationBNB) {
             _jailValidator(valInfo, block.timestamp + downtimeJailTime);
-            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
+            _felonyActiveKey(valInfo);
         }
     }
 

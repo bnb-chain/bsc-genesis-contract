@@ -459,6 +459,55 @@ contract StakeHubTest is Deployer {
         assertApproxEqAbs(preDelegatorBnbAmount, curDelegatorBnbAmount, 1); // there may be 1 delta due to the precision
     }
 
+    // Regression: a validator that rotates its consensus key just after a breathe block and is
+    // then double-sign-slashed through the NEW key (as with self-submitted evidence signed by
+    // K_new) must still be evicted from the active set, where it is seated under the OLD key.
+    // Before the fix, both eviction calls target K_new (not in the active set) and no-op, so the
+    // proven double-signer keeps its active-set seat under K_old until the next breathe sync.
+    function testDoubleSignSlashEvictsActiveKeyAfterRotation() public {
+        // Seat three validators into BSCValidatorSet's active set (felony needs >1 to remove one).
+        uint256 length = 3;
+        address[] memory consensusAddrs = new address[](length);
+        uint64[] memory votingPowers = new uint64[](length);
+        bytes[] memory voteAddrs = new bytes[](length);
+        address attacker;
+        address kOld;
+        for (uint256 i; i < length; ++i) {
+            uint64 vp = (2000 + uint64(i) * 2 + 1) * 1e8;
+            (address op,,,) = _createValidator(uint256(vp) * 1e10);
+            consensusAddrs[i] = stakeHub.getValidatorConsensusAddress(op);
+            votingPowers[i] = vp;
+            voteAddrs[i] = stakeHub.getValidatorVoteAddress(op);
+            if (i == 0) {
+                attacker = op;
+                kOld = consensusAddrs[i];
+            }
+        }
+        vm.prank(block.coinbase);
+        vm.txGasPrice(0);
+        bscValidatorSet.updateValidatorSetV2(consensusAddrs, votingPowers, voteAddrs);
+        assertTrue(bscValidatorSet.isCurrentValidator(kOld), "attacker should be seated under K_old");
+
+        // Rotate to K_new (allowed after the per-validator edit cooldown). BSCValidatorSet's
+        // active set is NOT resynced, so it still holds K_old.
+        vm.warp(block.timestamp + stakeHub.BREATHE_BLOCK_INTERVAL() + 1);
+        address kNew = address(uint160(uint256(keccak256("k-new-rotation"))));
+        vm.prank(attacker);
+        stakeHub.editConsensusAddress(kNew);
+        assertTrue(bscValidatorSet.isCurrentValidator(kOld), "K_old still seated right after rotation");
+        assertEq(stakeHub.consensusToOperator(kNew), attacker, "K_new resolves to the operator");
+
+        // Slash via K_new, as a self-submitted double-sign evidence signed with K_new would.
+        vm.prank(SLASH_CONTRACT_ADDR);
+        stakeHub.doubleSignSlash(kNew);
+
+        // The active-set seat (K_old) must be gone.
+        assertFalse(
+            bscValidatorSet.isCurrentValidator(kOld),
+            "proven double-signer must be evicted from the active set even after key rotation"
+        );
+    }
+
     function testMaliciousVoteSlash() public {
         // totalShares: 2100095458884494749761
         // totalPooledBNB: 2200 ether
