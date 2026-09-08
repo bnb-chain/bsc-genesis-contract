@@ -1,27 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity 0.8.17;
 
+/// @dev The BEP-703 section 3.6.4 consensus getters, the only way a node may read the payment
+///      lane configuration. An upgrade of PaymentLane must preserve every member and its meaning.
 interface IPaymentLaneMeta {
-    struct Params {
-        uint256 paymentLaneMinRatio;
-        uint256 paymentLaneMaxRatio;
-        uint256 expandTriggerRatio;
-        uint256 shrinkTriggerRatio;
-        uint256 expandStepRatio;
-        uint256 shrinkStepRatio;
-        uint256 paymentLaneMin;
-        uint256 paymentLaneMax;
-    }
-
-    function getPaymentLaneParams() external view returns (Params memory);
-
-    function arePaymentContracts(
-        address[] calldata addrs
-    ) external view returns (bool[] memory results);
+    function getPaymentLaneRatio() external view returns (uint256);
 
     function isPaymentContract(
         address paymentContract
     ) external view returns (bool);
+
+    function arePaymentContracts(
+        address[] calldata addrs
+    ) external view returns (bool[] memory results);
 
     function paymentContractCount() external view returns (uint256);
 
