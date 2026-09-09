@@ -41,8 +41,9 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     // general traffic. Must stay `constant` - a ceiling governance can raise is not a ceiling.
     uint256 public constant MAX_PAYMENT_LANE_RATIO = 1_000; // lane <= 10% of any GasLimit
 
-    // Section 3.6.1: caps the work of materialising the list. Enforced here, on the governance
-    // write; no node checks the count against it, so it is not a block validity condition.
+    // Section 3.6.1: caps the work of materialising the list. Enforced here on the governance
+    // write and checked by nodes on read, so the value moves only at a fork - here and in
+    // every client at once.
     uint256 public constant MAX_PAYMENT_CONTRACTS = 100_000;
 
     // The value an unwritten slot reads as - section 3.6.1's normative default. Revising it at a
