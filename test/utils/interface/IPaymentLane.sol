@@ -6,9 +6,7 @@ interface PaymentLane {
     error OnlyCoinbase();
     error OnlySystemContract(address systemContract);
     error OnlyZeroGasPrice();
-    error PaymentContractAlreadyExists();
     error PaymentContractLimitExceeded();
-    error PaymentContractNotFound();
     error UnknownParam(string key, bytes value);
 
     event ParamChange(string key, bytes value);
