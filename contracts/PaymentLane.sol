@@ -51,10 +51,6 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     uint256 private constant DEFAULT_PAYMENT_LANE_RATIO = 500; // 5%
 
     /*----------------- errors -----------------*/
-    // @notice signature: 0x6e45c90c
-    error PaymentContractAlreadyExists();
-    // @notice signature: 0x949d443a
-    error PaymentContractNotFound();
     // @notice signature: 0xb3a28ad3
     error PaymentContractLimitExceeded();
 
@@ -74,11 +70,20 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     /**
      * @dev BEP-703 section 3.6.5's single entry point, with all three of its keys:
      *      `paymentLaneRatio` takes `abi.encode(uint256)`, the two list keys take
-     *      `abi.encodePacked(address)`.
+     *      `abi.encode(address[])` - a single address is a one-element array. Never a packed
+     *      concatenation: a packed decoder could only check `length % 20`, and
+     *      `abi.encode(address[])` of 3, 8, 13... addresses is 160, 320, 480 bytes, every one a
+     *      multiple of 20, so that check would pass a mis-encoded proposal and list word
+     *      fragments as payment contracts. The ABI decoder rejects it, and a dirty address word
+     *      with it.
      *
-     *      A no-op is a revert here rather than a silent pass, so every accepted call is a real
-     *      change: a ratio outside the guard, an address already listed, one that is not listed,
-     *      and one that would carry the list past `MAX_PAYMENT_CONTRACTS`.
+     *      The list keys state a postcondition, not a diff: after `addPaymentContract` every
+     *      address in the array is listed, after `removePaymentContract` none is. An address
+     *      already in that state is skipped and emits nothing, so the events are the record of
+     *      what changed and `arePaymentContracts` confirms it. Rejecting it instead would only
+     *      burn the vote - GovHub swallows the revert, so the proposal reads executed either way,
+     *      and the rest of the array would be lost with it. `MAX_PAYMENT_CONTRACTS` is the one
+     *      hard stop left, and it must stay one: a cap that clamps is not a cap.
      *
      *      An accepted call lands in this block's post-state, and every consensus rule reads the
      *      parent's, so a change is invisible to its own block and governs from the next one on.
@@ -92,18 +97,18 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
             if (newRatio == 0 || newRatio > MAX_PAYMENT_LANE_RATIO) revert InvalidValue(key, value);
             _paymentLaneRatio = newRatio;
         } else if (key.compareStrings("addPaymentContract")) {
-            address paymentContract = _decodeAddress(key, value);
-            // The cap is checked after the add - the revert undoes it - so a duplicate on a full
-            // list still reports the duplicate.
-            if (!_paymentContracts.add(paymentContract)) revert PaymentContractAlreadyExists();
+            address[] memory addrs = _decodeAddresses(key, value);
+            for (uint256 i; i < addrs.length; ++i) {
+                if (_paymentContracts.add(addrs[i])) emit PaymentContractAdded(addrs[i]);
+            }
+            // Once, after the loop: the revert undoes the whole array, so the list never settles
+            // above the cap.
             if (_paymentContracts.length() > MAX_PAYMENT_CONTRACTS) revert PaymentContractLimitExceeded();
-            emit PaymentContractAdded(paymentContract);
         } else if (key.compareStrings("removePaymentContract")) {
-            address paymentContract = _decodeAddress(key, value);
-            // Strips lane eligibility and nothing else: transactions to the address are ordinary
-            // general transactions from the next block onward.
-            if (!_paymentContracts.remove(paymentContract)) revert PaymentContractNotFound();
-            emit PaymentContractRemoved(paymentContract);
+            address[] memory addrs = _decodeAddresses(key, value);
+            for (uint256 i; i < addrs.length; ++i) {
+                if (_paymentContracts.remove(addrs[i])) emit PaymentContractRemoved(addrs[i]);
+            }
         } else {
             revert UnknownParam(key, value);
         }
@@ -155,7 +160,7 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
      *      list can be large, and every page carries the total so a walk can be checked against
      *      it. Order is not stable: removal swaps in the last element, so an index must never be
      *      carried across blocks, and a page walk that straddles a governance change can miss the
-     *      swapped element.
+     *      swapped elements.
      *
      *      Consensus getter. Keep it a pure function of this contract's own storage.
      *
@@ -179,13 +184,13 @@ contract PaymentLane is SystemV2, IPaymentLaneMeta {
     }
 
     /*----------------- internal functions -----------------*/
-    /**
-     * @dev `abi.encodePacked(addr)`, not `abi.encode(addr)`: `Utils.bytesToAddress` mloads a
-     *      word at `_input + _offset`, so the offset must equal the byte length or it silently
-     *      returns a shifted address.
-     */
-    function _decodeAddress(string calldata key, bytes calldata value) internal pure returns (address) {
-        if (value.length != 20) revert InvalidValue(key, value);
-        return value.bytesToAddress(20);
+    /// @dev A malformed `value` reverts inside the ABI decoder, with no data to name the key.
+    ///      Only the empty array is this contract's own rule: a proposal that changes nothing.
+    function _decodeAddresses(
+        string calldata key,
+        bytes calldata value
+    ) internal pure returns (address[] memory addrs) {
+        addrs = abi.decode(value, (address[]));
+        if (addrs.length == 0) revert InvalidValue(key, value);
     }
 }

@@ -43,6 +43,38 @@ contract PaymentLaneTest is Deployer {
         paymentLane.updateParam(key, value);
     }
 
+    /// @dev Both list keys take `abi.encode(address[])`; a single address is a one-element array.
+    function _list(
+        address a
+    ) internal pure returns (bytes memory) {
+        address[] memory addrs = new address[](1);
+        addrs[0] = a;
+        return abi.encode(addrs);
+    }
+
+    function _list(address a, address b) internal pure returns (bytes memory) {
+        address[] memory addrs = new address[](2);
+        addrs[0] = a;
+        addrs[1] = b;
+        return abi.encode(addrs);
+    }
+
+    function _list(address a, address b, address c) internal pure returns (bytes memory) {
+        address[] memory addrs = new address[](3);
+        addrs[0] = a;
+        addrs[1] = b;
+        addrs[2] = c;
+        return abi.encode(addrs);
+    }
+
+    function _listRange(uint256 start, uint256 n) internal pure returns (bytes memory) {
+        address[] memory addrs = new address[](n);
+        for (uint256 i; i < n; ++i) {
+            addrs[i] = address(uint160(start + i));
+        }
+        return abi.encode(addrs);
+    }
+
     /*----------------- the ratio guard of section 3.6.1 -----------------*/
 
     /**
@@ -100,15 +132,21 @@ contract PaymentLaneTest is Deployer {
         assertEq(paymentLane.getPaymentLaneRatio(), 300);
     }
 
-    /// @dev The list branches take the same swallowed-revert path as the ratio one.
+    /// @dev The list branches take the same swallowed-revert path as the ratio one - which is
+    ///      why an already-listed address is not a rejection: the revert would be invisible and
+    ///      would take the rest of the array with it.
     function testGovHubListPath() public {
-        _updateParamByGovHub("addPaymentContract", abi.encodePacked(USDT), address(paymentLane));
+        _updateParamByGovHub("addPaymentContract", _list(USDT), address(paymentLane));
         assertTrue(paymentLane.isPaymentContract(USDT));
 
+        _updateParamByGovHub("addPaymentContract", _list(USDT), address(paymentLane));
+        assertEq(paymentLane.paymentContractCount(), 1, "a re-listed address must not duplicate");
+
+        bytes memory none = abi.encode(new address[](0));
         vm.expectEmit(false, false, false, true, GOV_HUB_ADDR);
-        emit failReasonWithBytes(abi.encodeWithSignature("PaymentContractAlreadyExists()"));
-        _updateParamByGovHub("addPaymentContract", abi.encodePacked(USDT), address(paymentLane));
-        assertTrue(paymentLane.isPaymentContract(USDT));
+        emit failReasonWithBytes(abi.encodeWithSignature("InvalidValue(string,bytes)", "addPaymentContract", none));
+        _updateParamByGovHub("addPaymentContract", none, address(paymentLane));
+        assertEq(paymentLane.paymentContractCount(), 1);
     }
 
     /*----------------- the payment contract list -----------------*/
@@ -119,13 +157,13 @@ contract PaymentLaneTest is Deployer {
         vm.expectEmit(true, false, false, false, address(paymentLane));
         emit PaymentContractAdded(USDT);
         vm.prank(GOV_HUB_ADDR);
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
+        paymentLane.updateParam("addPaymentContract", _list(USDT));
         assertTrue(paymentLane.isPaymentContract(USDT));
 
         vm.expectEmit(true, false, false, false, address(paymentLane));
         emit PaymentContractRemoved(USDT);
         vm.prank(GOV_HUB_ADDR);
-        paymentLane.updateParam("removePaymentContract", abi.encodePacked(USDT));
+        paymentLane.updateParam("removePaymentContract", _list(USDT));
         assertFalse(paymentLane.isPaymentContract(USDT));
     }
 
@@ -133,37 +171,67 @@ contract PaymentLaneTest is Deployer {
     ///      with no mechanical gate behind it. A reinstated range check fails here rather than at
     ///      a real vote.
     function testListAcceptsAnyAddress() public {
-        vm.startPrank(GOV_HUB_ADDR);
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(0)));
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(0x0a)));
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(VALIDATOR_CONTRACT_ADDR));
-        vm.stopPrank();
+        vm.prank(GOV_HUB_ADDR);
+        paymentLane.updateParam("addPaymentContract", _list(address(0), address(0x0a), VALIDATOR_CONTRACT_ADDR));
 
         assertTrue(paymentLane.isPaymentContract(address(0)));
         assertTrue(paymentLane.isPaymentContract(address(0x0a)));
         assertTrue(paymentLane.isPaymentContract(VALIDATOR_CONTRACT_ADDR));
 
         vm.prank(GOV_HUB_ADDR);
-        paymentLane.updateParam("removePaymentContract", abi.encodePacked(address(0)));
+        paymentLane.updateParam("removePaymentContract", _list(address(0)));
         assertFalse(paymentLane.isPaymentContract(address(0)));
     }
 
-    /// @dev Section 3.6.5: a no-op must revert rather than pass silently, so that every accepted
-    ///      call is a real change.
-    function testListRejections() public {
+    /// @dev Section 3.6.5: the list keys state a postcondition, so an address already in the
+    ///      wanted state is skipped and the rest of the array still lands. Rejecting it instead
+    ///      would lose the rest to a revert GovHub swallows.
+    function testListIsDeclarative() public {
         vm.startPrank(GOV_HUB_ADDR);
+        paymentLane.updateParam("addPaymentContract", _list(USDT));
 
-        // abi.encode gives 32 bytes; the decoder needs the packed 20-byte form
-        _expectListInvalid("addPaymentContract", abi.encode(USDT));
-        _expectListInvalid("removePaymentContract", abi.encode(USDT));
+        // a re-listed address changes nothing and does not stop the new one beside it
+        paymentLane.updateParam("addPaymentContract", _list(USDT, USDC));
+        assertEq(paymentLane.paymentContractCount(), 2);
+        assertTrue(paymentLane.isPaymentContract(USDC));
 
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
-        vm.expectRevert(abi.encodeWithSignature("PaymentContractAlreadyExists()"));
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
+        // likewise for removing an address that was never listed - and only the real removal
+        // emits, so the log is the record of what changed
+        vm.expectEmit(true, false, false, false, address(paymentLane));
+        emit PaymentContractRemoved(USDT);
+        paymentLane.updateParam("removePaymentContract", _list(address(0x0a), USDT));
+        assertEq(paymentLane.paymentContractCount(), 1);
+        assertFalse(paymentLane.isPaymentContract(USDT));
 
-        vm.expectRevert(abi.encodeWithSignature("PaymentContractNotFound()"));
-        paymentLane.updateParam("removePaymentContract", abi.encodePacked(USDC));
+        // an all-stale removal is an accepted no-op, not a revert
+        paymentLane.updateParam("removePaymentContract", _list(address(0x0a), USDT));
+        assertEq(paymentLane.paymentContractCount(), 1);
+        vm.stopPrank();
+    }
 
+    /// @dev The loops must honour `EnumerableSet.add`/`remove`'s return value. Dropping it leaves
+    ///      membership and the count correct - the set already de-duplicates - and only the event
+    ///      stream wrong, so nothing but a log count catches it.
+    function testOnlyRealChangesEmit() public {
+        vm.startPrank(GOV_HUB_ADDR);
+        paymentLane.updateParam("addPaymentContract", _list(USDT));
+
+        // USDT is already listed: one PaymentContractAdded for USDC, then ParamChange
+        vm.recordLogs();
+        paymentLane.updateParam("addPaymentContract", _list(USDT, USDC));
+        assertEq(vm.getRecordedLogs().length, 2, "a skipped add must not emit");
+        assertEq(paymentLane.paymentContractCount(), 2, "the count must grow by the real additions");
+
+        // the same address twice in one array is one entry and one event
+        vm.recordLogs();
+        paymentLane.updateParam("addPaymentContract", _list(address(0x0a), address(0x0a)));
+        assertEq(vm.getRecordedLogs().length, 2, "an intra-array duplicate must not emit twice");
+        assertEq(paymentLane.paymentContractCount(), 3);
+
+        // 0x0b was never listed: one PaymentContractRemoved for USDT, then ParamChange
+        vm.recordLogs();
+        paymentLane.updateParam("removePaymentContract", _list(address(0x0b), USDT));
+        assertEq(vm.getRecordedLogs().length, 2, "a skipped removal must not emit");
         vm.stopPrank();
     }
 
@@ -172,11 +240,8 @@ contract PaymentLaneTest is Deployer {
         assertEq(empty.length, 0);
         assertEq(emptyTotal, 0);
 
-        vm.startPrank(GOV_HUB_ADDR);
-        for (uint256 i; i < 5; ++i) {
-            paymentLane.updateParam("addPaymentContract", abi.encodePacked(address(uint160(0x10000 + i))));
-        }
-        vm.stopPrank();
+        vm.prank(GOV_HUB_ADDR);
+        paymentLane.updateParam("addPaymentContract", _listRange(0x10000, 5));
 
         // limit 0 means "the rest", so this is the whole list
         (address[] memory all, uint256 total) = paymentLane.getPaymentContracts(0, 0);
@@ -214,7 +279,7 @@ contract PaymentLaneTest is Deployer {
 
     function testArePaymentContracts() public {
         vm.prank(GOV_HUB_ADDR);
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
+        paymentLane.updateParam("addPaymentContract", _list(USDT));
 
         address[] memory q = new address[](4);
         q[0] = USDC; // not listed
@@ -245,7 +310,7 @@ contract PaymentLaneTest is Deployer {
     }
 
     /// @dev Section 3.6.5 defines exactly three keys; anything else is an unknown key whatever it
-    ///      carries, because each of the three validates its own value length inside its branch.
+    ///      carries, because the key is matched before any branch looks at the value.
     function testUnknownParam() public {
         vm.startPrank(GOV_HUB_ADDR);
         vm.expectRevert(abi.encodeWithSignature("UnknownParam(string,bytes)", "notAParam", abi.encode(uint256(1))));
@@ -301,7 +366,7 @@ contract PaymentLaneTest is Deployer {
 
         // slots 1 and 2 are the EnumerableSet: array length, then the index mapping
         vm.prank(GOV_HUB_ADDR);
-        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
+        paymentLane.updateParam("addPaymentContract", _list(USDT));
         assertEq(uint256(vm.load(address(paymentLane), bytes32(uint256(1)))), 1, "list array moved");
         assertEq(
             uint256(vm.load(address(paymentLane), keccak256(abi.encode(USDT, uint256(2))))),
@@ -310,14 +375,26 @@ contract PaymentLaneTest is Deployer {
         );
     }
 
-    function testWrongValueLength() public {
+    /// @dev The ratio takes exactly 32 bytes; the list keys take an ABI-encoded `address[]`, and
+    ///      an empty one is the only malformed value this contract names itself.
+    function testWrongValue() public {
         vm.startPrank(GOV_HUB_ADDR);
-        // the ratio takes 32 bytes, the two list keys 20
         _expectListInvalid("paymentLaneRatio", abi.encodePacked(uint64(500))); // 8 bytes
         _expectListInvalid("paymentLaneRatio", "");
         _expectListInvalid("paymentLaneRatio", abi.encodePacked(USDT)); // 20 bytes
-        _expectListInvalid("addPaymentContract", "");
-        _expectListInvalid("addPaymentContract", abi.encodePacked(USDT, uint8(0))); // 21 bytes
+        _expectListInvalid("addPaymentContract", abi.encode(new address[](0)));
+        _expectListInvalid("removePaymentContract", abi.encode(new address[](0)));
+
+        // Everything else dies in the ABI decoder, with no data to name the key. The packed forms
+        // matter most: `abi.encode(address[])` of 3, 8, 13... addresses is a multiple of 20 bytes,
+        // so a decoder that checked `length % 20` would have accepted a mis-encoded proposal and
+        // listed word fragments as payment contracts.
+        vm.expectRevert();
+        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT));
+        vm.expectRevert();
+        paymentLane.updateParam("addPaymentContract", abi.encodePacked(USDT, USDC, address(0x0a)));
+        vm.expectRevert();
+        paymentLane.updateParam("removePaymentContract", "");
         vm.stopPrank();
     }
 
@@ -373,29 +450,44 @@ contract PaymentLaneStandaloneTest is Test {
         pl = new PaymentLaneImpl();
     }
 
+    function _list(
+        address a
+    ) internal pure returns (bytes memory) {
+        address[] memory addrs = new address[](1);
+        addrs[0] = a;
+        return abi.encode(addrs);
+    }
+
     function _add(
         uint256 i
     ) internal {
-        pl.updateParam("addPaymentContract", abi.encodePacked(address(uint160(0x10000 + i))));
+        pl.updateParam("addPaymentContract", _list(address(uint160(0x10000 + i))));
     }
 
-    /// @dev 300 stays well below the explicit 100k cap, so a lower accidental cap fails here
-    ///      rather than only after governance has grown the list in production.
+    function _addRange(uint256 start, uint256 n) internal {
+        address[] memory addrs = new address[](n);
+        for (uint256 i; i < n; ++i) {
+            addrs[i] = address(uint160(0x10000 + start + i));
+        }
+        pl.updateParam("addPaymentContract", abi.encode(addrs));
+    }
+
+    /// @dev 300 in a single array: well below the explicit 100k cap, so a lower accidental cap -
+    ///      or a loop that stops early - fails here rather than only after governance has grown
+    ///      the list in production.
     function testListAllowsModeratelyLongLists() public {
         uint256 n = 300;
 
         vm.startPrank(GOV_HUB);
-        for (uint256 i; i < n; ++i) {
-            _add(i);
-        }
+        _addRange(0, n);
         assertEq(pl.paymentContractCount(), n);
 
-        // a duplicate is a duplicate at any length
-        vm.expectRevert(PaymentLaneImpl.PaymentContractAlreadyExists.selector);
+        // a re-listed address is a no-op at any length
         _add(0);
+        assertEq(pl.paymentContractCount(), n);
 
         // and removal is unaffected by length
-        pl.updateParam("removePaymentContract", abi.encodePacked(address(uint160(0x10000))));
+        pl.updateParam("removePaymentContract", _list(address(uint160(0x10000))));
         vm.stopPrank();
 
         assertEq(pl.paymentContractCount(), n - 1);
@@ -403,21 +495,34 @@ contract PaymentLaneStandaloneTest is Test {
         assertTrue(pl.isPaymentContract(address(uint160(0x10000 + n - 1))), "last add missing");
     }
 
+    /// @dev The cap is the one hard stop left, so it is also the only place a whole array is
+    ///      refused - which makes this the test that the refusal is atomic.
     function testListCapIsEnforced() public {
-        uint256 maxPaymentContracts = pl.MAX_PAYMENT_CONTRACTS();
+        uint256 max = pl.MAX_PAYMENT_CONTRACTS();
 
-        vm.store(address(pl), LIST_LENGTH_SLOT, bytes32(maxPaymentContracts - 1));
+        vm.store(address(pl), LIST_LENGTH_SLOT, bytes32(max - 2));
 
         vm.startPrank(GOV_HUB);
-        _add(0);
-        assertEq(uint256(vm.load(address(pl), LIST_LENGTH_SLOT)), maxPaymentContracts);
+        // an array that straddles the cap is refused whole, leaving no prefix behind
+        vm.expectRevert(PaymentLaneImpl.PaymentContractLimitExceeded.selector);
+        _addRange(0, 3);
+        assertEq(uint256(vm.load(address(pl), LIST_LENGTH_SLOT)), max - 2, "a refused array must leave no trace");
+        assertFalse(pl.isPaymentContract(address(uint160(0x10000))));
+
+        // one that lands exactly on the cap is accepted
+        _addRange(0, 2);
+        assertEq(uint256(vm.load(address(pl), LIST_LENGTH_SLOT)), max);
 
         vm.expectRevert(PaymentLaneImpl.PaymentContractLimitExceeded.selector);
-        _add(1);
+        _add(2);
+
+        // but a re-listed address is still a no-op at the cap, not a violation: the cap counts
+        // entries, never array length, so a `length + addrs.length` pre-check would fail here
+        _add(0);
         vm.stopPrank();
 
-        // the rejected add left no trace, so the cap is a real ceiling and not an off-by-one
-        assertEq(uint256(vm.load(address(pl), LIST_LENGTH_SLOT)), maxPaymentContracts);
+        // the cap is a real ceiling and not an off-by-one
+        assertEq(uint256(vm.load(address(pl), LIST_LENGTH_SLOT)), max);
     }
 
     /// @dev A page walk must cover the list exactly once, in the order the whole-list read gives.
@@ -428,11 +533,8 @@ contract PaymentLaneStandaloneTest is Test {
         uint256 n = 300;
         uint256 pageSize = 64; // does not divide 300, so the last page is short
 
-        vm.startPrank(GOV_HUB);
-        for (uint256 i; i < n; ++i) {
-            _add(i);
-        }
-        vm.stopPrank();
+        vm.prank(GOV_HUB);
+        _addRange(0, n);
 
         (address[] memory all, uint256 total) = pl.getPaymentContracts(0, 0);
         assertEq(all.length, n);
@@ -458,10 +560,8 @@ contract PaymentLaneStandaloneTest is Test {
     ///      thing consensus reads - is unaffected.
     function testRemovalSwapsTheLastEntryIntoTheGap() public {
         vm.startPrank(GOV_HUB);
-        for (uint256 i; i < 3; ++i) {
-            _add(i);
-        }
-        pl.updateParam("removePaymentContract", abi.encodePacked(address(uint160(0x10000))));
+        _addRange(0, 3);
+        pl.updateParam("removePaymentContract", _list(address(uint160(0x10000))));
         vm.stopPrank();
 
         (address[] memory all,) = pl.getPaymentContracts(0, 0);

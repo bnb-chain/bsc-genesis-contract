@@ -233,17 +233,7 @@
   },
   {
     "type": "error",
-    "name": "PaymentContractAlreadyExists",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "PaymentContractLimitExceeded",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "PaymentContractNotFound",
     "inputs": []
   },
   {
