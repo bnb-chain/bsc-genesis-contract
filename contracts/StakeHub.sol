@@ -753,7 +753,8 @@ contract StakeHub is SystemV2, Initializable, Protectable {
         // deactivation + BREATHE = (rotationTimestamp / BREATHE + 2) * BREATHE.
         if (
             consensusExpiration[consensusAddress] != 0
-                && (consensusExpiration[consensusAddress] / BREATHE_BLOCK_INTERVAL + 2) * BREATHE_BLOCK_INTERVAL < block.timestamp
+                && (consensusExpiration[consensusAddress] / BREATHE_BLOCK_INTERVAL + 2) * BREATHE_BLOCK_INTERVAL
+                    < block.timestamp
         ) {
             revert ConsensusAddressExpired();
         }
@@ -1257,7 +1258,9 @@ contract StakeHub is SystemV2, Initializable, Protectable {
     // Evict via both the current and pre-rotation consensus key, so the felony lands on
     // whichever is actually seated in BSCValidatorSet (the other is a harmless no-op) and
     // cannot be dodged by the key the slash resolves through.
-    function _felonyActiveKey(Validator storage valInfo) internal {
+    function _felonyActiveKey(
+        Validator storage valInfo
+    ) internal {
         IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).felony(valInfo.consensusAddress);
         address preAddr = preConsensusAddress[valInfo.operatorAddress];
         if (preAddr != address(0) && preAddr != valInfo.consensusAddress) {
