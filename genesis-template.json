@@ -130,6 +130,10 @@
       "balance": "0x0",
       "code": "{{timelock}}"
     },
+    "0x0000000000000000000000000000000000002007": {
+      "balance": "0x0",
+      "code": "{{paymentLane}}"
+    },
     "0x0000000000000000000000000000000000003000": {
       "balance": "0x0",
       "code": "{{tokenRecoverPortal}}"
