@@ -9,4 +9,3 @@ forge flatten contracts/BSCGovernor.sol -o contracts/flattened/BSCGovernor.sol
 forge flatten contracts/GovToken.sol -o contracts/flattened/GovToken.sol
 forge flatten contracts/BSCTimelock.sol -o contracts/flattened/BSCTimelock.sol
 forge flatten contracts/TokenRecoverPortal.sol -o contracts/flattened/TokenRecoverPortal.sol
-forge flatten contracts/PaymentLane.sol -o contracts/flattened/PaymentLane.sol
