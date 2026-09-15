@@ -43,6 +43,10 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
 
     uint256 public felonySlashScope;
 
+    // BEP-714 Earlier Validator Maintenance
+    uint256 public constant INIT_MAINTENANCE_THRESHOLD = 40;
+    uint256 private _maintenanceThreshold;
+
     event validatorSlashed(address indexed validator);
     event indicatorCleaned();
     event paramChange(string key, bytes value);
@@ -127,9 +131,16 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             _downtimeSlash(validator, indicator.count, false);
         } else if (indicator.count % misdemeanorThreshold == 0) {
             IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).misdemeanor(validator);
+        } else if (indicator.count == maintenanceThreshold()) {
+            // BEP-714: enter maintenance before any economic penalty
+            IBSCValidatorSet(VALIDATOR_CONTRACT_ADDR).tryEnterMaintenance(validator);
         }
         indicators[validator] = indicator;
         emit validatorSlashed(validator);
+    }
+
+    function maintenanceThreshold() public view returns (uint256) {
+        return _maintenanceThreshold == 0 ? INIT_MAINTENANCE_THRESHOLD : _maintenanceThreshold;
     }
 
     // To prevent validator misbehaving and leaving, do not clean slash record to zero, but decrease by felonyThreshold/DECREASE_RATE .
@@ -352,10 +363,18 @@ contract SlashIndicator is ISlashIndicator, System, IParamSubscriber, IApplicati
             require(value.length == 32, "length of misdemeanorThreshold mismatch");
             uint256 newMisdemeanorThreshold = BytesToTypes.bytesToUint256(32, value);
             require(
-                newMisdemeanorThreshold >= 1 && newMisdemeanorThreshold < felonyThreshold,
+                newMisdemeanorThreshold > maintenanceThreshold() && newMisdemeanorThreshold < felonyThreshold,
                 "the misdemeanorThreshold out of range"
             );
             misdemeanorThreshold = newMisdemeanorThreshold;
+        } else if (Memory.compareStrings(key, "maintenanceThreshold")) {
+            require(value.length == 32, "length of maintenanceThreshold mismatch");
+            uint256 newMaintenanceThreshold = BytesToTypes.bytesToUint256(32, value);
+            require(
+                newMaintenanceThreshold > 0 && newMaintenanceThreshold < misdemeanorThreshold,
+                "the maintenanceThreshold out of range"
+            );
+            _maintenanceThreshold = newMaintenanceThreshold;
         } else if (Memory.compareStrings(key, "felonyThreshold")) {
             require(value.length == 32, "length of felonyThreshold mismatch");
             uint256 newFelonyThreshold = BytesToTypes.bytesToUint256(32, value);

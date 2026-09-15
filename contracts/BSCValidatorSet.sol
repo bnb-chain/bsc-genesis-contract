@@ -526,6 +526,16 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
     }
 
     /**
+     * @dev Enter maintenance without penalty once the missed-block count reached `maintenanceThreshold`. refer to https://github.com/bnb-chain/BEPs/blob/master/BEPs/BEP-714.md
+     */
+    function tryEnterMaintenance(address validator) external override onlySlash initValidatorExtraSet {
+        uint256 index = currentValidatorSetMap[validator];
+        if (index > 0 && canEnterMaintenance(index - 1)) {
+            _enterMaintenance(validator, index - 1);
+        }
+    }
+
+    /**
      * @dev Evict a validator from the active set.
      * @notice Idempotent: safe to call multiple times for the same validator. If the
      * validator is not in `currentValidatorSetMap` (already evicted, or the supplied
@@ -569,12 +579,23 @@ contract BSCValidatorSet is IBSCValidatorSet, System, IParamSubscriber, IApplica
                 || !isWorkingValidator(index) // - 3. check if not working(not jailed and not maintaining)
                 || validatorExtraSet[index].enterMaintenanceHeight > 0 // - 5. check if has Maintained during current 24-hour period
                     // current validators are selected every 24 hours(from 00:00:00 UTC to 23:59:59 UTC)
-                || getValidators().length <= 1 // - 6. check num of remaining working validators
+                || !_hasOtherWorkingValidator(index) // - 6. check num of remaining working validators
         ) {
             return false;
         }
 
         return true;
+    }
+
+    // stop at the first other working validator instead of scanning the whole set twice
+    function _hasOtherWorkingValidator(uint256 index) private view returns (bool) {
+        uint256 n = currentValidatorSet.length;
+        for (uint256 i; i < n; ++i) {
+            if (i != index && isWorkingValidator(i)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

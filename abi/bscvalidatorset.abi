@@ -1278,6 +1278,19 @@
   },
   {
     "type": "function",
+    "name": "tryEnterMaintenance",
+    "inputs": [
+      {
+        "name": "validator",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "turnLength",
     "inputs": [],
     "outputs": [
