@@ -90,7 +90,7 @@ const checkHardforkBytecode = async () => {
   await compareGenesisWithHardforkBytecodes(testnetGenesis, testnetHardforkFiles)
 };
 
-const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: string[]) => {
+export const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: string[]) => {
   const genesis: any = require(genesisFile)
   for (const addr in genesis['alloc']) {
     if (!genesis['alloc'][addr]['code']) {
@@ -106,8 +106,7 @@ const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: s
 
     const bytecodeFromBsc = getBytecodeFromBscRepo(contractName, files)
     if (!bytecodeFromBsc) {
-      log(`cannot find bytecode for ${contractName} in bsc repo`)
-      continue;
+      throw new Error(`cannot find bytecode for ${contractName} in bsc repo`)
     }
 
     log('bytecode from bsc repo:', bytecodeFromBsc.length, )
@@ -123,7 +122,7 @@ const compareGenesisWithHardforkBytecodes = async (genesisFile: string, files: s
 const getBytecodeFromBscRepo = (contractName: string, files: string[]): string | undefined => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
-    if (file.includes(`/${contractName}`)) {
+    if (path.basename(file) === contractName) {
       return clear0x((fs.readFileSync(file)).toString());
     }
   }
@@ -256,9 +255,11 @@ const sleep = async (seconds: number) => {
   await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 };
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+if (require.main === module) {
+  main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    });
+}
